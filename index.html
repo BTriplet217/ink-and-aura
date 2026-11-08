@@ -6767,9 +6767,9 @@ async function walkCast(moves, ms = 900, opts = {}) {   // moves: [[key, x, y, d
 }
 const castSet = (keys, prop, v) => { for (const k of keys) { const g = W.npcs[castId(k)]; if (g) g.userData[prop] = v; } };
 const lie = (on, ms = 400) => { const p = W.player; return tween(ms, k => { p.rotation.x = on ? -k * Math.PI / 2 : -(1 - k) * Math.PI / 2; }); };
-// Outside: Saffi, Tam, [door], Brand, Lio, Morwen in a line along the house front. Lio stands between Brand and Morwen, at the door.
+// Outside: Saffi, Lio, Tam, [door], Brand, Morwen along the house front. Lio stands between his parents, Tam and Saffi.
 const DND_OUT = () => { const [dx, dy] = DND_DOOR, map = TOWNS.JOY.id, taken = [{ x:dx, y:dy + 1 }, { x:dx, y:dy + 2 }, { x:dx, y:dy + 3 }], out = {};
-  for (const [k, x, y, d] of [['tam', dx - 1, dy + 1, 'down'], ['brand', dx + 1, dy + 1, 'down'], ['lio', dx + 2, dy + 1, 'down'], ['saffi', dx - 2, dy + 1, 'down'], ['morwen', dx + 3, dy + 1, 'down']]) {
+  for (const [k, x, y, d] of [['tam', dx - 1, dy + 1, 'down'], ['brand', dx + 1, dy + 1, 'down'], ['lio', dx - 2, dy + 1, 'down'], ['saffi', dx - 3, dy + 1, 'down'], ['morwen', dx + 2, dy + 1, 'down']]) {
     const [fx, fy] = freeNear(map, x, y, taken); taken.push({ x:fx, y:fy }); out[k] = [fx, fy, d]; } return out; };
 function dndOutsideEnts(map) {
   if (map !== TOWNS.JOY.id || !(S.flags.dndOutside || S.flags.dndEscort)) return [];
@@ -6830,18 +6830,18 @@ async function dndThrowOut() {
   await Promise.all([walkCast([], 10, { player:[dx, dy + 3] }), lie(true, 450)]);
   await say('You hit the street hard.');
   await walkCast([['tam', P.tam[0], P.tam[1], 'down'], ['brand', P.brand[0], P.brand[1], 'down']], 600);
-  // the others come out one by one; Lio clings to his grown-ups and stops at the door, beside Brand
-  for (const k of ['saffi', 'morwen', 'lio']) { S.flags.dndGone[k] = 0; DND_POS[k] = [dx, dy + .6, 'down']; ENTC.t = 0; await wait(80); await walkCast([[k, P[k][0], P[k][1], P[k][2]]], k === 'lio' ? 900 : 700); }
+  // the others come out one by one; Lio goes straight to his parents
+  for (const k of ['saffi', 'lio', 'morwen']) { S.flags.dndGone[k] = 0; DND_POS[k] = [dx, dy + .6, 'down']; ENTC.t = 0; await wait(80); await walkCast([[k, P[k][0], P[k][1], P[k][2]]], k === 'lio' ? 900 : 700); }
   S.flags.dndGone = {}; await lie(false, 350); S.dir = 'up';
-  await say('Tam plants himself left of the door. Brand takes the right, glowing. Saffi and Morwen flank them, and Lio stands pressed against Brand\'s side, half behind him, peering round at you.');
+  await say('Tam plants himself left of the door. Brand takes the right, glowing. Morwen stands by Brand. Saffi comes to Tam\'s side, and Lio squeezes in between his mum and dad, holding on to both of them and peering round at you.');
   await sayAs('Saffi', 'Come near this door again, near my kid again, and I will set you on fire. I\'m not doing a voice. That\'s not a bit.');
   await sayAs('Morwen', 'She will. We\'ve seen her do it. Twice.');
 }
 async function dndBurn() {
   const [dx, dy] = DND_DOOR, P = DND_OUT();
   await say('You go for the door anyway.');
-  await Promise.all([walkCast([['lio', P.morwen[0] + 1, P.morwen[1], 'down']], 500), walkCast([['morwen', P.morwen[0], P.morwen[1] + .3, 'left']], 500)]);
-  await say('Morwen pulls Lio behind her and turns his face into her cloak.');
+  await walkCast([['morwen', P.lio[0], P.lio[1] + .6, 'right'], ['lio', P.saffi[0] - 1, P.saffi[1], 'down']], 650);
+  await say('Morwen crosses to Lio, pulls him behind her and turns his face into her cloak.');
   castSet(['tam', 'brand'], 'grab', true);
   await walkCast([['tam', dx - .7, S.y, 'right'], ['brand', dx + .7, S.y, 'left']], 450);
   sfx('hurt'); await lie(true, 300); castSet(['tam', 'brand'], 'kneel', true);
