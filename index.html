@@ -5249,6 +5249,7 @@ function applyRestored() {
     delete M._v; }
 }
 function worldExtras(id, M, V) {
+  try { const fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe); if (fam && AC.ctx) { preloadMusic(battleTheme(fam)); if (M.kind === 'city') preloadMusic(battleTheme(fam, true)); } } catch (e) {}
   const g = new THREE.Group(), fl = S.flags || {};
   if (fl.ruin && M.kind !== 'inside') {
     // rubble, wrecked carts and dark stains everywhere; smoke from the roofs
@@ -5886,6 +5887,7 @@ function audioInit() {
     // simple feedback delay as "reverb"
     const dl = AC.ctx.createDelay(1); dl.delayTime.value = .27; const fb = AC.ctx.createGain(); fb.gain.value = .32; const lp = AC.ctx.createBiquadFilter(); lp.frequency.value = 2400;
     dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(AC.music); AC.verb = dl;
+    preloadMusic(THEMES.title); preloadMusic(THEMES.vellum);
     if (AC.pending) { const p = AC.pending; AC.pending = null; playMusic(p); }
   } catch (e) { AC.ctx = null; }
 }
@@ -5995,10 +5997,13 @@ class MidiPlayer {
 }
 // Plays one of Blaine's recorded tracks, looping; falls back to a composed piece if the file can't load.
 const TRACK_CACHE = new Map();
+// Fetch and decode as early as possible, so a piece is ready the moment it's needed.
+function loadTrack(url) { let p = TRACK_CACHE.get(url); if (!p && AC.ctx) { p = fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(b => new Promise((res, rej) => AC.ctx.decodeAudioData(b, res, rej))); p.catch(() => TRACK_CACHE.delete(url)); TRACK_CACHE.set(url, p); } return p || Promise.reject(new Error('no ctx')); }
+function preloadMusic(th) { if (th && th.track && AC.ctx) loadTrack(th.track).catch(() => {}); }
 class TrackPlayer {
   constructor(th) { this.th = th; this.dead = false; this.bus = AC.ctx.createGain(); this.bus.gain.value = 0; this.bus.connect(AC.music);
-    let p = TRACK_CACHE.get(th.track); if (!p) { p = fetch(th.track).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(b => new Promise((res, rej) => AC.ctx.decodeAudioData(b, res, rej))); TRACK_CACHE.set(th.track, p); }
-    p.then(buf => { if (this.dead) return; const s = AC.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = 0; s.loopEnd = th.gapless ? buf.duration : Math.max(0, buf.duration - .03); s.connect(this.bus); s.start(); this.src = s; const t = AC.ctx.currentTime; this.bus.gain.setValueAtTime(0, t); this.bus.gain.linearRampToValueAtTime((th.trackVol || 1) * (th.gapless ? .8 : .9), t + 2); })
+    const p = loadTrack(th.track);
+    p.then(buf => { if (this.dead) return; const s = AC.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = 0; s.loopEnd = th.gapless ? buf.duration : Math.max(0, buf.duration - .03); s.connect(this.bus); s.start(); this.src = s; const t = AC.ctx.currentTime; this.bus.gain.setValueAtTime(0, t); this.bus.gain.linearRampToValueAtTime((th.trackVol || 1) * (th.gapless ? .8 : .9), t + .35); })
      .catch(() => { TRACK_CACHE.delete(th.track); if (this.dead) return; const fb = th.fallback || { ...AREA_SPECS.vellum }; this.fb = new MidiPlayer({ ...fb, song:fb.song || (fb.song = composeSong(fb)) }); }); }
   stop(fade = 1.1) { this.dead = true; const c = AC.ctx, b = this.bus, s = this.src; b.gain.cancelScheduledValues(c.currentTime); b.gain.setValueAtTime(b.gain.value, c.currentTime); b.gain.linearRampToValueAtTime(0, c.currentTime + fade); if (this.fb) this.fb.stop(fade); setTimeout(() => { try { s && s.stop(); b.disconnect(); } catch (e) {} }, (fade + 2) * 1000); }
 }
@@ -6009,10 +6014,11 @@ function playMusic(th) {
   if (!AC.ctx) { AC.pending = th; return; }
   if (AC.next === th || (AC.cur && AC.cur.th === th && !AC.next)) return;
   if (AC.timer) { clearTimeout(AC.timer); AC.timer = null; }
-  const fade = AC.cur ? (th.id && th.id.startsWith('battle') ? .6 : 1.1) : 0;
+  preloadMusic(th);
+  const fade = AC.cur ? (th.id && /^(battle|heart|boss)/.test(th.id) ? .3 : .6) : 0;
   if (AC.cur) { AC.cur.stop(fade); AC.cur = null; }
   AC.next = th;
-  AC.timer = setTimeout(() => { AC.timer = null; AC.next = null; AC.cur = startPlayer(th); }, fade ? (fade + .35) * 1000 : 0);
+  AC.timer = setTimeout(() => { AC.timer = null; AC.next = null; AC.cur = startPlayer(th); }, fade ? (fade + .05) * 1000 : 0);
 }
 const TYPE_NOTE = Object.fromEntries(WHEEL.map((t, i) => [t, 60 + [0, 4, 7, 2, 9, 3, 8, 1, 6, 10][i]]));
 function sfx(name, type) { if (name === 'hurt') padRumble(140, .7); else if (name === 'dyad') padRumble(240, .95); else if (name === 'settle' || name === 'keep') padRumble(110, .35);
