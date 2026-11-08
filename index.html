@@ -92,10 +92,11 @@ body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #nameGrid{display:grid;grid-template-columns:repeat(10,minmax(28px,44px));gap:5px}#nameGrid div{background:#fbf4e2;border:2px solid var(--ink);border-radius:8px;text-align:center;font:800 16px system-ui,sans-serif;padding:7px 0;cursor:pointer;user-select:none}#nameGrid div.wide{grid-column:span 2}#nameGrid div.sel{background:var(--gold);box-shadow:0 0 0 2px var(--ink)}
 #select h1{font:clamp(26px,6vw,40px) 'IM Fell English',serif;margin:0}
 #select .sub{font-size:14px;color:var(--muted);margin-top:-8px}
+html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coarse #tools .tb[data-k=zoom]{display:none}
 #heroes{display:flex;gap:clamp(6px,2vw,22px);align-items:flex-end;justify-content:center;width:100%;max-width:900px}
-.hero{flex:1;max-width:240px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;padding:10px 6px 12px;border-radius:14px;border:2px solid transparent;transition:transform .2s,background .2s}
-.hero img{width:100%;height:min(44vh,340px);object-fit:contain;object-position:bottom;filter:drop-shadow(0 10px 14px rgba(27,21,18,.35));transition:transform .25s}
-.hero b{font:22px 'IM Fell English',serif}
+.hero{flex:1 1 0;min-width:0;max-width:240px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;padding:10px 6px 12px;border-radius:14px;border:2px solid transparent;transition:transform .2s,background .2s}
+.hero img{width:100%;height:auto;aspect-ratio:380/500;max-height:min(44vh,340px);object-fit:contain;object-position:bottom;filter:drop-shadow(0 10px 14px rgba(27,21,18,.35));transition:transform .25s}
+.hero b{font:clamp(15px,4.6vw,22px) 'IM Fell English',serif;white-space:nowrap}
 .hero span{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:1px;text-transform:uppercase}
 .hero.sel{background:rgba(243,231,201,.75);border-color:var(--ink);box-shadow:0 0 0 3px var(--gold)}
 .hero.sel img{transform:translateY(-6px) scale(1.03)}
@@ -3381,6 +3382,16 @@ function placePlayer(snap) {
 }
 const CAM_ZOOMS = [1, .74, .44]; let camZoom = 1;
 function cycleZoom(d = 1) { camZoomV = null; camZoom = (camZoom + d + CAM_ZOOMS.length) % CAM_ZOOMS.length; toast(['Wide view', 'Standard view', 'Close view'][camZoom]); }
+// Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
+const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
+canvas.addEventListener('pointerdown', e => { if (scene !== 'world') return; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved = 0;
+  if (drag.pts.size === 2) { const [a, b] = [...drag.pts.values()]; drag.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); drag.zoom0 = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom]; } });
+addEventListener('pointermove', e => { const p = drag.pts.get(e.pointerId); if (!p || scene !== 'world') return;
+  const dx = e.clientX - p[0], dy = e.clientY - p[1]; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved += Math.abs(dx) + Math.abs(dy);
+  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.15, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
+  if (camFree == null) camFree = camYaw; camFree -= dx * .0065; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; });
+const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag.pinch0 = 0; };
+addEventListener('pointerup', dragEnd); addEventListener('pointercancel', dragEnd);
 addEventListener('wheel', e => { if (scene !== 'world') return; const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
 function updateCamera(dt, snap) {
   const tgtYaw = camFree != null ? camFree : camQ * Math.PI / 2; let d = tgtYaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camYaw += d * (snap ? 1 : 1 - Math.exp(-dt * 7));
@@ -3834,7 +3845,7 @@ const WREN_TOPICS = [
     'The Hush waits down there. It wears whatever feeling it\'s facing, so think about what you carry when you go.']],
   ['codex', 'Closing your Codex', ['Your Codex is your record: every Manif you met, kept, let go, gave away or sold. Close it with me whenever you like, and it will read back what you carried longest and what that says about you.']],
   ['controls', 'Controls', ['Move with the arrow keys or WASD, the left stick or D-pad, or the pad on screen. Talk or confirm with Z, Space or A. Go back or open the menu with X, Escape, B or Start.',
-    'Turn the view with Q and E, the buttons at the top, LB and RB, or the right stick on a controller (push it up or down to zoom). Zoom with C, the mouse wheel or Y. You can set the controller up however you like in Menu, then Controller.']]
+    'Turn the view by dragging across the screen, or with Q and E, LB and RB, or the right stick. Pinch, the mouse wheel or the stick zooms. Zoom with C, the mouse wheel or Y. You can set the controller up however you like in Menu, then Controller.']]
 ];
 async function wrenExplain(k, intro) { const T = WREN_TOPICS.find(x => x[0] === k); for (const l of T[2]) await say('Wren: ' + l); }
 async function wrenTopics(first) {
