@@ -1065,7 +1065,8 @@ function pickW(t) { const tot = t.reduce((a, e) => a + e[1], 0); let r = Math.ra
 const fmtTime = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; return h ? `${h}h ${m}m` : m ? `${m}m ${ss}s` : `${ss}s`; };
 
 let S = null;
-const SAVE_KEY = 'inkaura_v4';
+const TEST_BUILD = !!window.IA_TEST;
+const SAVE_KEY = TEST_BUILD ? 'inkaura_test' : 'inkaura_v4';
 const fresh = () => ({ v:4, hero:'m', map:'vellum', x:15, y:15, dir:'up', party:[], satchel:[], items:{cake:0,tonic:0}, flags:{}, codex:{seen:{},kept:{}},
   steps:0, time:0, nextId:1, released:[], declined:[], tierTime:{}, hearts:{}, intensified:0, dyads:0, visited:{}, canon:{}, marks:60, jobs:{}, jobProg:{}, parcels:{}, sold:[], gave:[], veil:0 });
 function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); return true; } catch (e) { return false; } }
@@ -2868,6 +2869,8 @@ function routeEnts(map) {
     if (d.note) out.push({ id:'note', note:true, x:d.note.x, y:d.note.y, talk:() => say(d.note.text) });
     for (const it of [d.item, d.extra]) if (it && !pickedUp(it.id)) out.push({ id:'it_' + it.id, item:true, x:it.x, y:it.y, talk:() => pickUp(it) });
     for (const n of d.npcs || []) out.push({ ...n, folk:!n.numb, numb:n.numb });
+    // Once all ten Hearts are settled, the Archive floor splits open: the way down to the Stillwell.
+    if (map === 'vellum_room0' && Object.keys(S.hearts).length >= WN && !S.flags.hushDone) out.push({ id:'rift', rift:true, x:5, y:3, talk:() => enterStillwell(true) });
     return out;
   }
   const R = ROUTES[M.vibe];
@@ -3255,6 +3258,7 @@ function buildWorld(id) {
       sg.position.set(x, gy, y); world.add(sg); }
   }
   if (M.kind === 'route' || M.kind === 'inside') world.add(buildRouteExtras(M, V));
+  if (id === 'vellum' && Object.keys(S.hearts).length >= WN && !S.flags.hushDone) { const bc = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.4, 22, 24, 1, true), new THREE.MeshBasicMaterial({ color:'#cfe8ff', transparent:true, opacity:.3, side:THREE.DoubleSide, depthWrite:false })); bc.position.set(16, 11, 12.5); world.add(bc); const bg = glow('#e8f4ff', 7, .7); bg.position.set(16, 3.2, 12.5); world.add(bg); }
   for (const t of trees) t[1] = groundY(t[0], t[2]) - .04;
   world.add(buildKit(TREE_KITS[V.trees], trees, V.treeC));
   if (V.prop && props.length) { const kit = PROP_KITS[V.prop]; world.add(buildKit(kit.parts, props, ['#888'])); if (kit.glow) for (const [x, y, z] of props) { const gl = glow(kit.glow[0], kit.glow[2], .7); gl.position.set(x, y + kit.glow[1], z); world.add(gl); } }
@@ -3291,6 +3295,10 @@ function buildWorld(id) {
   W.npcs = {};
   for (const e of ents(id)) {
     if (e.invisible) continue;
+    if (e.rift) { const rg = new THREE.Group(); rg.add(at(new THREE.Mesh(new THREE.CircleGeometry(.62, 28), new THREE.MeshBasicMaterial({ color:'#0c0b10' })), 0, .03, 0)); rg.children[0].rotation.x = -Math.PI / 2;
+      for (let k = 0; k < 4; k++) rg.add(at(inkBox(.7 - k * .1, .06, .16, toon('#6a6258'), .02), 0, .02 - k * .05, -.3 + k * .16));
+      const gl = glow('#cfe8ff', 1.8, .55); gl.position.y = .3; rg.add(gl); rg.add(at(new THREE.Mesh(new THREE.CylinderGeometry(.5, .6, 2.4, 20, 1, true), new THREE.MeshBasicMaterial({ color:'#cfe8ff', transparent:true, opacity:.12, side:THREE.DoubleSide, depthWrite:false })), 0, 1.2, 0));
+      rg.position.set(e.x, groundY(e.x, e.y), e.y); world.add(rg); W.npcs[e.id] = rg; continue; }
     if (e.note) { const pg = new THREE.Group(); pg.add(at(inkBox(.34, .02, .26, toon('#f3ead6'), .015), 0, .04, 0)); pg.add(at(inkBox(.2, .015, .03, toon('#5a4a3a'), 0), 0, .055, -.04)); const gl = glow('#fff6d8', .5, .4); gl.position.y = .2; pg.add(gl); pg.rotation.y = hsh(e.x, e.y) * 2; pg.position.set(e.x, groundY(e.x, e.y), e.y); world.add(pg); W.npcs[e.id] = pg; continue; }
     if (e.item) { const sp = glow('#fff1b0', .7, .9); sp.position.set(e.x, groundY(e.x, e.y) + .4, e.y); world.add(sp); W.npcs[e.id] = sp; continue; }
     const p = buildPerson(e.look); p.position.set(e.x, groundY(e.x, e.y), e.y); world.add(p); W.npcs[e.id] = p;
@@ -3770,6 +3778,7 @@ const TIPS = [
 async function talkWren() {
   if (!introDone()) return wrenIntro();
   healAll();
+  if (Object.keys(S.hearts).length >= WN && !S.flags.hushDone && !S.flags.riftTold) { S.flags.riftTold = 1; await say('Wren: {name}. It\'s open. The floor of the Archive split at dawn, right through the reading room. There are steps going down into the Stillwell.'); await say('Wren: Go inside when you\'re ready. Rest first. Whatever is down there has been waiting a long time; it can wait for you to sleep.'); }
   await say(Object.keys(S.hearts).length ? 'Wren: {name}! Sit a while. Let your Manifs rest. Tobin tells everyone you\'ve settled a Heart. He won\'t stop.' : 'Wren: Sit a while, {name}. Let your Manifs rest.');
   await say('(Everything you carry is composed again.)');
   const hearts = Object.keys(S.hearts).length;
@@ -3951,6 +3960,7 @@ async function talkHeart(t) {
   await fadeTo(1, 500); buildWorld(S.map); await fadeTo(0, 700);
   await say(`The Heart of ${T.name} has settled. Colour creeps back into the faces of the Numbed. For the first time in years, the city can feel something else.`);
   await say(`(${Object.keys(S.hearts).length} of ${WN} Hearts settled.)`);
+  if (Object.keys(S.hearts).length >= WN) await say('(Far away, in Vellum, something gives way. The floor of the Archive splits open, and stone steps lead down into still, dark water.)');
 }
 async function blackout() {
   await say('Everything you carry is overwhelmed. It\'s too much at once. You step back...');
@@ -4282,7 +4292,7 @@ function tickMood(dt, t) {
   // tremors where something is wrong
   if ((mood === 'uneasy' || mood === 'dread') && roam) { MOOD.nextTremor -= dt;
     if (MOOD.nextTremor <= 0) { MOOD.tremorT = mood === 'dread' ? 7 : 5.5; MOOD.shake = mood === 'dread' ? 1.4 : 1; MOOD.nextTremor = mood === 'dread' ? 14 + Math.random() * 10 : 24 + Math.random() * 18;
-      sfx('nerve'); padRumble(600, mood === 'dread' ? .9 : .55); toast(mood === 'dread' ? 'The ground shudders. Something stirs beneath the Archive.' : `A tremor rolls out from the shrine. The Heart of ${TOWNS[MAPS[MAPS[S.map].kind === 'inside' ? MAPS[S.map].route : S.map].vibe].name} is restless.`); } }
+      sfx('nerve'); padRumble(600, mood === 'dread' ? .9 : .55); toast(mood === 'dread' ? 'The ground shudders. The floor of the Archive has split open; the way down is inside.' : `A tremor rolls out from the shrine. The Heart of ${TOWNS[MAPS[MAPS[S.map].kind === 'inside' ? MAPS[S.map].route : S.map].vibe].name} is restless.`); } }
   MOOD.tremorT = Math.max(0, MOOD.tremorT - dt); MOOD.shake = Math.max(0, MOOD.shake - dt * .45);
   const list = ents(S.map), threat = playerThreat(), tp = threatPoint(S.map);
   // who is frightened right now
@@ -4314,7 +4324,7 @@ async function moodPreTalk(e) {
   const key = e.id; if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
   if (mood === 'relieved') await sayE(pickA(['It feels like I can breathe again.', 'Did you hear? The Heart settled! The whole street\'s been crying and laughing all morning.', '{name}! People are saying it was you who settled the Heart.']));
   else if (mood === 'joyful') await sayE(pickA(['Everything feels so loud now. In a good way. Mostly.', 'The Stillwell\'s quiet. You did it, {name}. You actually did it.']));
-  else if (mood === 'dread') await sayE('(They keep glancing at the Archive.) Something\'s moving down there. Nobody\'s sleeping.');
+  else if (mood === 'dread') await sayE('(They keep glancing at the Archive.) The floor in there split open. There are steps going down. Nobody will go near it. Are you going down there, {name}?');
 }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
@@ -4701,9 +4711,10 @@ async function maybeIntensify(m) {
 }
 
 // ---------------------------------------------------------------- the Stillwell
-async function enterStillwell() {
-  await say('Wren: The water beneath the Archive has gone perfectly still. Everything the Welkin ever refused to feel drained down there.');
-  await say('Wren: Whatever has been numbing people is waiting at the bottom. I can\'t go with you. I\'m sorry. I\'m so tired.');
+async function enterStillwell(fromRift) {
+  if (fromRift) { await say('(The floor of the Archive has split open. Stone steps lead down into dark, perfectly still water. Cold air rises out of it, and it smells of nothing at all.)'); }
+  else { await say('Wren: The water beneath the Archive has gone perfectly still. Everything the Welkin ever refused to feel drained down there.');
+  await say('Wren: Whatever has been numbing people is waiting at the bottom. I can\'t go with you. I\'m sorry. I\'m so tired.'); }
   const c = await ask('Descend into the Stillwell?', ['Go down', 'Not yet']); if (c !== 0) return;
   await fadeTo(1, 600); S.map = 'stillwell'; S.x = 10; S.y = 23; S.dir = 'up'; buildWorld('stillwell'); playMusic(themeFor('stillwell'));
   await fadeTo(0, 600); toast('The Stillwell', 'Beneath Vellum');
@@ -5147,7 +5158,7 @@ function updateWorld(dt, t) {
   const py = groundY(px, pz); p.position.set(px, py, pz);
   let dy = DIR_YAW[S.dir] - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
   animHero(p, k, mv.active, t);
-  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note) continue; if (e.item) { g.material.opacity = .5 + .4 * Math.sin(t * 4); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
+  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .5 + .4 * Math.sin(t * 4); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
   tickMood(dt, t);
   autosaveT += dt; if (autosaveT > 90) { autosaveT = 0; if (!busy) autosave(); }
   const n = W.minis.length;
@@ -5245,13 +5256,31 @@ async function askName(sub) {
   for (;;) { const n = await nameEntry(sub); const y = await ask(`So you're ${n}?`, ['Yes', 'Change it'], { cancel:false }); if (y === 0) return n; }
 }
 // ---------------------------------------------------------------- flow -------
+// TEST BUILD ONLY: a ready-made late-game journey — three Hearts settled (Joy, Hope, Calm), a strong level-45 team
+// across six feelings, plenty of items and Marks — so the rest of the game and the Hush can be played through quickly.
+function makeTestSave() {
+  const T = fresh(); T.hero = 'm'; T.name = 'Tester'; T.map = 'vellum'; T.x = 16; T.y = 18; T.dir = 'up'; S = T;
+  T.flags.wrenIntro = 1; T.flags.heartNamed = 1; T.flags.ilseGift = 1;
+  for (const t of ['JOY', 'HOPE', 'CALM']) { T.hearts[t] = 1; for (const id of [WAYTOWNS[t].id, ROUTES[t].id, TOWNS[t].id]) T.visited[id] = 1; }
+  T.visited.vellum = 1;
+  const team = ['JUBILATION', 'FAITH', 'EQUANIMITY', 'VALOR', 'AWE', 'RAGE'], bench = ['GRIEF', 'TERROR', 'MORTIFICATION', 'HATE', 'CONTEMPT', 'TRIUMPH'];
+  for (const sp of team) { const m = adopt(newManif(sp, 45)); T.party.push(m); }
+  for (const sp of bench) { const m = adopt(newManif(sp, 40)); T.satchel.push(m); }
+  for (const m of [...T.party, ...T.satchel]) { T.codex.seen[m.sp] = 1; T.codex.kept[m.sp] = 1; T.canon[m.sp] = 1; }
+  for (const k of CODEX.slice(0, 60)) T.codex.seen[k] = 1;
+  T.items = { cake:20, tonic:10, salts:10, hearth:5, charm:5, ember:5, iron:5, quill:3, veil:2, waystone:5 };
+  T.marks = 5000; T.steps = 4000; T.time = 3 * 3600;
+  return T;
+}
 async function titleFlow() {
+  if (TEST_BUILD && !loadGame()) { makeTestSave(); saveGame(); }
   const saved = loadGame();
   S = fresh(); buildWorld('vellum'); scene = 'title';
   $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
   await fadeTo(0, 600);
-  const opts = saved ? ['Continue', 'New Journey'] : ['New Journey'];
+  const opts = saved ? ['Continue', 'New Journey'].concat(TEST_BUILD ? ['Reset test save'] : []) : ['New Journey'];
   const c = await choose(opts, { layout:'center', cancel:false });
+  if (TEST_BUILD && c === 2) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} makeTestSave(); saveGame(); toast('Test save reset'); $('#title').classList.add('hidden'); return titleFlow(); }
   if (saved && c === 1) { const y = await ask('Start over? Your saved journey will be written over next time you save.', ['Start over', 'Go back'], { cancel:false }); if (y !== 0) { $('#title').classList.add('hidden'); return titleFlow(); } }
   $('#title').classList.add('hidden');
   if (saved && c === 0) {
