@@ -3702,6 +3702,7 @@ function startWild(w) {
 }
 async function enterDoor(id) { sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); }
 async function changeMap(ex) {
+  setTimeout(autosave, 1500);
   if (ex.city) {
     const t = ex.city, T = TOWNS[t];
     if (strongest() < T.lv[0] - 2) {
@@ -3774,7 +3775,7 @@ async function talkWren() {
   }
 }
 // ---- Wren's introduction: the rundown of the world, your first Manif, and what everything is for.
-const introDone = () => S.flags.wrenIntro || (S.party.length && !S.flags.inIntro);
+function introDone() { return S.flags.wrenIntro || (S.party.length && !S.flags.inIntro); }
 async function wrenIntro() {
   S.flags.inIntro = 1;
   npcFace.wren = ({ up:'down', down:'up', left:'right', right:'left' })[S.dir];
@@ -3845,6 +3846,23 @@ async function wrenTopics(first) {
     if (c <= 0) return; idx = c; await wrenExplain(WREN_TOPICS[c - 1][0]);
   }
 }
+// Saving: autosave keeps the journey safe; save codes move a journey between devices (phone ↔ desktop).
+async function saveMenu() {
+  const c = await choose([{ label:'Save now', sub:'also saves itself as you play' }, { label:'Copy save code', sub:'to move this journey to another device' }, { label:'Load a save code', sub:'replaces the journey on this device' }, 'Back']);
+  if (c === 0) return say(saveGame() ? 'Your journey is written down. (Saved on this device. It also saves itself whenever you move between areas or finish a battle.)' : 'This browser won\'t let the page save right now.');
+  if (c === 1) { saveGame(); const code = 'IA1:' + btoa(unescape(encodeURIComponent(localStorage.getItem(SAVE_KEY))));
+    let ok = false; try { await navigator.clipboard.writeText(code); ok = true; } catch (e) {}
+    if (!ok) { try { window.prompt('Copy this save code:', code); ok = true; } catch (e) {} }
+    return say(ok ? 'Save code copied. On your other device, open Menu → Save → Load a save code, and paste it in.' : 'Couldn\'t copy the save code on this device.'); }
+  if (c === 2) { let code = null; try { code = window.prompt('Paste a save code (it starts with IA1:)'); } catch (e) {}
+    if (!code) return; code = code.trim();
+    try { if (!code.startsWith('IA1:')) throw 0; const json = decodeURIComponent(escape(atob(code.slice(4)))); const data = JSON.parse(json); if (!data || !data.map || !data.party) throw 0;
+      const y = await ask('Load this journey? The one on this device will be replaced.', ['Load it', 'Cancel'], { cancel:false }); if (y !== 0) return;
+      localStorage.setItem(SAVE_KEY, json); await fadeTo(1, 400); location.reload(); }
+    catch (e) { return say('That save code didn\'t work. Make sure you copied all of it.'); } }
+}
+let autosaveT = 0;
+function autosave() { if (S && S.party && S.party.length && S.flags && introDone() && scene !== 'title') saveGame(); }
 async function talkMaribel() {
   const c0 = await ask(auraAtLeast('warm') ? 'Maribel: There you are, {name}, love. Bread\'s fresh.' : auraAtMost('shadowed') ? 'Maribel: ...{name}. What do you want.' : 'Maribel: Afternoon, {name}.', ['Talk', 'Buy something', 'Leave']);
   if (c0 === 1) return openShop('bakery');
@@ -3948,7 +3966,7 @@ async function openMenu() {
     if (c === 2) await codexMenu();
     if (c === 3) await auraMenu();
     if (c === 4) await journal();
-    if (c === 5) await say(saveGame() ? 'Your journey is written down. (Saved in this browser.)' : 'This browser won\'t let the page save right now.');
+    if (c === 5) { openMenu.last = 5; await saveMenu(); }
   }
 }
 async function partyMenu() {
@@ -4382,7 +4400,7 @@ async function battle(foe, opt = {}) {
   await fadeTo(1, 320);
   for (const c of [...battleScene.children]) if (c !== arena && c !== battleSky && !c.isLight && c !== battleLights.sun.target) { battleScene.remove(c); disposeTree(c); }
   $('#bhud').classList.add('hidden'); $('#chorus').classList.add('hidden');
-  activeScene = worldScene; activeCam = camera; scene = 'world'; B = null;
+  activeScene = worldScene; activeCam = camera; scene = 'world'; B = null; setTimeout(autosave, 800);
   rebuildMinis(); $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden');
   playMusic(themeFor(S.map));
   await fadeTo(0, 320);
@@ -5093,6 +5111,8 @@ function loop(now) {
   try { loopBody(now); } catch (err) { console.error('frame error', err); }
   requestAnimationFrame(loop);
 }
+// Ask the browser to keep saves even when storage is tight (installed apps usually get this).
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 function loopBody(now) {
   const dt = Math.min(.05, (now - lastT) / 1000); lastT = now; const t = now / 1000;
   pollPad(dt);
@@ -5118,6 +5138,7 @@ function updateWorld(dt, t) {
   animHero(p, k, mv.active, t);
   for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note) continue; if (e.item) { g.material.opacity = .5 + .4 * Math.sin(t * 4); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
   tickMood(dt, t);
+  autosaveT += dt; if (autosaveT > 90) { autosaveT = 0; if (!busy) autosave(); }
   const n = W.minis.length;
   W.minis.forEach((g, i) => { const a = t * .9 + i / n * Math.PI * 2; g.position.set(px + Math.cos(a) * .8, py + .95 + Math.sin(t * 2 + i) * .08, pz + Math.sin(a) * .8); animManif(g, t, 1); });
   if (W.heart) { animManif(W.heart, t, 1.5); W.heart.position.y = 2.4 + Math.sin(t) * .15; }
@@ -5325,7 +5346,7 @@ window.__ia = { get S() { return S; }, get AC() { return AC; }, get scene() { re
     const list = Array.isArray(from) ? from : CODEX.slice(from, from + n), gy = groundY(S.x, S.y); const rows = Math.ceil(list.length / cols);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), toon('#efe6d2')); floor.rotation.x = -Math.PI / 2; floor.position.set(S.x, gy, S.y); floor.receiveShadow = true; world.add(floor);
     list.forEach((sp, i) => { const g = buildManif(sp, { scale:1 }); const c = i % cols, r = Math.floor(i / cols); g.position.set(S.x + (c - (cols - 1) / 2) * 1.5, gy + .55, S.y + (r - (rows - 1) / 2) * 2.8); world.add(g); W.wilds.push({ g, sp, t:1, next:1e9 }); });
-    camera.position.set(S.x, gy + 2.2 + rows * 2.2, S.y + cols * 1.15 + rows * 1.2); camera.lookAt(S.x, gy + .2, S.y + .3); return list; }, echo:(sp) => { const m = newManif(sp, 10); return [personaLine(m), ...echoesOf(m)]; }, hush:() => runScript(talkHush), jobs:() => S.jobs, lineup:() => { scene = 'lineup'; ['m','f','nb'].forEach((k, i) => { const h = buildHero(k); h.position.set(S.x - 1.1 + i * 1.1, groundY(S.x, S.y + 1), S.y + 1); world.add(h); }); W.player.visible = false; camera.position.set(S.x, 1.6, S.y + 4.2); camera.lookAt(S.x, .85, S.y + 1); }, heart:t => runScript(() => talkHeart(t)), gates:() => GATES, zoom:d => cycleZoom(d), audio:{ SCORES, playInst, drumHit }, dbg:{ MAPS, ents, ROUTES, SOLID, S:() => S }, mood:MOOD };
+    camera.position.set(S.x, gy + 2.2 + rows * 2.2, S.y + cols * 1.15 + rows * 1.2); camera.lookAt(S.x, gy + .2, S.y + .3); return list; }, echo:(sp) => { const m = newManif(sp, 10); return [personaLine(m), ...echoesOf(m)]; }, hush:() => runScript(talkHush), jobs:() => S.jobs, lineup:() => { scene = 'lineup'; ['m','f','nb'].forEach((k, i) => { const h = buildHero(k); h.position.set(S.x - 1.1 + i * 1.1, groundY(S.x, S.y + 1), S.y + 1); world.add(h); }); W.player.visible = false; camera.position.set(S.x, 1.6, S.y + 4.2); camera.lookAt(S.x, .85, S.y + 1); }, heart:t => runScript(() => talkHeart(t)), gates:() => GATES, zoom:d => cycleZoom(d), audio:{ SCORES, playInst, drumHit }, dbg:{ MAPS, ents, ROUTES, SOLID, S:() => S, autosave }, mood:MOOD };
 (async () => {
   try { await Promise.race([document.fonts.ready, wait(2500)]); } catch (e) {}
   requestAnimationFrame(loop);
