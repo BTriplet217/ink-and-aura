@@ -1232,8 +1232,9 @@ const TEST_BUILD = !!window.IA_TEST;
 const SAVE_KEY = TEST_BUILD ? 'inkaura_test' : 'inkaura_v4';
 const fresh = () => ({ v:4, hero:'m', map:'vellum', x:15, y:15, dir:'up', party:[], satchel:[], items:{cake:0,tonic:0}, flags:{}, codex:{seen:{},kept:{}},
   steps:0, time:0, nextId:1, released:[], declined:[], tierTime:{}, hearts:{}, intensified:0, dyads:0, visited:{}, canon:{}, marks:60, jobs:{}, jobProg:{}, parcels:{}, sold:[], gave:[], veil:0 });
-function saveGame() { if (S && S.flags && (S.flags.ruin || S.flags.ruinEnd)) return false; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); return true; } catch (e) { return false; } }
-function loadGame() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function saveGame() { if (TEST_BUILD) return true;   // the test build never writes a save: every session starts from a fixed checkpoint
+  if (S && S.flags && (S.flags.ruin || S.flags.ruinEnd)) return false; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); return true; } catch (e) { return false; } }
+function loadGame() { if (TEST_BUILD) return null; try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
 
 // ---------------------------------------------------------------- manifs -----
 const maxHp = m => Math.floor(SPECIES[m.sp].base.hp * (0.55 + 0.11 * m.lvl)) + 6;
@@ -1566,9 +1567,12 @@ function buildPerson(L) {
 // Walk and idle: legs swing when someone moves; arms swing with them or sway a little at rest.
 function animPerson(g, moving, t, dt) {
   const u = g.userData; if (!u.legs || !u.legs.length) return;
+  moving = moving || !!u.forceWalk;
+  if (u.kneel) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.3; for (const h of u.legs) h.userData.knee.rotation.x = 1.5; u.inner.position.y = -.2; for (const a of u.arms) a.rotation.x = -1.4; return; }
   u.wt = (u.wt || 0) + (moving ? dt * 9 : 0); const s = moving ? Math.sin(u.wt) : 0;
   u.legs[0].rotation.x += (s * .55 - u.legs[0].rotation.x) * .3; u.legs[1].rotation.x += (-s * .55 - u.legs[1].rotation.x) * .3;
   for (const [i, h] of u.legs.entries()) h.userData.knee.rotation.x = Math.max(0, (i ? -s : s)) * .5;
+  if (u.grab && u.arms) { for (const a of u.arms) a.rotation.x += (-1.25 - a.rotation.x) * .3; return; }
   if (u.pose === 'idle' && u.arms) { const sway = Math.sin(t * 1.3 + u.ph) * .03; u.arms[0].rotation.x = moving ? -s * .45 : sway; u.arms[1].rotation.x = moving ? s * .45 : -sway; }
 }
 
@@ -4317,7 +4321,7 @@ function startWild(w) {
   removeWild(w);
   runScript(async () => { const r = await battle(newManif(w.sp, w.lvl)); if (r === 'blackout') await blackout(); });
 }
-async function enterDoor(id) { if (DOOR_GUARD[id] && await DOOR_GUARD[id]() === false) return; sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); }
+async function enterDoor(id) { const gd = DOOR_GUARD[id] ? await DOOR_GUARD[id]() : true; if (gd === false) return; sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); if (typeof gd === 'function') { await wait(300); await gd(); } }
 async function changeMap(ex) {
   setTimeout(autosave, 1500);
   if (ex.city) {
@@ -4468,6 +4472,7 @@ async function wrenTopics(first) {
 }
 // Saving: autosave keeps the journey safe; save codes move a journey between devices (phone ↔ desktop).
 async function saveMenu() {
+  if (TEST_BUILD) return say('This is the test build. Nothing is saved here: every time you open it you pick a checkpoint from the title screen.');
   const c = await choose([{ label:'Save now', sub:'also saves itself as you play' }, { label:'Copy save code', sub:'to move this journey to another device' }, { label:'Load a save code', sub:'replaces the journey on this device' }, 'Back']);
   if (c === 0) return say(saveGame() ? 'Your journey is written down. (Saved on this device. It also saves itself whenever you move between areas or finish a battle.)' : 'This browser won\'t let the page save right now.');
   if (c === 1) { saveGame(); const code = 'IA1:' + btoa(unescape(encodeURIComponent(localStorage.getItem(SAVE_KEY))));
@@ -5612,7 +5617,7 @@ function begLines() {
   return [open, `Wren: Orrin has held the Hush shut for two hundred years and his arms are failing. When he lets go, it takes everyone. ${lean}`, 'Wren: I can\'t go down there. It knows my face. It has to be you. Please. Please go down.'];
 }
 async function wrenBeg() {
-  try { localStorage.setItem(BEG_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) {}
+  if (!TEST_BUILD) try { localStorage.setItem(BEG_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) {}
   for (const l of begLines()) await say(l);
   const c = await ask('Wren is on her knees on the Archive floor, holding your hand.', ['Go down into the Stillwell', 'Do nothing']);
   if (c === 0) { S.flags.begDone = 1; return true; }
@@ -6723,7 +6728,7 @@ const DND_ROAST = {
 };
 function dndPeople() {
   const hide = S.flags.dndHide && !(S.flags.dndTrust >= 3);
-  return ['morwen', 'saffi', 'lio', 'brand', 'tam'].map(k => { const [x, y, dir] = k === 'lio' && hide ? DND_HIDE : DND_SEAT[k];
+  return ['morwen', 'saffi', 'lio', 'brand', 'tam'].map(k => { const [x, y, dir] = DND_POS[k] || (k === 'lio' && hide ? DND_HIDE : DND_SEAT[k]);
     return { id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, talk:() => dndTalk(k) }; });
 }
 async function dndTalk(k) {
@@ -6742,12 +6747,37 @@ async function dndTalk(k) {
   const deck = DND_FUN[k], i = (S.flags['dndLine_' + k] || 0); S.flags['dndLine_' + k] = i + 1; return sayAs(n, deck[i % deck.length]);
 }
 async function dndGoodbye() { return sayAs('Morwen', 'Sorry, we\'re mid-session. Could you head out?'); }
-const DND_OUT = () => { const [dx, dy] = DND_DOOR; return { tam:[dx - 1, dy + 1, 'down'], brand:[dx + 1, dy + 1, 'down'], saffi:[dx - 1, dy + 2, 'right'], morwen:[dx + 1, dy + 2, 'left'], lio:[dx + 1, dy + 3, 'up'] }; };
-function dndOutsideEnts(map) {
-  if (map !== TOWNS.JOY.id || !S.flags.dndOutside) return [];
-  const P = DND_OUT(), taken = [{ x:DND_DOOR[0], y:DND_DOOR[1] + 1 }, { x:S.x, y:S.y }]; return Object.keys(P).map(k => { const [x, y] = spotNear(map, P[k][0], P[k][1], taken); taken.push({ x, y }); return { id:'dndo_' + k, x, y, dir:P[k][2], name:DND_NAME[k], look:DND_LOOK[k], folk:false, talk:() => sayAs(DND_NAME[k], k === 'lio' ? '(Lio stays behind Morwen\'s cloak and won\'t look at you.)' : k === 'saffi' ? 'Walk. Away.' : 'Nope.') }; });
+// ---------------------------------------------------------------- choreography
+// Scripted moves: positions are overridden per character and their models are walked there frame by frame.
+const DND_POS = {};
+const castId = k => (S.map === DND_ID ? 'dnd_' : 'dndo_') + k;
+function freeNear(map, x, y, taken) { const M = MAPS[map], ok = (a, b) => { const c = (M.tiles[b] || [])[a]; return c != null && !SOLID.has(c) && c !== 'D' && !taken.some(t => t.x === a && t.y === b); };
+  for (let r = 0; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (Math.max(Math.abs(dx), Math.abs(dy)) === r && ok(x + dx, y + dy)) return [x + dx, y + dy]; return [x, y]; }
+async function walkCast(moves, ms = 900, opts = {}) {   // moves: [[key, x, y, dir]]; opts.player: [x, y] to move the player along with them
+  ENTC.t = 0; ents(S.map);
+  const st = moves.map(([k, x, y, dir]) => { const g = W.npcs[castId(k)], cur = DND_POS[k] || [g ? g.position.x : x, g ? g.position.z : y]; return { k, g, x0:cur[0], y0:cur[1], x, y, dir }; });
+  const p0 = [S.x, S.y];
+  for (const m of st) if (m.g) m.g.userData.forceWalk = true;
+  await tween(ms, t => { const e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    for (const m of st) { const x = m.x0 + (m.x - m.x0) * e, y = m.y0 + (m.y - m.y0) * e; DND_POS[m.k] = [x, y, m.dir]; if (m.g) { m.g.position.set(x, groundY(x, y), y); } }
+    if (opts.player) { S.x = p0[0] + (opts.player[0] - p0[0]) * e; S.y = p0[1] + (opts.player[1] - p0[1]) * e; }
+    ENTC.t = 0; });
+  for (const m of st) { DND_POS[m.k] = [m.x, m.y, m.dir]; if (m.g) m.g.userData.forceWalk = false; }
+  if (opts.player) { S.x = opts.player[0]; S.y = opts.player[1]; } ENTC.t = 0;
 }
-async function toOutside(dx, dy) { await fadeTo(1, 400); S.map = TOWNS.JOY.id; S.x = dx; S.y = dy; S.dir = 'down'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 400); }
+const castSet = (keys, prop, v) => { for (const k of keys) { const g = W.npcs[castId(k)]; if (g) g.userData[prop] = v; } };
+const lie = (on, ms = 400) => { const p = W.player; return tween(ms, k => { p.rotation.x = on ? -k * Math.PI / 2 : -(1 - k) * Math.PI / 2; }); };
+// Outside: Saffi, Tam, [door], Brand, Lio, Morwen in a line along the house front. Lio stands between Brand and Morwen, at the door.
+const DND_OUT = () => { const [dx, dy] = DND_DOOR, map = TOWNS.JOY.id, taken = [{ x:dx, y:dy + 1 }, { x:dx, y:dy + 2 }, { x:dx, y:dy + 3 }], out = {};
+  for (const [k, x, y, d] of [['tam', dx - 1, dy + 1, 'down'], ['brand', dx + 1, dy + 1, 'down'], ['lio', dx + 2, dy + 1, 'down'], ['saffi', dx - 2, dy + 1, 'down'], ['morwen', dx + 3, dy + 1, 'down']]) {
+    const [fx, fy] = freeNear(map, x, y, taken); taken.push({ x:fx, y:fy }); out[k] = [fx, fy, d]; } return out; };
+function dndOutsideEnts(map) {
+  if (map !== TOWNS.JOY.id || !(S.flags.dndOutside || S.flags.dndEscort)) return [];
+  const P = DND_OUT(), keys = S.flags.dndOutside ? ['tam', 'brand', 'lio', 'saffi', 'morwen'] : ['tam', 'brand'];
+  return keys.filter(k => !(S.flags.dndGone || {})[k]).map(k => { const [x, y, dir] = DND_POS[k] || P[k];
+    return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, talk:() => sayAs(DND_NAME[k], k === 'lio' ? '(Lio stays behind Morwen\'s cloak and won\'t look at you.)' : k === 'saffi' ? 'Walk. Away.' : 'Nope.') }; });
+}
+async function toOutside(dx, dy) { await fadeTo(1, 400); for (const k in DND_POS) delete DND_POS[k]; S.map = TOWNS.JOY.id; S.x = dx; S.y = dy; S.dir = 'down'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 400); }
 // Entering: the door decides.
 const DOOR_GUARD = {};
 DOOR_GUARD[DND_ID] = async () => {
@@ -6755,34 +6785,78 @@ DOOR_GUARD[DND_ID] = async () => {
   if (S.flags.dndOutside) { await dndBurn(); return false; }
   if (lock && s !== 'light') { await say(lock === 'evil' ? '(Through the door, someone calls out: "Sorry, we\'re just a bunch of nerds that can\'t be bothered by your kind.")' : '(A hand-lettered sign is taped to the door: POSITIVE VIBES ONLY.)'); return false; }
   if (lock && s === 'light') { S.flags.dndLock = 0; S.flags.dndKicked = 1; }
-  if (s === 'light') { if (once('dndFirst')) setTimeout(() => runScript(async () => { await sayAs('Morwen', 'Oh! A new player? Pull up a chair. We\'re fighting a mimic. Well. Tam\'s fighting a mimic. Tam is the mimic\'s lunch.'); }), 900); return true; }
-  // questionable or evil: go in, and it goes the way it goes
-  setTimeout(() => runScript(s === 'shadow' ? dndThrowOut : dndAskLeave), 700); return true;
+  for (const k in DND_POS) delete DND_POS[k];
+  if (s === 'light') { return once('dndFirst') ? async () => { await sayAs('Morwen', 'Oh! A new player? Pull up a chair. We\'re fighting a mimic. Well. Tam\'s fighting a mimic. Tam is the mimic\'s lunch.'); } : true; }
+  return s === 'shadow' ? dndThrowOut : dndAskLeave;
 };
+// Inside: Tam and Brand come round the table to you (you're just inside the door at 6,8), take an arm each, and walk you out.
+async function grabAndWalk(rough) {
+  S.x = 6; S.y = 8; S.dir = 'up';
+  await Promise.all([walkCast([['tam', 1, 7, 'down']], rough ? 450 : 700), walkCast([['brand', 3, 7, 'right']], rough ? 450 : 700)]);
+  await Promise.all([walkCast([['tam', 5, 8, 'right']], rough ? 550 : 900), walkCast([['brand', 7, 8, 'left']], rough ? 550 : 900)]);
+  castSet(['tam', 'brand'], 'grab', true); sfx(rough ? 'hurt' : 'settle'); await wait(250);
+  await walkCast([['tam', 5, 9.4, 'right'], ['brand', 7, 9.4, 'left']], rough ? 650 : 1100, { player:[6, 9.6] });
+}
 async function dndAskLeave() {
   await sayAs('Morwen', 'Hey. Um. We\'re mid-session. Could you head out? Sorry. Vibes.');
   const c = await ask('Four grown-ups and a kid look at you over a table covered in dice.', ['Leave', 'Stay']);
   const [dx, dy] = DND_DOOR;
   if (c !== 1) { await say('You back out the door. Behind you, someone rolls a d20 and the whole table groans.'); return toOutside(dx, dy + 1); }
-  await sayAs('Brand', 'Okay. Okay okay okay. Tam?'); await sayAs('Tam', 'Yep.'); await say('Tam takes one arm and Brand takes the other, very politely, and they walk you out the door like a pair of bouncers who are also apologising.');
-  S.flags.dndLock = 'q'; S.flags.dndHide = 1; S.flags.dndTrust = 0; await toOutside(dx, dy + 1); await say('The door clicks shut. A moment later, a sign appears in the little window: POSITIVE VIBES ONLY.');
+  await sayAs('Brand', 'Okay. Okay okay okay. Tam?'); await sayAs('Tam', 'Yep.');
+  await say('Tam and Brand get up and come round the table, very politely, like a pair of bouncers who are also apologising.');
+  await grabAndWalk(false);
+  S.flags.dndLock = 'q'; S.flags.dndHide = 1; S.flags.dndTrust = 0; S.flags.dndEscort = 1;
+  await toOutside(dx, dy + 1); castSet(['tam', 'brand'], 'grab', true);
+  DND_POS.tam = [dx - .45, dy + 1, 'down']; DND_POS.brand = [dx + .45, dy + 1, 'down']; ENTC.t = 0; await wait(50);
+  await walkCast([['tam', dx - 1, dy + 1.4, 'down'], ['brand', dx + 1, dy + 1.4, 'down']], 900, { player:[dx, dy + 2] });
+  castSet(['tam', 'brand'], 'grab', false); await sayAs('Tam', 'There you go. No hard feelings. Some hard feelings.');
+  await walkCast([['tam', dx, dy + .2, 'up'], ['brand', dx, dy + .2, 'up']], 700);
+  S.flags.dndEscort = 0; for (const k in DND_POS) delete DND_POS[k]; ENTC.t = 0;
+  await say('The door clicks shut. A moment later, a sign appears in the little window: POSITIVE VIBES ONLY.');
 }
 async function dndThrowOut() {
-  await say('The laughter stops dead. Saffi is on her feet before you\'ve taken a step, and she and Morwen move together, without a word, and put Lio behind them.');
-  await sayAs('Tam', 'Nope. Not in here. Not with the kid here.'); await say('Tam gets you by the collar. Brand is a half-step behind him, and his hair is actually on fire now, properly, and the two of them run you backward through the door.');
-  S.flags.dndLock = 'evil'; S.flags.dndHide = 1; S.flags.dndTrust = 0; S.flags.dndOutside = 1;
-  const [dx, dy] = DND_DOOR, [px, py] = spotNear(TOWNS.JOY.id, dx, dy + 3, [{ x:dx, y:dy + 1 }]); await toOutside(px, py); sfx('hurt');
-  await say('You hit the street hard. Tam plants himself left of the door. Brand on the right, glowing. Then Saffi steps out, and Morwen, and last of all Lio, holding tight to both of their cloaks and peering round them.');
+  await say('The laughter stops dead.');
+  await Promise.all([walkCast([['lio', 5, 2, 'down']], 600), walkCast([['saffi', 5, 3, 'down'], ['morwen', 4, 2, 'down']], 700)]);
+  await say('Saffi is on her feet before you\'ve taken a step. She and Morwen move together, without a word, and put Lio behind them.');
+  await sayAs('Tam', 'Nope. Not in here. Not with the kid here.');
+  await grabAndWalk(true);
+  S.flags.dndLock = 'evil'; S.flags.dndHide = 1; S.flags.dndTrust = 0; S.flags.dndOutside = 1; S.flags.dndGone = { saffi:1, morwen:1, lio:1 };
+  const [dx, dy] = DND_DOOR, P = DND_OUT();
+  await toOutside(dx, dy + 1); castSet(['tam', 'brand'], 'grab', true);
+  DND_POS.tam = [dx - .45, dy + .9, 'down']; DND_POS.brand = [dx + .45, dy + .9, 'down']; ENTC.t = 0; await wait(50);
+  // the shove: they come out of the door with you and throw you into the street
+  await walkCast([['tam', dx - .6, dy + 1.3, 'down'], ['brand', dx + .6, dy + 1.3, 'down']], 350, { player:[dx, dy + 1.6] });
+  castSet(['tam', 'brand'], 'grab', false); sfx('hurt');
+  await Promise.all([walkCast([], 10, { player:[dx, dy + 3] }), lie(true, 450)]);
+  await say('You hit the street hard.');
+  await walkCast([['tam', P.tam[0], P.tam[1], 'down'], ['brand', P.brand[0], P.brand[1], 'down']], 600);
+  // the others come out one by one; Lio clings to his grown-ups and stops at the door, beside Brand
+  for (const k of ['saffi', 'morwen', 'lio']) { S.flags.dndGone[k] = 0; DND_POS[k] = [dx, dy + .6, 'down']; ENTC.t = 0; await wait(80); await walkCast([[k, P[k][0], P[k][1], P[k][2]]], k === 'lio' ? 900 : 700); }
+  S.flags.dndGone = {}; await lie(false, 350); S.dir = 'up';
+  await say('Tam plants himself left of the door. Brand takes the right, glowing. Saffi and Morwen flank them, and Lio stands pressed against Brand\'s side, half behind him, peering round at you.');
   await sayAs('Saffi', 'Come near this door again, near my kid again, and I will set you on fire. I\'m not doing a voice. That\'s not a bit.');
   await sayAs('Morwen', 'She will. We\'ve seen her do it. Twice.');
 }
 async function dndBurn() {
-  await say('You go for the door anyway.'); await say('Morwen pulls Lio behind her and turns his face into her cloak. Tam and Brand have you before you\'re halfway, and they put you on the cobbles and hold you there, one on each arm.');
+  const [dx, dy] = DND_DOOR, P = DND_OUT();
+  await say('You go for the door anyway.');
+  await Promise.all([walkCast([['lio', P.morwen[0] + 1, P.morwen[1], 'down']], 500), walkCast([['morwen', P.morwen[0], P.morwen[1] + .3, 'left']], 500)]);
+  await say('Morwen pulls Lio behind her and turns his face into her cloak.');
+  castSet(['tam', 'brand'], 'grab', true);
+  await walkCast([['tam', dx - .7, S.y, 'right'], ['brand', dx + .7, S.y, 'left']], 450);
+  sfx('hurt'); await lie(true, 300); castSet(['tam', 'brand'], 'kneel', true);
+  await say('Tam and Brand have you before you\'re halfway. They put you down on the cobbles and hold you there, one on each arm.');
+  await walkCast([['saffi', dx, Math.min(S.y + 2, MAPS[S.map].h - 2), 'up']], 700);
   await sayAs('Saffi', 'I told you.'); sfx('nerve');
-  const fire = []; for (let i = 0; i < 6; i++) { const f = glow(i % 2 ? '#ff9a3a' : '#ffcf5a', .9, .65); f.position.set((Math.random() - .5) * .5, .4 + Math.random() * .9, (Math.random() - .5) * .3); W.player.add(f); fire.push(f); }
-  await tween(1800, k => { for (const f of fire) { f.position.y += .004; f.material.opacity = .65 * (1 - k * .3); } });
+  const sg = W.npcs[castId('saffi')], from = sg ? sg.position.clone().add(V3(0, .9, 0)) : W.player.position.clone(), to = W.player.position.clone().add(V3(0, .2, 0)), puffs = [];
+  await tween(1100, k => { if (Math.random() < .7) { const f = glow(Math.random() < .5 ? '#ff9a3a' : '#ffcf5a', .35 + Math.random() * .3, .75); f.position.copy(from); f.userData.v = to.clone().sub(from).multiplyScalar(1 / 45).add(V3((Math.random() - .5) * .02, (Math.random() - .5) * .02, (Math.random() - .5) * .02)); world.add(f); puffs.push(f); }
+    for (const f of puffs) { f.position.add(f.userData.v); f.scale.multiplyScalar(1.02); } });
+  for (const f of puffs) world.remove(f);
+  const fire = []; for (let i = 0; i < 6; i++) { const f = glow(i % 2 ? '#ff9a3a' : '#ffcf5a', .9, .65); f.position.set((Math.random() - .5) * .5, .2 + Math.random() * .4, (Math.random() - .5) * .9); W.player.add(f); fire.push(f); }
+  await tween(1200, k => { for (const f of fire) { f.position.y += .003; f.material.opacity = .65 * (1 - k * .3); } });
   await say('She breathes out, slow and bright. Brass-coloured fire rolls over you, and the last thing you hear before the dark is Lio, very small, asking if you\'re going to be okay, and Saffi telling him not to look.');
-  await fadeTo(1, 1200); for (const f of fire) W.player.remove(f);
+  await fadeTo(1, 1200); for (const f of fire) W.player.remove(f); W.player.rotation.x = 0;
+  for (const k in DND_POS) delete DND_POS[k];
   S.flags.dndOutside = 0; S.flags.burned = 1; for (const m of S.party) m.hp = Math.max(1, Math.round(maxHp(m) / 3));
   S.map = 'vellum_room0'; const R = MAPS.vellum_room0; S.x = Math.floor(R.w / 2); S.y = R.h - 2; S.dir = 'up'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 1200);
   await say('You wake on the floor of the Archive. Someone carried you here. Your skin is tight and shining where the fire took it, and it will stay that way. You will carry it the rest of the way.');
@@ -7724,7 +7798,7 @@ function updateWorld(dt, t) {
   const py = groundY(px, pz); p.position.set(px, py, pz);
   let dy = DIR_YAW[S.dir] - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
   animHero(p, k, mv.active, t);
-  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } animPerson(g, Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .06, t, dt); g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
+  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } animPerson(g, Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .06, t, dt); if (!g.userData.kneel) g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
   tickMood(dt, t);
   autosaveT += dt; if (autosaveT > 90) { autosaveT = 0; if (!busy) autosave(); }
   const n = W.minis.length;
@@ -7824,7 +7898,7 @@ async function askName(sub) {
 // ---------------------------------------------------------------- flow -------
 // TEST BUILD ONLY: a ready-made late-game journey — three Hearts settled (Joy, Hope, Calm), a strong level-45 team
 // across six feelings, plenty of items and Marks — so the rest of the game and the Hush can be played through quickly.
-function makeTestSave() {
+function makeTestSave(kind = 'final') {
   const T = fresh(); T.hero = 'm'; T.name = 'Tester'; T.map = 'vellum'; T.x = 16; T.y = 18; T.dir = 'up'; S = T;
   T.flags.wrenIntro = 1; T.flags.heartNamed = 1; T.flags.ilseGift = 1;
   for (const t of ['JOY', 'HOPE', 'CALM']) { T.hearts[t] = 1; for (const id of [WAYTOWNS[t].id, ROUTES[t].id, TOWNS[t].id]) T.visited[id] = 1; }
@@ -7836,17 +7910,23 @@ function makeTestSave() {
   for (const k of CODEX.slice(0, 60)) T.codex.seen[k] = 1;
   T.items = { cake:20, tonic:10, salts:10, hearth:5, charm:5, ember:5, iron:5, quill:3, veil:2, waystone:5 };
   T.marks = 5000; T.steps = 4000; T.time = 3 * 3600;
+  // Every checkpoint: all ten Hearts settled and a Lv 50 Chorus, standing in the Archive.
+  for (const t of WHEEL) { T.hearts[t] = 1; for (const id of [WAYTOWNS[t].id, ROUTES[t].id, TOWNS[t].id]) T.visited[id] = 1; }
+  for (const m of T.party) { m.lvl = 50; m.hp = maxHp(m); } for (const m of T.satchel) { m.lvl = 48; m.hp = maxHp(m); }
+  T.items.tonic = 20; T.items.cake = 30; T.marks = 9000;
+  T.map = 'vellum_room0'; const R = MAPS.vellum_room0; T.x = Math.floor(R.w / 2); T.y = R.h - 2; T.dir = 'up';
+  if (kind === 'good') { T.flags.hushDone = 1; T.flags.restored = 1; T.flags.gift = 1; T.map = 'vellum'; T.x = 16; T.y = 18; }
+  if (kind === 'evil') { T.flags.doom = 1; T.flags.hushDone = 1; T.flags.gift = 1; T.choir = { rank:6 }; T.bound = {}; for (const t of WHEEL) T.bound[t] = 1; T.sins = 20; T.map = 'vellum'; T.x = 16; T.y = 18; }
   return T;
 }
 async function titleFlow() {
-  if (TEST_BUILD && !loadGame()) { makeTestSave(); saveGame(); }
   const saved = loadGame();
-  S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
-  $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
-  await fadeTo(0, 600);
-  const opts = saved ? ['Continue', 'New Journey'].concat(TEST_BUILD ? ['Reset test save'] : []) : ['New Journey'];
-  const c = await choose(opts, { layout:'center', cancel:false });
-  if (TEST_BUILD && c === 2) { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} makeTestSave(); saveGame(); toast('Test save reset'); $('#title').classList.add('hidden'); return titleFlow(); }
+  let c = 0;
+  if (TEST_BUILD) { if (await testTitle() !== 'new') return; }
+  else { S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
+    $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
+    await fadeTo(0, 600);
+    c = await choose(saved ? ['Continue', 'New Journey'] : ['New Journey'], { layout:'center', cancel:false }); }
   if (saved && c === 1) { const y = await ask('Start over? Your saved journey will be written over next time you save.', ['Start over', 'Go back'], { cancel:false }); if (y !== 0) { $('#title').classList.add('hidden'); return titleFlow(); } }
   $('#title').classList.add('hidden');
   if (saved && c === 0) {
@@ -7942,6 +8022,18 @@ async function ending(final, kind) {
     endingHandler = b => { if (b === 'a') act(pages[i].last ? 'keep' : 'next'); if (b === 'b' && pages[i].last) act('new'); };
     render();
   });
+}
+// Test build: no saves. Pick a checkpoint every time.
+async function testTitle() {
+  S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
+  $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
+  await fadeTo(0, 600);
+  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · the Archive floor is open' }, { label:'After the good ending', sub:'The world restored' }, { label:'After the evil ending', sub:'The Grand Chord sung' }, { label:'New Journey', sub:'From the very beginning' }], { layout:'center', cancel:false });
+  $('#title').classList.add('hidden');
+  if (c === 3) return 'new';
+  await fadeTo(1, 400); S = makeTestSave(['final', 'good', 'evil'][c]); if (S.flags.restored) applyRestored();
+  buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
+  await fadeTo(0, 400); toast(MAPS[S.map].name, 'Test checkpoint · nothing is saved');
 }
 async function finish(a) {
   await fadeTo(1, 500); $('#ending').classList.add('hidden');
