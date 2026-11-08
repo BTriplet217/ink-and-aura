@@ -30,7 +30,11 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 #dlg .nxt{position:absolute;right:14px;bottom:8px;color:var(--gold2);font-size:12px;animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 #cho{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:180px;max-height:52vh;overflow:auto;padding:4px}
-#cho.grid{display:grid;grid-template-columns:1fr 1fr;width:100%}
+#cho{box-sizing:border-box;max-width:100%}
+#cho.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+#cho .opt{box-sizing:border-box;min-width:0;max-width:100%;overflow:hidden}
+#cho .opt>span{min-width:0;overflow-wrap:anywhere}
+@media (max-width:620px){#cho.grid .opt{flex-wrap:wrap;row-gap:2px;padding:8px 10px;font-size:14px}#cho.grid .opt .sub{margin-left:0;flex-basis:100%;text-align:left;font-size:11px}#cho.grid .opt .pill{font-size:10px}}
 #cho.center{align-self:center}
 .opt{font:600 15px 'Nunito Sans',sans-serif;background:var(--parch);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:9px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(27,21,18,.18);position:relative}
 .opt .sub{font-weight:400;font-size:12px;color:var(--muted);margin-left:auto;text-align:right}
@@ -121,8 +125,8 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 .dmg.heal{color:#a8f08c}
 .dmg.wound{font-size:32px;color:#ff5a4a;-webkit-text-stroke:2px #2a0306}
 #bloodv{position:fixed;inset:0;pointer-events:none;z-index:15;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(120,0,10,.55) 100%)}
-#bloodv.on{animation:bv .45s ease-out}
-@keyframes bv{0%{opacity:1}100%{opacity:0}}
+#bloodv.on{animation:bv .9s ease-in-out}
+@keyframes bv{0%{opacity:0}35%{opacity:.45}100%{opacity:0}}
 @keyframes up{0%{opacity:0;margin-top:10px}15%{opacity:1}100%{opacity:0;margin-top:-46px}}
 #banner{position:fixed;top:42%;left:50%;transform:translate(-50%,-50%) scale(.6);font:clamp(40px,10vw,72px) 'IM Fell English',serif;color:#fff2c2;text-shadow:0 0 30px rgba(255,200,90,.95),0 0 4px #1b1512;opacity:0;z-index:17;pointer-events:none;transition:all .35s cubic-bezier(.2,1.6,.4,1);white-space:nowrap;text-align:center}
 #banner.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -3467,6 +3471,7 @@ function buildRouteExtras(M, V) {
   return g;
 }
 function buildWorld(id) {
+  ENTC.t = 0;
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
   const M = MAPS[id], V = worldVibe(id);
@@ -3552,10 +3557,10 @@ function buildWorld(id) {
   W.ring = new THREE.Mesh(new THREE.CircleGeometry(.9, 24), new THREE.MeshBasicMaterial({ map:glowTex, color:'#ffd98a', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending }));
   W.ring.rotation.x = -Math.PI / 2; world.add(W.ring);
   W.motes = makePoints(40, .09); W.moteData = Array.from({ length:40 }, () => ({ life:0 })); world.add(W.motes);
-  const count = V.parts === 'rain' ? 560 : V.parts === 'motes' ? 70 : 220;
-  W.parts = makePoints(count, V.parts === 'rain' ? .07 : V.parts === 'sparks' ? .12 : .1, true);
+  const count = V.parts === 'rain' ? 240 : V.parts === 'motes' ? 70 : 160;
+  W.parts = makePoints(count, V.parts === 'rain' ? .11 : .16, true); W.parts.material.opacity = V.parts === 'rain' ? .5 : .75;
   W.partData = Array.from({ length:count }, () => ({ life:-1 })); W.partKind = V.parts; W.partC = V.partC.map(c => new THREE.Color(c));
-  if (V.parts === 'embers') W.parts.material.blending = THREE.AdditiveBlending;
+  // (no additive blending: it made embers flare and blink)
   world.add(W.parts);
   rebuildMinis();
   W.wilds = []; for (let k = 0; k < (M.kind === 'city' ? 7 : 5); k++) spawnWild();
@@ -3567,7 +3572,11 @@ function buildWorld(id) {
 function makePoints(n, size, vertexColors) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3).fill(-99), 3));
   if (vertexColors) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({ size, color: vertexColors ? '#ffffff' : '#ffe08f', vertexColors: !!vertexColors, transparent:true, opacity:.9, depthWrite:false }));
+  return new THREE.Points(g, new THREE.PointsMaterial({ size, color: vertexColors ? '#ffffff' : '#ffe08f', vertexColors: !!vertexColors, transparent:true, opacity:.9, depthWrite:false, map:softDot(), alphaTest:.02 }));
+}
+// Soft round sprite: no hard pixel edges, so falling particles don't shimmer or flicker.
+function softDot() { if (softDot.t) return softDot.t; const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.45, 'rgba(255,255,255,.75)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return (softDot.t = new THREE.CanvasTexture(c));
 }
 function rebuildMinis() {
   for (const m of W.minis) world.remove(m);
@@ -3594,25 +3603,28 @@ function updateParticles(dt, t, px, pz) {
       p.life = rnd(.6, 1); p.x = px + rnd(-R, R); p.z = pz + rnd(-R * .8, R * .6); p.c = pickA(W.partC);
       const gy = groundY(p.x, p.z);
       switch (kind) {
-        case 'rain':    p.y = gy + rnd(3, 7); p.vy = -rnd(7, 9); p.vx = -.6; p.life = 1; break;
+        case 'rain':    p.y = gy + rnd(3, 7); p.vy = -rnd(3.6, 4.4); p.vx = -.3; p.life = 1; p.top = p.y; break;
         case 'petals':  p.y = gy + rnd(2, 5); p.vy = -rnd(.25, .45); p.vx = rnd(-.2, .2); p.ph = rnd(0, 6); break;
         case 'embers':  p.y = gy + rnd(0, .7); p.vy = rnd(.8, 1.6); p.vx = rnd(-.2, .2); p.ph = rnd(0, 6); break;
         case 'bubbles': p.y = gy + .05; p.vy = rnd(.15, .35); p.vx = 0; break;
         case 'wisps':   p.y = gy + rnd(.1, 1.1); p.vy = rnd(-.05, .05); p.vx = rnd(-.4, .4); break;
         case 'fireflies': p.y = gy + rnd(.1, 1.5); p.vy = 0; p.vx = 0; p.ph = rnd(0, 6); break;
-        case 'sparks':  p.y = gy + rnd(.1, 2.2); p.vy = 0; p.vx = 0; p.life = rnd(.2, .5); break;
+        case 'sparks':  p.y = gy + rnd(.1, 2.2); p.vy = rnd(.05, .15); p.vx = rnd(-.1, .1); break;
         default:        p.y = gy + rnd(0, 1.7); p.vy = rnd(.1, .3); p.vx = rnd(-.1, .1);
       }
       p.floor = gy;
     }
-    p.life -= dt * (kind === 'rain' ? 0 : kind === 'sparks' ? 2.2 : .25); p.y += p.vy * dt; p.x += p.vx * dt;
+    p.life -= dt * (kind === 'rain' ? 0 : .22); p.y += p.vy * dt; p.x += p.vx * dt;
     if (kind === 'petals') { p.x += Math.sin(t * 1.5 + p.ph) * dt * .5; if (p.y < p.floor) p.life = 0; }
     if (kind === 'rain' && p.y < p.floor) p.life = 0;
     if (kind === 'fireflies') { p.x += Math.sin(t * .7 + p.ph) * dt * .3; p.y += Math.cos(t * .9 + p.ph) * dt * .2; }
     if (kind === 'embers') p.x += Math.sin(t * 3 + p.ph) * dt * .3;
     pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
-    let b = kind === 'fireflies' ? (.5 + .5 * Math.sin(t * 3 + p.ph)) : kind === 'sparks' ? Math.max(0, Math.sin(p.life * 6)) : 1;
-    if (kind === 'embers') b = Math.min(1, p.life * 2);
+    // Every particle fades in and out smoothly; nothing blinks or pops (seizure-safe).
+    const env = Math.min(1, p.life * 3, (1 - p.life) * 4 + .05);
+    let b = kind === 'fireflies' ? (.6 + .25 * Math.sin(t * 1.2 + p.ph)) * env : kind === 'rain' ? Math.min(1, (p.top - p.y) * 1.5, (p.y - p.floor) * 2.5 + .1) : env;
+    if (p.age == null) p.age = 0; p.age += dt; b *= Math.min(1, p.age * 2); if (p.life <= 0 || (kind === 'rain' && p.y < p.floor)) p.age = 0;
+    b = Math.max(0, Math.min(1, b));
     cols[i * 3] = p.c.r * b; cols[i * 3 + 1] = p.c.g * b; cols[i * 3 + 2] = p.c.b * b;
   }
   P.geometry.attributes.position.needsUpdate = true; P.geometry.attributes.color.needsUpdate = true;
@@ -3712,7 +3724,7 @@ function closeSheet() { UI.list = null; UI.sheetStatic = false; sheetEl.classLis
 function showSheet(html) { UI.list = null; UI.sheetStatic = true; sheetEl.innerHTML = html; sheetEl.classList.remove('hidden'); sheetEl.scrollTop = 0; }
 async function fadeTo(v, ms = 300) { const f = $('#fade'); f.style.transitionDuration = ms + 'ms'; f.style.opacity = v; await wait(ms + 20); }
 function toast(s, sub) { const t = $('#toast'); t.innerHTML = (sub ? `<small>${sub}</small>` : '') + s; t.style.opacity = 1; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 2200); }
-function runScript(fn) { busy = true; Promise.resolve().then(fn).catch(e => console.error(e)).finally(() => { busy = false; }); }
+function runScript(fn) { busy = true; Promise.resolve().then(fn).catch(e => console.error(e)).finally(() => { busy = false; if (typeof ENTC !== "undefined") ENTC.t = 0; }); }
 function manifIcon(m, size) { const sp = m.sp || m, d = SPECIES[sp], c = TYPES[d.type].c, bg = d.dyad ? `linear-gradient(135deg,${c} 50%,${TYPES[d.type2].c} 50%)` : c; return `<span class="mi t${d.tier}" style="background:${bg}${size ? `;width:${size}px;height:${size}px` : ''}"></span>`; }
 const tierWord = sp => SPECIES[sp].dyad ? 'dyad' : SPECIES[sp].heart ? 'Heart' : ['mild', 'core', 'intense'][SPECIES[sp].tier];
 function manifRow(m) {
@@ -3914,7 +3926,10 @@ async function talkRecovered(t, i) { const v = vibeClass();
   await say('Townsperson: ' + (v === 'bright' ? pickA(['You\'re so bright. It\'s like standing near a fire after years outside. Thank you, {name}.', 'I can see colours again, and you\'re one of them. Was it you who settled the Heart?'])
     : v === 'dark' ? pickA(['I can feel things again. Including about you. You frighten me a little. Is that allowed?', 'Something dark sits on you, {name}. I know that weight. I carried nothing for so long I\'d almost take it.'])
     : (i % 2 ? REMEMBER[t] : pickA(['I was Numbed for years. I don\'t remember the years. I remember this morning, though. All of it.', REMEMBER[t]])))); }
-function ents(map) { const b = entsBase(map), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(trainEnts(map, z)); return applyFlee(map, endingFilter(map, questFilter(map, t))); }
+// Cached for a moment: the render loop asks every frame, and building the list is not free.
+const ENTC = { map:null, t:0, v:null };
+function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; ENTC.map = map; ENTC.t = now; return (ENTC.v = ents0(map)); }
+function ents0(map) { const b = entsBase(map), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(trainEnts(map, z)); return applyFlee(map, endingFilter(map, questFilter(map, t))); }
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
   if (M.kind === 'hub') {
@@ -4304,10 +4319,9 @@ function wheelSVG() {
 async function auraMenu() {
   const v = auraValue(), tid = tierOf(v), pct = (clamp(v, -9, 9) + 9) / 18 * 100;
   showSheet(`<h2>Your Aura · ${zoneOf().name}</h2><div class="subt">The sum of what you carry. Everyone you meet can see it.</div>
-    <div style="text-align:center;font:34px 'IM Fell English',serif;color:${TIER_TXT[tid]};text-shadow:0 0 16px ${TIERC[tid]}">${tierName(tid)} <span style="font:800 15px 'Nunito Sans';color:var(--muted)">(${sgn(v)})</span></div>
-    <div style="position:relative;height:14px;border:2px solid var(--ink);border-radius:8px;margin:12px 4px 18px;background:linear-gradient(90deg,${TIERC.abyssal},${TIERC.shadowed} 30%,${TIERC.neutral} 50%,${TIERC.warm} 70%,${TIERC.radiant})"><span style="position:absolute;left:${pct}%;top:-9px;transform:translateX(-50%);font-size:18px">▼</span></div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800">${manifIcon(m, 22)}${nm(m)} ${sgn(valOf(m))}</span>`).join('')}</div>
-    ${auraGridSheet()}<p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm brighten you; Sadness, Fear, Anger, Shame and Disgust darken you. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
+    ${auraGridSheet()}
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px">${manifIcon(m, 20)}${nm(m)} <span style="font-weight:400;color:var(--muted)">${sgn(valOf(m))} light · ${sgn(Math.round(energyOf(m) * 10) / 10)} fierce</span></span>`).join('')}</div>
+<p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm brighten you; Sadness, Fear, Anger, Shame and Disgust darken you. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
   await say(auraLine());
   closeSheet();
 }
@@ -5153,14 +5167,18 @@ async function meetStranger(z) {
 async function deliverPie() { if ((S.zq || {}).Warm !== 'pie') return false;
   await say('Tobin: A PIE? From NAN? (He hugs it.) She always burns the edge. That\'s how you know it\'s hers.'); pay(60); await giveItem('cake', 2); S.zq.Warm = 'done'; return true; }
 
-async function auraGridSheet() {
-  const z = zoneOf(), fam = dominantFam(), cell = (x, y) => { const k = x + ',' + y, on = k === z.key; return `<div style="padding:8px 4px;border:2px solid var(--ink);border-radius:8px;text-align:center;font-size:12px;font-weight:800;background:${on ? TIERC[x === 'light' ? 'radiant' : x === 'shadow' ? 'abyssal' : 'neutral'] : 'transparent'};opacity:${on ? 1 : .55}">${ZONES[k].name}</div>`; };
-  return `<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:4px;align-items:center;margin:8px 0">
-    <span style="font-size:11px;color:var(--muted)">Fierce</span>${['shadow', 'even', 'light'].map(x => cell(x, 'fierce')).join('')}
-    <span></span>${['shadow', 'even', 'light'].map(x => cell(x, 'level')).join('')}
-    <span style="font-size:11px;color:var(--muted)">Still</span>${['shadow', 'even', 'light'].map(x => cell(x, 'still')).join('')}
-    <span></span><span style="font-size:11px;color:var(--muted);text-align:center">Shadow</span><span></span><span style="font-size:11px;color:var(--muted);text-align:center">Light</span></div>
-    <p style="text-align:center;margin:4px 0"><b>${z.name}</b> · ${z.d}</p>${fam ? `<p style="text-align:center;font-size:13px;color:var(--muted);margin:2px 0">Mostly ${TYPES[fam].name}: people will react to that first. Kind ones and cruel ones won't react the same way.</p>` : ''}`;
+function auraGridSheet() {
+  const z = zoneOf(), fam = dominantFam(), cl = (n, a) => Math.max(-a, Math.min(a, n));
+  const px = (cl(z.v, 9) + 9) / 18 * 100, py = (9 - cl(z.e, 9)) / 18 * 100;
+  const cells = [['shadow', 'fierce'], ['even', 'fierce'], ['light', 'fierce'], ['shadow', 'level'], ['even', 'level'], ['light', 'level'], ['shadow', 'still'], ['even', 'still'], ['light', 'still']]
+    .map(([x, y]) => { const k = x + ',' + y, on = k === z.key; return `<div style="display:flex;align-items:center;justify-content:center;font:800 11px 'Nunito Sans';color:var(--ink);opacity:${on ? 1 : .5};background:${x === 'light' ? 'rgba(244,207,94,' : x === 'shadow' ? 'rgba(160,120,200,' : 'rgba(200,190,170,'}${on ? .55 : .22});border:1px dashed rgba(27,21,18,.3)">${on ? z.name : ZONES[k].name}</div>`; }).join('');
+  const dots = S.party.map(m => { const v = valOf(m), e = energyOf(m); return `<span title="${nm(m)}" style="position:absolute;left:${50 + cl(v, 4.5) * 9}%;top:${50 - cl(e, 4.5) * 9}%;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;background:${TYPES[typeOf(m)].c};border:2px solid var(--ink);opacity:.8"></span>`; }).join('');
+  return `<div style="display:grid;grid-template-columns:18px 1fr;grid-template-rows:1fr 16px;gap:2px;max-width:330px;margin:6px auto 8px">
+    <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;color:var(--muted);text-align:center">still ← → fierce</div>
+    <div style="position:relative;aspect-ratio:1;border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)">${cells}${dots}
+      <span style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:var(--ink);border:3px solid #fff3d6;box-shadow:0 0 10px ${TIERC[tierOf(z.v)]}"></span></div>
+    <span></span><div style="font-size:10px;color:var(--muted);text-align:center">shadow ← → light</div></div>
+    <p style="text-align:center;margin:4px 0"><b>${z.name}</b> · ${z.d}</p>${fam ? `<p style="text-align:center;font-size:13px;color:var(--muted);margin:2px 0">Mostly ${TYPES[fam].name}: people react to that first, and kind ones and cruel ones won't react the same way.</p>` : ''}`;
 }
 // =============================================================================
 //  ENDINGS — only three ways out:
@@ -6202,7 +6220,7 @@ function updateWorld(dt, t) {
   const py = groundY(px, pz); p.position.set(px, py, pz);
   let dy = DIR_YAW[S.dir] - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
   animHero(p, k, mv.active, t);
-  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .5 + .4 * Math.sin(t * 4); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
+  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
   tickMood(dt, t);
   autosaveT += dt; if (autosaveT > 90) { autosaveT = 0; if (!busy) autosave(); }
   const n = W.minis.length;
