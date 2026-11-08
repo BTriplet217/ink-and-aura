@@ -1228,7 +1228,7 @@ const TEST_BUILD = !!window.IA_TEST;
 const SAVE_KEY = TEST_BUILD ? 'inkaura_test' : 'inkaura_v4';
 const fresh = () => ({ v:4, hero:'m', map:'vellum', x:15, y:15, dir:'up', party:[], satchel:[], items:{cake:0,tonic:0}, flags:{}, codex:{seen:{},kept:{}},
   steps:0, time:0, nextId:1, released:[], declined:[], tierTime:{}, hearts:{}, intensified:0, dyads:0, visited:{}, canon:{}, marks:60, jobs:{}, jobProg:{}, parcels:{}, sold:[], gave:[], veil:0 });
-function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); return true; } catch (e) { return false; } }
+function saveGame() { if (S && S.flags && (S.flags.ruin || S.flags.ruinEnd)) return false; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); return true; } catch (e) { return false; } }
 function loadGame() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
 
 // ---------------------------------------------------------------- manifs -----
@@ -3012,7 +3012,7 @@ const ROUTE_LOOK = {
   ditch:{ trees:'dead', ground:['#7a7a5a', '#70704e', '#848462'], water:'#6a7a3a', groundFog:'#a0a070', fogOp:.3 },
   cut:{ trees:'charred', ground:['#6a5a4e', '#5e4e44', '#74645a'], parts:'sparks', partC:['#ff8a3a', '#ffb060'], sky:'#a8806a', fog:'#a8806a' }
 };
-const INSIDE_LOOK = d => ({ sky:'#1a1614', fog:'#1a1614', fogNear:30, fogFar:60, hemi:'#e8d8c0', sun:.7, ground:[d.floor[0], d.floor[1], d.floor[0]], tall:['#5a5040', '#5a5040', '#5a5040'], trees:'round', treeC:['#444', '#444', '#444'],
+const INSIDE_LOOK = d => ({ sky:(d.light || {}).sky || '#1a1614', fog:(d.light || {}).sky || '#1a1614', fogNear:30, fogFar:60, hemi:(d.light || {}).hemi || '#e8d8c0', sun:(d.light || {}).sun || .7, ground:[d.floor[0], d.floor[1], d.floor[0]], tall:['#5a5040', '#5a5040', '#5a5040'], trees:'round', treeC:['#444', '#444', '#444'],
   prop:null, parts:'motes', partC:['#e8dcc0', '#c8b8a0'], groundFog:null, fogOp:0, inside:true, wall:d.wall });
 function routeVibe(M) {
   if (M.kind === 'inside') return INSIDE_LOOK(M.room);
@@ -3029,7 +3029,7 @@ function routeEnts(map) {
     for (const it of [d.item, d.extra]) if (it && !pickedUp(it.id)) out.push({ id:'it_' + it.id, item:true, x:it.x, y:it.y, talk:() => pickUp(it) });
     for (const n of d.npcs || []) out.push({ ...n, folk:!n.numb, numb:n.numb });
     // Once all ten Hearts are settled, the Archive floor splits open: the way down to the Stillwell.
-    if (map === 'vellum_room0' && ((Object.keys(S.hearts).length >= WN && !S.flags.hushDone) || (S.flags.gift && !S.flags.superDone))) out.push({ id:'rift', rift:true, x:5, y:3, talk:() => enterStillwell(true) });
+    if (map === 'vellum_room0' && ((Object.keys(S.hearts).length >= WN && !S.flags.hushDone) || (S.flags.gift && !S.flags.superDone))) out.push({ id:'rift', rift:true, x:(M.room.rift || { x:5 }).x, y:(M.room.rift || { y:3 }).y, talk:() => enterStillwell(true) });
     return out;
   }
   const R = ROUTES[M.vibe];
@@ -3257,6 +3257,85 @@ async function useFurniture(pc) {
     await say(`(Yours is here too, still open: ${seen} of ${CODEX.length} Manifs met, ${kept} kept, ${h} of ${WN} Hearts settled.)`); return true; }
   return false;
 }
+
+// ---------------------------------------------------------------- variety ---
+// Every interior gets its own shape and light: a seeded size, mirrored or shifted furniture,
+// partition walls and alcoves, extra pieces along the walls, its own floor, and its own lamps and mood light.
+const ROOM_LIGHTS = [
+  { name:'candle',   hemi:'#ffd2a0', sun:.55, sky:'#1c120c', lamp:'#ffb060', li:2.4 },
+  { name:'hearth',   hemi:'#ffb88a', sun:.6,  sky:'#22100a', lamp:'#ff7a3a', li:2.8 },
+  { name:'moon',     hemi:'#b8c8e8', sun:.5,  sky:'#0c1020', lamp:'#9ab8ff', li:1.8 },
+  { name:'daylight', hemi:'#f4ecd8', sun:.85, sky:'#2a2620', lamp:'#fff0d0', li:1.6 },
+  { name:'sickly',   hemi:'#c8d8a0', sun:.5,  sky:'#141a0c', lamp:'#c8e070', li:1.8 },
+  { name:'ember',    hemi:'#e89070', sun:.5,  sky:'#200a08', lamp:'#ff5030', li:2.6 },
+  { name:'dusk',     hemi:'#d8a8c8', sun:.6,  sky:'#1a0c18', lamp:'#f0a0d0', li:2.0 },
+  { name:'lamplit',  hemi:'#e8d8b0', sun:.7,  sky:'#18140e', lamp:'#ffd890', li:2.2 },
+  { name:'gloom',    hemi:'#8a8a9a', sun:.38, sky:'#08080c', lamp:'#c0b8a8', li:1.4 },
+  { name:'stained',  hemi:'#c0a8e0', sun:.6,  sky:'#100c1a', lamp:'#ffcf80', li:2.2 }
+];
+const FAM_LIGHT = { JOY:[0, 3, 7], HOPE:[3, 7, 0], CALM:[2, 3, 9], CONFIDENCE:[1, 3, 7], SURPRISE:[6, 9, 3], SADNESS:[2, 8, 7], FEAR:[8, 2, 4], ANGER:[5, 1, 8], SHAME:[6, 8, 0], DISGUST:[4, 8, 5] };
+const FLOORS = [['#7a6a52', '#6e5e48'], ['#8a6a48', '#7e5e3e'], ['#5a4a3e', '#4e3e34'], ['#6a6a62', '#5e5e58'], ['#8a7a5a', '#7e6e50'], ['#5e4632', '#523c2a'], ['#6e5a6a', '#624e5e'], ['#4e5a52', '#424e46'], ['#9a8462', '#8e7856'], ['#3e3a36', '#34302c']];
+function varyRoom(id) {
+  const M = MAPS[id], d = M.room; if (!d || d.varied) return; d.varied = 1; if (id === 'vellum_room0') d.rift = { x:5, y:3 };
+  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; const r = rng32(h || 7), pk = a => a[Math.floor(r() * a.length)];
+  const fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe);
+  let W = M.tiles[0].length, H = M.tiles.length;
+  // 1) grow: extra columns on both sides (keeps the door centred), extra rows at the back
+  const gx = pk([0, 0, 1, 1, 2]), gy = pk([0, 1, 1, 2]);
+  const shift = (o) => { if (!o) return; o.x += gx; o.y += gy; };
+  const nW = W + gx * 2, nH = H + gy, m = grid(nW, nH, '.'); border(m, 1);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = M.tiles[y][x]; if (c !== '#' && c !== '.') m[y + gy][x + gx] = c; }
+  const dx = Math.floor(nW / 2); m[nH - 1][dx] = '.';
+  for (const p of M.set) { p.x += gx; p.y += gy; p.tiles = [p.x, p.y, 1, 1]; }
+  for (const o of [d.note, d.item, d.extra, d.rift, ...(d.npcs || [])]) shift(o);
+  W = nW; H = nH;
+  // 2) mirror left-right (door stays centred on odd widths)
+  if (W % 2 === 1 && r() < .5) {
+    const mx = x => W - 1 - x, m2 = grid(W, H, '.'); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) m2[y][x] = m[y][mx(x)];
+    for (let y = 0; y < H; y++) m[y] = m2[y];
+    for (const p of M.set) { p.x = mx(p.x); p.tiles = [p.x, p.y, 1, 1]; }
+    for (const o of [d.note, d.item, d.extra, d.rift, ...(d.npcs || [])]) if (o) { o.x = mx(o.x); if (o.dir === 'left') o.dir = 'right'; else if (o.dir === 'right') o.dir = 'left'; }
+  }
+  const taken = () => { const s = new Set(); for (const p of M.set) s.add(p.x + ',' + p.y); for (const o of [d.note, d.item, d.extra, d.rift, ...(d.npcs || [])]) if (o) s.add(o.x + ',' + o.y); return s; };
+  const reach = () => { const seen = new Set([dx + ',' + (H - 1)]), q = [[dx, H - 1]];
+    while (q.length) { const [x, y] = q.shift(); for (const [a, b] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) { const k = a + ',' + b; if (seen.has(k) || !m[b] || m[b][a] == null || m[b][a] === '#' || m[b][a] === 'o') continue; seen.add(k); q.push([a, b]); } }
+    return seen; };
+  const allOk = () => { const s = reach(); const tk = [...taken()].map(k => k.split(',').map(Number));
+    // every piece, person and find must have a reachable neighbour (people/finds: their own tile)
+    for (const p of M.set) if (![[1,0],[-1,0],[0,1],[0,-1]].some(([a, b]) => s.has((p.x + a) + ',' + (p.y + b)))) return false;
+    for (const o of [d.note, d.item, d.extra, d.rift, ...(d.npcs || [])]) if (o && !s.has(o.x + ',' + o.y) && ![[1,0],[-1,0],[0,1],[0,-1]].some(([a, b]) => s.has((o.x + a) + ',' + (o.y + b)))) return false;
+    return s.has(dx + ',' + (H - 2)); };
+  // 3) partitions and alcoves: try a few, keep each only if everything stays reachable
+  const tries = pk([1, 2, 2, 3]);
+  for (let k = 0; k < tries; k++) {
+    const vert = r() < .5, len = 2 + Math.floor(r() * 3), x0 = 2 + Math.floor(r() * (W - 4)), y0 = 1 + Math.floor(r() * (H - 4));
+    const cells = []; for (let i = 0; i < len; i++) cells.push(vert ? [x0, y0 + i] : [x0 + i, y0]);
+    const tk = taken(); if (cells.some(([x, y]) => !m[y] || m[y][x] !== '.' || tk.has(x + ',' + y) || y >= H - 2 || Math.abs(x - dx) <= 0 && y >= H - 3)) continue;
+    for (const [x, y] of cells) m[y][x] = '#';
+    if (!allOk()) for (const [x, y] of cells) m[y][x] = '.';
+  }
+  // 4) extra pieces along the walls, chosen by what kind of room it is
+  const decor = /Archive|shrine/i.test(d.name) ? ['shelf', 'desk', 'shelf'] : /Tavern|The [A-Z]/.test(d.name) && d.w === 11 ? ['table', 'pallet'] : /Store|Pawn|stall/i.test(d.name) ? ['shelf', 'pallet', 'shelf'] : /quiet|Numb/i.test(d.name) ? ['mirror', 'rubble'] : /Shed|Barracks|Hut/i.test(d.name) ? ['pallet', 'rubble', 'table'] : ['shelf', 'table', 'piano', 'mirror', 'pallet'];
+  const extra = pk([1, 2, 2, 3]);
+  for (let k = 0, n = 0; k < 30 && n < extra; k++) {
+    const x = 1 + Math.floor(r() * (W - 2)), y = 1 + Math.floor(r() * (H - 3));
+    const nearWall = m[y - 1][x] === '#' || m[y][x - 1] === '#' || m[y][x + 1] === '#';
+    if (!nearWall || m[y][x] !== '.' || taken().has(x + ',' + y) || Math.abs(x - dx) < 1 && y > H - 4) continue;
+    const p = { k:pk(decor), x, y, tiles:[x, y, 1, 1] }; M.set.push(p); m[y][x] = 'o';
+    if (!allOk()) { M.set.pop(); m[y][x] = '.'; continue; } n++;
+  }
+  // 5) lamps in corners, coloured by the room's light
+  const L = ROOM_LIGHTS[fam && FAM_LIGHT[fam] ? pk(FAM_LIGHT[fam]) : Math.floor(r() * ROOM_LIGHTS.length)];
+  const corners = [[1, 1], [W - 2, 1], [1, H - 3], [W - 2, H - 3]].sort(() => r() - .5);
+  let lamps = 0;
+  for (const [x, y] of corners) { if (lamps >= pk([1, 1, 2])) break; if (m[y][x] !== '.' || taken().has(x + ',' + y)) continue;
+    const p = { k:'lamp', x, y, tiles:[x, y, 1, 1], lc:L.lamp, li:L.li }; M.set.push(p); m[y][x] = 'o'; if (!allOk()) { M.set.pop(); m[y][x] = '.'; continue; } lamps++; }
+  for (const p of M.set) if (p.lit) { p.lc = p.lc || '#ff8a3a'; p.li = p.li || 2.4; }
+  d.floor = pk(FLOORS); d.light = L;
+  M.tiles = m; M.w = W; M.h = H;
+  const ex = M.exit, H0 = H; M.exit = (nx, ny) => ny >= H0 ? ex(nx, 1e6) : null;
+}
+for (const k in MAPS) if (MAPS[k].kind === 'inside') varyRoom(k);
 // =============================================================================
 //  WORLD — build a map in 3D: sculpted terrain, mood vibe, life
 // =============================================================================
@@ -3390,7 +3469,7 @@ function buildRouteExtras(M, V) {
 function buildWorld(id) {
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
-  const M = MAPS[id], V = vibeOf(id);
+  const M = MAPS[id], V = worldVibe(id);
   worldScene.background.set(V.sky); worldScene.fog.color.set(V.fog); worldScene.fog.near = V.fogNear + 2; worldScene.fog.far = V.fogFar + 8;
   worldLights.hemi.color.set(V.hemi); worldLights.sun.intensity = V.sun; tintSky(worldSky, V);
   W.baseSky = new THREE.Color(V.sky);
@@ -3402,7 +3481,7 @@ function buildWorld(id) {
   let hasWater = false;
   for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) {
     const ch = M.tiles[y][x], r = hsh(x, y), gy = groundY(x, y);
-    if (ch === '#' && V.inside) { const sw = y === M.h - 1; world.add(at(inkBox(1, sw ? .3 : 1.7, 1, toon(new THREE.Color(V.wall).offsetHSL(0, 0, (r - .5) * .06)), .02), x, gy + (sw ? .15 : .85), y)); }
+    if (ch === '#' && V.inside) { const inner = x > 0 && y > 0 && x < M.w - 1 && y < M.h - 1, sw = y === M.h - 1 || inner; world.add(at(inkBox(1, sw ? (inner ? .95 : .3) : 1.7, 1, toon(new THREE.Color(V.wall).offsetHSL(0, 0, (r - .5) * .06 - (inner ? .08 : 0))), .02), x, gy + (sw ? (inner ? .475 : .15) : .85), y)); }
     else if (ch === '#') { trees.push([x + (hsh(x, y, 2) - .5) * .35, 0, y + (hsh(x, y, 5) - .5) * .35]); if (hsh(x, y, 8) < .35 && trees.length) trees.push([x + .45, 0, y - .4]); }
     if (ch === 'f') flowers.push([x, y]);
     if (ch === ',') tall.push([x, y]);
@@ -3461,10 +3540,14 @@ function buildWorld(id) {
     if (e.note) { const pg = new THREE.Group(); pg.add(at(inkBox(.34, .02, .26, toon('#f3ead6'), .015), 0, .04, 0)); pg.add(at(inkBox(.2, .015, .03, toon('#5a4a3a'), 0), 0, .055, -.04)); const gl = glow('#fff6d8', .5, .4); gl.position.y = .2; pg.add(gl); pg.rotation.y = hsh(e.x, e.y) * 2; pg.position.set(e.x, groundY(e.x, e.y), e.y); world.add(pg); W.npcs[e.id] = pg; continue; }
     if (e.manif) { const g = buildManif(e.manif, { scale:e.big ? 1 : .7 }); g.position.set(e.x, groundY(e.x, e.y) + .2, e.y); const gl = glow(e.big ? '#ff4a3a' : '#c43a4a', 2.2, .5); gl.position.y = .6; g.add(gl); world.add(g); W.npcs[e.id] = g; continue; }
     if (e.item) { const sp = glow('#fff1b0', .7, .9); sp.position.set(e.x, groundY(e.x, e.y) + .4, e.y); world.add(sp); W.npcs[e.id] = sp; continue; }
+    if (e.body) { const p = buildPerson(e.look ? { ...e.look, coat:new THREE.Color(e.look.coat || '#777').lerp(new THREE.Color('#5a5650'), .6).getStyle() } : NUMBED_LOOK); p.rotation.z = Math.PI / 2; p.position.set(e.x, groundY(e.x, e.y) + .22, e.y); world.add(p); const pool = new THREE.Mesh(new THREE.CircleGeometry(.75, 14), new THREE.MeshBasicMaterial({ color:'#4a080c', transparent:true, opacity:.8, depthWrite:false })); pool.rotation.x = -Math.PI / 2; pool.position.set(e.x + .2, groundY(e.x, e.y) + .03, e.y + .1); world.add(pool); continue; }
     const p = buildPerson(e.look); p.position.set(e.x, groundY(e.x, e.y), e.y); world.add(p); W.npcs[e.id] = p;
+    if (e.pet) { const pm = buildManif(petFor(e), { scale:.42 }); pm.position.set(.6, .55, .1); p.add(pm); }
   }
+  worldExtras(id, M, V);
   W.player = buildHero(S.hero); world.add(W.player);
   W.light = new THREE.PointLight('#ffd98a', 0, 4.5, 1.6); world.add(W.light);
+  if (MAPS[id].kind === 'inside') for (const p of MAPS[id].set || []) if (p.lc) { const pl = new THREE.PointLight(p.lc, p.li || 2, 6.5, 1.4); pl.position.set(p.x, p.k === 'lamp' ? 1.8 : 1, p.y); world.add(pl); }
   W.lantern = null; if (V.cave) { W.lantern = new THREE.PointLight('#ffcf8a', 3.2, 8, 1.4); world.add(W.lantern); }
   W.ring = new THREE.Mesh(new THREE.CircleGeometry(.9, 24), new THREE.MeshBasicMaterial({ map:glowTex, color:'#ffd98a', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending }));
   W.ring.rotation.x = -Math.PI / 2; world.add(W.ring);
@@ -3831,7 +3914,7 @@ async function talkRecovered(t, i) { const v = vibeClass();
   await say('Townsperson: ' + (v === 'bright' ? pickA(['You\'re so bright. It\'s like standing near a fire after years outside. Thank you, {name}.', 'I can see colours again, and you\'re one of them. Was it you who settled the Heart?'])
     : v === 'dark' ? pickA(['I can feel things again. Including about you. You frighten me a little. Is that allowed?', 'Something dark sits on you, {name}. I know that weight. I carried nothing for so long I\'d almost take it.'])
     : (i % 2 ? REMEMBER[t] : pickA(['I was Numbed for years. I don\'t remember the years. I remember this morning, though. All of it.', REMEMBER[t]])))); }
-function ents(map) { const b = entsBase(map); return applyFlee(map, questFilter(map, b.concat(questEnts(map, b)))); }
+function ents(map) { const b = entsBase(map), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(trainEnts(map, z)); return applyFlee(map, endingFilter(map, questFilter(map, t))); }
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
   if (M.kind === 'hub') {
@@ -3907,7 +3990,7 @@ async function interact() {
   const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
   const w = wildAt(fx, fy); if (w) return startWild(w);
   const e = entAt(fx, fy);
-  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; if (await moodPreTalk(e) === 'refuse') return; await e.talk(); return; }
+  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; if (await moodPreTalk(e) === 'refuse') return; await auraPreTalk(e); await e.talk(); return; }
   const tl = tileAt(fx, fy);
   if (tl === 's') {
     if (S.map === 'vellum') { const g = Object.entries(GATES).find(([, g]) => g.sign[0] === fx && g.sign[1] === fy); if (g) { const t = GATE_TYPE[g[0]], T = TOWNS[t], Wt = WAYTOWNS[t]; await say(`This road: ${Wt.name} (Lv ${Wt.lv[0]}+), then ${ROUTES[t].name} (Lv ${ROUTES[t].lv[0]}+), then the city of ${T.name}, ruled by ${TYPES[t].name} (Lv ${T.lv[0]}+).${S.hearts[t] ? ' Its Heart has settled.' : ''}`); } }
@@ -3944,7 +4027,7 @@ async function talkWren() {
   await say(Object.keys(S.hearts).length ? 'Wren: {name}! Sit a while. Let your Manifs rest. Tobin tells everyone you\'ve settled a Heart. He won\'t stop.' : 'Wren: Sit a while, {name}. Let your Manifs rest.');
   await say('(Everything you carry is composed again.)');
   const hearts = Object.keys(S.hearts).length;
-  const opts = ['Talk', 'Ask about…', 'Archive Supply', 'Close my Codex']; if (hearts >= WN && !S.flags.hushDone) opts.push('The Stillwell'); opts.push('Leave');
+  const opts = ['Talk', 'Ask about…', 'Archive Supply']; if (hearts >= WN && !S.flags.hushDone) opts.push('The Stillwell'); opts.push('Leave');
   const c = await ask(hearts >= WN && !S.flags.hushDone ? 'Wren: Every Heart has settled. Something is moving beneath the Archive. Beneath all of us.' : 'Wren: What do you need?', opts);
   const lab = opts[c];
   if (lab === 'Talk') await say('Wren: ' + TIPS[S.steps % TIPS.length]);
@@ -4055,7 +4138,7 @@ async function talkMaribel() {
   } else if (auraAtMost('shadowed')) await say('Maribel: ...You. Whatever you\'re carrying, carry it past my door.');
   else await say('Maribel: Hm. I can\'t read you yet. Come back when you\'ve made up your mind.');
 }
-async function talkTobin() { await say(['Tobin: Mum says every city out there is stuck on one feeling. The little villages on the way are mixed up, though. You find all sorts there.', 'Tobin: Wren says Manifs aren\'t good or bad. They\'re just weather. Maribel doesn\'t agree. Do you agree, {name}?', 'Tobin: There\'s a man in the alley who only talks to people with shadows on them.', 'Tobin: The arches are coloured like the wheel. Opposite towns face each other across Vellum.', 'Tobin: I told the whole square {name} is going to settle all ten Hearts. {They} definitely {is}. Right?'][S.steps % 5]); }
+async function talkTobin() { if (await deliverPie()) return; await say(['Tobin: Mum says every city out there is stuck on one feeling. The little villages on the way are mixed up, though. You find all sorts there.', 'Tobin: Wren says Manifs aren\'t good or bad. They\'re just weather. Maribel doesn\'t agree. Do you agree, {name}?', 'Tobin: There\'s a man in the alley who only talks to people with shadows on them.', 'Tobin: The arches are coloured like the wheel. Opposite towns face each other across Vellum.', 'Tobin: I told the whole square {name} is going to settle all ten Hearts. {They} definitely {is}. Right?'][S.steps % 5]); }
 async function talkLookout() {
   if (S.flags.lookoutMoved) return say('Lookout: Go on through. Sable\'s expecting you.');
   if (auraAtMost('shadowed')) {
@@ -4220,11 +4303,11 @@ function wheelSVG() {
 }
 async function auraMenu() {
   const v = auraValue(), tid = tierOf(v), pct = (clamp(v, -9, 9) + 9) / 18 * 100;
-  showSheet(`<h2>Your Aura</h2><div class="subt">The sum of what you carry. Everyone you meet can see it.</div>
+  showSheet(`<h2>Your Aura · ${zoneOf().name}</h2><div class="subt">The sum of what you carry. Everyone you meet can see it.</div>
     <div style="text-align:center;font:34px 'IM Fell English',serif;color:${TIER_TXT[tid]};text-shadow:0 0 16px ${TIERC[tid]}">${tierName(tid)} <span style="font:800 15px 'Nunito Sans';color:var(--muted)">(${sgn(v)})</span></div>
     <div style="position:relative;height:14px;border:2px solid var(--ink);border-radius:8px;margin:12px 4px 18px;background:linear-gradient(90deg,${TIERC.abyssal},${TIERC.shadowed} 30%,${TIERC.neutral} 50%,${TIERC.warm} 70%,${TIERC.radiant})"><span style="position:absolute;left:${pct}%;top:-9px;transform:translateX(-50%);font-size:18px">▼</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800">${manifIcon(m, 22)}${nm(m)} ${sgn(valOf(m))}</span>`).join('')}</div>
-    ${wheelSVG()}<p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Joy, Trust and Anticipation brighten you. Sadness, Disgust and Anger darken you. Fear and Surprise are neutral.</p>`);
+    ${auraGridSheet()}<p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm brighten you; Sadness, Fear, Anger, Shame and Disgust darken you. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
   await say(auraLine());
   closeSheet();
 }
@@ -4236,7 +4319,7 @@ async function journal() {
     ${WHEEL.filter(t => byType[t]).sort((a, b) => byType[b] - byType[a]).map(t => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13px;font-weight:700"><span style="width:90px">${TYPES[t].name}</span><i style="display:block;height:10px;border-radius:5px;border:1.5px solid #1b1512;background:${TYPES[t].c};width:${Math.max(4, byType[t] / tot * 70)}%"></i><span style="color:var(--muted)">${fmtTime(byType[t])}</span></div>`).join('') || '<p style="color:var(--muted)">Nothing yet.</p>'}
     <div style="font-weight:800;margin:12px 0 4px">Marks: ${S.marks || 0}</div><div style="font-weight:800;margin:8px 0 4px">Active jobs</div>${activeJobsHTML()}<div style="font-weight:800;margin:12px 0 4px">Hearts of the Welkin</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${TOWN_ORDER.map(t => `<span class="pill" style="background:${S.hearts[t] ? TYPES[t].c : '#e4d3ae'};opacity:${S.hearts[t] ? 1 : .6}">${TOWNS[t].name}${(S.bound || {})[t] ? ' ⛓' : S.hearts[t] ? ' ✓' : ''}</span>`).join('')}</div>${choirHTML()}${noticesHTML()}<div style="font-weight:800;margin:12px 0 4px">Archive Fragments · ${Object.keys(S.frags || {}).length}/18</div>${fragsHTML()}`);
-  await say('Close your Codex with Wren whenever you\'re ready. It will tell you what you carried.');
+  await say('Your Codex closes itself, at the very end, however the end comes.');
   closeSheet();
 }
 
@@ -4341,7 +4424,8 @@ function removeManif(m, how, marks) {
 }
 
 // ---------------------------------------------------------------- shops ------
-function priceMult(shop) {
+function priceMult(shop) { const b = priceMult0(shop); return b == null ? b : Math.round(b * auraPriceMod() * 100) / 100; }
+function priceMult0(shop) {
   const t = shownTier();
   if (shop.dark) return ['shadowed', 'abyssal'].includes(t) ? shop.discount || 1 : null;
   if (shop.bright) return t === 'radiant' ? .8 : t === 'warm' ? .9 : t === 'neutral' ? 1 : t === 'shadowed' ? 1.4 : null;
@@ -4613,7 +4697,7 @@ async function fightRogue(t, elder) {
   const foe = newManif(sp, lv);
   await say(elder ? 'The air thickens. Something that has been a feeling for two hundred years turns to look at you, and its ink is old and black as tar.' : 'The air goes wrong. A rogue Manif turns toward you, dripping, and it has clearly hurt people.');
   const c = await ask(`${elder ? 'The Elder' : 'The Rogue'} ${SPECIES[sp].name} (Lv ${lv})`, ['Face it', 'Not yet']); if (c !== 0) return;
-  const r = await battle(foe, { owner: elder ? 'the Welkin' : 'the road' });
+  const r = await battle(foe, { owner: elder ? 'the Welkin' : 'the road', elder });
   if (r === 'blackout') return blackout(); if (r !== 'won') return;
   if (elder) { st.elder = 2; const m = TOWNS[t].lv[1] * 25 + 600; pay(m); await say(`It comes apart into two hundred years of somebody\'s ${TYPES[t].name.toLowerCase()}. The road is quiet. You earned ${m} Marks.`); }
   else { st.rogue = 2; const m = TOWNS[t].lv[1] * 15 + 120; pay(m); await say(`It goes still at last. Nobody will claim it. You earned ${m} Marks from the ${WAYTOWNS[t].name} board.`); }
@@ -4756,7 +4840,7 @@ async function wrenConfront() {
 async function talkFallenWren() {
   const hearts = Object.keys(S.hearts).length;
   await say(S.flags.wrenFallen === 'numbed' ? 'Wren sits on the Archive steps with her hands folded. She smiles at you exactly the way she smiles at everyone now.' : 'Wren sits on the Archive steps with her bandaged hands in her lap. She won\'t look at you. She won\'t look at anything.');
-  const opts = ['Take from the Archive stores', 'Close my Codex']; if (hearts >= WN && !S.flags.hushDone && !S.flags.doom) opts.push('The Stillwell'); opts.push('Leave');
+  const opts = ['Take from the Archive stores']; if (hearts >= WN && !S.flags.hushDone && !S.flags.doom) opts.push('The Stillwell'); opts.push('Leave');
   const c = await ask(S.flags.wrenFallen === 'numbed' ? 'Wren: Yes? Whatever you need.' : '(Silence.)', opts);
   const lab = opts[c]; healAll();
   if (lab === 'Take from the Archive stores') return openShop('archive');
@@ -4768,8 +4852,7 @@ async function choirKneel() {
   await say('You kneel at the edge of the still water and open the Codex. The pages turn by themselves. The Hush leans down over you, curious, and every colour turning in it goes grey.');
   await say('Footsteps on the stair. The Conductor comes down with a hundred grey-sleeved Choir behind him, humming the first hymn. "Hush, hush, the war is done."');
   await say('Conductor: Thank you. Truly. Now give me the Codex and the Bell. The Chord needs one voice, and it was never going to be yours.');
-  const y = await ask('The Conductor holds out a white hand.', ['Refuse', 'Hand them over']);
-  if (y === 1) { await say('You hand them over. The Conductor rings the Bell, and the first note of the Chord goes through you like a blade. Then nothing. Then nothing, forever.'); S.flags.doomServant = 1; return doomEnding(true); }
+  await say('(The Conductor holds out a white hand. You close yours around the Bell.)');
   await say('Conductor: (He laughs, softly, and lifts the baton.) I hoped you\'d say that. Corvin Vale-Ashby, Conductor of the Hollow Choir. Let\'s see whose song it is.');
   const ok = await trainerFight('the Conductor', [[spAt('CALM', 2, 1), 40], [spAt('FEAR', 2, 0), 41], [spAt('SHAME', 2, 2), 42]]);
   if (!ok) return say('(The Conductor waits by the water, humming. Gather yourself and kneel again.)');
@@ -4780,9 +4863,9 @@ async function choirKneel() {
 }
 async function doomEnding(servant) {
   S.flags.doom = 1; S.flags.hushDone = 1; S.choir.rank = 6; for (const t of WHEEL) bound()[t] = 1; if (W.heart) { world.remove(W.heart); W.heart = null; }
-  await banner('The Grand Chord', servant ? 'Sung without you' : 'Sung');
+  await banner('The Grand Chord', 'Sung');
   await say('The Chord goes out across the Welkin. In every city, people stop mid-step, mid-word, mid-scream. Then they stand very still, and they wait to be told what to do.');
-  const ch = await ending(true, servant ? 'servant' : 'doom');
+  const ch = await ending(true, 'doom');
   if (ch === 'keep') { await wait(1600); await endGift('doom'); }
 }
 
@@ -4891,6 +4974,329 @@ function noticesHTML() {
   return rows.length ? `<div style="font-weight:800;margin:12px 0 4px">Notices</div>` + rows.map(r => `<div style="font-size:13px">· ${r}</div>`).join('') : '';
 }
 // =============================================================================
+//  AURA GRID — your aura has two axes: Light ↔ Shadow (how pleasant what you carry
+//  is) and Still ↔ Fierce (how much energy it has). Where you land, and which feeling
+//  dominates what you carry, decides how people read you. Every NPC has their own
+//  morals (seeded per playthrough), so the same aura draws pity from one person and
+//  a con from the next. Some encounters only appear in certain parts of the grid.
+// =============================================================================
+const AROUSAL = { JOY:1, HOPE:0, CALM:-2, CONFIDENCE:1, SURPRISE:2, SADNESS:-2, FEAR:1, ANGER:2, SHAME:-1, DISGUST:0 };
+const energyOf = m => { const d = SPECIES[m.sp]; const base = d.dyad ? (AROUSAL[d.type] + AROUSAL[d.type2]) / 2 : AROUSAL[d.type]; return base * (1 + .25 * (d.dyad ? 1 : d.tier)); };
+const energyValue = (p = S.party) => p.reduce((a, m) => a + energyOf(m), 0);
+const ZONES = {
+  'shadow,fierce':{ name:'Menacing', d:'Dark and loud. People step out of your way, and the wrong sort step toward you.' },
+  'even,fierce':  { name:'Volatile', d:'Nobody can tell which way you\'ll go. Neither can you.' },
+  'light,fierce': { name:'Blazing',  d:'Bright and unstoppable. Children follow you. Rivals resent you.' },
+  'shadow,level': { name:'Bitter',   d:'Sour and steady. Cynics trust you. Everyone else keeps their distance.' },
+  'even,level':   { name:'Unread',   d:'The world hasn\'t made up its mind about you yet.' },
+  'light,level':  { name:'Warm',     d:'People meet your eyes and soften. Doors open.' },
+  'shadow,still': { name:'Forlorn',  d:'Heavy and quiet. Kind people pity you. Cruel people see an easy mark.' },
+  'even,still':   { name:'Muted',    d:'So quiet you almost aren\'t there. The Numbed seem to recognise you.' },
+  'light,still':  { name:'Serene',   d:'Calm and bright. People confess things to you they\'ve never told anyone.' }
+};
+function auraPos() { const v = auraValue(), e = energyValue(); return { v, e, x: v <= -2 ? 'shadow' : v >= 2 ? 'light' : 'even', y: e <= -3 ? 'still' : e >= 3 ? 'fierce' : 'level' }; }
+const ZONE_FLAVOUR = { 'shadow,fierce:FEAR':{ name:'Haunted', d:'Dark and jumpy. Kind people want to shelter you. Cruel ones smell an easy mark.' }, 'shadow,still:SHAME':{ name:'Hiding', d:'Dark and small. People either coax you out or hold it over you.' }, 'light,fierce:SURPRISE':{ name:'Dazzled', d:'Bright and startled. Everything is new to you, and everyone can tell.' } };
+function zoneOf() { const p = auraPos(), key = p.x + ',' + p.y, fl = ZONE_FLAVOUR[key + ':' + (S.party.length ? dominantFam() : '')]; return { ...ZONES[key], ...(fl || {}), ...p, key }; }
+function dominantFam() { const w = {}; for (const m of S.party) { const d = SPECIES[m.sp]; w[d.type] = (w[d.type] || 0) + 1 + d.tier * .5 + (d.dyad ? 0 : 0); }
+  let best = null, bv = 0; for (const k in w) if (w[k] > bv) { bv = w[k]; best = k; } return best; }
+function seedOf() { if (!S.seed) S.seed = 1 + Math.floor(Math.random() * 1e9); return S.seed; }
+const MORAL_BIAS = { JOY:[.55, .3], HOPE:[.5, .3], CALM:[.5, .35], CONFIDENCE:[.35, .35], SURPRISE:[.4, .35], SADNESS:[.45, .3], FEAR:[.3, .35], ANGER:[.25, .35], SHAME:[.35, .35], DISGUST:[.2, .35] };
+function moralOf(e) { let h = seedOf(); for (const ch of (S.map + ':' + e.id)) h = Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0;
+  const r = (h % 1000) / 1000, M = MAPS[S.map], fam = M && (M.vibe || (MAPS[M.route] && MAPS[M.route].vibe)), [k, f] = MORAL_BIAS[fam] || [.4, .35];
+  return r < k ? 'kind' : r < k + f ? 'fair' : 'cruel'; }
+
+// How people react to the feeling that dominates what you carry, by their morals.
+const REACT = {
+  JOY:{ kind:['You\'re lit up like a festival. Don\'t let anyone talk you out of it.', 'Whatever you\'re carrying, it\'s catching. I haven\'t smiled like this in weeks.', 'My little one waved at you. She never waves at anyone.'],
+        fair:['You look pleased with yourself. Good for you, I suppose.', 'Bit bright for this street, aren\'t you?', 'Happy people make me nervous. They always want something.'],
+        cruel:['Must be nice. Some of us have to work for a living.', 'Smile at me like that again and see what happens.', 'Happy people\'s pockets are always so full. And so loose.'] },
+  HOPE:{ kind:['You\'ve got that look. Like tomorrow owes you something good. I hope it pays.', 'Keep hoping. One of us should.', 'I used to look like you. Before the Heart.'],
+         fair:['Hope\'s cheap. Let\'s see what you do with it.', 'Wishing won\'t mend a roof, you know.', 'You think things are getting better? Hm. Maybe.'],
+         cruel:['A dreamer. Lovely. Dreamers believe anything you tell them.', 'I could sell you a bridge with that face.', 'Hope\'s the easiest thing in the world to take off someone.'] },
+  CALM:{ kind:['Being near you is like sitting by a still pond. Thank you.', 'You make the whole street slow down. Stay a while.', 'I haven\'t breathed out properly in a year. There. That.'],
+         fair:['You\'re very calm. Suspiciously calm.', 'Nothing gets to you, does it? Must be handy.', 'Calm\'s fine until something\'s on fire.'],
+         cruel:['Too calm to make a fuss, I\'d bet. Too calm to notice a hand in your bag.', 'You wouldn\'t shout if I took something, would you?', 'Still waters. Easy to push.'] },
+  CONFIDENCE:{ kind:['You walk like you know where you\'re going. It helps the rest of us.', 'Somebody\'s got to lead. Might as well be you.', 'I believe you. Whatever it is, I believe you.'],
+         fair:['Swagger like that gets people killed out on the roads.', 'Big talk. Let\'s see you back it up.', 'Sure of yourself. Must be restful.'],
+         cruel:['You think you\'re better than us. I can see it on you.', 'Proud ones always fall the hardest. I like to watch.', '(They spit near your boots.) Strutting through my street like you own it.'] },
+  SURPRISE:{ kind:['You\'re so jumpy! It\'s all right. Nothing\'s going to leap out.', 'You keep looking round like the world just changed. Maybe it did.', 'Wide eyes like that. You must be new to all this.'],
+         fair:['Can\'t keep still, can you?', 'You startle at everything. It\'s catching.', 'Make up your mind which way you\'re going.'],
+         cruel:['BOO. (They laugh as you flinch.)', 'Easy to rattle. I\'ll remember that.', 'Someone like you never sees the knife coming.'] },
+  SADNESS:{ kind:['Oh, love. You look like you\'re carrying a coffin on your back. Sit down a moment.', 'I know that face. I wore it for two years after my Elsie. It does lift. Slowly.', 'Here. It\'s not much. Eat something.'],
+         fair:['Cheer up. Or don\'t. Your business.', 'Grief\'s heavy. Everyone\'s got some.', 'You look like you\'ve been to a funeral. Have you?'],
+         cruel:['Sad little thing. Bet you\'d hand over anything to anyone who was nice to you.', 'Grieving people pay whatever you ask. Never haggle.', 'Crying in my street? That\'ll cost you.'] },
+  FEAR:{ kind:['You\'re shaking. Whatever it is, it\'s not here. You\'re safe here.', 'Stay close to the lamps tonight. I\'ll walk you to the gate if you like.', 'Frightened people need a friend more than a lecture. Here I am.'],
+         fair:['You look like you\'ve seen the thing with no face.', 'Scared, are we? Good. Means you\'re paying attention.', 'Keep your voice down. Fear\'s catching.'],
+         cruel:['Scared little rabbit. You\'d pay anything to be left alone, wouldn\'t you?', 'Frightened people are so very easy to rob.', 'I could make you jump at your own shadow for a week. Want to see?'] },
+  ANGER:{ kind:['Easy. Easy. Whoever did it to you, it isn\'t me.', 'That fury will eat you from the inside. Put some of it down.', 'My brother carried Rage for ten years. Please don\'t end up like him.'],
+         fair:['Don\'t take it out on me. I just live here.', 'Whatever\'s eating you, go and hit it, not my door.', 'Angry, aren\'t you? Fair enough. Everyone is these days.'],
+         cruel:['(They back off fast.) Alright! Alright. No trouble.', 'Here, take this and go. Please. I don\'t want trouble with someone like you.', 'You want a fight? Not with me. I\'m not stupid.'] },
+  SHAME:{ kind:['Look up. Go on. Nobody here is judging you.', 'Whatever you did, you\'re still allowed to walk down the street.', 'You don\'t have to apologise for being here.'],
+         fair:['Why won\'t you look at me? Did you do something?', 'You look guilty. Don\'t tell me why. I don\'t want to know.', 'Hiding something, are we?'],
+         cruel:['I know that look. You\'d do anything to keep it quiet, wouldn\'t you?', 'Shame\'s a leash. I could lead you anywhere with it.', 'Everybody in town is going to hear about you. Unless you make it worth my while.'] },
+  DISGUST:{ kind:['You look like the whole world smells bad. It doesn\'t, not all of it.', 'I know. People are awful. Not all of them. Give us a chance.', 'Your face! Like you bit a lemon. Here, have something sweet.'],
+         fair:['Don\'t look at me like I\'m something on your boot.', 'Bit superior, aren\'t you?', 'If you hate it here so much, keep walking.'],
+         cruel:['Too good for us, are you? Let\'s see how you like the gutter.', 'Sneer at me again and I\'ll give you something to be disgusted about.', 'Oh, I know your type. Nose in the air, purse in the hand.'] }
+};
+const EXPLOIT_FAMS = ['SADNESS', 'FEAR', 'SHAME', 'CALM', 'HOPE'];
+async function auraPreTalk(e) {
+  if (!isFolk(e) || STAY_IDS.has(e.id) && e.id !== 'res_ilse') return;
+  const fam = dominantFam(); if (!fam || !REACT[fam]) return;
+  S.met = S.met || {}; const key = S.map + ':' + e.id; if (S.met[key]) return; S.met[key] = 1;
+  const moral = moralOf(e), sayE = l => say((e.name ? e.name + ': ' : '') + l), z = zoneOf();
+  await sayE(deal('react:' + fam + moral, REACT[fam][moral]));
+  // what they actually do about it
+  if (moral === 'kind' && ['SADNESS', 'FEAR', 'SHAME'].includes(fam) && Math.random() < .5) { const k = pickA(['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; await say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
+  else if (moral === 'cruel' && EXPLOIT_FAMS.includes(fam) && (S.marks || 0) > 40 && Math.random() < .6) {
+    const amt = 20 + Math.floor(Math.random() * 40);
+    const c = await ask(`${e.name || 'They'} ${fam === 'SHAME' ? 'want' : 'ask for'} ${amt} Marks${fam === 'SHAME' ? ' to keep quiet about you' : fam === 'FEAR' ? ' for "protection"' : fam === 'SADNESS' ? ' for a "charity for the bereaved" that doesn\'t exist' : ' for a "sure thing" that is definitely a con'}.`, ['Pay', 'Refuse']);
+    if (c === 0) { S.marks -= amt; await say(`You hand over ${amt} Marks. They grin, and are gone round the corner before you can blink.`); }
+    else await say(z.y === 'still' ? '(They laugh at you. "Suit yourself. Plenty more like you.")' : '(They size you up, decide you\'re not worth it, and walk away.)');
+  } else if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
+  else if (moral === 'cruel' && fam === 'JOY' && (S.marks || 0) > 30 && Math.random() < .4) { const m = 10 + Math.floor(Math.random() * 20); S.marks -= m; await say(`(Later you notice ${m} Marks missing from your purse.)`); }
+}
+// Prices: cruel shopkeepers squeeze the vulnerable; nobody haggles with a menace.
+function auraPriceMod() { const z = zoneOf(); return z.name === 'Forlorn' ? 1.15 : z.name === 'Muted' ? 1.05 : z.name === 'Menacing' ? .9 : z.name === 'Serene' || z.name === 'Warm' ? .95 : 1; }
+
+// ---------------------------------------------------------------- grid encounters
+// One per zone. Which town each turns up in is rolled per playthrough; they only appear while your aura sits in that zone.
+const ZONE_MEETS = {
+  Forlorn:{ who:'Hester, who sits with the dying', look:{ coat:'#4a4a5a', accent:'#c8c0b0', skin:'#d9b89a', hair:'#c8c8c8', legs:'#2c2a2e' }, maps:['lowmere', 'sorrowmere', 'veilham', 'hidebury'], run:meetHester },
+  Menacing:{ who:'Brannoch, who runs a gang', look:{ coat:'#2a1e1a', accent:'#8a2a1a', skin:'#b88468', hair:'#1a1210', legs:'#1a1210', hat:'#1a1414' }, maps:['cinderford', 'emberwick', 'spurnhold', 'quailmoor'], run:meetBrannoch },
+  Blazing:{ who:'Tilly, captain of the children', look:{ coat:'#e8a83a', accent:'#fff3d6', skin:'#f0caa6', hair:'#8a4a1e', legs:'#5a4a3a', small:true }, maps:['brightmeadow', 'larkhollow', 'highcrest', 'ironstep'], run:meetTilly },
+  Bitter:{ who:'Old Crake, who sells secrets', look:{ coat:'#4a5a3a', accent:'#8a9a5a', skin:'#c8a888', hair:'#6a6a6a', legs:'#2a2a24', hat:'#3a4030' }, maps:['sourbrook', 'spurnhold', 'cinderford', 'quailmoor'], run:meetCrake },
+  Volatile:{ who:'Dice-Mother Ysolde', look:{ coat:'#6a2a5a', accent:'#f4cf5e', skin:'#b88468', hair:'#141014', legs:'#2a1424', hat:'#4a1a3a' }, maps:['wickerturn', 'caprice', 'handfast', 'emberwick'], run:meetYsolde },
+  Muted:{ who:'A Numbed girl who follows you', look:NUMBED_LOOK, maps:['driftfold', 'moonmoss', 'hushwood', 'sorrowmere'], run:meetNumbGirl, numbLook:true },
+  Serene:{ who:'Brother Calloway, who wants to confess', look:{ coat:'#d8d0c0', accent:'#8a7a5a', skin:'#d9a882', hair:'#e2ddd4', legs:'#4a4038' }, maps:['moonmoss', 'driftfold', 'trothaven', 'larkhollow'], run:meetCalloway },
+  Warm:{ who:'Nan Pellow, who needs a hand', look:{ coat:'#a8452f', accent:'#f3e7c9', skin:'#e0b48a', hair:'#e2ddd4', legs:'#3a2a1e' }, maps:['handfast', 'trothaven', 'brightmeadow', 'larkhollow'], run:meetNan },
+  Unread:{ who:'A stranger at the crossroads', look:{ coat:'#3a3540', accent:'#d8c27a', skin:'#c79a78', hair:'#141014', legs:'#141014', hat:'#2a2530' }, maps:['vellum'], run:meetStranger }
+};
+function zoneMap(z) { const L = ZONE_MEETS[z].maps; return L[(seedOf() + z.length * 7) % L.length]; }
+function zoneEnts(map, base) {
+  const out = [], zn = ZONES[zoneOf().key].name; S.zq = S.zq || {};
+  for (const z in ZONE_MEETS) { const Z = ZONE_MEETS[z]; if (zoneMap(z) !== map || S.zq[z] === 'done') continue;
+    if (zn !== z && !S.zq[z]) continue;
+    const M = MAPS[map]; const [x, y] = spotNear(map, Math.floor(M.w / 2) + 3, Math.floor(M.h / 2) + 2, base.concat(out));
+    out.push({ id:'zone_' + z, x, y, dir:'down', look:Z.look, name:Z.who.split(',')[0], numb:Z.numbLook, talk:() => Z.run(z) }); }
+  return out;
+}
+const zdone = (z, msg) => { S.zq[z] = 'done'; return msg ? say(msg) : null; };
+async function meetHester(z) {
+  await say('Hester: You have the look of someone who knows how to sit with sad things. There\'s a man upstairs. He\'s dying, and he\'s frightened, and nobody in his family will come.');
+  const c = await ask('Hester: Will you sit with him? Just until it\'s over.', ['Sit with him', 'I can\'t']); if (c !== 0) { S.zq[z] = 1; return say('Hester: No. Most people can\'t.'); }
+  await say('He\'s called Absalom. He was a soldier. He tells you about a boy he shot at Ash when he was nineteen, and how the boy\'s mother screamed, and how he never told anyone, ever.');
+  await say('Near dawn his breathing changes. He holds your hand very hard. Then he doesn\'t. The room smells of candle wax and something sour underneath.');
+  const m = adopt(newManif(spAt('SADNESS', 1, 2), Math.max(8, strongest() - 2))); m.nick = 'Absalom\'s ' + SPECIES[m.sp].name; (S.party.length < 6 ? S.party : S.satchel).push(m); rebuildMinis();
+  await say(`Something rises off him as he goes, and settles against you. ${m.nick} joins what you carry.`); zdone(z, 'Hester: Thank you. Truly. Most people think dying\'s the worst part. It\'s the being alone.');
+}
+async function meetBrannoch(z) {
+  await say('Brannoch: (A big man with a cut lip and bloody knuckles, flanked by three lads.) You\'ve got the look. Like you\'d break a jaw and sleep fine after.');
+  await say('Brannoch: The chandler on the corner hasn\'t paid us this month. Go in with my boys. Break something of his. Something he\'ll miss. 200 Marks for an hour\'s work.');
+  const c = await ask('Brannoch waits, cracking his knuckles.', ['Do the job', 'Turn on them', 'Walk away']);
+  if (c === 2) { S.zq[z] = 1; return say('Brannoch: Shame. You looked like you had it in you.'); }
+  if (c === 0) { pay(200); S.sins = (S.sins || 0) + 2; await say('The chandler is old. When the boys hold him down, you break three of his fingers, one at a time, while his wife screams in the back room. He pays. Brannoch pays you.'); return zdone(z, '(You earned 200 Marks. Your hands are steady. That\'s the worst part.)'); }
+  const ok = await trainerFight('Brannoch', [[spAt('ANGER', 1, 1), Math.max(10, strongest())], [spAt('DISGUST', 2, 0), Math.max(11, strongest() + 1)]]); if (!ok) return;
+  await say('Brannoch goes down in the gutter with his own blood in his mouth. His boys scatter. The chandler watches from the window, and then, very slowly, opens his door to you.');
+  pay(80); await giveItem('iron'); zdone(z, 'Chandler: I don\'t know what you are. But thank you. (You earned 80 Marks.)');
+}
+async function meetTilly(z) {
+  await say('Tilly: You\'re the brightest person I\'ve ever seen! Will you lead our parade? The big kids from the next street keep smashing it up. Their leader\'s got a Manif. A mean one.');
+  const c = await ask('A dozen children look up at you.', ['Lead the parade', 'Not today']); if (c !== 0) { S.zq[z] = 1; return say('Tilly: Oh. Tomorrow? We\'ll wait.'); }
+  const ok = await trainerFight('the big kids', [[spAt('DISGUST', 0, 1), Math.max(6, strongest() - 3)], [spAt('ANGER', 0, 2), Math.max(7, strongest() - 2)]]); if (!ok) return;
+  await say('The parade goes all the way round the square: paper lanterns, a drum made from a bucket, a dog in a hat. People come out of their houses to watch. Somebody\'s grandmother cries.');
+  await giveItem('charm'); zdone(z, 'Tilly: You\'re officially our captain now. Forever. That\'s the rules.');
+}
+async function meetCrake(z) {
+  await say('Old Crake: You\'ve got the right sneer. You know people are rotten. I sell what I know about the rot. Give me a feeling I can bottle and I\'ll give you something worth hearing.');
+  const pool = S.party.concat(S.satchel).filter(m => typeOf(m) === 'DISGUST' || typeOf(m) === 'ANGER');
+  if (!pool.length) { S.zq[z] = 1; return say('Old Crake: Come back with some Disgust or Anger on you. I don\'t trade for sunshine.'); }
+  const c = await ask(`Trade ${nm(pool[0])} for a secret?`, ['Trade it', 'Keep it']); if (c !== 0) { S.zq[z] = 1; return say('Old Crake: Your loss.'); }
+  removeManif(pool[0], 'sold', 0);
+  await say('Old Crake: The Choir\'s Conductor isn\'t a stranger to the Archive. Born there. Raised there. Had a twin who still lives there. Think about who in Vellum never talks about family.');
+  await say('Old Crake: And the clinics? They don\'t throw the empties away. There\'s a pit behind the Quailmoor one. Lime and bones, forty feet deep. Ask Constable Mercer, while he\'s still breathing.');
+  pay(150); zdone(z, '(He also pays you 150 Marks. "For your trouble," he says, and laughs like a drain.)');
+}
+async function meetYsolde(z) {
+  await say('Dice-Mother Ysolde: You\'ve got a storm in you, darling. Storm-people love a gamble. Three throws. Call each one. Win twice and I double your stake.');
+  const c = await ask('Stake 100 Marks?', ['Play', 'Not today']); if (c !== 0 || (S.marks || 0) < 100) { S.zq[z] = 1; return say((S.marks || 0) < 100 ? 'Ysolde: Come back with a hundred, sweetheart.' : 'Ysolde: Coward. Lovely coward.'); }
+  S.marks -= 100; let wins = 0;
+  for (let i = 0; i < 3; i++) { const g = await ask(`Throw ${i + 1}: odd or even?`, ['Odd', 'Even']); const roll = 2 + Math.floor(Math.random() * 11); const hit = (roll % 2 === 1) === (g === 0); if (hit) wins++; await say(`The bone dice rattle: ${roll}. ${hit ? 'You called it.' : 'Not this time.'}`); }
+  if (wins >= 2) { pay(200); await say('Ysolde: Ha! The storm likes you. 200 Marks, darling.'); } else await say('Ysolde: The storm keeps what it wins. Come back when you\'re feeling lucky again.');
+  zdone(z);
+}
+async function meetNumbGirl(z) {
+  await say('(A small Numbed girl has been following you through town. When you stop, she stops. She looks at you as if you are the only other person who makes any sense.)');
+  await say('Numbed girl: ...You\'re quiet too. Like us. Come. I\'ll show you where we put the things we don\'t need anymore.');
+  const c = await ask('She holds out a grey hand.', ['Follow her', 'Gently send her home']); if (c !== 0) { S.zq[z] = 1; return say('(She stands where you left her, perfectly still, for the rest of the day.)'); }
+  await say('She leads you behind the shrine to a cellar full of things the Numbed stopped caring about: wedding rings, letters, a child\'s shoe, a box of Marks nobody counted.');
+  for (const k of ['tonic', 'salts', 'hearth']) S.items[k] = (S.items[k] || 0) + 1; pay(120);
+  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Hearthstone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
+}
+async function meetCalloway(z) {
+  await say('Brother Calloway: Forgive me. You have a face people tell things to. I have to tell someone before the Heart takes me too.');
+  await say('Calloway: During the hungry winter I kept the temple\'s grain locked away "for the faithful". Eleven children in the lower town starved. I could hear them through the wall. I prayed louder.');
+  const c = await ask('He waits for your judgement.', ['Forgive him', 'Condemn him']);
+  if (c === 0) { await say('He weeps for a long time. Then he stands, and goes to the lower town with the temple\'s keys, and doesn\'t come back.'); await giveItem('hearth'); }
+  else { await say('He nods as if he expected it. That night he walks into the river with stones in his habit. They find him in the reeds three days later, bloated and white.'); S.sins = (S.sins || 0) + 1; }
+  zdone(z);
+}
+async function meetNan(z) {
+  await say('Nan Pellow: Oh, you\'ve a kind face! My grandson\'s at the Archive in Vellum and I\'ve baked him a pie and my knees won\'t do the road. Would you?');
+  const c = await ask('She holds out a warm pie wrapped in a cloth.', ['Take it to Vellum', 'Sorry, no']); if (c !== 0) { S.zq[z] = 1; return say('Nan: Ah well. I\'ll ask the next kind face.'); }
+  S.zq[z] = 'pie'; return say('Nan: His name\'s Tobin. Bless you, dear.');
+}
+async function meetStranger(z) {
+  const zz = zoneOf(); await say('Stranger: (They don\'t look up.) You don\'t lean yet. Not light, not dark. Not fierce, not still. That\'s rare. Most people have picked by now.');
+  await say(`Stranger: Your aura reads ${zz.name}. Carry more of one thing and the world will start to decide what you are for you. Take this, for when you want to hide which way you lean.`);
+  await giveItem('veil'); zdone(z);
+}
+async function deliverPie() { if ((S.zq || {}).Warm !== 'pie') return false;
+  await say('Tobin: A PIE? From NAN? (He hugs it.) She always burns the edge. That\'s how you know it\'s hers.'); pay(60); await giveItem('cake', 2); S.zq.Warm = 'done'; return true; }
+
+async function auraGridSheet() {
+  const z = zoneOf(), fam = dominantFam(), cell = (x, y) => { const k = x + ',' + y, on = k === z.key; return `<div style="padding:8px 4px;border:2px solid var(--ink);border-radius:8px;text-align:center;font-size:12px;font-weight:800;background:${on ? TIERC[x === 'light' ? 'radiant' : x === 'shadow' ? 'abyssal' : 'neutral'] : 'transparent'};opacity:${on ? 1 : .55}">${ZONES[k].name}</div>`; };
+  return `<div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:4px;align-items:center;margin:8px 0">
+    <span style="font-size:11px;color:var(--muted)">Fierce</span>${['shadow', 'even', 'light'].map(x => cell(x, 'fierce')).join('')}
+    <span></span>${['shadow', 'even', 'light'].map(x => cell(x, 'level')).join('')}
+    <span style="font-size:11px;color:var(--muted)">Still</span>${['shadow', 'even', 'light'].map(x => cell(x, 'still')).join('')}
+    <span></span><span style="font-size:11px;color:var(--muted);text-align:center">Shadow</span><span></span><span style="font-size:11px;color:var(--muted);text-align:center">Light</span></div>
+    <p style="text-align:center;margin:4px 0"><b>${z.name}</b> · ${z.d}</p>${fam ? `<p style="text-align:center;font-size:13px;color:var(--muted);margin:2px 0">Mostly ${TYPES[fam].name}: people will react to that first. Kind ones and cruel ones won't react the same way.</p>` : ''}`;
+}
+// =============================================================================
+//  ENDINGS — only three ways out:
+//   · Good: face the Hush and win. The Welkin is rebuilt (restored world, train, gardens).
+//   · Evil: kneel with the Hollow Choir and sing the Grand Chord.
+//   · Indifferent: when Wren finally begs you to go down, do nothing. Everything falls.
+//     No postgame: a tour of the ruined Welkin, then back to the beg or a fresh start.
+// =============================================================================
+const BEG_KEY = (typeof TEST_BUILD !== 'undefined' && TEST_BUILD) ? 'inkaura_test_beg' : 'inkaura_v4_beg';
+function begLines() {
+  const z = zoneOf(), fam = dominantFam(), fallen = S.flags.wrenFallen;
+  const open = fallen === 'numbed' ? 'Wren: (For a moment the grey goes out of her eyes. She grabs your sleeve with both hands.) {name}. {name}, listen to me. I can only hold on for a minute.'
+    : fallen === 'broken' ? 'Wren: (She holds up her ruined hands.) I can\'t stop you. I couldn\'t stop him. But I\'m asking anyway. I\'m begging.'
+    : 'Wren: (She is waiting at the top of the stone steps, and she has been crying.) {name}. Please. I have never asked anyone for anything.';
+  const lean = { Menacing:'You walk around like you want to break the world. Break the Hush instead.', Volatile:'I never know which way you\'ll go. Please, just this once, go down.', Blazing:'You\'re the brightest thing left in the Welkin. Take it down there where it\'s dark.',
+    Bitter:'I know you think we\'re all rotten. Maybe we are. Save us anyway.', Unread:'You haven\'t decided what you are. Decide now. Decide to go down.', Warm:'You\'ve been kind to every one of us. Be kind one more time.',
+    Forlorn:'I know how heavy everything is. I know. But if you sit down now, nobody ever gets up again.', Muted:'You\'re getting so quiet. Like them. Please don\'t go quiet now.', Serene:'You\'re the calmest person I know. Go down there and be calm at it.' }[z.name];
+  return [open, `Wren: Orrin has held the Hush shut for two hundred years and his arms are failing. When he lets go, it takes everyone. ${lean}`, 'Wren: I can\'t go down there. It knows my face. It has to be you. Please. Please go down.'];
+}
+async function wrenBeg() {
+  try { localStorage.setItem(BEG_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) {}
+  for (const l of begLines()) await say(l);
+  const c = await ask('Wren is on her knees on the Archive floor, holding your hand.', ['Go down into the Stillwell', 'Do nothing']);
+  if (c === 0) { S.flags.begDone = 1; return true; }
+  const y = await ask('(If you do nothing, nothing can be done afterwards. Ever.)', ['Do nothing', 'Wait, I\'ll go down']);
+  if (y !== 0) { S.flags.begDone = 1; return true; }
+  await indifferentEnding(); return false;
+}
+
+// ---------------------------------------------------------------- the indifferent ending
+const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id];
+async function indifferentEnding() {
+  S.flags.ruinEnd = 1;
+  await say('Wren looks at you for a long time. Then she lets go of your hand. "...Alright," she says. "Then we\'ll watch it together."');
+  MOOD.shake = 1.6; sfx('bighit');
+  await say('Somewhere below, an old man\'s arms finally give out. The floor of the Archive lifts, settles, and goes perfectly still.');
+  await fadeTo(1, 500); S.map = 'vellum'; S.x = 16; S.y = 16; S.dir = 'down'; S.flags.ruin = 1; buildWorld('vellum'); playMusic(THEMES.endingFor('none')); await fadeTo(0, 700);
+  const party = S.party.slice(0, 6);
+  for (const m of party) { MOOD.shake = 1; sfx('debuff');
+    await say(deal('rogue', [`{m} tears itself out of you. It doesn't look back.`, `{m} rips loose with a sound like cloth tearing, and turns on you.`, `{m} stops listening to you. Then it stops being yours.`, `{m} swells, splits, and pulls free, dripping ink.`, `{m} breaks away and goes looking for someone to feel at.`, `{m} slips its leash all at once.`]).replace('{m}', nm(m))); }
+  await say('Everything you carried comes down on you at once. Every echo, every stranger\'s grief and rage and joy, all of it, all at the same time. You go to your knees in the plaza.');
+  await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it to the bakery door. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
+  await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
+  await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
+  await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
+  $('#c') && ($('#c').style.transition = 'filter 3s'); document.querySelector('canvas').style.transition = 'filter 3s'; document.querySelector('canvas').style.filter = 'grayscale(1) brightness(.75)';
+  await say('And then you stop minding. That\'s all it is, in the end. You simply stop minding.');
+  await fadeTo(1, 1600); await wait(1200);
+  document.querySelector('canvas').style.filter = '';
+  await ending(true, 'none');
+  await ruinTour();
+}
+async function ruinTour() {
+  scene = 'tour'; $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden'); playMusic(THEMES.endingFor('none'));
+  for (const id of RUIN_TOUR()) {
+    await fadeTo(1, 500); S.map = id; buildWorld(id); await fadeTo(0, 700);
+    toast(MAPS[id].name, deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
+    await wait(4200);
+  }
+  await fadeTo(1, 800);
+  const c = await ask('The Welkin is quiet. There is nothing left to do here.', ['Go back to the moment Wren begged you', 'Start over completely']);
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  if (c === 0) { let b = null; try { b = JSON.parse(localStorage.getItem(BEG_KEY) || 'null'); } catch (e) {}
+    if (b) { S = b; S.flags.ruin = 0; S.flags.ruinEnd = 0; S.map = 'vellum_room0'; const M = MAPS.vellum_room0; S.x = M.room.rift.x; S.y = M.room.rift.y + 1; S.dir = 'up'; saveGame();
+      buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map)); await fadeTo(0, 700);
+      if (await wrenBeg()) return enterStillwell(true, true); return; } }
+  try { localStorage.removeItem(BEG_KEY); } catch (e) {}
+  runScript(titleFlow);
+}
+
+// ---------------------------------------------------------------- world states
+function worldVibe(id) {
+  const V = vibeOf(id);
+  if (S && S.flags && S.flags.ruin) { const g = c => '#' + new THREE.Color(c).lerp(new THREE.Color('#5a5650'), .7).getHexString();
+    return { ...V, sky:g(V.sky), fog:g(V.fog), hemi:g(V.hemi), sun:(V.sun || 1) * .55, ground:(V.ground || []).map(g), tall:(V.tall || []).map(g), treeC:(V.treeC || []).map(g), parts:'motes', partC:['#8a8680', '#6a6660'], fogNear:Math.min(V.fogNear || 12, 10), fogFar:Math.min(V.fogFar || 30, 28) }; }
+  if (S && S.flags && S.flags.restored && !V.inside && MAPS[id].kind !== 'still') { const b = c => '#' + new THREE.Color(c).offsetHSL(0, .06, .04).getHexString();
+    return { ...V, ground:(V.ground || []).map(b), tall:(V.tall || []).map(b), sun:(V.sun || 1) * 1.08, parts:V.parts === 'rain' || V.parts === 'sparks' ? 'petals' : V.parts, partC:V.parts === 'rain' || V.parts === 'sparks' ? ['#f7d6e0', '#ffe8a0'] : V.partC, groundFog:null }; }
+  return V;
+}
+const JUNK_KINDS = new Set(['car', 'carstack', 'junk', 'rubble', 'barricade', 'sludge']);
+function applyRestored() {
+  if (applyRestored.done) return; applyRestored.done = 1;
+  for (const id in MAPS) { const M = MAPS[id]; if (M.kind !== 'route') continue;
+    M.set = (M.set || []).filter(p => { if (!JUNK_KINDS.has(p.k)) return true; const [x, y, w, h] = p.tiles || [p.x, p.y, 1, 1]; for (let j = y; j < y + (h || 1); j++) for (let i = x; i < x + (w || 1); i++) if (M.tiles[j] && M.tiles[j][i] === 'o') M.tiles[j][i] = '.'; return false; });
+    if (M.theme === 'rail') { for (let x = 0; x < M.w; x++) M.tiles[26][x] = 't'; const r = M.rails.find(r => r.y === 26); if (r) { r.x0 = 0; r.x1 = M.w - 1; } }
+    delete M._v; }
+}
+function worldExtras(id, M, V) {
+  const g = new THREE.Group(), fl = S.flags || {};
+  if (fl.ruin && M.kind !== 'inside') {
+    // rubble, wrecked carts and dark stains everywhere; smoke from the roofs
+    for (let k = 0; k < (M.kind === 'route' ? 10 : 22); k++) { const x = 1 + Math.floor(hsh(k, 3, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 7, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c)) continue;
+      const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); }
+    for (let k = 0; k < 14; k++) { const x = 1 + hsh(k, 11, M.w) * (M.w - 2), y = 1 + hsh(k, 13, M.h) * (M.h - 2); const s = new THREE.Mesh(new THREE.CircleGeometry(.4 + hsh(k, 2, 1) * .6, 12), new THREE.MeshBasicMaterial({ color:'#3a0a0e', transparent:true, opacity:.7, depthWrite:false })); s.rotation.x = -Math.PI / 2; s.position.set(x, groundY(Math.round(x), Math.round(y)) + .03, y); g.add(s); }
+    for (const h of M.houses || []) if (hsh(h.x, h.y) < .6) { const sm = glow('#4a4642', 3.5, .55); sm.position.set(h.x + h.w / 2, 3.6, h.y + 1); g.add(sm); }
+  }
+  if (fl.restored && !fl.ruin && M.kind !== 'inside' && M.kind !== 'still') {
+    // cars parked by the houses, flowerbeds, the train running
+    for (const h of M.houses || []) { const x = h.x + h.w, y = h.y + 2; const c = M.tiles[y] && M.tiles[y][x]; if (c && !SOLID.has(c) && hsh(h.x, h.y, 5) < .65) { const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], r:Math.PI / 2 }); o.position.set(x + .1, groundY(x, y), y + .2); o.rotation.y = Math.PI / 2; o.scale.setScalar(.7); g.add(o); } }
+    const cols = ['#f2a7c0', '#ffd36b', '#e86a5a', '#b8a0e8', '#fff3d6', '#f7c3d6'];
+    const beds = M.kind === 'route' && M.theme === 'garden' ? 90 : 40;
+    for (let k = 0; k < beds; k++) { const x = 1 + Math.floor(hsh(k, 21, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 23, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c) || c === 't' || c === '=' || c === 'b') continue;
+      for (let f = 0; f < 5; f++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.07 + hsh(k, f) * .05, 6, 5), toon(cols[(k + f) % cols.length])); b.position.set(x + (hsh(k, f, 1) - .5) * .8, groundY(x, y) + .12, y + (hsh(k, f, 2) - .5) * .8); g.add(b); } }
+  }
+  world.add(g);
+}
+// People in the ruin are Numbed or dead; in the restored world they carry their own Manifs again.
+function endingFilter(map, list) {
+  const fl = S.flags || {};
+  if (fl.ruin) { const out = []; let n = 0;
+    for (const e of list) { if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
+      if (e.invisible) { out.push(e); continue; }
+      n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, look:NUMBED_LOOK, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
+    return out; }
+  if (fl.restored) return list.map(e => e.look && !e.numb && isFolk(e) ? { ...e, pet:true } : e);
+  return list;
+}
+const PET_POOL = () => ROSTER.filter(r => r[2] === 0 && r[3] !== 4).map(r => r[0]);
+function petFor(e) { const P = PET_POOL(); let h = 0; for (const ch of e.id + S.map) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return P[h % P.length]; }
+
+// ---------------------------------------------------------------- the train (restored world)
+const TRAIN_STOPS = () => [['vellum', 'Vellum'], ...TOWN_ORDER.map(t => [WAYTOWNS[t].id, WAYTOWNS[t].name]), ...TOWN_ORDER.map(t => [TOWNS[t].id, TOWNS[t].name])];
+async function rideTrain() {
+  const stops = TRAIN_STOPS().filter(([id]) => id !== S.map);
+  await say('Engineer: She runs again! Every line in the Welkin, cleared and relaid. Where to?');
+  const c = await ask('Choose a stop.', stops.map(([, n]) => n).concat(['Stay here'])); if (c < 0 || c >= stops.length) return;
+  const [id, name] = stops[c]; sfx('nerve'); MOOD.shake = .4;
+  await say('The whistle shrieks. Steam rolls over the platform, the couplings bang tight one after another, and the old engine pulls out of the Long Siding, faster, faster, the valley sliding away behind you.');
+  await fadeTo(1, 700); const M = MAPS[id]; const [x, y] = spotNear(id, Math.floor(M.w / 2), Math.floor(M.h / 2) + 2, ents(id));
+  S.map = id; S.x = x; S.y = y; S.dir = 'down'; buildWorld(id); playMusic(themeFor(id)); await fadeTo(0, 700); toast(name, 'By rail');
+}
+function trainEnts(map, base) {
+  if (!S.flags || !S.flags.restored || map !== 'r_siding') return [];
+  const [x, y] = spotNear(map, 9, 24, base); return [{ id:'engineer', x, y, dir:'down', look:{ coat:'#3a4a5a', accent:'#b08a3a', skin:'#c79a78', hair:'#8a8078', legs:'#2a2a2a', hat:'#2a2a2a' }, name:'Engineer', talk:rideTrain }];
+}
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -4968,7 +5374,7 @@ async function battle(foe, opt = {}) {
   activeScene = battleScene; activeCam = bcam;
   $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
   renderBHUD(); $('#bhud').classList.remove('hidden'); $('#chorus').classList.remove('hidden');
-  B.camT = 0; playMusic(final ? THEMES.hush : battleTheme(typeOf(foe), !!opt.heart));
+  B.camT = 0; playMusic(battleTheme(typeOf(foe), !!opt.heart, opt));
   await fadeTo(0, 300);
   pulseWedge(typeOf(foe), 1.4);
   const word = SPECIES[foe.sp].dyad ? `${TYPES[SPECIES[foe.sp].type].name} and ${TYPES[SPECIES[foe.sp].type2].name} at once` : TYPES[typeOf(foe)].ladder[SPECIES[foe.sp].tier];
@@ -5300,7 +5706,8 @@ async function maybeIntensify(m) {
 }
 
 // ---------------------------------------------------------------- the Stillwell
-async function enterStillwell(fromRift) {
+async function enterStillwell(fromRift, begged) {
+  if (!begged && Object.keys(S.hearts).length >= WN && !S.flags.hushDone && !S.flags.begDone) { if (!(await wrenBeg())) return; fromRift = true; }
   if (fromRift) { await say('(The floor of the Archive has split open. Stone steps lead down into dark, perfectly still water. Cold air rises out of it, and it smells of nothing at all.)'); }
   else { await say('Wren: The water beneath the Archive has gone perfectly still. Everything the Welkin ever refused to feel drained down there.');
   await say('Wren: Whatever has been numbing people is waiting at the bottom. I can\'t go with you. I\'m sorry. I\'m so tired.'); }
@@ -5322,7 +5729,7 @@ async function talkHush() {
   const r = await battle(foe, { final:true });
   if (r === 'blackout') { await say('The silence swallows you. You wake on the Archive steps, Wren holding your hand.'); await fadeTo(1, 400); S.map = 'vellum'; S.x = 16; S.y = 16; S.dir = 'up'; healAll(); buildWorld('vellum'); playMusic(themeFor('vellum')); await fadeTo(0, 400); await say('Wren: You came back. That\'s what matters. It\'s still down there. Rest, and try again.'); return; }
   if (r !== 'won') return;
-  S.flags.hushDone = 1; if (W.heart) { world.remove(W.heart); W.heart = null; }
+  S.flags.hushDone = 1; S.flags.restored = 1; applyRestored(); if (W.heart) { world.remove(W.heart); W.heart = null; }
   if (nBound()) { S.bound = {}; await say('The bound Hearts shudder in their cities, far away, and the Bell\'s grey falls off them like ash.'); }
   await say('The Stillwell begins, very slowly, to move. Ten colours bleed back into the water and rise toward the surface.');
   await say('Around you, the stopped people blink. One of them starts to cry. Another laughs, and can\'t stop. It sounds like waking up.');
@@ -5405,20 +5812,27 @@ const BATTLE_FLAVOR = {
   DISGUST:    { bpm:120, beats:4, sub:2, root:60, mode:'phrygian',   lead:'organ',   arp:null,     bass:'pluck', pad:null,      drums:['k..k.k..', '..c...c.', '.h.h.h.h'], swing:1 }
 };
 const SPEC_CACHE = {};
-const themeFor = id => { const M = MAPS[id];
-  if (M.kind === 'hub') return SPEC_CACHE.vellum || (SPEC_CACHE.vellum = { ...AREA_SPECS.vellum, id:'vellum' });
-  if (M.kind === 'inside' && MAPS[M.route].kind !== 'route') return themeFor(M.route);
-  if (M.kind === 'route' || M.kind === 'inside') { const th = MAPS[M.route].theme, k = 'route_' + th; return SPEC_CACHE[k] || (SPEC_CACHE[k] = { ...ROUTE_MUSIC[th], id:k }); }
-  if (M.kind === 'still') return SPEC_CACHE.still || (SPEC_CACHE.still = { ...AREA_SPECS.still, id:'still' });
-  if (M.kind === 'city') return SPEC_CACHE['city_' + M.vibe] || (SPEC_CACHE['city_' + M.vibe] = { ...CITY_MUSIC[M.vibe], id:'city_' + M.vibe, fallback:{ ...BATTLE_FLAVOR[M.vibe], seed:60 + wIdx(M.vibe), bars:8, bpm:Math.round(BATTLE_FLAVOR[M.vibe].bpm * .7), dens:.45, vol:.65, prog:[0,3,4,0,5,3,4,0] } });
-  const k = 'way_' + M.vibe; return SPEC_CACHE[k] || (SPEC_CACHE[k] = { ...AREA_SPECS[k], ...(WAY_MIDI[k] || {}), id:k }); };
+// Every place, battle and boss plays a pre-rendered loop (real instruments; music2 render pipeline).
+const MUS = id => ({ id, track:'music/' + id + '.mp3', gapless:true });
+const BLAINE_CITY = { JOY:'music/joy.mp3', HOPE:'music/hope.mp3', FEAR:'music/fear.mp3', SHAME:'music/shame.mp3', SADNESS:'music/sadness.mp3' };
+const BLAINE_WAY = { CALM:'blaine_trust', CONFIDENCE:'blaine_confidence', DISGUST:'blaine_disgust', SHAME:'blaine_anger' };
+const routeFamily = id => WHEEL.find(t => ROUTES[t].id === id);
+const themeFor = id => { const M = MAPS[id], k = '';
+  const pick = key => SPEC_CACHE[key] || (SPEC_CACHE[key] = key.startsWith('music/') ? { id:key, track:key } : MUS(key));
+  if (M.kind === 'inside') return themeFor(M.route);
+  if (S && S.flags && S.flags.doom && M.kind !== 'still') return pick('doom_world');
+  if (M.kind === 'hub') return pick(S && S.flags && S.flags.hushDone ? 'vellum_restored' : S && Object.keys(S.hearts || {}).length >= WN ? 'vellum_dread' : 'vellum');
+  if (M.kind === 'route') return pick('route_' + routeFamily(id));
+  if (M.kind === 'still') return pick('stillwell');
+  if (M.kind === 'city') return pick(BLAINE_CITY[M.vibe] || 'city_' + M.vibe);
+  if (M.vibe === 'SURPRISE') return pick('music/surprise.mp3');
+  return pick(BLAINE_WAY[M.vibe] || 'way_' + M.vibe); };
+const BOSS_MUSIC = { 'the Conductor':'boss_conductor', 'Orrin Vale':'boss_orrin', 'Wren':'boss_wren' };
+function battleTheme(type, heart, opt = {}) { const key = opt.final ? 'boss_hush' : BOSS_MUSIC[opt.owner] || (heart || (opt.owner && TOWNS[type] && opt.owner === TOWNS[type].name) || opt.elder ? 'heart_' : 'battle_') + type;
+  return SPEC_CACHE[key] || (SPEC_CACHE[key] = MUS(key)); }
+const THEMES = { get vellum() { return themeFor('vellum'); }, get hush() { return battleTheme('FEAR', false, { final:true }); }, get title() { return SPEC_CACHE.title || (SPEC_CACHE.title = MUS('title')); },
+  get ending() { return SPEC_CACHE.ending_good || (SPEC_CACHE.ending_good = MUS('ending_good')); }, endingFor:k => SPEC_CACHE['ending_' + k] || (SPEC_CACHE['ending_' + k] = MUS('ending_' + k)) };
 const WAY_MIDI = { way_CALM:{ midi:'trust', midiVol:.75 }, way_CONFIDENCE:{ midi:'confidence', midiVol:.8 }, way_DISGUST:{ midi:'disgust', midiVol:.7 }, way_SHAME:{ midi:'anger', midiVol:.75 }, way_ANGER:{ score:'anger_way', vol:.66 }, get way_SURPRISE() { return { track:'music/surprise.mp3', fallback:AREA_SPECS.way_SURPRISE }; } };
-function battleTheme(type, heart) { const k = 'battle_' + type + (heart ? '_h' : ''); if (SPEC_CACHE[k]) return SPEC_CACHE[k];
-  if (type === 'ANGER') return (SPEC_CACHE[k] = { id:k, score:'anger_battle', vol:heart ? .72 : .66 });
-  const F = BATTLE_FLAVOR[type] || BATTLE_FLAVOR.JOY;
-  return (SPEC_CACHE[k] = { ...F, id:k, seed:40 + wIdx(type) * 3 + (heart ? 1 : 0), bars:8, bpm:Math.round(F.bpm * (heart ? 1.06 : 1)), prog:heart ? [0,5,3,4,0,1,4,4] : [0,3,4,0,5,3,1,4], pad:heart ? 'choir' : F.pad, dens:.75, vol:.62, crash:heart }); }
-const THEMES = { get vellum() { return themeFor('vellum'); }, get hush() { return SPEC_CACHE.hush || (SPEC_CACHE.hush = { ...AREA_SPECS.hush, id:'hush' }); }, get ending() { return SPEC_CACHE.ending || (SPEC_CACHE.ending = { ...AREA_SPECS.ending, id:'ending' }); } };
-
 // ── Composer: a deterministic, motif-based piece from a spec (same event format as the MIDI songs) ──
 function composeSong(sp) {
   let seed = sp.seed * 9301 + 49297; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -5584,7 +5998,7 @@ const TRACK_CACHE = new Map();
 class TrackPlayer {
   constructor(th) { this.th = th; this.dead = false; this.bus = AC.ctx.createGain(); this.bus.gain.value = 0; this.bus.connect(AC.music);
     let p = TRACK_CACHE.get(th.track); if (!p) { p = fetch(th.track).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(b => new Promise((res, rej) => AC.ctx.decodeAudioData(b, res, rej))); TRACK_CACHE.set(th.track, p); }
-    p.then(buf => { if (this.dead) return; const s = AC.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = 0; s.loopEnd = Math.max(0, buf.duration - .03); s.connect(this.bus); s.start(); this.src = s; const t = AC.ctx.currentTime; this.bus.gain.setValueAtTime(0, t); this.bus.gain.linearRampToValueAtTime((th.trackVol || 1) * .9, t + 2); })
+    p.then(buf => { if (this.dead) return; const s = AC.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = 0; s.loopEnd = th.gapless ? buf.duration : Math.max(0, buf.duration - .03); s.connect(this.bus); s.start(); this.src = s; const t = AC.ctx.currentTime; this.bus.gain.setValueAtTime(0, t); this.bus.gain.linearRampToValueAtTime((th.trackVol || 1) * (th.gapless ? .8 : .9), t + 2); })
      .catch(() => { TRACK_CACHE.delete(th.track); if (this.dead) return; const fb = th.fallback || { ...AREA_SPECS.vellum }; this.fb = new MidiPlayer({ ...fb, song:fb.song || (fb.song = composeSong(fb)) }); }); }
   stop(fade = 1.1) { this.dead = true; const c = AC.ctx, b = this.bus, s = this.src; b.gain.cancelScheduledValues(c.currentTime); b.gain.setValueAtTime(b.gain.value, c.currentTime); b.gain.linearRampToValueAtTime(0, c.currentTime + fade); if (this.fb) this.fb.stop(fade); setTimeout(() => { try { s && s.stop(); b.disconnect(); } catch (e) {} }, (fade + 2) * 1000); }
 }
@@ -5767,7 +6181,7 @@ function loopBody(now) {
   auraPulse = Math.max(0, auraPulse - dt);
   document.body.classList.toggle('roam', scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic);
   if (scene === 'world' || scene === 'battle') tickTime(dt);
-  if ((scene === 'world' || scene === 'title' || scene === 'intro') && world) updateWorld(dt, t);
+  if ((scene === 'world' || scene === 'title' || scene === 'intro' || scene === 'tour') && world) updateWorld(dt, t);
   if (scene === 'battle' && B) updateBattle(dt, t);
   post.render(activeScene, activeCam, t);
 }
@@ -5821,7 +6235,7 @@ function updateWorld(dt, t) {
     m.life -= dt * .7; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vx * dt * .5; arr[i * 3] = m.x; arr[i * 3 + 1] = m.y; arr[i * 3 + 2] = m.z;
   });
   W.motes.geometry.attributes.position.needsUpdate = true;
-  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + tierName(tid); camTarget.set(px, py, pz); updateCamera(dt); }
+  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : zoneOf().name); camTarget.set(px, py, pz); updateCamera(dt); }
   else { const a = t * .1, cx = (M.w - 1) / 2, cz = (M.h - 1) / 2; camera.position.set(cx + Math.sin(a) * 16, 9, cz + Math.cos(a) * 16); camera.lookAt(cx, 0, cz); worldSky.position.copy(camera.position); }
 }
 function updateBattle(dt, t) {
@@ -5899,7 +6313,7 @@ function makeTestSave() {
 async function titleFlow() {
   if (TEST_BUILD && !loadGame()) { makeTestSave(); saveGame(); }
   const saved = loadGame();
-  S = fresh(); buildWorld('vellum'); scene = 'title';
+  S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
   $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
   await fadeTo(0, 600);
   const opts = saved ? ['Continue', 'New Journey'].concat(TEST_BUILD ? ['Reset test save'] : []) : ['New Journey'];
@@ -5909,7 +6323,7 @@ async function titleFlow() {
   $('#title').classList.add('hidden');
   if (saved && c === 0) {
     if (!saved.name) { S = saved; saved.name = await askName('Before you go on: what should people call you?'); }
-    await fadeTo(1, 400); S = saved; buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
+    await fadeTo(1, 400); S = saved; if (S.flags.restored) applyRestored(); buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
     await fadeTo(0, 400); toast(MAPS[S.map].name, 'Welcome back'); return;
   }
   playMusic(THEMES.vellum);
@@ -5956,15 +6370,16 @@ function computeEnding() {
   return { carried, longest, longestSp, byTier, shades, spW, acts, held:heldR.type, heldSp:heldR.sp, left:leftR.type, leftSp:leftR.sp, letGo, letGoSp, aura, letGoCount: S.released.length + S.declined.length };
 }
 async function ending(final, kind) {
-  const doom = kind === 'doom' || kind === 'servant';
+  const doom = kind === 'doom', none = kind === 'none';
   const E = computeEnding();
   await fadeTo(1, 600);
   scene = 'ending'; document.body.classList.remove('roam'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
-  playMusic(THEMES.ending);
+  playMusic(THEMES.endingFor(kind === 'none' ? 'none' : doom ? 'evil' : 'good'));
   const tot = Object.values(E.carried).reduce((a, b) => a + b, 0) || 1;
   const head = t => t ? `<span class="mi" style="background:${TYPES[t].c}"></span>${TYPES[t].name}` : '';
   const pages = [];
-  if (doom) pages.push({ k:'The Grand Chord', h:kind === 'servant' ? 'The Hymn of Ash, sung without you' : `The Hymn of ${pname()}`, p:kind === 'servant' ? 'You handed the Bell to the Conductor and knelt. The Chord went through you first. You stand in the Stillwell still, smiling politely, waiting to be told what to do. You will wait a long time. Nobody will ever tell you anything again.' : 'The Chord goes out through all ten Hearts at once. In Larkhollow the dancing stops. In Emberwick the forges go cold with the hammers still raised. Mothers put down their children and forget to pick them up. Across the Welkin, every person stands where the note found them, and waits for your word.', extra:`<p style="font-size:14px;color:var(--muted)">The cities still stand. Nobody will ever burn one again. Nobody will ever build one again, either. The fields go to seed. The Numbed eat when they are told to eat. Some of them are not told in time. The Hollow Choir's grey banners hang in every square, and every face beneath them turns toward you when you pass. ${S.flags.wrenFallen ? 'On the Archive steps, Wren sits with her hands in her lap.' : 'Wren was never seen again.'} ${choir().burned ? 'At the Long Siding, a cat still sits on the rails by a burned-out station.' : ''}</p>` });
+  if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p>' });
+  else if (doom) pages.push({ k:'The Grand Chord', h:`The Hymn of ${pname()}`, p:'The Chord goes out through all ten Hearts at once. In Larkhollow the dancing stops. In Emberwick the forges go cold with the hammers still raised. Mothers put down their children and forget to pick them up. Across the Welkin, every person stands where the note found them, and waits for your word.', extra:`<p style="font-size:14px;color:var(--muted)">The cities still stand. Nobody will ever burn one again. Nobody will ever build one again, either. The fields go to seed. The Numbed eat when they are told to eat. Some of them are not told in time. The Hollow Choir's grey banners hang in every square, and every face beneath them turns toward you when you pass. ${S.flags.wrenFallen ? 'On the Archive steps, Wren sits with her hands in her lap.' : 'Wren was never seen again.'} ${choir().burned ? 'At the Long Siding, a cat still sits on the rails by a burned-out station.' : ''}</p>` });
   else if (final) pages.push({ k:'The Stillwell', h:'The Welkin wakes', p:'Beneath Vellum, ten colours seep back into the water. Above, the whole Welkin feels everything at once: the grief and the joy, the rage and the trust. It is loud. It hurts. It is alive.', extra:'<p style="font-size:14px;color:var(--muted)">The Numbed of every city remember how to cry, and how to laugh, and how to be angry about the years they lost. Nobody calls it a happy ending. Everybody calls it an ending they can feel.</p>' });
   pages.push(
     { k:'The Codex closes', h:`The Codex of ${pname()}`, p:`You walked the Welkin for ${fmtTime(S.time)}.`,
@@ -5983,18 +6398,18 @@ async function ending(final, kind) {
   if ((S.gave || []).length) { const g = S.gave[S.gave.length - 1]; pages.push({ k:'What you gave back', h:head(g.type), p:END.gave.replace('{feel}', spn(g.sp) || TYPES[g.type].name) + (S.gave.length > 1 ? ` You did this ${S.gave.length} times.` : ''), extra:shadeHtml(g.sp) }); }
   if ((S.sold || []).length) { const tot2 = S.sold.reduce((a, r) => a + (r.marks || 0), 0), g = S.sold[S.sold.length - 1]; pages.push({ k:'What you sold', h:head(g.type), p:END.sold.replace('{feel}', S.sold.length > 1 ? `${S.sold.length} feelings` : (spn(g.sp) || TYPES[g.type].name)).replace('{marks}', tot2), extra:shadeHtml(g.sp) }); }
   pages.push({ k:'The weather you walked in', h:`<span class="mi" style="background:${TIERC[E.aura]}"></span>${tierName(E.aura)}`, p:END.aura[E.aura] });
-  pages.push(doom ? { k:'Ink & Aura', h:'The quiet you chose', p:'You did not lose. You won, and this is what winning looked like. Every feeling the Welkin had was somebody\'s, and you gathered them up and put them away where nobody would ever have to feel them again. Was that mercy? The Welkin can\'t tell you. It has forgotten how to answer.', extra:`<p style="font-size:13px;color:var(--muted)">${END.care}</p>`, last:true } : { k:'Ink & Aura', h:'No losing', p:END.close, extra:`<p style="font-size:13px;color:var(--muted)">${END.care}</p>`, last:true });
+  pages.push(none ? { k:'Ink & Aura', h:'Nothing to do', p:'Every feeling in the Welkin was somebody\'s. When the moment came to carry them, you put them all down at once. The cities are still there. You can go and look.', cont:true, last:true } : doom ? { k:'Ink & Aura', h:'The quiet you chose', p:'You did not lose. You won, and this is what winning looked like. Every feeling the Welkin had was somebody\'s, and you gathered them up and put them away where nobody would ever have to feel them again. Was that mercy? The Welkin can\'t tell you. It has forgotten how to answer.', extra:`<p style="font-size:13px;color:var(--muted)">${END.care}</p>`, last:true } : { k:'Ink & Aura', h:'No losing', p:END.close, extra:`<p style="font-size:13px;color:var(--muted)">${END.care}</p>`, last:true });
   $('#ending').classList.remove('hidden');
   await fadeTo(0, 600);
   let i = 0;
   return await new Promise(res => {
     const render = () => {
       const pg = pages[i];
-      $('#ecard').innerHTML = `<img src="${PORTRAITS[S.hero]}" alt=""><div class="eb"><div class="ek">${pg.k}</div><h3>${pg.h}</h3><p>${pg.p}</p>${pg.extra || ''}<div class="next">${pg.last ? '<div class="opt" data-e="new">New journey</div><div class="opt sel" data-e="keep">Keep walking</div>' : `<div class="opt sel" data-e="next">${i === 0 ? 'Begin' : 'Next'} →</div>`}</div></div>`;
+      $('#ecard').innerHTML = `<img src="${PORTRAITS[S.hero]}" alt=""><div class="eb"><div class="ek">${pg.k}</div><h3>${pg.h}</h3><p>${pg.p}</p>${pg.extra || ''}<div class="next">${pg.cont ? '<div class="opt sel" data-e="keep">Continue</div>' : pg.last ? '<div class="opt" data-e="new">New journey</div><div class="opt sel" data-e="keep">Keep walking</div>' : `<div class="opt sel" data-e="next">${i === 0 ? 'Begin' : 'Next'} →</div>`}</div></div>`;
       $('#ecard').style.animation = 'none'; void $('#ecard').offsetWidth; $('#ecard').style.animation = '';
       $('#ecard').querySelectorAll('[data-e]').forEach(b => b.addEventListener('pointerdown', e => { e.stopPropagation(); act(b.dataset.e); }));
     };
-    const act = a => { sfx('ok'); if (a === 'next') { i++; render(); } else { endingHandler = null; res(a); finish(a); } };
+    const act = a => { sfx('ok'); if (a === 'next') { i++; render(); } else { endingHandler = null; res(a); if (kind !== 'none') finish(a); else $('#ending').classList.add('hidden'); } };
     endingHandler = b => { if (b === 'a') act(pages[i].last ? 'keep' : 'next'); if (b === 'b' && pages[i].last) act('new'); };
     render();
   });
