@@ -1471,6 +1471,8 @@ function buildHero(kind) {
 }
 function animHero(g, k, moving, t) {
   const u = g.userData, sw = moving ? Math.sin(k * Math.PI * 2) * .55 : 0;
+  if (u.kneelP) { u.legs[0].rotation.x = u.legs[1].rotation.x = 1.45; u.arms[0].rotation.set(-.2, 0, -.7); u.arms[1].rotation.set(-.2, 0, .7); u.inner.position.y = -.36; u.inner.rotation.x = .12; return; }
+  u.arms[0].rotation.y = u.arms[1].rotation.y = 0; u.inner.rotation.x = 0;
   u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
   u.arms[0].rotation.x = -sw * .7; u.arms[1].rotation.x = sw * .7;
   if (u.cape) u.cape.rotation.x = -.08 - (moving ? .18 + Math.abs(sw) * .1 : Math.sin(t * 1.5) * .03);
@@ -1558,8 +1560,10 @@ function buildPerson(L) {
   for (const k of held) { const h = hands[1];
     if (k === 'orb' || k === 'gadget') { const c = L.orb || '#7ab8ff'; add(new THREE.SphereGeometry(.055, 12, 10), k === 'gadget' ? '#6a6a70' : c, [0, -.02, .04], { to:h }); if (k === 'gadget') for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(.02, .02, .08), '#4a4a50', [Math.cos(i * 1.57) * .05, -.02 + Math.sin(i * 1.57) * .05, .04], { to:h, ink:0 });
       const o = glow(c, .45, .9); o.position.set(0, -.02, .06); h.add(o); }
-    if (k === 'sword' || k === 'flamesword') { const bl = add(new THREE.BoxGeometry(.035, .62, .012), k === 'flamesword' ? '#3a3230' : '#d8dce4', [0, -.32, .08], { to:h, rot:[.5, 0, 0] }); add(new THREE.BoxGeometry(.15, .03, .03), '#5a4a3a', [0, -.03, .02], { to:h });
-      if (k === 'flamesword') for (let i = 0; i < 6; i++) { const f = glow(i % 2 ? '#ff7a2a' : '#ffc04a', .2 + (i % 3) * .05, .85); f.position.set(0, -.1 - i * .09, .08 + i * .045); h.add(f); } } }
+    if (k === 'sword' || k === 'flamesword') { const sw = new THREE.Group(); sw.rotation.x = .5; h.add(sw);         // everything on the same axis
+      add(new THREE.CylinderGeometry(.018, .018, .1, 8), '#4a3424', [0, .02, 0], { to:sw }); add(new THREE.BoxGeometry(.15, .03, .04), '#8a7a5a', [0, -.04, 0], { to:sw });
+      add(new THREE.BoxGeometry(.04, .58, .014), k === 'flamesword' ? '#c8b8a8' : '#d8dce4', [0, -.34, 0], { to:sw, ink:1.04 });
+      if (k === 'flamesword') for (let i = 0; i < 7; i++) { const f = glow(i % 2 ? '#ff7a2a' : '#ffc04a', .16 + (i % 3) * .05, .8); f.position.set((i % 2 ? .025 : -.025), -.1 - i * .08, 0); sw.add(f); } } }
   if (L.small) inner.scale.setScalar(.72); else inner.scale.y *= B.hy;
   g.userData = { inner, legs, arms, pose, ph:(seed % 100) / 16 };
   return g;
@@ -5617,7 +5621,8 @@ function begLines() {
   return [open, `Wren: Orrin has held the Hush shut for two hundred years and his arms are failing. When he lets go, it takes everyone. ${lean}`, 'Wren: I can\'t go down there. It knows my face. It has to be you. Please. Please go down.'];
 }
 async function wrenBeg() {
-  if (!TEST_BUILD) try { localStorage.setItem(BEG_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) {}
+  if (TEST_BUILD) BEG_MEM = JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v);
+  else try { localStorage.setItem(BEG_KEY, JSON.stringify(S, (k, v) => k.startsWith('_') ? undefined : v)); } catch (e) {}
   for (const l of begLines()) await say(l);
   const c = await ask('Wren is on her knees on the Archive floor, holding your hand.', ['Go down into the Stillwell', 'Do nothing']);
   if (c === 0) { S.flags.begDone = 1; return true; }
@@ -5628,6 +5633,7 @@ async function wrenBeg() {
 
 // ---------------------------------------------------------------- the indifferent ending
 const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id];
+let BEG_MEM = null;   // the test build keeps the 'Wren begs' checkpoint in memory only
 async function indifferentEnding() {
   S.flags.ruinEnd = 1;
   await say('Wren looks at you for a long time. Then she lets go of your hand. "...Alright," she says. "Then we\'ll watch it together."');
@@ -5640,6 +5646,7 @@ async function indifferentEnding() {
   await say('Everything you carried comes down on you at once. Every echo, every stranger\'s grief and rage and joy, all of it, all at the same time. You go to your knees in the plaza.');
   await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it to the bakery door. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
+  await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
   $('#c') && ($('#c').style.transition = 'filter 3s'); document.querySelector('canvas').style.transition = 'filter 3s'; document.querySelector('canvas').style.filter = 'grayscale(1) brightness(.75)';
@@ -5659,7 +5666,7 @@ async function ruinTour() {
   await fadeTo(1, 800);
   const c = await ask('The Welkin is quiet. There is nothing left to do here.', ['Go back to the moment Wren begged you', 'Start over completely']);
   try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
-  if (c === 0) { let b = null; try { b = JSON.parse(localStorage.getItem(BEG_KEY) || 'null'); } catch (e) {}
+  if (c === 0) { let b = null; try { b = JSON.parse((TEST_BUILD ? BEG_MEM : localStorage.getItem(BEG_KEY)) || 'null'); } catch (e) {}
     if (b) { S = b; S.flags.ruin = 0; S.flags.ruinEnd = 0; S.map = 'vellum_room0'; const M = MAPS.vellum_room0; S.x = M.room.rift.x; S.y = M.room.rift.y + 1; S.dir = 'up'; saveGame();
       buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map)); await fadeTo(0, 700);
       if (await wrenBeg()) return enterStillwell(true, true); return; } }
@@ -5709,7 +5716,8 @@ function worldExtras(id, M, V) {
 function endingFilter(map, list) {
   const fl = S.flags || {};
   if (fl.ruin) { const out = []; let n = 0;
-    for (const e of list) { if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
+    for (const e of list) { if (e.real) continue;   // characters based on real people always leave the region unharmed
+      if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
       if (e.invisible) { out.push(e); continue; }
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, look:NUMBED_LOOK, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
     return out; }
@@ -6726,10 +6734,12 @@ const DND_ROAST = {
   brand:'Hey, it\'s the guy we threw out! Good to see you on the right side of the door this time. Ha. HA.',
   tam:'Built a little alarm for the door after you. It plays "Positive Vibes Only" on a kazoo. You\'re welcome.'
 };
+// Real-people rule: anyone based on a real person is marked real:true. They never die or go numb; in the ruin they have left.
 function dndPeople() {
+  if (S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the empty table, held down with a d20.) "Packed up the campaign and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Don\'t wait up. Session\'s paused, not cancelled. — M."') }];
   const hide = S.flags.dndHide && !(S.flags.dndTrust >= 3);
   return ['morwen', 'saffi', 'lio', 'brand', 'tam'].map(k => { const [x, y, dir] = DND_POS[k] || (k === 'lio' && hide ? DND_HIDE : DND_SEAT[k]);
-    return { id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, talk:() => dndTalk(k) }; });
+    return { id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => dndTalk(k) }; });
 }
 async function dndTalk(k) {
   const n = DND_NAME[k], s = auraSide();
@@ -6766,16 +6776,16 @@ async function walkCast(moves, ms = 900, opts = {}) {   // moves: [[key, x, y, d
   if (opts.player) { S.x = opts.player[0]; S.y = opts.player[1]; } ENTC.t = 0;
 }
 const castSet = (keys, prop, v) => { for (const k of keys) { const g = W.npcs[castId(k)]; if (g) g.userData[prop] = v; } };
-const lie = (on, ms = 400) => { const p = W.player; return tween(ms, k => { p.rotation.x = on ? -k * Math.PI / 2 : -(1 - k) * Math.PI / 2; }); };
+const lie = (on, ms = 400) => { const p = W.player; return tween(ms, k => { p.rotation.x = on ? k * Math.PI / 2 : (1 - k) * Math.PI / 2; }); };
 // Outside: Saffi, Lio, Tam, [door], Brand, Morwen along the house front. Lio stands between his parents, Tam and Saffi.
 const DND_OUT = () => { const [dx, dy] = DND_DOOR, map = TOWNS.JOY.id, taken = [{ x:dx, y:dy + 1 }, { x:dx, y:dy + 2 }, { x:dx, y:dy + 3 }], out = {};
   for (const [k, x, y, d] of [['tam', dx - 1, dy + 1, 'down'], ['brand', dx + 1, dy + 1, 'down'], ['lio', dx - 2, dy + 1, 'down'], ['saffi', dx - 3, dy + 1, 'down'], ['morwen', dx + 2, dy + 1, 'down']]) {
     const [fx, fy] = freeNear(map, x, y, taken); taken.push({ x:fx, y:fy }); out[k] = [fx, fy, d]; } return out; };
 function dndOutsideEnts(map) {
-  if (map !== TOWNS.JOY.id || !(S.flags.dndOutside || S.flags.dndEscort)) return [];
+  if (map !== TOWNS.JOY.id || S.flags.ruin || !(S.flags.dndOutside || S.flags.dndEscort)) return [];
   const P = DND_OUT(), keys = S.flags.dndOutside ? ['tam', 'brand', 'lio', 'saffi', 'morwen'] : ['tam', 'brand'];
   return keys.filter(k => !(S.flags.dndGone || {})[k]).map(k => { const [x, y, dir] = DND_POS[k] || P[k];
-    return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, talk:() => sayAs(DND_NAME[k], k === 'lio' ? '(Lio stays behind Morwen\'s cloak and won\'t look at you.)' : k === 'saffi' ? 'Walk. Away.' : 'Nope.') }; });
+    return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => sayAs(DND_NAME[k], k === 'lio' ? '(Lio stays behind Morwen\'s cloak and won\'t look at you.)' : k === 'saffi' ? 'Walk. Away.' : 'Nope.') }; });
 }
 async function toOutside(dx, dy) { await fadeTo(1, 400); for (const k in DND_POS) delete DND_POS[k]; S.map = TOWNS.JOY.id; S.x = dx; S.y = dy; S.dir = 'down'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 400); }
 // Entering: the door decides.
@@ -6843,19 +6853,22 @@ async function dndBurn() {
   await walkCast([['morwen', P.lio[0], P.lio[1] + .6, 'right'], ['lio', P.saffi[0] - 1, P.saffi[1], 'down']], 650);
   await say('Morwen crosses to Lio, pulls him behind her and turns his face into her cloak.');
   castSet(['tam', 'brand'], 'grab', true);
-  await walkCast([['tam', dx - .7, S.y, 'right'], ['brand', dx + .7, S.y, 'left']], 450);
-  sfx('hurt'); await lie(true, 300); castSet(['tam', 'brand'], 'kneel', true);
-  await say('Tam and Brand have you before you\'re halfway. They put you down on the cobbles and hold you there, one on each arm.');
-  await walkCast([['saffi', dx, Math.min(S.y + 2, MAPS[S.map].h - 2), 'up']], 700);
+  const py = Math.min(dy + 2.4, MAPS[S.map].h - 3);           // they catch you short of the door and haul you back into the street
+  await walkCast([['tam', dx - .7, S.y, 'right'], ['brand', dx + .7, S.y, 'left']], 400);
+  await walkCast([['tam', dx - .7, py, 'right'], ['brand', dx + .7, py, 'left']], 650, { player:[dx, py] }); S.dir = 'up';
+  S.dir = 'down'; await walkCast([['tam', dx - .5, py, 'right'], ['brand', dx + .5, py, 'left']], 250);
+  sfx('hurt'); W.player.userData.kneelP = true;
+  await say('Tam and Brand have you before you\'re halfway. They force you down onto your knees on the cobbles and hold you there, one on each arm.');
+  await walkCast([['saffi', dx - 1.9, Math.min(S.y + 1.1, MAPS[S.map].h - 2), 'right']], 700);   // off to one side, so you can still be seen
   await sayAs('Saffi', 'I told you.'); sfx('nerve');
-  const sg = W.npcs[castId('saffi')], from = sg ? sg.position.clone().add(V3(0, .9, 0)) : W.player.position.clone(), to = W.player.position.clone().add(V3(0, .2, 0)), puffs = [];
+  const sg = W.npcs[castId('saffi')], from = sg ? sg.position.clone().add(V3(0, .9, 0)) : W.player.position.clone(), to = W.player.position.clone().add(V3(0, .5, 0)), puffs = [];
   await tween(1100, k => { if (Math.random() < .7) { const f = glow(Math.random() < .5 ? '#ff9a3a' : '#ffcf5a', .35 + Math.random() * .3, .75); f.position.copy(from); f.userData.v = to.clone().sub(from).multiplyScalar(1 / 45).add(V3((Math.random() - .5) * .02, (Math.random() - .5) * .02, (Math.random() - .5) * .02)); world.add(f); puffs.push(f); }
     for (const f of puffs) { f.position.add(f.userData.v); f.scale.multiplyScalar(1.02); } });
   for (const f of puffs) world.remove(f);
-  const fire = []; for (let i = 0; i < 6; i++) { const f = glow(i % 2 ? '#ff9a3a' : '#ffcf5a', .9, .65); f.position.set((Math.random() - .5) * .5, .2 + Math.random() * .4, (Math.random() - .5) * .9); W.player.add(f); fire.push(f); }
+  const fire = []; for (let i = 0; i < 6; i++) { const f = glow(i % 2 ? '#ff9a3a' : '#ffcf5a', .9, .65); f.position.set((Math.random() - .5) * .4, .15 + Math.random() * .6, (Math.random() - .5) * .3); W.player.add(f); fire.push(f); }
   await tween(1200, k => { for (const f of fire) { f.position.y += .003; f.material.opacity = .65 * (1 - k * .3); } });
   await say('She breathes out, slow and bright. Brass-coloured fire rolls over you, and the last thing you hear before the dark is Lio, very small, asking if you\'re going to be okay, and Saffi telling him not to look.');
-  await fadeTo(1, 1200); for (const f of fire) W.player.remove(f); W.player.rotation.x = 0;
+  await fadeTo(1, 1200); for (const f of fire) W.player.remove(f); W.player.rotation.x = 0; W.player.userData.kneelP = false; castSet(['tam', 'brand'], 'grab', false);
   for (const k in DND_POS) delete DND_POS[k];
   S.flags.dndOutside = 0; S.flags.burned = 1; for (const m of S.party) m.hp = Math.max(1, Math.round(maxHp(m) / 3));
   S.map = 'vellum_room0'; const R = MAPS.vellum_room0; S.x = Math.floor(R.w / 2); S.y = R.h - 2; S.dir = 'up'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 1200);
@@ -7988,6 +8001,7 @@ async function ending(final, kind) {
   const head = t => t ? `<span class="mi" style="background:${TYPES[t].c}"></span>${TYPES[t].name}` : '';
   const pages = [];
   if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p>' });
+  if (none) pages.push({ k:'The roads out', h:'Some got away', p:'Not everyone stayed to go grey. Many saw it coming and left the Welkin while the roads were still open: carts, families, a battered wagon loaded with dice and rulebooks and a sleepy half-dragon kid, all rolling west, unharmed. Wherever they went, they are still minding. Still feeling everything. Still playing.' });
   else if (doom) pages.push({ k:'The Grand Chord', h:`The Hymn of ${pname()}`, p:'The Chord goes out through all ten Hearts at once. In Larkhollow the dancing stops. In Emberwick the forges go cold with the hammers still raised. Mothers put down their children and forget to pick them up. Across the Welkin, every person stands where the note found them, and waits for your word.', extra:`<p style="font-size:14px;color:var(--muted)">The cities still stand. Nobody will ever burn one again. Nobody will ever build one again, either. The fields go to seed. The Numbed eat when they are told to eat. Some of them are not told in time. The Hollow Choir's grey banners hang in every square, and every face beneath them turns toward you when you pass. ${S.flags.wrenFallen ? 'On the Archive steps, Wren sits with her hands in her lap.' : 'Wren was never seen again.'} ${choir().burned ? 'At the Long Siding, a cat still sits on the rails by a burned-out station.' : ''}</p>` });
   else if (final) pages.push({ k:'The Stillwell', h:'The Welkin wakes', p:'Beneath Vellum, ten colours seep back into the water. Above, the whole Welkin feels everything at once: the grief and the joy, the rage and the trust. It is loud. It hurts. It is alive.', extra:'<p style="font-size:14px;color:var(--muted)">The Numbed of every city remember how to cry, and how to laugh, and how to be angry about the years they lost. Nobody calls it a happy ending. Everybody calls it an ending they can feel.</p>' });
   pages.push(
