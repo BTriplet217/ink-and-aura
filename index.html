@@ -6721,12 +6721,14 @@ const DND_NAME = { morwen:'Morwen', saffi:'Saffi', lio:'Lio', brand:'Brand', tam
 // A square table off to the left, so walking in you see all of them at once.
 const DND_SEAT = { morwen:[3, 2, 'down'], saffi:[5, 4, 'left'], lio:[5, 5, 'left'], brand:[3, 6, 'up'], tam:[1, 4, 'right'] };
 const DND_HIDE = [5, 3, 'left'];          // tucked in between Morwen and Saffi, half behind them
+// Tam's character is a cop in the campaign (an artificer in the city watch), not a troublemaker.
+// Lio doesn't play: he's there because his mum and dad are.
 const DND_FUN = {
-  morwen:['The cave mouth yawns before you. Roll perception. No, Brand, you can\'t seduce the cave.', 'I spent three weeks on this dungeon and you went round it. Round it. Like a puddle.', 'Everyone roll initiative. Lio, you too. Lio, that\'s my d20, give it back. Lio.'],
-  saffi:['I rolled a one. On a stealth check. In a library. I sneezed on the lich.', 'My ranger has a wolf companion. The wolf has better stats than Tam.', 'Lio\'s character is my character\'s nephew. He\'s the only reason the party hasn\'t died. Don\'t tell him that, it\'ll go straight to his horns.'],
-  brand:['I cast Smite. On the door. The door was the boss, I\'m telling you, it had a face!', 'My oath says protect the innocent. Tam is not innocent. Tam has never been innocent.', 'Paladin rule one: if it\'s on fire, I\'m probably fine. Rule two: Tam is not allowed near the fire.'],
-  tam:['I built a mechanical owl. It doesn\'t do anything. It\'s just a really good owl.', 'Artificer tip: everything is a bomb if you\'re brave enough.', 'I\'m not saying I caused the explosion, I\'m saying the explosion was a team effort.'],
-  lio:['I\'m a dragon. Half. The good half.', 'I\'m allowed to stay up till the boss fight. It\'s a rule. Mum said.', 'Rawr. That\'s dragon for hello. It\'s also dragon for I want a biscuit.']
+  morwen:['The cave mouth yawns before you. Roll perception. No, Brand, you can\'t seduce the cave.', 'I spent three weeks on this dungeon and you went round it. Round it. Like a puddle.', 'Lio, sweetie, those are my dice. You can be in charge of the snack bowl. That\'s a very important job.'],
+  saffi:['I rolled a one. On a stealth check. In a library. I sneezed on the lich.', 'My ranger has a wolf companion. The wolf has better stats than me, honestly.', 'Lio\'s not playing, he\'s supervising. He\'s very strict about snack breaks.'],
+  brand:['I cast Smite. On the door. The door was the boss, I\'m telling you, it had a face!', 'My oath says protect the innocent. Tam\'s badge says the same thing, just with more paperwork.', 'Paladin rule one: if it\'s on fire, I\'m probably fine. Rule two: Tam will still write me a ticket for it.'],
+  tam:['Artificer, city watch. I built my own badge. It lights up. It does not need to light up.', 'I have to read the mimic its rights first. It\'s procedure. Yes, even the chest.', 'Brand, that\'s the third door you\'ve smitten tonight without a warrant.'],
+  lio:['I\'m not playing. I\'m watching. Watching is a job.', 'I\'m allowed to stay up till the boss fight. It\'s a rule. Mum said.', 'Rawr. That\'s dragon for hello. It\'s also dragon for I want a biscuit.']
 };
 const DND_ROAST = {
   morwen:'Oh look, it\'s the plot twist nobody asked for. You\'re lucky my campaign has redemption arcs.',
@@ -6796,7 +6798,7 @@ DOOR_GUARD[DND_ID] = async () => {
   if (lock && s !== 'light') { await say(lock === 'evil' ? '(Through the door, someone calls out: "Sorry, we\'re just a bunch of nerds that can\'t be bothered by your kind.")' : '(A hand-lettered sign is taped to the door: POSITIVE VIBES ONLY.)'); return false; }
   if (lock && s === 'light') { S.flags.dndLock = 0; S.flags.dndKicked = 1; }
   for (const k in DND_POS) delete DND_POS[k];
-  if (s === 'light') { return once('dndFirst') ? async () => { await sayAs('Morwen', 'Oh! A new player? Pull up a chair. We\'re fighting a mimic. Well. Tam\'s fighting a mimic. Tam is the mimic\'s lunch.'); } : true; }
+  if (s === 'light') { return once('dndFirst') ? async () => { await sayAs('Morwen', 'Oh! A new player? Pull up a chair. We\'re fighting a mimic. Well. Tam\'s trying to arrest a mimic. It\'s going about as well as you\'d think.'); } : true; }
   return s === 'shadow' ? dndThrowOut : dndAskLeave;
 };
 // Inside: Tam and Brand come round the table to you (you're just inside the door at 6,8), take an arm each, and walk you out.
@@ -6828,7 +6830,7 @@ async function dndThrowOut() {
   await say('The laughter stops dead.');
   await Promise.all([walkCast([['lio', 5, 2, 'down']], 600), walkCast([['saffi', 5, 3, 'down'], ['morwen', 4, 2, 'down']], 700)]);
   await say('Saffi is on her feet before you\'ve taken a step. She and Morwen move together, without a word, and put Lio behind them.');
-  await sayAs('Tam', 'Nope. Not in here. Not with the kid here.');
+  await sayAs('Tam', 'Nope. Not in here. Not with my kid here. You\'re leaving.');
   await grabAndWalk(true);
   S.flags.dndLock = 'evil'; S.flags.dndHide = 1; S.flags.dndTrust = 0; S.flags.dndOutside = 1; S.flags.dndGone = { saffi:1, morwen:1, lio:1 };
   const [dx, dy] = DND_DOOR, P = DND_OUT();
