@@ -4273,7 +4273,8 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
   if (M.kind === 'hub') {
@@ -4325,6 +4326,7 @@ function startWild(w) {
   removeWild(w);
   runScript(async () => { const r = await battle(newManif(w.sp, w.lvl)); if (r === 'blackout') await blackout(); });
 }
+const DOOR_GUARD = {};   // door id → async () => false (stay out) | true | function to run after entering
 async function enterDoor(id) { const gd = DOOR_GUARD[id] ? await DOOR_GUARD[id]() : true; if (gd === false) return; sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); if (typeof gd === 'function') { await wait(300); await gd(); } }
 async function changeMap(ex) {
   setTimeout(autosave, 1500);
@@ -4864,7 +4866,7 @@ const DARK_FAMS = ['SADNESS', 'FEAR', 'ANGER', 'SHAME', 'DISGUST'];
 const STAY_IDS = new Set(['wren', 'maribel', 'keeper', 'res_clerk', 'res_bar', 'res_lodge', 'res_ilse', 'res_pip']);
 const FOLK_RE = /^(cit\d|local|tobin|lark|hollis|ferry|carver|busker|hob|widow|res_|v_)/;
 const isFolk = e => !e.item && !e.note && !e.invisible && !e.numb && (e.folk || FOLK_RE.test(e.id) || STAY_IDS.has(e.id));
-const canRun = e => isFolk(e) && !STAY_IDS.has(e.id);
+const canRun = e => isFolk(e) && !STAY_IDS.has(e.id) && !isChild(e);   // children freeze rather than run
 function mapMood(map) {
   const M = MAPS[map]; if (!M) return 'calm';
   const P = M.kind === 'inside' ? MAPS[M.route] : M, hearts = Object.keys(S.hearts).length;
@@ -4933,7 +4935,7 @@ function tickMood(dt, t) {
 }
 // What they say first, depending on what's happening. Returns 'refuse' if they won't talk at all.
 async function moodPreTalk(e) {
-  if (!isFolk(e)) return;
+  if (!isFolk(e) || isChild(e)) return;
   const sayE = l => say((e.name ? e.name + ': ' : '') + l);
   const mood = mapMood(S.map);
   if (playerThreat() && canRun(e)) { const m = S.party.find(x => tierOfSp(x.sp) >= 2 && DARK_FAMS.includes(typeOf(x)));
@@ -5125,10 +5127,12 @@ async function talkHesk() {
   if (c.rank === 2) {
     await say(c.mercer === 'killed' ? 'Hesk: I heard. They\'re still scrubbing the station floor. Messy, but nobody will read his letters now.' : 'Hesk: I heard. He sits at his desk all day with the pen in his hand and never writes a word. Beautiful work.');
     await say('Hesk: Next. Siding Station, back there by the dead engine. It runs supplies to the Archive and carries Wren\'s letters out. Ada sleeps in the office. She won\'t leave it. She never leaves it.');
-    await say('Hesk: There\'s lamp oil by the tender. Burn the station. If Ada\'s inside, Ada\'s inside.');
-    c.rank = 3; return;
+    await say('Hesk: (He presses a dented can of lamp oil and a tin of matches into your hands.) Burn the station. If Ada\'s inside, Ada\'s inside.');
+    await say('(You have the lamp oil and matches. The Siding Station is the building just north of the tracks. Walk up to its front door.)');
+    c.rank = 3; c.oil = 1; return;
   }
-  if (c.rank === 3 && !c.burned) return say('Hesk: The station\'s still standing. The oil\'s by the tender. Matches in the tin. I don\'t need to draw you a picture.');
+  if (c.rank === 3 && !c.burned) { if (!c.oil) { c.oil = 1; await say('Hesk: (He presses a can of lamp oil and a tin of matches into your hands.) Here. Since you can\'t seem to find anything yourself.'); }
+    return say('Hesk: The station\'s still standing. Front door, just north of the rails. Oil on the walls, match to the oil. I don\'t need to draw you a picture.'); }
   if (c.rank === 3) {
     await say('Hesk: (He breathes in the smoke still drifting over the rails and smiles for the first time.) You could smell her from the road. Burned hair and burned paint.');
     await say('Hesk: The Conductor wants to meet you. The Hollow Throat, on the Quailmoor road. Go all the way down, where the singing is.');
@@ -5156,6 +5160,7 @@ function burnLetters() { S.flags.mercerLetters = 0; }
 async function useOil() {
   const c = choir();
   if (c.rank !== 3 || c.burned) return say('A dented can of lamp oil and a tin of matches sit by the tender\'s wheel. Somebody left them here on purpose.');
+  if (!c.oil) { c.oil = 1; await say('(You pick up the lamp oil and the matches.)'); }
   const y = await ask('The office window glows. Inside, Ada is asleep in her chair with a blanket over her knees and a cat on the blanket. Soak the station and light it?', ['Light it', 'Leave']);
   if (y !== 0) return;
   c.burned = 1; S.sins = (S.sins || 0) + 4; sfx('bighit'); MOOD.shake = 1.2;
@@ -5343,6 +5348,10 @@ function noticesHTML() {
     if (st.elder === 1) rows.push(`Face the Elder on ${ROUTES[t].name}`); }
   return rows.length ? `<div style="font-weight:800;margin:12px 0 4px">Notices</div>` + rows.map(r => `<div style="font-size:13px">· ${r}</div>`).join('') : '';
 }
+
+// The Siding Station's door: with the oil in hand on the Choir's errand, this is where you set the fire.
+DOOR_GUARD.r_siding_in0 = async () => { const c = choir(); if (c.rank !== 3 || c.burned || !c.oil) return true;
+  const y = await ask('You have the lamp oil and the matches. The station is quiet.', ['Burn the station', 'Go inside']); if (y !== 0) return true; await useOil(); return false; };
 // =============================================================================
 //  AURA GRID — your aura has two axes: Light ↔ Shadow (how pleasant what you carry
 //  is) and Still ↔ Fierce (how much energy it has). Where you land, and which feeling
@@ -5586,6 +5595,21 @@ const VIBE_STEP_IN = {
 const DARK_STEP_IN = { kind:['(They\'re shaking, but they step in front of the child anyway.) No. Not this one. You go through me first.', 'I\'m scared of you. I don\'t care. Get away from my little one.'],
   fair:['(They plant themselves between you.) That\'s enough. Whatever you\'re carrying, you\'re not carrying it near him.', 'Twice now. I saw. Go on, walk away.'],
   cruel:['Get the fuck away from my kid or I swear to God I\'ll open your throat.', 'Talk to her one more time. One more. See what happens to you.'] };
+// The grown-up walks over and plants themselves in front of the child; the child tucks in behind them.
+async function stepIn(adult, kid) {
+  if (!adult || Math.abs(adult.x - kid.x) + Math.abs(adult.y - kid.y) > 9) return;   // too far to walk over convincingly
+  const M = MAPS[S.map], free = (x, y) => { const c = (M.tiles[y] || [])[x]; return c != null && !SOLID.has(c) && c !== 'D' && !(x === S.x && y === S.y) && !ents(S.map).some(o => o !== adult && o !== kid && o.x === x && o.y === y); };
+  const face = { up:'down', down:'up', left:'right', right:'left' }[S.dir] || 'down', [dx, dy] = DIRS[S.dir];
+  // the adult takes a tile beside the child, facing you; the child steps back, away from you
+  const side = [[dy, dx], [-dy, -dx]].map(([ox, oy]) => [kid.x + ox, kid.y + oy]).find(([x, y]) => free(x, y));
+  const back = [kid.x + dx, kid.y + dy];
+  if (side) ENT_OVR[S.map + ':' + adult.id] = [side[0], side[1], face];
+  ENTC.t = 0; await wait(700);
+  if (side && free(back[0], back[1])) { ENT_OVR[S.map + ':' + kid.id] = [back[0], back[1], face]; ENT_OVR[S.map + ':' + adult.id] = [kid.x, kid.y, face]; }
+  else if (side) { ENT_OVR[S.map + ':' + adult.id] = [kid.x, kid.y, face]; ENT_OVR[S.map + ':' + kid.id] = [side[0], side[1], face]; }   // swap: the grown-up takes the child's place in front of you
+  ENTC.t = 0; await wait(650);
+}
+function clearStep(adult, kid) { for (const e of [adult, kid]) if (e) delete ENT_OVR[S.map + ':' + e.id]; ENTC.t = 0; }
 function nearestAdult(e) { let best = null, bd = 1e9; for (const a of ents(S.map)) { if (a === e || a.invisible || !a.look || isChild(a) || a.numb || a.item || a.note) continue; const d = Math.abs(a.x - e.x) + Math.abs(a.y - e.y); if (d < bd) { bd = d; best = a; } } return best; }
 async function childTalk(e, z, town, menace) {
   S.kidTalks = S.kidTalks || {}; const key = S.map + ':' + e.id, n = (S.kidTalks[key] = (S.kidTalks[key] || 0) + 1);
@@ -5593,13 +5617,14 @@ async function childTalk(e, z, town, menace) {
   if (z.x === 'shadow') {
     if (n < 2) { await say(deal('kiduneasy', ['(The child goes quiet when you come close, and looks around for someone.)', '(The child takes a small step back.)', '(The child\'s smile slips. They grip their sleeve.)'])); return; }
     const moral = adult ? moralOf(adult) : 'fair';
+    if (adult) await stepIn(adult, e);
     await say(`${who} gets over their fear of you and steps in between: "${deal('darkstep:' + moral, DARK_STEP_IN[moral])}"`);
     if (menace && moral !== 'kind') { const c = await ask('They square up to you, the child pushed behind them.', ['Back off', 'Stand your ground']);
       if (c === 1) { const ok = await trainerFight(who === 'A grown-up' ? 'an angry parent' : who, [[spAt(town || 'CONFIDENCE', 1, 0), Math.max(6, strongest() - 2)]]); if (ok) { S.sins = (S.sins || 0) + 1; await say('They go down hard, nose streaming. The child is already gone, running for the nearest door.'); } } }
-    await say('(They hurry the child away, looking back at you the whole time.)'); GONE[key] = performance.now() + 60000; ENTC.t = 0; return 'refuse';
+    await say('(They hurry the child away, looking back at you the whole time.)'); GONE[key] = performance.now() + 60000; if (adult) GONE[S.map + ':' + adult.id] = performance.now() + 60000; clearStep(adult, e); return 'refuse';
   }
   if (z.x === 'light' && DARK_FAM5.includes(town) && n === 1 && adult) {
-    await say(`${who} steps between you and the child: "${deal('vibestep:' + town, VIBE_STEP_IN[town])}"`); return 'refuse';
+    await stepIn(adult, e); await say(`${who} steps between you and the child: "${deal('vibestep:' + town, VIBE_STEP_IN[town])}"`); clearStep(adult, e); return 'refuse';
   }
 }
 // =============================================================================
@@ -6791,7 +6816,7 @@ function dndOutsideEnts(map) {
 }
 async function toOutside(dx, dy) { await fadeTo(1, 400); for (const k in DND_POS) delete DND_POS[k]; S.map = TOWNS.JOY.id; S.x = dx; S.y = dy; S.dir = 'down'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 400); }
 // Entering: the door decides.
-const DOOR_GUARD = {};
+// DOOR_GUARD is defined in h_npcs.js
 DOOR_GUARD[DND_ID] = async () => {
   const s = auraSide(), lock = S.flags.dndLock;
   if (S.flags.dndOutside) { await dndBurn(); return false; }
