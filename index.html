@@ -87,6 +87,7 @@ body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #tcard .l{background:var(--gold);color:var(--ink);padding-right:14px}
 #tcard .r{background:#16110f;color:#ffd98a;text-shadow:0 0 22px rgba(255,214,120,.85);padding-left:14px}
 #tcard .amp{font-style:italic;font-size:.5em;opacity:.9}
+#tgate{display:inline-block;margin-top:22px;padding:7px 16px;border-radius:99px;background:#f3e7c9e6;box-shadow:0 2px 10px #0004;font-style:normal;font:600 13px system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);opacity:.8;animation:tgp 1.6s ease-in-out infinite}@keyframes tgp{50%{opacity:.25}}
 #tsub{font:italic 17px 'IM Fell English',serif;color:var(--ink);text-shadow:0 0 12px #f3e7c9}
 #intro{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#2a1f2e,#120e0c 70%);z-index:12}
 #select{position:fixed;inset:0;z-index:31;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at 50% 30%,#f6ecd2,#d8c49c);padding:16px 10px 150px}
@@ -4118,6 +4119,7 @@ function navList(b) {
 }
 let selectHandler = null;
 function press(b) {
+  if (typeof TITLE_GATE !== 'undefined' && TITLE_GATE) { TITLE_GATE(); return; }
   if (b === "a" && typeof PADHOOK !== "undefined" && PADHOOK.fn) { const f = PADHOOK.fn; PADHOOK.fn = null; f(); return; }
   audioInit();
   if (b === 'mute') { toggleMute(); return; }
@@ -8061,13 +8063,26 @@ function makeTestSave(kind = 'final') {
   if (kind === 'evil') { T.flags.doom = 1; T.flags.hushDone = 1; T.flags.gift = 1; T.choir = { rank:6 }; T.bound = {}; for (const t of WHEEL) T.bound[t] = 1; T.sins = 20; T.map = 'vellum'; T.x = 16; T.y = 18; }
   return T;
 }
+// Browsers keep audio locked until the first tap or key press. Hold the title on a
+// "press any key" card so that press unlocks sound and the title theme plays under the menu.
+let TITLE_GATE = null;
+function titleGate() {
+  if (AC.ctx && AC.ctx.state === 'running') return Promise.resolve();
+  const t = $('#tsub'); const old = t.textContent; t.innerHTML = old + '<div id="tgate">tap or press any key</div>';
+  return new Promise(res => {
+    const go = e => { if (e) { e.preventDefault(); e.stopImmediatePropagation(); } TITLE_GATE = null; ['pointerdown', 'keydown'].forEach(k => removeEventListener(k, go, true));
+      audioInit(); playMusic(THEMES.title); const g = $('#tgate'); if (g) g.remove(); setTimeout(res, 250); };
+    TITLE_GATE = go;
+    ['pointerdown', 'keydown'].forEach(k => addEventListener(k, go, true));
+  });
+}
 async function titleFlow() {
   const saved = loadGame();
   let c = 0;
   if (TEST_BUILD) { if (await testTitle() !== 'new') return; }
   else { S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
     $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
-    await fadeTo(0, 600);
+    await fadeTo(0, 600); await titleGate();
     c = await choose(saved ? ['Continue', 'New Journey'] : ['New Journey'], { layout:'center', cancel:false }); }
   if (saved && c === 1) { const y = await ask('Start over? Your saved journey will be written over next time you save.', ['Start over', 'Go back'], { cancel:false }); if (y !== 0) { $('#title').classList.add('hidden'); return titleFlow(); } }
   $('#title').classList.add('hidden');
@@ -8170,7 +8185,7 @@ async function ending(final, kind) {
 async function testTitle() {
   S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
   $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
-  await fadeTo(0, 600);
+  await fadeTo(0, 600); await titleGate();
   const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · the Archive floor is open' }, { label:'After the good ending', sub:'The world restored' }, { label:'After the evil ending', sub:'The Grand Chord sung' }, { label:'New Journey', sub:'From the very beginning' }], { layout:'center', cancel:false });
   $('#title').classList.add('hidden');
   if (c === 3) return 'new';
