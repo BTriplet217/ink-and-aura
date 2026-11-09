@@ -104,6 +104,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 .hero span{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:1px;text-transform:uppercase}
 .hero.sel{background:rgba(243,231,201,.75);border-color:var(--ink);box-shadow:0 0 0 3px var(--gold)}
 .hero.sel img{transform:translateY(-6px) scale(1.03)}
+#bhud .grp{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}#bhud .gc{flex:1 1 0;min-width:0;font-size:10px;line-height:1.1;padding:3px 5px;border-radius:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)}#bhud .gc em{font-style:normal;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bhud .gc b{display:block;height:4px;border-radius:3px;background:rgba(0,0,0,.35);margin-top:2px;overflow:hidden}#bhud .gc b i{display:block;height:100%}#bhud .gc.on{border-color:#f4cf5e}#bhud .gc.down{opacity:.4}#bhud .gc.wait{flex:0 0 auto;align-self:center}
 #bhud{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:min(440px,92vw);z-index:14;padding:12px 16px 12px}
 @media (min-aspect-ratio:5/4){#bhud{left:16px;transform:none;width:min(340px,40vw)}}
 #bhud .top{display:flex;align-items:center;gap:8px}
@@ -1354,6 +1355,13 @@ function inkBox(w, h, d, mat, t = 0.035) {
 }
 const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const fogTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); for (let i = 0; i < 14; i++) { const x = 30 + Math.random() * 68, y = 40 + Math.random() * 48, r = 18 + Math.random() * 26; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); } return new THREE.CanvasTexture(c); })();
+// Fire that still reads in daylight: same soft sprite, but normal blending instead of additive.
+const flameTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 96; const g = c.getContext('2d');
+  g.beginPath(); g.moveTo(32, 2); g.bezierCurveTo(44, 30, 60, 50, 58, 70); g.bezierCurveTo(56, 88, 44, 95, 32, 95); g.bezierCurveTo(20, 95, 8, 88, 6, 70); g.bezierCurveTo(4, 50, 20, 30, 32, 2); g.closePath();
+  const gr = g.createRadialGradient(32, 72, 2, 32, 62, 46); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.45, 'rgba(255,255,255,.95)'); gr.addColorStop(1, 'rgba(255,255,255,.55)'); g.fillStyle = gr; g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+// Fire that reads in daylight: a solid teardrop flame, normally blended (not the faint additive glow).
+function flame(color, size, op = .9) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:flameTex, color, transparent:true, opacity:op, depthWrite:false })); s.scale.set(size * .65, size, 1); return s; }
 function glow(color, size, op = .75) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false })); s.scale.setScalar(size); return s; }
 function disposeTree(obj) { obj.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== INK && o.material.dispose) o.material.dispose(); }); }
 const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
@@ -2705,6 +2713,22 @@ function buildHouseX(hd, roofC, wallC) {
 // Indoor light: a standing candelabra instead of a street lamp.
 SET.candle = p => { const g = new THREE.Group(); sCyl(g, .16, .2, .06, '#3a2a1e', 0, .03, 0); sCyl(g, .025, .035, 1.05, '#3a2a1e', 0, .56, 0);
   sBox(g, .44, .04, .04, '#3a2a1e', 0, 1.08, 0); for (const x of [-.2, 0, .2]) { sCyl(g, .025, .025, .14, '#f6efe0', x, 1.17, 0); const gl = glow(p.lc || '#ffcf70', .5, .85); gl.position.set(x, 1.27, 0); g.add(gl); } return g; };
+
+// A building that has burned down: blackened stumps of wall, a few charred roof beams fallen in, ash, and a thread of smoke.
+function buildBurnt(h) {
+  const g = new THREE.Group(), w = h.w, cx = h.x + w / 2 - .5, cz = h.y + 1.5, gy = groundY(h.x, h.y + 3), char = '#2a2420', soot = '#1a1614';
+  const B = (sx, sy, sz, c, x, y, z, rot) => { const m = part(new THREE.BoxGeometry(sx, sy, sz), c, [x, y, z]); if (rot) m.rotation.set(...rot); g.add(m); return m; };
+  B(w, .08, 3.6, '#3a3430', cx, gy + .04, cz);                                         // ash floor
+  for (let i = 0; i < w; i++) { const hgt = .3 + hsh(h.x + i, h.y) * 1.3; B(.98, hgt, .22, i % 2 ? char : soot, h.x + i, gy + hgt / 2, h.y + 3.3); }       // front wall stumps
+  for (let i = 0; i < w; i++) { const hgt = .4 + hsh(h.x + i, h.y + 9) * 1.1; B(.98, hgt, .22, char, h.x + i, gy + hgt / 2, h.y - .3); }
+  for (const sx of [h.x - .4, h.x + w - .6]) { const hgt = .8 + hsh(sx, h.y) * 1.2; B(.22, hgt, 3.6, soot, sx, gy + hgt / 2, cz); }
+  B(.2, 2.3, .2, char, h.x + .2, gy + 1.15, h.y + 3.2); B(.2, 2.6, .2, char, h.x + w - .8, gy + 1.3, h.y - .2);                                // corner posts still standing
+  for (let i = 0; i < 4; i++) B(w * .7, .12, .14, soot, cx + (i - 1.5) * .3, gy + .3 + i * .18, cz - .6 + i * .5, [0, .3 - i * .2, .35 - i * .25]);   // fallen roof beams
+  B(1, .5, .1, '#3a2a20', cx - .2, gy + .35, h.y + 3.25, [.2, 0, .1]);                  // the door, fallen in
+  for (let i = 0; i < 4; i++) { const s = glow('#4a4440', .9 + i * .3, .28 - i * .05); s.position.set(cx + .3, gy + 1.5 + i * 1.1, cz - .2); g.add(s); }
+  for (let i = 0; i < 3; i++) { const e = glow('#ff6a2a', .25, .5); e.position.set(cx + (i - 1) * .8, gy + .15, cz + (i % 2) * .6); g.add(e); }
+  return g;
+}
 // =============================================================================
 //  MAPS — Vellum hub (the wheel) → 10 waytowns (mixed, low level) → 10 mood cities
 // =============================================================================
@@ -2919,6 +2943,7 @@ const trustIs = {
 // team: [[family, tier, levelOffset], …] — species picked from that family's pool, stable per trainer
 const teamOf = (n, R) => n.team.map(([f, tier, dl], i) => { const pool = TS(f, tier); return [pool[(n.id.length * 3 + i * 5 + wIdx(f)) % pool.length], Math.max(2, R.lv[1] + (dl || 0))]; });
 async function trainerFight(owner, team) {
+  if (team.length > 1) { const r = await battle(newManif(...team[0]), { owner, group:team.map(([sp, l]) => newManif(sp, l)) }); if (r === 'blackout') { await blackout(); return false; } return r === 'won'; }
   for (const [sp, l] of team) { const r = await battle(newManif(sp, l), { owner }); if (r === 'blackout') { await blackout(); return false; } if (r !== 'won') return false; }
   return true;
 }
@@ -3840,7 +3865,7 @@ function buildWorld(id) {
     for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * .9, bz = y + (hsh(x, y, j + 3) - .5) * .9; W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:.7 + r * .6, ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
     world.add(gmesh); W.grass = gmesh;
   }
-  for (const hd of M.houses) world.add(buildHouseX(hd, hd.roof, hd.wall));
+  for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const g = burnt ? buildBurnt(hd) : buildHouseX(hd, hd.roof, hd.wall); world.add(g); }
   if (id === 'vellum') for (const [k, g] of Object.entries(GATES)) { const t = GATE_TYPE[k]; world.add(at(buildArch(TYPES[t].c, g.arch[2]), g.arch[0], groundY(g.arch[0], g.arch[1]) - BASE, g.arch[1])); }
   if (M.kind === 'way' || M.kind === 'city') { const t = M.vibe; if (M.entryN && M.kind === 'way') world.add(at(buildArch(TYPES[t].c, 0), M.entryN.x + .5, groundY(M.entryN.x, 1), 1.2)); if (M.entryS) world.add(at(buildArch(TYPES[t].c, 0), M.entryS.x + .5, groundY(M.entryS.x, M.h - 2), M.h - 1.4)); }
   W.heart = null;
@@ -5089,7 +5114,7 @@ async function findMissing(t) {
 
 // ============================================================ THE HOLLOW CHOIR
 // Rank 0 nobody · 1 Offering made · 2 Witness silenced · 3 Siding burned · 4 Hollow Bell given · 5 Codex taken · 6 Chord sung
-const CHOIR_STEPS = ['Sell two feelings to the Choir, then talk to Sable.', 'Find Cantor Hesk on the Long Siding.', 'Silence Constable Mercer in Trothaven, then report to Hesk.', 'Burn Siding Station, then report to Hesk.',
+const CHOIR_STEPS = ['Sell two feelings to the Choir, then talk to Sable.', 'Find Cantor Hesk on the Long Siding.', 'Silence Constable Mercer at his office in Trothaven, then report to Hesk.', 'Burn Siding Station, then report to Hesk.',
   'Find the Conductor in the Hollow Throat.', 'Bind three Hearts with the Hollow Bell, then return to the Conductor.', 'Take Wren\'s Codex.', 'Bring the Codex down into the Stillwell and kneel.'];
 function choirStep() { const c = choir(); if (!c.rank) return S.flags.sableGift ? (c.asked ? 0 : -1) : -1;
   return c.rank === 1 ? 1 : c.rank === 2 ? (c.mercer ? 2.5 : 2) : c.rank === 3 ? (c.burned ? 3.5 : 3) : c.rank === 4 ? (nBound() >= 3 ? 5.5 : 5) : c.rank === 5 ? 7 : 8; }
@@ -5121,11 +5146,12 @@ async function talkHesk() {
     await say('Cantor Hesk: Sable\'s initiate. Good. The Choir has a problem, and problems have names.');
     await say('Hesk: Constable Aldous Mercer of Trothaven. He\'s been writing to the Archive about our clinics. Letters with dates. Letters with names. Letters with the number of bodies in the lime pit behind the Quailmoor clinic.');
     await say('Hesk: Make him stop writing. However you like. The phial is quieter. A knife is quicker. I won\'t ask which.');
+    await say(`Hesk: He keeps an office in Trothaven. The Constable's Office, ${MERCER_WHERE()}. You'll find him at his desk. He's always at his desk.`);
     c.rank = 2; return;
   }
-  if (c.rank === 2 && !c.mercer) return say('Hesk: Mercer is still writing. I can feel the ink drying from here. Trothaven. Go.');
+  if (c.rank === 2 && !c.mercer) return say(`Hesk: Mercer is still writing. I can feel the ink drying from here. The Constable's Office in Trothaven, ${MERCER_WHERE()}. Go.`);
   if (c.rank === 2) {
-    await say(c.mercer === 'killed' ? 'Hesk: I heard. They\'re still scrubbing the station floor. Messy, but nobody will read his letters now.' : 'Hesk: I heard. He sits at his desk all day with the pen in his hand and never writes a word. Beautiful work.');
+    await say(c.mercer === 'killed' ? 'Hesk: I heard. They\'re still scrubbing his office floor. Messy, but nobody will read his letters now.' : 'Hesk: I heard. He sits at his desk all day with the pen in his hand and never writes a word. Beautiful work.');
     await say('Hesk: Next. Siding Station, back there by the dead engine. It runs supplies to the Archive and carries Wren\'s letters out. Ada sleeps in the office. She won\'t leave it. She never leaves it.');
     await say('Hesk: (He presses a dented can of lamp oil and a tin of matches into your hands.) Burn the station. If Ada\'s inside, Ada\'s inside.');
     await say('(You have the lamp oil and matches. The Siding Station is the building just north of the tracks. Walk up to its front door.)');
@@ -5163,8 +5189,9 @@ async function useOil() {
   if (!c.oil) { c.oil = 1; await say('(You pick up the lamp oil and the matches.)'); }
   const y = await ask('The office window glows. Inside, Ada is asleep in her chair with a blanket over her knees and a cat on the blanket. Soak the station and light it?', ['Light it', 'Leave']);
   if (y !== 0) return;
-  c.burned = 1; S.sins = (S.sins || 0) + 4; sfx('bighit'); MOOD.shake = 1.2;
-  await say('The oil goes on easy. The match takes three tries. Then the whole front of the station goes up with a sound like a held breath let go.');
+  await say('The oil goes on easy. The match takes three tries.');
+  c.burned = 1; S.sins = (S.sins || 0) + 4; await burnStation();
+  await say('The whole front of the station goes up with a sound like a held breath let go.');
   await say('Ada wakes. You hear her try the door, and then the window, and then you hear her the way you will hear her every time you close your eyes for the rest of your life.');
   await say('It takes a long time. The roof comes down at last and the screaming stops all at once. The cat gets out. It sits on the rails and watches you.');
   buildWorld(S.map);
@@ -5320,7 +5347,6 @@ function questEnts(map, base) {
   }
   if (M.kind === 'city') {
     const t = M.vibe;
-    if (t === 'HOPE' && c.mercer !== 'killed') out.push(at2(map, all(), { id:'mercer', look:c.mercer === 'numbed' ? NUMBED_LOOK : MERCER_LOOK, name:'Constable Mercer', numb:c.mercer === 'numbed', talk:talkMercer }, 27, 14));
   }
   if (M.kind === 'inside') {
     const pm = MAPS[M.route], t = pm && pm.kind === 'city' ? pm.vibe : null;
@@ -5349,9 +5375,43 @@ function noticesHTML() {
   return rows.length ? `<div style="font-weight:800;margin:12px 0 4px">Notices</div>` + rows.map(r => `<div style="font-size:13px">· ${r}</div>`).join('') : '';
 }
 
-// The Siding Station's door: with the oil in hand on the Choir's errand, this is where you set the fire.
-DOOR_GUARD.r_siding_in0 = async () => { const c = choir(); if (c.rank !== 3 || c.burned || !c.oil) return true;
+
+
+// ---------------------------------------------------------------- Mercer's office, Trothaven
+// Mercer works at a desk in the Constable's Office (the last resident house on Trothaven's south side, given a civic front).
+const MERCER_ROOM = (() => { const P = MAPS[TOWNS.HOPE.id]; const ids = Object.values(P.doors).filter(id => MAPS[id].room && MAPS[id].room.npcs && MAPS[id].room.npcs[0] && MAPS[id].room.npcs[0].id === 'home_res'); return ids[ids.length - 1]; })();
+const MERCER_DOOR = (() => { const P = MAPS[TOWNS.HOPE.id]; return Object.keys(P.doors).find(k => P.doors[k] === MERCER_ROOM).split(',').map(Number); })();
+const MERCER_WHERE = () => { const P = MAPS[TOWNS.HOPE.id], [x, y] = MERCER_DOOR; return `the ${y > P.h / 2 ? 'south' : 'north'} ${x > P.w / 2 ? 'east' : 'west'} side of town, with the clock over the door`; };
+(function () {
+  const P = MAPS[TOWNS.HOPE.id], old = MAPS[MERCER_ROOM], [dx, dy] = MERCER_DOOR;
+  const h = P.houses.find(h => h.x + Math.floor(h.w / 2) === dx && h.y + 3 === dy); if (h) { h.role = 'archive'; h.name = 'Constable\'s Office'; }
+  const people = () => { const c = choir(); if (c.mercer === 'killed') return [{ id:'mercer_stain', note:true, x:5, y:3, talk:() => say('The desk has been scrubbed so hard the varnish is gone. The floor around it is a different colour from the rest. His chair is pushed in.') }];
+    return [{ id:'mercer', x:5, y:3, dir:'down', look:c.mercer === 'numbed' ? NUMBED_LOOK : MERCER_LOOK, name:'Constable Mercer', numb:c.mercer === 'numbed', talk:talkMercer }]; };
+  const d = { ...old.room, name:'Constable\'s Office', floor:['#6a5a48', '#5e4e3e'], wall:'#b8b0a0', npcs:null, npcsFn:people,
+    furn:[['desk', 4, 3], ['desk', 6, 3], ['shelf', 1, 1], ['shelf', 2, 1], ['shelf', 8, 1], ['candle', 5, 1], ['pallet', 1, 5], ['table', 8, 5]] };
+  MAPS[MERCER_ROOM] = roomMap(TOWNS.HOPE.id, 'HOPE', d); MAPS[MERCER_ROOM].room.npcsFn = people;
+})();
+// ---------------------------------------------------------------- Siding Station: it burns where you can see it, and it stays burned
+(function () { const R = MAPS.r_siding, dk = Object.keys(DOOR_TILES.r_siding || {}).find(k => DOOR_TILES.r_siding[k] === 'r_siding_in0'); if (!dk) return;
+  const [dx, dy] = dk.split(',').map(Number), h = R.houses.find(h => h.x + Math.floor(h.w / 2) === dx && h.y + 3 === dy); if (h) h.burnt = () => !!(S.choir && choir().burned); })();
+DOOR_GUARD.r_siding_in0 = async () => { const c = choir();
+  if (c.burned) { await say('There\'s no door any more. Just a black frame, and behind it the collapsed roof, still warm underneath. Something small and dead is in the ashes and you don\'t look closer.'); return false; }
+  if (c.rank !== 3 || !c.oil) return true;
   const y = await ask('You have the lamp oil and the matches. The station is quiet.', ['Burn the station', 'Go inside']); if (y !== 0) return true; await useOil(); return false; };
+async function burnStation() {   // flames climb the station where you can watch them, then it falls in
+  const R = MAPS.r_siding, dk = Object.keys(DOOR_TILES.r_siding).find(k => DOOR_TILES.r_siding[k] === 'r_siding_in0'); if (!dk) return;
+  const [dx, dy] = dk.split(',').map(Number), h = R.houses.find(h => h.x + Math.floor(h.w / 2) === dx && h.y + 3 === dy), cx = h ? h.x + h.w / 2 - .5 : dx, cz = h ? h.y + 1.5 : dy - 1.5, w = h ? h.w : 4;
+  const fl = [], g = new THREE.Group(); world.add(g); sfx('bighit'); const gy = groundY(dx, dy), front = h ? h.y + 4.05 : dy + 1;
+  // fire spreads across the front of the station and up over the roof, where you can see it
+  const t0 = performance.now(); let last = t0;
+  for (;;) { const now = performance.now(), k = Math.min(1, (now - t0) / 4200), n = Math.max(1, Math.round((now - last) / 45)); last = now; if (k >= 1) break; for (let q = 0; q < n && fl.length < 90; q++) { const roof = Math.random() < .45 * k;
+      const f = flame(Math.random() < .5 ? '#ff6a1a' : '#ffb02a', .5 + Math.random() * .7 * (.5 + k), .85);
+      f.position.set(cx + (Math.random() - .5) * w * Math.min(1, .3 + k), gy + (roof ? 3.6 + Math.random() * 1.6 : .2 + Math.random() * 2.6 * (.3 + k)), roof ? front - .3 - Math.random() * 2.8 : front + Math.random() * .3); f.userData.vy = .008 + Math.random() * .015; g.add(f); fl.push(f); }
+    if (Math.random() < .25) { const sm = flame('#3a3430', 1.3 + Math.random(), .3); sm.position.set(cx + (Math.random() - .5) * w * .5, gy + 3.5 + Math.random(), cz); sm.userData.vy = .025; g.add(sm); fl.push(sm); }
+    for (const f of fl) { f.position.y += f.userData.vy * 3; f.material.opacity *= .99; } await wait(60); }
+  MOOD.shake = 1.4; sfx('bighit');
+  await fadeTo(1, 450); world.remove(g); buildWorld(S.map); await fadeTo(0, 650);   // the roof comes down: what's left is a shell
+}
 // =============================================================================
 //  AURA GRID — your aura has two axes: Light ↔ Shadow (how pleasant what you carry
 //  is) and Still ↔ Fierce (how much energy it has). Where you land, and which feeling
@@ -6888,13 +6948,18 @@ async function dndBurn() {
   await say('Tam and Brand have you before you\'re halfway. They force you down onto your knees on the cobbles and hold you there, one on each arm.');
   await walkCast([['saffi', dx - 1.9, Math.min(S.y + 1.1, MAPS[S.map].h - 2), 'right']], 700);   // off to one side, so you can still be seen
   await sayAs('Saffi', 'I told you.'); sfx('nerve');
-  const sg = W.npcs[castId('saffi')], from = sg ? sg.position.clone().add(V3(0, .9, 0)) : W.player.position.clone(), to = W.player.position.clone().add(V3(0, .5, 0)), puffs = [];
-  await tween(1100, k => { if (Math.random() < .7) { const f = glow(Math.random() < .5 ? '#ff9a3a' : '#ffcf5a', .35 + Math.random() * .3, .75); f.position.copy(from); f.userData.v = to.clone().sub(from).multiplyScalar(1 / 45).add(V3((Math.random() - .5) * .02, (Math.random() - .5) * .02, (Math.random() - .5) * .02)); world.add(f); puffs.push(f); }
-    for (const f of puffs) { f.position.add(f.userData.v); f.scale.multiplyScalar(1.02); } });
+  // a thin, straight stream from Saffi's mouth to you, and only you
+  const sg = W.npcs[castId('saffi')], from = sg ? sg.position.clone().add(V3(0, 1.0, 0)) : W.player.position.clone(), to = W.player.position.clone().add(V3(0, .55, 0)), puffs = [];
+  const dir = to.clone().sub(from), steps = 34;
+  await tween(1300, k => { for (let n = 0; n < 2; n++) { const f = flame(Math.random() < .5 ? '#ff7a2a' : '#ffbf3a', .12 + Math.random() * .08, .85); f.position.copy(from); f.userData.t = 0; world.add(f); puffs.push(f); }
+    for (const f of puffs) { f.userData.t = Math.min(1, f.userData.t + 1 / steps); f.position.copy(from).addScaledVector(dir, f.userData.t); f.material.opacity = f.userData.t >= 1 ? 0 : .85; } });
   for (const f of puffs) world.remove(f);
-  const fire = []; for (let i = 0; i < 6; i++) { const f = glow(i % 2 ? '#ff9a3a' : '#ffcf5a', .9, .65); f.position.set((Math.random() - .5) * .4, .15 + Math.random() * .6, (Math.random() - .5) * .3); W.player.add(f); fire.push(f); }
-  await tween(1200, k => { for (const f of fire) { f.position.y += .003; f.material.opacity = .65 * (1 - k * .3); } });
-  await say('She breathes out, slow and bright. Brass-coloured fire rolls over you, and the last thing you hear before the dark is Lio, very small, asking if you\'re going to be okay, and Saffi telling him not to look.');
+  await say('She breathes out, slow and bright, a single narrow line of brass-coloured fire, and it finds you and nobody else.');
+  // you catch: small flames climb you, then the world goes dark
+  const fire = []; sfx('nerve');
+  await tween(1100, k => { if (fire.length < 14 && Math.random() < .5) { const f = flame(fire.length % 2 ? '#ff6a1a' : '#ffb02a', .18 + Math.random() * .14, .8); f.position.set((Math.random() - .5) * .3, .1 + Math.random() * .2, (Math.random() - .5) * .2); f.userData.vy = .004 + Math.random() * .004; W.player.add(f); fire.push(f); }
+    for (const f of fire) { f.position.y = Math.min(1.1, f.position.y + f.userData.vy); } });
+  await say('The last thing you hear before the dark is Lio, very small, asking if you\'re going to be okay, and Saffi telling him not to look.');
   await fadeTo(1, 1200); for (const f of fire) W.player.remove(f); W.player.rotation.x = 0; W.player.userData.kneelP = false; castSet(['tam', 'brand'], 'grab', false);
   for (const k in DND_POS) delete DND_POS[k];
   S.flags.dndOutside = 0; S.flags.burned = 1; for (const m of S.party) m.hp = Math.max(1, Math.round(maxHp(m) / 3));
@@ -6956,6 +7021,35 @@ const fmax = m => m === B.foe ? B.foeMax : maxHp(m);
 function ladderIdx() { if (B.final) return 2; const tr = SPECIES[B.foe.sp].tier, f = B.foe.hp / B.foeMax; return clamp(Math.ceil(f * (tr + 1)) - 1, 0, tr); }
 const phaseOf = () => { const f = B.foe.hp / B.foeMax; return f > 2 / 3 ? 1 : f > 1 / 3 ? 2 : 3; };
 const bname = m => m === B.foe ? (B.final ? 'the Hush' : B.opt.heart ? `the Heart of ${TOWNS[B.opt.heart].name}` : B.opt.owner ? `${B.opt.owner}'s ${nm(m)}` : `the wild ${nm(m)}`) : nm(m);
+// ---------------------------------------------------------------- group battles
+// A trainer with more than one Manif fields up to three at once; the rest wait and step in when one settles.
+// B.foe / B.foeMax / B.foeModel / B.foeDef / FOE_POS always describe the foe currently being targeted or acting.
+const FOE_HOME = V3(0, 1.45, -2.2);
+const FOE_SLOTS = { 2:[V3(-1.25, 1.45, -2.3), V3(1.25, 1.45, -2.3)], 3:[V3(-2.1, 1.45, -2.5), V3(0, 1.45, -2.1), V3(2.1, 1.45, -2.5)] };
+function mkFoe(m, pos) { const max = Math.round(maxHp(m) * (1 + .2 * B.chorus.length)); m.hp = max; const model = buildManif(m.sp, { scale:1.2 }); model.position.copy(pos); battleScene.add(model); S.codex.seen[m.sp] = 1; return { m, max, model, pos:pos.clone(), def:0, done:false }; }
+function useFoe(g) { if (B.cur) B.cur.def = B.foeDef; B.cur = g; B.foe = g.m; B.foeMax = g.max; B.foeModel = g.model; B.foeDef = g.def; FOE_POS.copy(g.pos); }
+const aliveFoes = () => B.group ? B.group.filter(g => g.m.hp > 0) : [];
+const foesLeft = () => B.group ? aliveFoes().length > 0 || B.reserve.length > 0 : B.foe.hp > 0;
+async function chooseTarget(label) {
+  const al = aliveFoes(); if (al.length < 2) return al[0] || null;
+  const c = await choose(al.map(g => ({ label:nm(g.m), sub:`${Math.round(g.m.hp / g.max * 100)}% · ${TYPES[typeOf(g.m)].name}` })).concat([{ label:'← Back' }]),
+    { onSel:j => { for (const g of B.group) g.model.userData.flash = 0; if (al[j]) al[j].model.userData.flash = .6; setDlg(al[j] ? `${label} → ${nm(al[j].m)}` : 'Back', true); } });
+  UI.dlg = null; return c >= 0 && c < al.length ? al[c] : null;
+}
+async function foePhase() {
+  if (!B.group) return foeAct();
+  for (const g of aliveFoes()) { useFoe(g); renderBHUD(); await foeAct(); if (!chorusActive().length) return; }
+}
+async function reapFoes() {
+  if (!B.group) return;
+  for (let i = 0; i < B.group.length; i++) { const g = B.group[i]; if (g.m.hp > 0 || g.done) continue; g.done = true; useFoe(g);
+    await say(`${B.opt.owner}'s ${nm(g.m)} settles. Its storm goes quiet.`); sfx('settle');
+    await tween(450, k => { g.model.position.y = g.pos.y - k * .6; g.model.scale.multiplyScalar(.985); }); battleScene.remove(g.model);
+    await gainXpAll([...B.fought].filter(m => m.hp > 0), g.m);
+    if (B.reserve.length) { const n = B.reserve.shift(); B.group[i] = mkFoe(n, g.pos); useFoe(B.group[i]); renderBHUD(); await say(`${B.opt.owner} sends out ${nm(n)}!`); await say(`${nm(n)}: "${echoesOf(n)[0]}"`); }
+  }
+  const al = aliveFoes(); if (al.length && (!B.cur || B.cur.m.hp <= 0)) useFoe(al[0]); renderBHUD();
+}
 const keepChance = () => Math.round(clamp((B.opt.heart ? 10 : 20) + B.res * .8, 0, 100));
 function renderBHUD() {
   const f = B.foe, li = ladderIdx(), fr = f.hp / B.foeMax, ft = typeOf(f);
@@ -6963,7 +7057,7 @@ function renderBHUD() {
     : `<div class="lbl"><span>Resonance ${Math.round(B.res)}%</span><span>${B.opt.owner ? 'Bound to ' + B.opt.owner : 'Keep chance ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
   $('#bhud').innerHTML = `<div class="top">${B.final ? `<span class="mi" style="background:#d8d4cc"></span>` : manifIcon(f)}<span class="nm">${B.final ? 'The Hush' : (B.opt.heart ? 'Heart · ' : B.opt.owner ? B.opt.owner + '\'s ' : 'Wild ') + nm(f)}</span>${B.final ? pill(ft) : pillsOf(f.sp)}<span class="lv">Lv ${f.lvl}</span></div>
     <div class="int">${f.hp <= 0 ? 'Settled' : B.final ? `Wearing ${TYPES[ft].name}` : SPECIES[f.sp].dyad ? `${TYPES[ft].name} + ${TYPES[SPECIES[f.sp].type2].name}` : TYPES[ft].ladder[li]} <small>${B.final ? 'it shifts' : 'intensity'}</small></div>
-    <div class="bar"><i style="width:${fr * 100}%;background:${B.final ? '#f3efe6' : TYPES[ft].c}"></i></div>${lower}`;
+    <div class="bar"><i style="width:${fr * 100}%;background:${B.final ? '#f3efe6' : TYPES[ft].c}"></i></div>${lower}${B.group ? `<div class="grp">${B.group.map(g => `<span class="gc${g === B.cur ? ' on' : ''}${g.m.hp <= 0 ? ' down' : ''}"><em>${nm(g.m)}</em><b><i style="width:${Math.max(0, g.m.hp / g.max * 100)}%;background:${TYPES[typeOf(g.m)].c}"></i></b></span>`).join('')}${B.reserve.length ? `<span class="gc wait">+${B.reserve.length} waiting</span>` : ''}</div>` : ''}`;
   $('#chorus').innerHTML = B.chorus.map(m => { const r = m.hp / maxHp(m); return `<div class="cc card${m.hp <= 0 || B.numb.has(m) ? ' down' : ''}${B.acting === m ? ' act' : ''}"><div class="t">${manifIcon(m)}<span>${nm(m)}</span><span>Lv${m.lvl}</span></div><div class="bar"><i style="width:${r * 100}%;background:${r > .5 ? '#7cbf5a' : r > .2 ? '#e8b84a' : '#d8503f'}"></i></div><small>${m.hp <= 0 ? 'overwhelmed' : B.numb.has(m) ? 'numb' : m.hp + '/' + maxHp(m)}${B.guard.has(m) ? ' · guarding' : ''}</small></div>`; }).join('');
 }
 function screenPos(v3) { const v = v3.clone().project(bcam); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; }
@@ -7000,8 +7094,10 @@ async function battle(foe, opt = {}) {
   if (V.groundFog) for (let k = 0; k < 10; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:fogTex, color:V.groundFog, transparent:true, opacity:V.fogOp * .8, depthWrite:false })); s.scale.set(9, 2.4, 1); s.position.set(rnd(-10, 10), .5, rnd(-9, -3)); arena.add(s); }
   const chorus = S.party.filter(m => m.hp > 0).slice(0, 3);
   B = { foe, opt, final, chorus, models:new Map(), wedges:b.wedges, base:b.base, res:0, guard:new Set(), def:new Map(), atk:new Map(), numb:new Map(), foeDef:0, acting:null, fought:new Set(chorus), echo:1, turn:0, phase:1, still:0 };
-  B.foeMax = Math.round(maxHp(foe) * (final ? 4.2 : opt.heart ? 2.7 : 1 + .45 * chorus.length)); foe.hp = B.foeMax;
-  B.foeModel = final ? buildHush() : buildManif(foe.sp, { scale: opt.heart ? 1.8 : 1.5 }); B.foeModel.position.copy(FOE_POS); battleScene.add(B.foeModel);
+  FOE_POS.copy(FOE_HOME);
+  if (opt.group && opt.group.length > 1 && !final) { const front = opt.group.slice(0, 3); B.reserve = opt.group.slice(3); B.group = front.map((m, i) => mkFoe(m, FOE_SLOTS[front.length][i])); useFoe(B.group[0]); }
+  else { B.foeMax = Math.round(maxHp(foe) * (final ? 4.2 : opt.heart ? 2.7 : 1 + .45 * chorus.length)); foe.hp = B.foeMax;
+  B.foeModel = final ? buildHush() : buildManif(foe.sp, { scale: opt.heart ? 1.8 : 1.5 }); B.foeModel.position.copy(FOE_POS); battleScene.add(B.foeModel); }
   chorus.forEach((m, i) => placeChorusModel(m, i));
   B.hero = buildHero(S.hero); B.hero.position.set(-1.75, .28, 3.3); B.hero.rotation.y = Math.PI; battleScene.add(B.hero);
   if (!final) S.codex.seen[foe.sp] = 1;
@@ -7013,6 +7109,7 @@ async function battle(foe, opt = {}) {
   pulseWedge(typeOf(foe), 1.4);
   const word = SPECIES[foe.sp].dyad ? `${TYPES[SPECIES[foe.sp].type].name} and ${TYPES[SPECIES[foe.sp].type2].name} at once` : TYPES[typeOf(foe)].ladder[SPECIES[foe.sp].tier];
   if (final) { await say('The Hush unfolds from the still water. It has no face. It has every face.'); }
+  else if (B.group) await say(`${opt.owner} sends out ${B.group.map(g => nm(g.m)).join(', ').replace(/, ([^,]*)$/, ' and $1')} together${B.reserve.length ? `, with ${B.reserve.length} more waiting` : ''}!`);
   else await say(opt.heart ? `The Heart of ${TOWNS[opt.heart].name} rises, burning at ${word}!` : opt.owner ? `${opt.owner} sends out ${nm(foe)}, burning at ${word}.` : `A wild ${nm(foe)} turns toward you, burning at ${word}.`);
   S.canon = S.canon || {}; if (!final && !S.canon[foe.sp]) { S.canon[foe.sp] = 1; if (ECHOES[foe.sp]) foe.canon = 1; }
   await say(`${final ? 'Hush' : nm(foe)}: "${echoesOf(foe)[0]}"`);
@@ -7058,6 +7155,7 @@ async function finalShift() {
 }
 async function battleTurn() {
   B.turn++;
+  if (B.group) { const al = aliveFoes(); if (al.length && (!B.cur || B.cur.m.hp <= 0)) useFoe(al[0]); }
   if (B.final) await finalShift();
   const acts = []; B.guard.clear();
   for (const [m, n] of [...B.numb]) { if (n <= 0) B.numb.delete(m); }
@@ -7072,8 +7170,8 @@ async function battleTurn() {
     opts.push(i > 0 ? { label:'← Back' } : { label:'Step away', sub: B.final ? 'no way back' : 'leave', disabled:B.final });
     const c = await choose(opts, { layout:'grid', cancel: i > 0 }), nmv = m.moves.length;
     if (c === -1 || (c === nmv + 3 && i > 0)) { i--; acts.pop(); continue; }
-    if (c < nmv) acts.push({ m, kind:'move', mv:m.moves[c] });
-    else if (c === nmv) acts.push({ m, kind:'reach' });
+    if (c < nmv) { const mv = MOVES[m.moves[c]]; let tgt = null; if (B.group && (mv.pow || mv.fx === 'foedef-')) { tgt = await chooseTarget(mv.name); if (!tgt) continue; } acts.push({ m, kind:'move', mv:m.moves[c], tgt }); }
+    else if (c === nmv) { let tgt = null; if (B.group) { tgt = await chooseTarget('Reach Out'); if (!tgt) continue; } acts.push({ m, kind:'reach', tgt }); }
     else if (c === nmv + 1) acts.push({ m, kind:'guard' });
     else if (c === nmv + 2) {
       const ci = await choose(its.map(k => ({ label:ITEMS[k].name, sub:`×${S.items[k]} · ${ITEMS[k].desc}` })).concat([{ label:'Back' }]), { onSel:j => setDlg(j < its.length ? `${ITEMS[its[j]].name}: ${itemInfo(its[j])}` : 'Back to the Expressions.', true) }); UI.dlg = null;
@@ -7083,7 +7181,7 @@ async function battleTurn() {
       B.acting = null; renderBHUD();
       if (B.opt.owner) { await say('You bow out of the match.'); return 'fled'; }
       if (Math.random() < (B.opt.heart ? 1 : .85)) { await say('You let the moment pass, and step away.'); return 'fled'; }
-      await say(`The ${nm(B.foe)} won't let you go!`); await foeAct(); return checkEnd();
+      await say(`The ${nm(B.foe)} won't let you go!`); await foePhase(); return checkEnd();
     }
     i++;
   }
@@ -7095,10 +7193,12 @@ async function battleTurn() {
   const queue = [];
   for (const a of acts) { if (dyad && a === dyad.b) continue; queue.push(dyad && a === dyad.a ? { kind:'dyad', ...dyad } : a); }
   queue.sort((p, q) => (q.kind === 'guard' || q.kind === 'item') - (p.kind === 'guard' || p.kind === 'item'));
-  const foeFirst = stat(B.foe, 'spd') > Math.max(1, ...active.map(m => stat(m, 'spd')));
-  if (foeFirst) { await foeAct(); if (B.foe.hp <= 0 || !chorusActive().length) return checkEnd(); }
+  const foeSpd = B.group ? Math.max(0, ...aliveFoes().map(g => stat(g.m, 'spd'))) : stat(B.foe, 'spd');
+  const foeFirst = foeSpd > Math.max(1, ...active.map(m => stat(m, 'spd')));
+  if (foeFirst) { await foePhase(); if (!foesLeft() || !chorusActive().length) return checkEnd(); }
   for (const q of queue) {
-    if (B.foe.hp <= 0) break;
+    if (B.group) { await reapFoes(); if (!aliveFoes().length) break; const want = (q.kind === 'dyad' ? q.a.tgt : q.tgt); if (want || q.kind === 'dyad') useFoe(want && want.m.hp > 0 ? want : aliveFoes()[0]); }
+    else if (B.foe.hp <= 0) break;
     if (q.kind === 'dyad') { if (q.a.m.hp <= 0 || q.b.m.hp <= 0) { for (const s of [q.a, q.b]) if (s.m.hp > 0) await doMove(s.m, s.mv); continue; } await doDyad(q); }
     else if (q.m.hp <= 0) continue;
     else if (q.kind === 'move') await doMove(q.m, q.mv);
@@ -7106,7 +7206,8 @@ async function battleTurn() {
     else if (q.kind === 'guard') await say(`${nm(q.m)} braces itself.`);
     else if (q.kind === 'item') await useItem(q.m, q.item);
   }
-  if (!foeFirst && B.foe.hp > 0) await foeAct();
+  if (B.group) await reapFoes();
+  if (!foeFirst && (B.group ? aliveFoes().length : B.foe.hp > 0)) await foePhase();
   if (B.final && B.phase === 3 && B.foe.hp > 0 && chorusActive().length) await foeAct();
   return checkEnd();
 }
@@ -7230,7 +7331,7 @@ async function foeAct() {
     if (Math.random() * 100 >= mvv.acc) { await orb(FOE_POS.clone(), modelOf(tg).position.clone().add(V3(1.2, .4, .8)), TYPES[mvv.type].c); await say('...but it doesn\'t land.'); }
     else {
       let { dmg, e } = calcDmg(B.foe, tg, mvv.pow, mvv.type, stat(B.foe, 'atk'));
-      dmg = Math.max(1, Math.round(dmg * [.8, 1, 1.15][ladderIdx()] * (.9 + .12 * B.chorus.length) * (B.guard.has(tg) ? .5 : 1) * (B.final ? .9 : 1)));
+      dmg = Math.max(1, Math.round(dmg * [.8, 1, 1.15][ladderIdx()] * (.9 + .12 * B.chorus.length) * (B.guard.has(tg) ? .5 : 1) * (B.final ? .9 : 1) * (B.group ? .72 : 1)));
       const wound = !B.guard.has(tg) && Math.random() < .08; if (wound) dmg = Math.round(dmg * 1.5);
       await orb(FOE_POS.clone(), modelOf(tg).position.clone(), TYPES[mvv.type].c);
       if (e > 1) oppBeam(mvv.type, typeOf(tg));
@@ -7259,6 +7360,7 @@ async function overwhelmed(m) {
   else renderBHUD();
 }
 async function checkEnd() {
+  if (B.group) { await reapFoes(); if (!chorusActive().length) return 'blackout'; if (!aliveFoes().length && !B.reserve.length) { await say(`Every one of ${B.opt.owner}'s Manifs has settled.`); return 'won'; } return null; }
   if (B.foe.hp <= 0) {
     sfx('settle');
     if (B.final) {
