@@ -1480,6 +1480,8 @@ function buildHero(kind) {
 }
 function animHero(g, k, moving, t) {
   const u = g.userData, sw = moving ? Math.sin(k * Math.PI * 2) * .55 : 0;
+  if (u.sitP) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; u.inner.position.y = -.42; u.inner.rotation.x = 0; const p = Math.sin(t * 4); u.arms[0].rotation.set(-1.1 + p * .35, 0, -.3); u.arms[1].rotation.set(-1.1 - p * .35, 0, .3);
+    if (u.oar) u.oar.rotation.z = p * .5; return; }
   if (u.kneelP) { u.legs[0].rotation.x = u.legs[1].rotation.x = 1.45; u.arms[0].rotation.set(-.2, 0, -.7); u.arms[1].rotation.set(-.2, 0, .7); u.inner.position.y = -.36; u.inner.rotation.x = .12; return; }
   u.arms[0].rotation.y = u.arms[1].rotation.y = 0; u.inner.rotation.x = 0;
   u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
@@ -1501,6 +1503,22 @@ const BUILDS = {
 };
 const HAIRS = ['short', 'short', 'long', 'bob', 'curly', 'ponytail', 'spiky', 'bald'];
 function personSeed(L) { let h = 7; for (const c of (L.coat || '') + (L.skin || '') + (L.hair || '') + (L.accent || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+// Things people carry in a hand. Each is built in the hand's own space (the arm hangs, so +y is up).
+const HELD = {
+  paddle:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.018, .018, 1.5, 8), L.shaftC || '#2a4a8a', [0, .32, 0]));
+    for (const s of [-1, 1]) { const b = part(new THREE.BoxGeometry(.13, .3, .02), L.bladeC || '#f09a2a', [0, .32 + s * .86, 0]); b.rotation.y = s > 0 ? 0 : Math.PI / 2; g.add(b); }
+    g.rotation.x = .08; g.userData.held = 'paddle'; return g; },
+  bat:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.05, .02, .62, 10), '#b8834a', [0, .28, 0])); g.add(part(new THREE.CylinderGeometry(.028, .028, .05, 8), '#2a2420', [0, -.02, 0]));
+    g.userData.held = 'bat'; return g; },
+  lanternstaff:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.022, .03, 1.45, 8), '#5a3a1e', [0, .3, 0]));
+    for (let i = 0; i < 6; i++) g.add(part(new THREE.SphereGeometry(.035, 6, 5), '#4a6a2a', [Math.sin(i * 2.1) * .03, .1 + i * .18, Math.cos(i * 2.1) * .03]));
+    g.add(part(new THREE.BoxGeometry(.1, .14, .1), '#2a2622', [.1, .9, 0])); const o = glow('#ffcf70', .5, .9); o.position.set(.1, .9, 0); g.add(o); g.userData.held = 'lanternstaff'; return g; },
+  basket:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.13, .1, .12, 12), '#a07a44', [0, -.1, .02]));
+    for (const [x, c] of [[-.05, '#c0402a'], [.04, '#8ab04a'], [0, '#c89a5a']]) g.add(part(new THREE.SphereGeometry(.045, 8, 6), c, [x, -.03, .02 + x]));
+    const h = part(new THREE.TorusGeometry(.1, .01, 5, 14, Math.PI), '#7a5a30', [0, -.05, .02]); g.add(h); g.userData.held = 'basket'; return g; }
+};
+// Put something in a person's right hand (or take it away with kind = null).
+function holdItem(g, kind) { const h = g.userData.hands && g.userData.hands[1]; if (!h) return; for (const c of [...h.children]) if (c.userData && c.userData.held) h.remove(c); if (kind && HELD[kind]) h.add(HELD[kind](g.userData.look || {})); }
 function buildPerson(L) {
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const seed = personSeed(L), gear = (L.gear || []).slice();
@@ -1511,9 +1529,10 @@ function buildPerson(L) {
   // legs (hip pivots at y .46)
   const legs = [], baggy = L.baggy ? 1.45 : 1;
   for (const sx of [-1, 1]) { const hip = new THREE.Group(); hip.position.set(sx * B.hip * .55, .46, 0); inner.add(hip); legs.push(hip);
-    add(new THREE.CylinderGeometry(B.leg * baggy, B.leg * .9 * baggy, .26, 12), legsC, [0, -.13, 0], { to:hip, ink:1.1 });
+    if (L.shorts) { add(new THREE.CylinderGeometry(B.leg * 1.25, B.leg * 1.2, .12, 12), legsC, [0, -.06, 0], { to:hip, ink:1.1 }); add(new THREE.CylinderGeometry(B.leg * .92, B.leg * .9, .15, 12), skin, [0, -.18, 0], { to:hip, ink:1.1 }); }
+    else add(new THREE.CylinderGeometry(B.leg * baggy, B.leg * .9 * baggy, .26, 12), legsC, [0, -.13, 0], { to:hip, ink:1.1 });
     const knee = new THREE.Group(); knee.position.set(0, -.25, 0); hip.add(knee);
-    add(new THREE.CylinderGeometry(B.leg * .9 * baggy, B.leg * .8, .1, 12), legsC, [0, -.04, 0], { to:knee, ink:1.1 });
+    add(new THREE.CylinderGeometry(B.leg * .9 * baggy, B.leg * .8, .1, 12), L.shorts ? skin : legsC, [0, -.04, 0], { to:knee, ink:1.1 });
     add(new THREE.CylinderGeometry(B.leg * 1.05, B.leg * 1.1, .12, 12), boot, [0, -.13, 0], { to:knee, ink:1.12 });
     add(new THREE.BoxGeometry(B.leg * 2.1, .05, B.leg * 3.2), boot, [0, -.185, .03], { to:knee });
     hip.userData.knee = knee; }
@@ -1561,12 +1580,17 @@ function buildPerson(L) {
   if (hair === 'curly') for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r2 = i % 2 ? .13 : .1; add(new THREE.SphereGeometry(.055, 8, 6), hc, [Math.cos(a) * r2, HY + .1 + (i % 3) * .025, Math.sin(a) * r2 - .03], { ink:1.05 }); }
   if (hair === 'bob') add(new THREE.CylinderGeometry(.18, .185, .2, 16, 1, true, Math.PI * .3, Math.PI * 1.4), hc, [0, HY - .03, -.005], { mo:{ side:THREE.DoubleSide }, ink:0 });
   if (hair === 'long') { add(new THREE.CylinderGeometry(.17, .2, .42, 16, 1, true, Math.PI * .3, Math.PI * 1.4), hc, [0, HY - .14, -.01], { mo:{ side:THREE.DoubleSide }, ink:0 }); }
+  if (hair === 'curlylong') {               // long wavy hair: curls on top, a full fall down the back and over the shoulders, face left clear
+    cap(.18, .52); add(new THREE.CylinderGeometry(.17, .23, .5, 16, 1, true, Math.PI * .32, Math.PI * 1.36), hc, [0, HY - .17, -.01], { mo:{ side:THREE.DoubleSide }, ink:0 });
+    for (let i = 0; i < 10; i++) { const a = -1.2 + i / 9 * 2.4; add(new THREE.SphereGeometry(.058, 8, 6), hc, [Math.sin(a) * .15, HY + .1 + (i % 2) * .02, -Math.cos(a) * .15 + .02], { ink:1.05 }); }
+    for (let row = 0; row < 3; row++) for (let i = 0; i < 9; i++) { const a = -1.75 + i / 8 * 3.5, r3 = .19 + row * .025;
+      add(new THREE.SphereGeometry(.062 - row * .006, 8, 6), hc, [Math.sin(a) * r3, HY - .05 - row * .14 - (i % 2) * .03, -Math.cos(a) * r3], { ink:1.04 }); } }
   if (hair === 'ponytail') add(new THREE.ConeGeometry(.06, .3, 8), hc, [0, HY - .02, -.2], { rot:[-2.6, 0, 0] });
   if (L.hat) add(new THREE.ConeGeometry(.24, .26, 14), L.hat, [0, HY + .21, 0], { ink:1.08 });
   // gear (stout and tall are builds now; held things go in the hand)
-  const held = gear.filter(k => ['orb', 'gadget', 'flamesword'].includes(k) || (k === 'sword' && pose === 'sword'));
+  const held = gear.filter(k => ['orb', 'gadget', 'flamesword', 'paddle', 'bat', 'lanternstaff', 'basket'].includes(k) || (k === 'sword' && pose === 'sword'));
   addGear(inner, { ...L, gear:gear.filter(k => k !== 'stout' && k !== 'tall' && !held.includes(k)) });
-  for (const k of held) { const h = hands[1];
+  for (const k of held) { const h = k === 'basket' ? hands[0] : hands[1]; if (HELD[k]) { h.add(HELD[k](L)); continue; }
     if (k === 'orb' || k === 'gadget') { const c = L.orb || '#7ab8ff'; add(new THREE.SphereGeometry(.055, 12, 10), k === 'gadget' ? '#6a6a70' : c, [0, -.02, .04], { to:h }); if (k === 'gadget') for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(.02, .02, .08), '#4a4a50', [Math.cos(i * 1.57) * .05, -.02 + Math.sin(i * 1.57) * .05, .04], { to:h, ink:0 });
       const o = glow(c, .45, .9); o.position.set(0, -.02, .06); h.add(o); }
     if (k === 'sword' || k === 'flamesword') { const sw = new THREE.Group(); sw.rotation.x = .5; h.add(sw);         // everything on the same axis
@@ -1574,13 +1598,19 @@ function buildPerson(L) {
       add(new THREE.BoxGeometry(.04, .58, .014), k === 'flamesword' ? '#c8b8a8' : '#d8dce4', [0, -.34, 0], { to:sw, ink:1.04 });
       if (k === 'flamesword') for (let i = 0; i < 7; i++) { const f = glow(i % 2 ? '#ff7a2a' : '#ffc04a', .16 + (i % 3) * .05, .8); f.position.set((i % 2 ? .025 : -.025), -.1 - i * .08, 0); sw.add(f); } } }
   if (L.small) inner.scale.setScalar(.72); else inner.scale.y *= B.hy;
-  g.userData = { inner, legs, arms, pose, ph:(seed % 100) / 16 };
+  g.userData = { inner, legs, arms, hands, pose, look:L, ph:(seed % 100) / 16 };
   return g;
 }
 // Walk and idle: legs swing when someone moves; arms swing with them or sway a little at rest.
 function animPerson(g, moving, t, dt) {
   const u = g.userData; if (!u.legs || !u.legs.length) return;
   moving = moving || !!u.forceWalk;
+  if (u.sit) { u.legs[0].rotation.x = u.legs[1].rotation.x = -2.0; for (const h of u.legs) h.userData.knee.rotation.x = 2.3; u.inner.position.y = -.08; u.inner.rotation.z = .12;
+    for (const [i, a] of u.arms.entries()) { a.rotation.set(-1.05, 0, (i ? 1 : -1) * -.25); a.userData.el.rotation.x = -.7; } return; }
+  if (u.kayak) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = -.4; const p = Math.sin(t * 4);
+    u.arms[0].rotation.set(-1.1 + p * .35, 0, -.3); u.arms[1].rotation.set(-1.1 - p * .35, 0, .3); return; }
+  if (u.swing != null) { const k = u.swing; u.arms[1].rotation.set(-2.6 + k * 2.9, 0, .2); u.arms[1].userData.el.rotation.x = -.4; u.arms[0].rotation.set(-1.4 + k * 1.2, 0, -.2); return; }
+  if (u.inner.rotation.z) u.inner.rotation.z = 0; if (!u.kneel && u.inner.position.y) u.inner.position.y = 0;
   if (u.kneel) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.3; for (const h of u.legs) h.userData.knee.rotation.x = 1.5; u.inner.position.y = -.2; for (const a of u.arms) a.rotation.x = -1.4; return; }
   u.wt = (u.wt || 0) + (moving ? dt * 9 : 0); const s = moving ? Math.sin(u.wt) : 0;
   u.legs[0].rotation.x += (s * .55 - u.legs[0].rotation.x) * .3; u.legs[1].rotation.x += (-s * .55 - u.legs[1].rotation.x) * .3;
@@ -2626,6 +2656,8 @@ function addGear(inner, L) {
     case 'bakerhat': P(new THREE.CylinderGeometry(.2, .17, .16, 14), '#fbf7ec', [0, 1.15, 0]); P(new THREE.SphereGeometry(.24, 14, 9), '#fbf7ec', [0, 1.27, 0], null, [1, .55, 1]); break;
     case 'hood': P(new THREE.SphereGeometry(.26, 16, 12, 0, Math.PI * 2, 0, Math.PI * .62), L.hat || L.coat, [0, .97, -.03], [-.25, 0, 0]); break;
     case 'veil': P(new THREE.ConeGeometry(.3, .5, 16, 1, true), L.hat || '#3b3a3f', [0, 1.02, 0]); break;
+    case 'poncho': { const C = L.ponchoC || [L.accent2 || '#e0a040'];     // layered, ragged patchwork poncho over the shoulders
+      for (let i = 0; i < 3; i++) { const m = P(new THREE.CylinderGeometry(.2 - i * .01, .33 + i * .03, .34 - i * .06, 9 + i * 2), C[i % C.length], [0, .66 - i * .02, -.01], [0, i * .5, 0]); m.scale.z = .9; } } break;
     case 'cape': P(new THREE.BoxGeometry(.5, .62, .03), L.accent2 || '#5a1a22', [0, .55, -.19], [.12, 0, 0]); break;
     case 'scarf': P(new THREE.BoxGeometry(.07, .3, .03), L.accent, [.1, .7, .16], [0, 0, .2]); break;
     case 'satchel': P(new THREE.BoxGeometry(.18, .16, .08), '#6b4528', [-.26, .4, .06]); P(new THREE.BoxGeometry(.03, .5, .03), '#4a2e1a', [-.05, .6, .2], [0, 0, -.7]); break;
@@ -3816,8 +3848,9 @@ function buildRouteExtras(M, V) {
   for (const p of M.set || []) { const o = buildSet(p); o.position.set(p.x, groundY(p.x, p.y) - (M.tiles[Math.round(p.y)] && M.tiles[Math.round(p.y)][Math.round(p.x)] === '~' ? .35 : 0), p.y); g.add(o); SETOBJS.push({ p, o }); }
   return g;
 }
+let MAP_VISIT = 0, RIDE_Y = null;      // MAP_VISIT counts arrivals (for people who leave until you go); RIDE_Y holds the hero up on water
 function buildWorld(id) {
-  ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld()) applyRestoredFair();
+  MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld()) applyRestoredFair();
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
   const M = MAPS[id], V = worldVibe(id);
@@ -3846,7 +3879,7 @@ function buildWorld(id) {
          sg.rotation.y = Math.atan2(HUB_C[0] - x, HUB_C[1] - y); }
       sg.position.set(x, gy, y); world.add(sg); }
   }
-  if (M.kind === 'route' || M.kind === 'inside' || M.kind === 'city' || M.kind === 'way') world.add(buildRouteExtras(M, V));
+  if (M.kind === 'route' || M.kind === 'inside' || M.kind === 'city' || M.kind === 'way' || M.kind === 'region') world.add(buildRouteExtras(M, V));
   if (id === 'vellum' && Object.keys(S.hearts).length >= WN && !S.flags.hushDone) { const bc = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.4, 22, 24, 1, true), new THREE.MeshBasicMaterial({ color:'#cfe8ff', transparent:true, opacity:.3, side:THREE.DoubleSide, depthWrite:false })); bc.position.set(16, 11, 12.5); world.add(bc); const bg = glow('#e8f4ff', 7, .7); bg.position.set(16, 3.2, 12.5); world.add(bg); }
   for (const t of trees) t[1] = groundY(t[0], t[2]) - .04;
   world.add(buildKit(TREE_KITS[V.trees], trees, V.treeC));
@@ -3866,7 +3899,7 @@ function buildWorld(id) {
     for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * .9, bz = y + (hsh(x, y, j + 3) - .5) * .9; W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:.7 + r * .6, ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
     world.add(gmesh); W.grass = gmesh;
   }
-  for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const g = burnt ? buildBurnt(hd) : buildHouseX(hd, hd.roof, hd.wall); world.add(g); }
+  for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const g = burnt ? buildBurnt(hd) : hd.hobbit ? buildHobbit(hd) : buildHouseX(hd, hd.roof, hd.wall); world.add(g); }
   if (id === 'vellum') for (const [k, g] of Object.entries(GATES)) { const t = GATE_TYPE[k]; world.add(at(buildArch(TYPES[t].c, g.arch[2]), g.arch[0], groundY(g.arch[0], g.arch[1]) - BASE, g.arch[1])); }
   if (M.kind === 'way' || M.kind === 'city') { const t = M.vibe; if (M.entryN && M.kind === 'way') world.add(at(buildArch(TYPES[t].c, 0), M.entryN.x + .5, groundY(M.entryN.x, 1), 1.2)); if (M.entryS) world.add(at(buildArch(TYPES[t].c, 0), M.entryS.x + .5, groundY(M.entryS.x, M.h - 2), M.h - 1.4)); }
   W.heart = null;
@@ -4011,6 +4044,7 @@ function renderEnt(e) {
       rg.position.set(e.x, groundY(e.x, e.y), e.y); world.add(rg); W.npcs[e.id] = rg; return; }
     if (e.note) { const pg = new THREE.Group(); pg.add(at(inkBox(.34, .02, .26, toon('#f3ead6'), .015), 0, .04, 0)); pg.add(at(inkBox(.2, .015, .03, toon('#5a4a3a'), 0), 0, .055, -.04)); const gl = glow('#fff6d8', .5, .4); gl.position.y = .2; pg.add(gl); pg.rotation.y = hsh(e.x, e.y) * 2; pg.position.set(e.x, groundY(e.x, e.y), e.y); world.add(pg); W.npcs[e.id] = pg; return; }
     if (e.manif) { const g = buildManif(e.manif, { scale:e.big ? 1 : .7 }); g.position.set(e.x, groundY(e.x, e.y) + .2, e.y); const gl = glow(e.big ? '#ff4a3a' : '#c43a4a', 2.2, .5); gl.position.y = .6; g.add(gl); world.add(g); W.npcs[e.id] = g; return; }
+    if (e.model) { const g = e.model(); g.position.set(e.x + (e.dx || 0), groundY(e.x, e.y) + (e.dy || 0), e.y + (e.dz || 0)); world.add(g); W.npcs[e.id] = g; return; }
     if (e.item) { const sp = glow('#fff1b0', .7, .9); sp.position.set(e.x, groundY(e.x, e.y) + .4, e.y); world.add(sp); W.npcs[e.id] = sp; return; }
     if (e.body) { const p = buildPerson(e.look ? { ...e.look, coat:new THREE.Color(e.look.coat || '#777').lerp(new THREE.Color('#5a5650'), .6).getStyle() } : NUMBED_LOOK); p.rotation.z = Math.PI / 2; p.position.set(e.x, groundY(e.x, e.y) + .22, e.y); world.add(p); const pool = new THREE.Mesh(new THREE.CircleGeometry(.75, 14), new THREE.MeshBasicMaterial({ color:'#4a080c', transparent:true, opacity:.8, depthWrite:false })); pool.rotation.x = -Math.PI / 2; pool.position.set(e.x + .2, groundY(e.x, e.y) + .03, e.y + .1); world.add(pool); W.npcs[e.id] = p; return; }
     const p = buildPerson(e.look); p.position.set(e.x, groundY(e.x, e.y), e.y); world.add(p); W.npcs[e.id] = p;
@@ -4030,7 +4064,17 @@ function syncEnts(map, list) {
 const UI = { dlg:null, cho:null, list:null, sheetStatic:false };
 let scene = 'boot', busy = false;
 const dlgEl = $('#dlg'), whoEl = $('#dlg .who'), txtEl = $('#dlg .txt'), nxtEl = $('#dlg .nxt'), choEl = $('#cho'), sheetEl = $('#sheet');
-dlgEl.addEventListener('pointerdown', e => { e.stopPropagation(); press('a'); });
+// Phones: a menu button only fires on a real tap. A finger that drags (to scroll a list) or a touch the browser turns
+// into a scroll does nothing, so scrolling a menu never picks something by accident.
+function onTap(el, fn) {
+  let st = null; const scroller = () => { let p = el.parentElement; while (p && p !== document.body) { if (p.scrollHeight > p.clientHeight + 2) return p; p = p.parentElement; } return null; };
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.pointerType === 'mouse') { fn(e); st = null; return; } const sc = scroller(); st = { x:e.clientX, y:e.clientY, sc, top:sc ? sc.scrollTop : 0, id:e.pointerId }; });
+  el.addEventListener('pointermove', e => { if (st && st.id === e.pointerId && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 10) st = null; });
+  el.addEventListener('pointercancel', () => { st = null; });
+  el.addEventListener('pointerup', e => { e.stopPropagation(); if (!st || st.id !== e.pointerId) return; const moved = Math.hypot(e.clientX - st.x, e.clientY - st.y), scrolled = st.sc ? Math.abs(st.sc.scrollTop - st.top) : 0; st = null;
+    if (moved <= 10 && scrolled <= 4) fn(e); });
+}
+onTap(dlgEl, () => press('a'));
 // The player's name and pronouns, for NPCs who know them. Lines can use {name} {they} {them} {their} {theirs} {themself}
 // (capitalise the first letter for sentence starts: {They}) and agreement helpers {is} {was} {has} {s} (verb -s: "{they} walk{s}").
 const PRON_T = { m:{ they:'he', them:'him', their:'his', theirs:'his', themself:'himself', is:'is', was:'was', has:'has', s:'s', are:"he's" },
@@ -4056,7 +4100,7 @@ function choose(opts, o = {}) {
     items.forEach((it, i) => {
       const b = document.createElement('div'); b.className = 'opt' + (it.disabled ? ' dis' : '');
       b.innerHTML = (it.pill ? pill(it.pill) : '') + `<span>${it.label}</span>` + (it.sub ? `<span class="sub">${it.sub}</span>` : '') + (it.hint ? `<span class="hint">${it.hint}</span>` : '');
-      b.addEventListener('pointerdown', e => { e.stopPropagation(); if (!UI.cho) return; UI.cho.idx = i; selChoice(); pickChoice(); });
+      onTap(b, () => { if (!UI.cho) return; UI.cho.idx = i; selChoice(); pickChoice(); });
       choEl.appendChild(b);
     });
     UI.cho = { items, idx: clamp(o.start || 0, 0, items.length - 1), res, o, cols: o.layout === 'grid' ? 2 : 1 };
@@ -4072,7 +4116,7 @@ function listChoose(items, o) {
     const rows = [];
     items.forEach((it, i) => { const r = document.createElement('div'); r.className = 'row'; r.innerHTML = `<div class="opt">${o.render(it, i)}</div>`; rows.push(r.firstChild); sheetEl.appendChild(r); });
     if (o.cancel !== false) { const r = document.createElement('div'); r.className = 'row'; r.innerHTML = `<div class="opt" style="justify-content:center">Back</div>`; rows.push(r.firstChild); sheetEl.appendChild(r); }
-    rows.forEach((el, i) => el.addEventListener('pointerdown', e => { e.stopPropagation(); if (!UI.list || !UI.list.res) return; if (i >= items.length) return pickList(true); UI.list.idx = i; selList(); pickList(); }));
+    rows.forEach((el, i) => onTap(el, e => { if (!UI.list || !UI.list.res) return; if (i >= items.length) return pickList(true); UI.list.idx = i; selList(); pickList(); }));
     UI.list = { n: items.length, idx: clamp(o.start || 0, 0, Math.max(0, items.length - 1)), res, o };
     sheetEl.classList.remove('hidden'); selList();
   });
@@ -4300,7 +4344,7 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
 const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
@@ -4866,6 +4910,7 @@ async function bagMenu() {
     const k = keys[i], it = ITEMS[k];
     if (it.veil) { S.items.veil--; S.veil = it.veil; closeSheet(); auraPulse = 1; await say('You drape the Grey Veil over your shoulders. For a while, everyone will read you as Neutral.'); continue; }
     if (it.home) { S.items.waystone--; closeSheet(); await fadeTo(1, 400); S.map = 'vellum'; S.x = 16; S.y = 18; S.dir = 'up'; buildWorld('vellum'); playMusic(themeFor('vellum')); await fadeTo(0, 400); toast('Vellum', 'Waystone'); return; }
+    if (it.fieldUse) { closeSheet(); await it.fieldUse(); return; }
     if (it.res || it.healAll || it.atk || it.def || it.custom) { await say('That only works in battle.'); continue; }
     const pool = it.revive ? S.party.concat(S.satchel).filter(m => m.hp <= 0) : S.party.concat(S.satchel);
     if (!pool.length) { await say(it.revive ? 'Nobody needs reviving.' : 'Nobody to use it on.'); continue; }
@@ -6347,7 +6392,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   rect(m, 0, 0, 52, 5, '~'); rect(m, 12, 5, 38, 6, 'S'); rect(m, 2, 11, 48, 2, 'b'); rect(m, 2, 13, 48, 1, '.'); rect(m, 2, 14, 48, 2, '=');
   // the headland and the lighthouse
   rect(m, 0, 0, 12, 10, '~'); rect(m, 1, 1, 11, 9, 'R'); rect(m, 2, 2, 9, 7, '.'); rect(m, 2, 9, 10, 2, 'S'); rect(m, 9, 5, 3, 4, 'S');
-  B.piece('lighthouse', 3, 2, 2, 2); B.house(6, 2, 5, '#a8352a', '#f4f1e8', { name:'Keeper\'s Cottage', w:11, h:9, music:'saltmere', floor:['#8a7458', '#7e6a50'], wall:'#f0ece0', furn:[['stove', 1, 2, { lit:true }], ['table', 5, 3], ['shelf', 8, 1], ['bed', 8, 5]] });
+  B.piece('lighthouse', 3, 2, 2, 2); m[7][4] = 's'; B.house(6, 2, 5, '#a8352a', '#f4f1e8', { name:'Keeper\'s Cottage', w:11, h:9, music:'saltmere', floor:['#8a7458', '#7e6a50'], wall:'#f0ece0', furn:[['stove', 1, 2, { lit:true }], ['table', 5, 3], ['shelf', 8, 1], ['bed', 8, 5]] });
   // streets: Ocean Ave (14–15), three rows of blocks, four cross streets
   for (const y of [22, 23, 30, 31, 38, 39]) rect(m, 2, y, 48, 1, '=');
   for (const x of [2, 3, 17, 18, 33, 34, 48, 49]) rect(m, x, 14, 1, 26, '=');
@@ -6398,6 +6443,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   IN(7).npcs = [npc('teller', 6, 2, 'down', 'Teller', lk('#5a5a5a', '#f3e7c9', SK[1], '#3a2414', ['glasses']), bankTeller), npc('guard_b', 2, 6, 'right', 'Bank guard', lk('#2a3448', '#d8b85a', SK[4], '#141014', ['cap', 'baton', 'stout']), () => sayAs('Bank guard', sideLine({ light:'Morning.', even:'Keep it moving.', shadow:'Don\'t even think about it.' })))];
   REGION_NPCS.saltmere = () => [
     npc('lhdoor', 4, 3, 'up', 'Lighthouse', null, climbLighthouse, { invisible:true }),
+    npc('lhsign', 4, 7, 'up', 'Sign', null, () => say('SALTMERE HEAD LIGHT. First lit 1791 by order of the harbour. Eighty feet of white stone on Gull Point. The keeper\'s house is open to callers. (Under it, scratched in: "She still turns. Wave at her.")'), { invisible:true }),
     npc('fisher', 9, 7, 'down', 'Fisherman', lk('#5a6a3a', '#e8a83a', SK[2], '#8a8078', ['cap', 'beard']), () => sayAs('Fisherman', S.flags.lightOut ? 'A boat came onto the rocks last night. Light was out. Nobody knows who climbed up there and put it out. (He looks at you, and keeps looking.)' : 'Mackerel\'s running. First time in eleven years. I cried, a bit. Don\'t tell anyone.')),
     npc('sunbather', 19, 9, 'up', 'Sunbather', lk('#e8a83a', '#fff3d6', SK[1], '#7a3e1e', ['glasses']), () => sayAs('Sunbather', sideLine({ light:'Sit down, there\'s room. The sun\'s for everybody.', even:'You\'re in my light. A little bit.', shadow:'(She gathers up her towel and moves twenty feet away.)' }))),
     npc('surfer', 40, 10, 'up', 'Surfer', lk('#3a6a8a', '#f4cf5e', SK[4], '#141014', ['bandana']), () => sayAs('Surfer', 'Swells are clean today. Kai at the surf shack does lessons if you want to fall off a board in front of everyone.')),
@@ -6508,12 +6554,20 @@ async function alleyMan() {
 const PINE_V = REGION_VIBE({ sky:'#b8c4b0', fog:'#a8b8a0', fogNear:10, fogFar:34, hemi:'#e8f0dc', sun:1.3, ground:['#5f7a46', '#567040', '#6a844e'], tall:['#3f5a30', '#4a6638', '#355028'], trees:'conifer', treeC:['#2f4a2a', '#3a5632', '#2a4024'], parts:'motes', partC:['#e8f0c8', '#d8e4b0'], groundFog:'#c0ccb8', fogOp:.25 });
 const HOLD_V = REGION_VIBE({ sky:'#c4c8b8', fog:'#b8bca8', fogNear:16, fogFar:44, hemi:'#ece8d8', sun:1.5, ground:['#7a8058', '#727850', '#828860'], tall:['#5a6040', '#646a48', '#50563a'], trees:'conifer', treeC:['#2f4a2a', '#3a5632', '#2a4024'], road:'#8a7e68', parts:'motes', partC:['#f0ecd8', '#e0dcc8'] });
 const DEEP_V = REGION_VIBE({ sky:'#16140f', fog:'#1e1b15', fogNear:10, fogFar:36, hemi:'#d8c8a0', sun:.55, ground:['#4e4a42', '#48443c', '#56524a'], tall:['#3a3830', '#403e36', '#36342c'], trees:'dead', treeC:['#2a2824', '#302e2a', '#26241f'], road:'#5e584c', cave:true, parts:'motes', partC:['#e8d8a8', '#d8c890'] });
+// Clover's cabin: books on every wall, a fire, a long couch, a tea table. (People and talk are in h11_friends.)
+const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]), ['stove', 6, 1, { lit:true }], ['bookcase', 5, 1, { short:1 }], ['bookcase', 7, 1, { short:1 }],
+  ...[2, 3, 4].map(y => ['bookcase', 1, y, { r:Math.PI / 2 }]), ...[2, 3, 4].map(y => ['bookcase', 11, y, { r:-Math.PI / 2 }]),
+  ['sofa', 3, 5, { x:3.5 }], ['blank', 4, 5], ['teatable', 6, 5], ['armchair', 9, 4, { r:-.6 }], ['candle', 11, 6], ['plant', 1, 6], ['bookpile', 10, 6]];
 (function buildPine() {
   const B = regionBuilder('r_pinewind', 50, 30, '#'), m = B.m;
   const pts = [[0, 14], [8, 14], [12, 7], [21, 7], [24, 19], [32, 22], [36, 11], [44, 11], [49, 14]];
   for (const [x, y] of pts) rect(m, x - 2, y - 2, 6, 6, '.'); carve(m, pts); rect(m, 0, 14, 2, 2, '='); rect(m, 48, 14, 2, 2, '=');
   rect(m, 26, 22, 6, 4, '.'); rect(m, 14, 3, 6, 3, ','); rect(m, 38, 7, 5, 3, ',');
   B.piece('car', 28, 24, 2, 1, { c:'#5a6a5a', moss:1 }); B.piece('hut', 15, 4, 2, 2); B.piece('barricade', 46, 12); B.m[10][40] = 's'; B.piece('junk', 33, 25);
+  // a side path south through the pines to Clover's log cabin (all books inside)
+  carve(m, [[8, 14], [8, 21]], '.'); rect(m, 2, 19, 13, 9, '.'); rect(m, 3, 25, 3, 1, 'f'); rect(m, 11, 24, 3, 1, 'f'); rect(m, 7, 24, 2, 3, '=');
+  B.house(5, 20, 5, '#5f7a3e', '#e8dcc0', { name:'Clover\'s Cabin', sub:'In the Pinewind', w:13, h:9, music:'country', floor:['#8a6440', '#7e5a3a'], wall:'#c89a68', light:{ sky:'#2a1c12', hemi:'#ffd8a0', sun:1.0 }, furn:CLOVER_FURN }, { hobbit:true });
+  B.lamp(10, 23); B.m[18][9] = 's';
   regionMap('r_pinewind', B, { name:'The Pinewind', sub:'Off Gutterlight Lane', V:PINE_V, music:'prepper', arrive:'The lane gives out into pines so close and dark that the noise of the city just stops. Somebody has nailed tin cans to the trees at head height. They clank when the wind goes through.',
     sign:'HOLDFAST → PRIVATE. RESIDENTS ARMED. VISITORS: SLOW DOWN, HANDS VISIBLE, SAY HELLO LOUD.',
     exit:(nx, ny) => nx < 0 ? { map:'r_gutterlight', x:23, y:11, dir:'left' } : nx >= 50 ? { map:'holdfast', x:1, y:15, dir:'right' } : null });
@@ -6652,7 +6706,9 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
   B.house(10, 19, 5, '#6a7a8a', '#e8e4d8'); B.house(23, 19, 4, '#f3e7c9', '#f4f1e8', null, { role:'shrinehouse' });
   // the cemetery, fenced, with a gate on the street side
   rect(m, 28, 19, 11, 1, 'h'); rect(m, 28, 30, 11, 1, 'h'); rect(m, 28, 19, 1, 12, 'h'); rect(m, 38, 19, 1, 12, 'h'); m[19][32] = '.'; m[19][33] = '.';
-  let gi = 0; for (const y of [22, 25, 28]) for (const x of [30, 33, 36]) B.piece('grave', x, y, 1, 1, { cross:(gi++ % 3) === 1, flowers:gi % 4 === 0, c:pickA(['#9a968a', '#8a867a', '#a8a498']) });
+  // 25 stones in five rows, a path down the middle from the gate; Walter Ames is front row, middle
+  let gi = 0; for (const y of [21, 23, 25, 27, 29]) for (const x of [29, 31, 33, 35, 37]) { gi++; B.piece('grave', x, y, 1, 1, { cross:hsh(x, y, 7) < .3, flowers:(x === 33 && y === 21) || hsh(x, y, 9) < .2, c:['#9a968a', '#8a867a', '#a8a498', '#7a776e'][Math.floor(hsh(x, y, 3) * 4)] }); }
+  m[18][35] = 's'; B.piece('bench', 37, 28, 1, 1, { keep:1 });
   B.piece('watertower', 15, 24, 2, 2); B.piece('car', 16, 19, 2, 1, { c:'#8a3a2a', r:0 });
   for (const [x, y] of [[3, 15], [19, 15], [30, 15], [19, 25]]) B.lamp(x, y);
   regionMap('cobb_hollow', B, { name:'Cobb Hollow', sub:'Population 61', V:COBB_V, music:'country', arrive:'One street, a garage, a dry-goods store, a diner with a blue neon plate in the window and a white chapel, a cemetery behind a hedge. Every porch has someone on it. Every someone has stopped talking.',
@@ -6687,8 +6743,9 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
       () => sayAs('Jo\'s dad', '(He stands up off the step without a word and stays between you and his girl the whole time you\'re in sight.)'))),
     npc('mech2', 15, 13, 'left', 'Mechanic under the truck', lk('#3a4a5a', '#c0503a', SK[4], '#141014', ['cap']), judged('Rudy', ['even', 'shadow'], () => sayAs('Rudy', 'Hand me the nine-sixteenths. No, the other nine-sixteenths. Head gasket\'s blown on this old girl. She\'ll run again. Everything runs again, eventually.'),
       () => sayAs('Rudy', 'Busy.'))),
-    npc('mourner', 35, 27, 'left', 'Caretaker', lk('#3a3a3a', '#8a8a8a', SK[5], '#d8d0c0', ['tophat']), () => sayAs('Caretaker', 'Sixty-one living in Cobb Hollow. Three hundred and nine in here. They\'re better company. Mostly.')),
-    npc('walter', 33, 22, 'up', 'Walter Ames\' grave', null, async () => { await say('WALTER AMES. "He always had a chair for one more."'); if (S.flags.maeAsked && !S.flags.walterFlower) { const c = await ask('Mae asked you to leave a flower.', ['Leave a wildflower', 'Kick the headstone over', 'Leave']);
+    npc('signcem', 35, 18, 'up', 'Sign', null, () => say('COBB HOLLOW CEMETERY · EST. 1871. Walk soft. Close the gate behind you. (Somebody has added, in pencil: "Walter Ames, front row, middle. Say hi.")'), { invisible:true }),
+    npc('mourner', 36, 28, 'left', 'Caretaker', lk('#3a3a3a', '#8a8a8a', SK[5], '#d8d0c0', ['tophat']), () => sayAs('Caretaker', 'Sixty-one living in Cobb Hollow. Three hundred and nine in here. They\'re better company. Mostly.')),
+    npc('walter', 33, 21, 'up', 'Walter Ames\' grave', null, async () => { await say('WALTER AMES. "He always had a chair for one more."'); if (S.flags.maeAsked && !S.flags.walterFlower) { const c = await ask('Mae asked you to leave a flower.', ['Leave a wildflower', 'Kick the headstone over', 'Leave']);
       if (c === 0) { S.flags.walterFlower = 1; await say('You lay a wildflower from the roadside on the grass. It looks very small and very right.'); }
       if (c === 1) { S.flags.walterFlower = 2; sin(2); await say('The stone goes over on the third kick. Across the street, a curtain in Mae\'s window falls closed, and stays closed.'); } } }, { invisible:true })
   ];
@@ -6876,7 +6933,10 @@ function dndOutsideEnts(map) {
   return keys.filter(k => !(S.flags.dndGone || {})[k]).map(k => { const [x, y, dir] = DND_POS[k] || P[k];
     return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => sayAs(DND_NAME[k], k === 'lio' ? '(Lio stays behind Morwen\'s cloak and won\'t look at you.)' : k === 'saffi' ? 'Walk. Away.' : 'Nope.') }; });
 }
-async function toOutside(dx, dy) { await fadeTo(1, 400); for (const k in DND_POS) delete DND_POS[k]; S.map = TOWNS.JOY.id; S.x = dx; S.y = dy; S.dir = 'down'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 400); }
+// The group's song (Chaotic Neutral) plays for any scene with them, then the town's own song comes back.
+const DND_SONG = () => SPEC_CACHE.dnd_chaotic || (SPEC_CACHE.dnd_chaotic = MUS('dnd_chaotic'));
+const dndSceneOver = () => playMusic(themeFor(S.map));
+async function toOutside(dx, dy, scene) { await fadeTo(1, 400); for (const k in DND_POS) delete DND_POS[k]; S.map = TOWNS.JOY.id; S.x = dx; S.y = dy; S.dir = 'down'; buildWorld(S.map); playMusic(scene ? DND_SONG() : themeFor(S.map)); await fadeTo(0, 400); }
 // Entering: the door decides.
 // DOOR_GUARD is defined in h_npcs.js
 DOOR_GUARD[DND_ID] = async () => {
@@ -6905,13 +6965,13 @@ async function dndAskLeave() {
   await say('Tam and Brand get up and come round the table, very politely, like a pair of bouncers who are also apologising.');
   await grabAndWalk(false);
   S.flags.dndLock = 'q'; S.flags.dndHide = 1; S.flags.dndTrust = 0; S.flags.dndEscort = 1;
-  await toOutside(dx, dy + 1); castSet(['tam', 'brand'], 'grab', true);
+  await toOutside(dx, dy + 1, true); castSet(['tam', 'brand'], 'grab', true);
   DND_POS.tam = [dx - .45, dy + 1, 'down']; DND_POS.brand = [dx + .45, dy + 1, 'down']; ENTC.t = 0; await wait(50);
   await walkCast([['tam', dx - 1, dy + 1.4, 'down'], ['brand', dx + 1, dy + 1.4, 'down']], 900, { player:[dx, dy + 2] });
   castSet(['tam', 'brand'], 'grab', false); await sayAs('Tam', 'There you go. No hard feelings. Some hard feelings.');
   await walkCast([['tam', dx, dy + .2, 'up'], ['brand', dx, dy + .2, 'up']], 700);
   S.flags.dndEscort = 0; for (const k in DND_POS) delete DND_POS[k]; ENTC.t = 0;
-  await say('The door clicks shut. A moment later, a sign appears in the little window: POSITIVE VIBES ONLY.');
+  await say('The door clicks shut. A moment later, a sign appears in the little window: POSITIVE VIBES ONLY.'); dndSceneOver();
 }
 async function dndThrowOut() {
   await say('The laughter stops dead.');
@@ -6921,7 +6981,7 @@ async function dndThrowOut() {
   await grabAndWalk(true);
   S.flags.dndLock = 'evil'; S.flags.dndHide = 1; S.flags.dndTrust = 0; S.flags.dndOutside = 1; S.flags.dndGone = { saffi:1, morwen:1, lio:1 };
   const [dx, dy] = DND_DOOR, P = DND_OUT();
-  await toOutside(dx, dy + 1); castSet(['tam', 'brand'], 'grab', true);
+  await toOutside(dx, dy + 1, true); castSet(['tam', 'brand'], 'grab', true);
   DND_POS.tam = [dx - .45, dy + .9, 'down']; DND_POS.brand = [dx + .45, dy + .9, 'down']; ENTC.t = 0; await wait(50);
   // the shove: they come out of the door with you and throw you into the street
   await walkCast([['tam', dx - .6, dy + 1.3, 'down'], ['brand', dx + .6, dy + 1.3, 'down']], 350, { player:[dx, dy + 1.6] });
@@ -6934,11 +6994,11 @@ async function dndThrowOut() {
   S.flags.dndGone = {}; await lie(false, 350); S.dir = 'up';
   await say('Tam plants himself left of the door. Brand takes the right, glowing. Morwen stands by Brand. Saffi comes to Tam\'s side, and Lio squeezes in between his mum and dad, holding on to both of them and peering round at you.');
   await sayAs('Saffi', 'Come near this door again, near my kid again, and I will set you on fire. I\'m not doing a voice. That\'s not a bit.');
-  await sayAs('Morwen', 'She will. We\'ve seen her do it. Twice.');
+  await sayAs('Morwen', 'She will. We\'ve seen her do it. Twice.'); dndSceneOver();
 }
 async function dndBurn() {
   const [dx, dy] = DND_DOOR, P = DND_OUT();
-  await say('You go for the door anyway.');
+  playMusic(DND_SONG()); await say('You go for the door anyway.');
   await walkCast([['morwen', P.lio[0], P.lio[1] + .6, 'right'], ['lio', P.saffi[0] - 1, P.saffi[1], 'down']], 650);
   await say('Morwen crosses to Lio, pulls him behind her and turns his face into her cloak.');
   castSet(['tam', 'brand'], 'grab', true);
@@ -6995,8 +7055,281 @@ SET.gametable = p => { const g = new THREE.Group();                      // a sq
 (function () {
   const P = MAPS[TOWNS.JOY.id], old = MAPS[DND_ID], d = { ...old.room, name:'The Dragon\'s Table', w:13, h:10, floor:['#6a4a3a', '#5e4232'], wall:'#c8a888',
     furn:[['gametable', 3, 4], ...[[2, 3], [3, 3], [4, 3], [2, 4], [4, 4], [2, 5], [3, 5], [4, 5]].map(([x, y]) => ['blank', x, y]), ['shelf', 7, 1], ['shelf', 8, 1], ['shelf', 10, 1], ['shelf', 11, 1], ['candle', 11, 7], ['piano', 11, 4], ['table', 9, 4]], npcs:null, npcsFn:dndPeople };
-  MAPS[DND_ID] = roomMap(TOWNS.JOY.id, 'JOY', d); MAPS[DND_ID].room.npcsFn = dndPeople;
+  MAPS[DND_ID] = roomMap(TOWNS.JOY.id, 'JOY', d); MAPS[DND_ID].room.npcsFn = dndPeople; MAPS[DND_ID].music = 'dnd_chaotic';
 })();
+// =============================================================================
+//  FRIENDS IN FAR PLACES — two more people drawn from real friends. Like the D&D
+//  table, they are marked real: they never come to harm, and in the do-nothing
+//  ending they pack up and leave the region safely.
+//    CLOVER (from Heather's art)  hobbit/elf druid. Log cabin off the Pinewind,
+//      full of books, curled on her couch reading. Kind: welcomes you, calls you a
+//      nerd. Bad vibes: grabs the bat. You wake in the Archive, and she is
+//      passive-aggressive with you for a while after.
+//    ASHLYNN (from Ashley's art)  ranger with an orange kayak, on Saltmere beach.
+//      Kind: takes you kayaking and gives you her spare. Off: a word or two, then
+//      she paddles away until you leave. Evil, and you push: the paddle, then gone.
+// =============================================================================
+// kind | even | bad | evil
+const vibeTier = () => { const s = auraSide(), dl = darkLevel(); if (S.flags.doom || dl >= 2) return 'evil'; if (s === 'shadow' || dl >= 1) return 'bad'; return s === 'light' ? 'kind' : 'even'; };
+const resetArms = g => { const u = g.userData; u.swing = null; if (!u.arms) return; for (const [i, a] of u.arms.entries()) { a.rotation.set(0, 0, (i ? 1 : -1) * .1); a.userData.el.rotation.set(0, 0, 0); } u.inner.rotation.z = 0; u.inner.position.y = 0; };
+async function swingAt(g, ms = 360) { if (!g) return; g.userData.swing = 0; await tween(ms, k => { g.userData.swing = k * k; }); sfx('bighit'); MOOD.shake = .75;
+  W.player.rotation.x = -.18; await wait(140); W.player.rotation.x = 0; g.userData.swing = 0; await wait(180); }
+
+// ---------------------------------------------------------------- set pieces
+SET.kayak = p => { const g = new THREE.Group(), c = p.c || '#f08a1e';                 // long axis along z, bow toward +z
+  const hull = part(new THREE.SphereGeometry(1, 20, 12), c, [0, .1, 0]); hull.scale.set(.3, .17, 1.35); g.add(hull);
+  const deck = part(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.Color(c).multiplyScalar(.82).getStyle(), [0, .14, 0]); deck.scale.set(.26, .08, 1.2); g.add(deck);
+  const pit = part(new THREE.CylinderGeometry(.17, .17, .06, 16), '#1e1a18', [0, .2, -.12], { ink:0 }); pit.scale.z = 1.7; g.add(pit);
+  sCyl(g, .19, .19, .03, '#2a2622', 0, .21, -.12, null, { seg:16, ink:0 }).scale.z = 1.75;
+  for (const z of [1.25, -1.25]) sBox(g, .1, .03, .04, '#2a2622', 0, .18, z, { ink:0 });
+  if (p.oar) { const o = HELD.paddle({}); o.rotation.set(Math.PI / 2, 0, Math.PI / 2 - .2); o.position.set(-.05, .26, .2); g.add(o); }
+  return g; };
+SET.bookcase = p => { const g = new THREE.Group(), H = p.short ? 1.15 : 2.15, wood = '#6a4428';
+  sBox(g, .96, H, .34, wood, 0, H / 2, -.3); const rows = p.short ? 2 : 4, cols = ['#8a2a2a', '#2a4a6a', '#4a6a3a', '#c8a050', '#6a3a6a', '#2a2a2a', '#b85a2a', '#e8dcc0', '#3a5a5a'];
+  for (let r = 0; r < rows; r++) { const y = .12 + r * (H - .1) / rows; sBox(g, .92, .04, .3, '#4a2e1a', 0, y, -.18, { ink:0 });
+    let x = -.42; while (x < .4) { const w = .05 + hsh(p.x * 7 + x * 31, p.y + r) * .05, h = .3 + hsh(p.y * 5 + x * 17, r) * .16; if (x + w > .42) break;
+      const tilt = hsh(x * 13, p.y * 3 + r) < .12 ? .25 : 0; sBox(g, w, h, .22, cols[Math.floor(hsh(x * 29 + p.x, r * 3 + p.y) * cols.length)], x + w / 2 + (tilt ? .04 : 0), y + .02 + h / 2, -.17, { ink:0, rot:[0, 0, tilt] }); x += w + .006 + (tilt ? .05 : 0); } }
+  return g; };
+SET.sofa = p => { const g = new THREE.Group(), c = p.c || '#8a3a2a', d = new THREE.Color(c).multiplyScalar(.78).getStyle();
+  sBox(g, 1.9, .3, .78, d, 0, .2, 0); for (const x of [-.46, .46]) sBox(g, .9, .14, .66, c, x, .42, .04);
+  sBox(g, 1.9, .55, .2, c, 0, .6, -.32); for (const x of [-.95, .95]) sBox(g, .2, .42, .78, d, x, .44, 0);
+  sBox(g, .7, .03, .6, '#d8b060', .5, .51, .05, { rot:[0, .15, .05] }); sBox(g, .3, .22, .1, '#4a6a3a', -.72, .58, -.18, { rot:[.3, .3, 0] });
+  for (const x of [-.85, .85]) for (const z of [-.3, .3]) sCyl(g, .04, .03, .08, '#3a2418', x, .04, z, null, { ink:0 }); return g; };
+SET.teatable = p => { const g = new THREE.Group(); sCyl(g, .38, .38, .05, '#6a4428', 0, .5, 0, null, { seg:18 }); sCyl(g, .06, .1, .48, '#4a2e1a', 0, .25, 0);
+  sBall(g, .1, '#e8dcc0', -.1, .63, 0); sCyl(g, .02, .02, .1, '#e8dcc0', 0, .64, 0, [0, 0, -1], { ink:0 }); for (const x of [.12, .2]) sCyl(g, .04, .035, .06, '#f3eee2', x, .56, .14);
+  for (let i = 0; i < 3; i++) sBox(g, .22, .05, .16, ['#2a4a6a', '#8a2a2a', '#c8a050'][i], .1, .55 + i * .05, -.18, { rot:[0, i * .3, 0] }); return g; };
+SET.armchair = p => { const g = new THREE.Group(), c = '#4a6a3a'; sBox(g, .8, .32, .74, '#3a5430', 0, .2, 0); sBox(g, .66, .14, .6, c, 0, .42, .04);
+  sBox(g, .8, .8, .18, c, 0, .7, -.3); for (const x of [-.36, .36]) { sBox(g, .14, .36, .7, '#3a5430', x, .48, 0); sBox(g, .08, .4, .3, c, x, .95, -.22); } return g; };
+SET.plant = p => { const g = new THREE.Group(); sCyl(g, .18, .14, .3, '#a8583a', 0, .15, 0); for (let i = 0; i < 7; i++) { const a = i * 2.4; sBall(g, .13, i % 2 ? '#5f8a3e' : '#4a7a32', Math.cos(a) * .12, .42 + (i % 3) * .14, Math.sin(a) * .12); } return g; };
+SET.bookpile = p => { const g = new THREE.Group(), cols = ['#8a2a2a', '#2a4a6a', '#c8a050', '#4a6a3a', '#6a3a6a'];
+  for (const [ox, oz, n] of [[-.2, -.1, 5], [.18, .12, 3], [.05, -.25, 2]]) for (let i = 0; i < n; i++) sBox(g, .3, .07, .22, cols[(i + n) % 5], ox, .035 + i * .07, oz, { rot:[0, (i * .7) % .5 - .25, 0] }); return g; };
+SET.rug = p => { const g = new THREE.Group(); const r = part(new THREE.CylinderGeometry(1, 1, .02, 28), '#8a4a2a', [0, .01, 0], { ink:0 }); r.scale.set(1.5, 1, 1); g.add(r);
+  const r2 = part(new THREE.CylinderGeometry(.8, .8, .025, 28), '#c8904a', [0, .012, 0], { ink:0 }); r2.scale.set(1.5, 1, 1); g.add(r2); return g; };
+
+// The cabin from outside: a log cabin in the pines. Log walls, a steep moss-green roof, a stone chimney, a porch with a rail, lit windows.
+function buildHobbit(h) {
+  const g = new THREE.Group(), w = h.w, cx = h.x + w / 2 - .5, dx = h.x + Math.floor(w / 2), gy = groundY(dx, h.y + 4), fz = h.y + 3.3, bz = h.y + .2, D = fz - bz, cz = (fz + bz) / 2;
+  const logC = ['#7a5232', '#6a4628', '#84593a'];
+  sBox(g, w + .2, .25, D + .2, '#8a8478', cx, gy + .12, cz);                                                                     // stone footing
+  for (let k = 0; k < 8; k++) { const y = gy + .38 + k * .27, c = logC[k % 3];                                                     // stacked logs, front and back, ends poking out
+    for (const z of [fz, bz]) { const m = part(new THREE.CylinderGeometry(.14, .14, w + .5, 10), c, [cx, y, z]); m.rotation.z = Math.PI / 2; g.add(m); }
+    for (const x of [h.x - .45, h.x + w - .55]) { const m = part(new THREE.CylinderGeometry(.14, .14, D + .5, 10), c, [x, y + .13, cz]); m.rotation.x = Math.PI / 2; g.add(m); } }
+  sBox(g, w - .1, 2.15, D - .1, '#5a3a22', cx, gy + 1.3, cz, { ink:0 });                                                           // inner fill
+  const roofY = gy + 2.55, half = D / 2 + .55, pitch = .62;
+  for (const s2 of [-1, 1]) { const r = part(new THREE.BoxGeometry(w + .9, .16, half / Math.cos(pitch) + .1), '#4f6a3a', [cx, roofY + Math.tan(pitch) * half / 2, cz + s2 * half / 2]); r.rotation.x = s2 * pitch; g.add(r); }
+  for (const x of [h.x - .45, h.x + w - .55]) { const gb = new THREE.Shape(); gb.moveTo(-D / 2 - .1, 0); gb.lineTo(D / 2 + .1, 0); gb.lineTo(0, Math.tan(pitch) * (D / 2 + .1)); gb.lineTo(-D / 2 - .1, 0);
+    const m = part(new THREE.ShapeGeometry(gb), '#6a4628', [x, roofY - .05, cz], { ink:0, mo:{ side:THREE.DoubleSide } }); m.rotation.y = Math.PI / 2; g.add(m); }
+  sBox(g, .7, 2.6, .7, '#8a8478', h.x + w - 1.1, gy + 2.6, bz + .6); sBox(g, .8, .14, .8, '#6a665e', h.x + w - 1.1, gy + 3.95, bz + .6);       // chimney
+  for (let i = 0; i < 3; i++) { const sm = glow('#d8d4cc', .6 + i * .3, .3 - i * .07); sm.position.set(h.x + w - 1.1 + i * .15, gy + 4.4 + i * .45, bz + .6); g.add(sm); }
+  sBox(g, .78, 1.45, .08, '#3f5a32', dx, gy + .98, fz + .16); sBox(g, .9, .1, .1, '#4a2e1a', dx, gy + 1.75, fz + .16); sBall(g, .05, '#d8b04a', dx + .26, gy + .95, fz + .22);   // plank door
+  for (const s2 of [-1, 1]) { const wx = dx + s2 * 1.5;                                                                            // square windows, lit, with flower boxes
+    sBox(g, .62, .58, .06, '#ffd98a', wx, gy + 1.25, fz + .15, { ink:0 }); sBox(g, .72, .07, .1, '#4a2e1a', wx, gy + 1.56, fz + .18); sBox(g, .72, .07, .1, '#4a2e1a', wx, gy + .94, fz + .18);
+    sBox(g, .04, .58, .08, '#4a2e1a', wx, gy + 1.25, fz + .2, { ink:0 }); sBox(g, .62, .04, .08, '#4a2e1a', wx, gy + 1.25, fz + .2, { ink:0 });
+    const o = glow('#ffcf70', .9, .45); o.position.set(wx, gy + 1.25, fz + .3); g.add(o);
+    sBox(g, .66, .16, .2, '#6a4428', wx, gy + .82, fz + .26); for (let k = 0; k < 4; k++) sBall(g, .06, ['#f2a7c0', '#f4cf5e', '#c0503a', '#f3e7c9'][k], wx - .21 + k * .14, gy + .93, fz + .28); }
+  sBox(g, w + .4, .1, .75, '#8a6440', cx, gy + .28, fz + .55);                                                                     // porch boards
+  for (const x of [h.x - .2, h.x + w - .8]) { sBox(g, .1, 1.9, .1, '#5a3a22', x, gy + 1.25, fz + .85); }
+  sBox(g, w + .2, .12, .9, '#4f6a3a', cx, gy + 2.22, fz + .62, { rot:[.25, 0, 0] });                                                  // porch roof
+  for (const x of [h.x + .3, h.x + w - 1.3]) sBox(g, .9, .06, .06, '#5a3a22', x, gy + .8, fz + .9);                                // rail
+  const lamp = glow('#ffcf70', .7, .8); lamp.position.set(dx + .7, gy + 1.7, fz + .3); g.add(lamp); sBox(g, .1, .14, .1, '#2a2622', dx + .7, gy + 1.7, fz + .26, { ink:0 });
+  sBox(g, .5, .14, .9, '#8a6440', h.x + .2, gy + .32, fz + .7, { rot:[0, .4, 0] }); for (let i = 0; i < 4; i++) sBox(g, .24, .06, .17, ['#8a2a2a', '#2a4a6a', '#c8a050', '#4a6a3a'][i], h.x + .2, gy + .42 + i * .06, fz + .7, { rot:[0, i * .5, 0] });   // a bench with a book stack
+  return g;
+}
+
+// ---------------------------------------------------------------- CLOVER
+// Heather: half-hobbit, half-elf druid. Wild red curls, pointed ears, freckles, moss-green dress and cloak with a fur collar, bare feet.
+const CLOVER_LOOK = { coat:'#545c34', sleeve:'#4a5230', skirt:'#545c34', legs:'#6a4a2c', boot:'#e2b08e', skin:'#f0c2a0', hair:'#b8401c', brow:'#9a3a18', hairStyle:'curlylong',
+  build:'heavy', accent:'#a89a7a', accent2:'#3e4a2a', sash:'#6a4a2a', gear:['ears', 'cape', 'satchel'] };
+const CLOVER_ROOM = 'r_pinewind_in0';
+let CL_POS = null;          // [x, y, dir] while she's up off the couch
+const CL = () => (S.flags.clover = S.flags.clover || { met:0, sour:0, beat:0, line:0, eat:0 });
+function cloverModel() { const g = buildPerson(CLOVER_LOOK); if (!CL_POS) { g.userData.sit = true;
+    const bk = new THREE.Group(); for (const s of [-1, 1]) { const pg = part(new THREE.BoxGeometry(.12, .16, .015), '#f3eee2', [s * .06, 0, 0], { ink:0 }); pg.rotation.y = s * -.35; bk.add(pg); }
+    bk.add(part(new THREE.BoxGeometry(.25, .17, .01), '#7a2a2a', [0, 0, -.02], { ink:0 })); bk.position.set(0, .7, .3); bk.rotation.x = -.7; g.userData.inner.add(bk); g.userData.book = bk; }
+  return g; }
+const CLOVER_KIND = [
+  'You again! My favourite nerd. Take a book. Bring it back. I will know if you don\'t.',
+  'This one\'s about a small person who walks a very long way to do one brave thing. I\'ve read it eleven times. Don\'t look at me like that, nerd. You\'d read it eleven times too.',
+  'There\'s a band playing in Saltmere soon. I\'ll go, I\'ll love it, and I\'ll leave before the crowd gets big. That\'s the perfect concert.',
+  'I moved out to the woods to be alone, and now I know everybody\'s birthday. It keeps happening. People just turn up.',
+  'Next time, warn me first. Not because I don\'t want you here. I just like to have the kettle on and my face on.',
+  'If anybody gives you trouble on the road, you tell me. I\'m small and soft and I will absolutely ruin their week.',
+  'My son thinks I\'m a witch. I told him I\'m a druid. He asked what the difference is. Honestly? Paperwork.'
+];
+const CLOVER_EVEN = ['Hi. Shoes off. Don\'t touch the first editions.', '(She turns a page. Loudly.) Mm-hm.', 'You can look. Looking is free. Borrowing is earned.', 'I\'m at a good part. Can you be quiet near me?'];
+const CLOVER_SOUR = [
+  'Oh. It\'s you. How lovely. I only just got the dent out of the bat.',
+  'Did you wipe your feet this time? Wonderful. Look at you. Growth.',
+  'Browse all you like. The fragile things are on the high shelves now. For no reason at all.',
+  'I\'m sure you\'re very nice now. I\'m sure.'
+];
+async function cloverTalk() {
+  const c = CL(), v = vibeTier();
+  if (v === 'bad' || v === 'evil') return cloverBat();
+  if (c.sour > 0) { c.sour--; await sayAs('Clover', CLOVER_SOUR[(CLOVER_SOUR.length - 1 - c.sour) % CLOVER_SOUR.length]);
+    if (!c.sour) await sayAs('Clover', 'Fine. Okay. You can sit down. The bat stays where it is, though.'); return; }
+  if (v === 'even') { c.line++; return sayAs('Clover', CLOVER_EVEN[c.line % CLOVER_EVEN.length]); }
+  if (!c.met) { c.met = 1;
+    await say('(A snug log room stacked to the ceiling with books. A fire. A long couch. On the couch, buried in a blanket with her knees up, a red-haired woman is reading. She holds up one finger: wait. She finishes the page.)');
+    await sayAs('Clover', 'Okay. Hi! Sorry. You can\'t stop in the middle of a chapter, it\'s bad luck. I\'m Clover.');
+    await say('(She watches you look at the shelves. Your eyes go straight to the old, cracked spines. Hers narrow, pleased.)');
+    return sayAs('Clover', 'Oh, you\'re a nerd. You\'re one of us. Come in, sit anywhere, mind the stacks, and do not dog-ear anything.'); }
+  if (c.beat && !c.forgave) { c.forgave = 1; return sayAs('Clover', 'So you\'re nice now. Good. I\'m still keeping the bat by the couch, nerd.'); }
+  if (!c.eat) { c.eat = 1; await sayAs('Clover', 'Before you go. Here. No, don\'t eat it, it\'s not that kind of potato. Well. It is. But not yet.');
+    await sayAs('Clover', 'Plant it anywhere with proper dirt, go and have an adventure, and come back to it. A potato is a promise you make to your future self. Nerd.');
+    S.items.potato = 1; return say('(Clover gives you a potato. It is lumpy and perfect. You can plant it from your Bag.)'); }
+  c.line++; return sayAs('Clover', CLOVER_KIND[c.line % CLOVER_KIND.length]);
+}
+async function cloverBat() {
+  const c = CL(), g = W.npcs.clover;
+  await say(c.beat ? '(Clover looks up from her book, sees you, and is off the couch before the book lands.)' : '(Clover glances up from her book. Then she really looks at you. The book drops into her lap.)');
+  await sayAs('Clover', c.beat ? 'Oh, absolutely not. Not again. NOT IN MY HOUSE.' : 'Nope. No. Nope nope nope. I know that look. Get OUT of my house!');
+  CL_POS = [2, 6, 'right']; ENTC.t = 0; if (g) { g.userData.sit = false; if (g.userData.book) g.userData.inner.remove(g.userData.book); resetArms(g); }
+  await wait(900); const g2 = W.npcs.clover; if (g2) { holdItem(g2, 'bat'); npcFace.clover = 'right'; }
+  await say('(She snatches a baseball bat from beside the couch. It has clearly been waiting there for exactly this.)');
+  for (let i = 0; i < 3; i++) { await swingAt(W.npcs.clover); if (i === 1) await sayAs('Clover', 'OUT! OUT! OUT!'); }
+  await lie(true, 300); await fadeTo(1, 1000); W.player.rotation.x = 0;
+  c.beat = (c.beat || 0) + 1; c.sour = CLOVER_SOUR.length; c.forgave = 0; CL_POS = null; delete npcFace.clover;
+  for (const m of S.party) m.hp = Math.max(1, Math.round(maxHp(m) / 2));
+  S.map = 'vellum_room0'; const R = MAPS.vellum_room0; S.x = Math.floor(R.w / 2); S.y = R.h - 2; S.dir = 'up'; buildWorld(S.map); playMusic(themeFor(S.map)); await fadeTo(0, 1000);
+  await say('You wake up on the floor of the Archive with a lump on your head exactly the shape of a bat. Somebody carried you here. You get the feeling it wasn\'t Clover.');
+}
+function cloverPeople() {
+  if (S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "Took the boy and the good books and went west before the grey got into the woods. We\'re safe. The kettle\'s yours if you need it. Shoes off. — C."') }];
+  const [x, y, dir] = CL_POS || [3, 5, 'down'];
+  return [{ id:'clover', x, y, dir, name:'Clover', model:cloverModel, folk:false, real:true, talk:cloverTalk }];
+}
+MAPS[CLOVER_ROOM].room.npcsFn = cloverPeople; MAPS[CLOVER_ROOM].set.push({ k:'rug', x:5, y:5.6 });
+{ const base = REGION_NPCS.r_pinewind; REGION_NPCS.r_pinewind = () => [...base(),
+    npc('signcl', 9, 18, 'up', 'Sign', null, () => say('CLOVER\'S ↓  (Hand-painted, with a little leaf. Underneath, smaller: "Visitors welcome. With notice. Ideally.")'), { invisible:true })]; }
+
+// ---------------------------------------------------------------- ASHLYNN
+// Ashley: human ranger. Brown hair in two braids with ribbons, round glasses, freckles, a patchwork orange-and-gold poncho,
+// blue scarf, orange shirt and sash, belts of pouches, dark trousers, boots, and a long paddle with orange blades.
+const ASHLYNN_LOOK = { coat:'#d8862a', sleeve:'#e8a83a', accent:'#4a7aa0', sash:'#e0702a', legs:'#5a4a34', shorts:true, boot:'#6a4a2a', skin:'#f0c8a8',
+  hair:'#7a4a26', brow:'#5a3418', hairStyle:'short', build:'slim', gear:['braids', 'glasses', 'toolbelt', 'paddle'] };
+const MR = () => (S.flags.ashlynn = S.flags.ashlynn || { met:0, own:0, trips:0, line:0 });
+const ASHLYNN_SPOT = [33, 5], ASHLYNN_KAYAK = [32, 5], MY_KAYAK = [30, 5];
+let ASHLYNN_AWAY = -1, ASHLYNN_N = { v:-1, n:0 };
+const WATER_Y = () => BASE - .14;
+const ASHLYNN_KIND = [
+  'After a paddle I sit right here with a book and a towel. My dog comes too, if he\'ll sit still. He never sits still.',
+  'I don\'t really go looking for meaning anymore. I just paddle, and it turns up on its own.',
+  'People think I\'m quiet. I\'m listening. Get me started on art and you will never get a word in.',
+  'Some people I loved aren\'t here anymore. I paddle out for them sometimes. It helps more than talking does.',
+  'I was gone four years. Came back different. The water was the only thing that felt exactly the same.'
+];
+const ASHLYNN_SHORT = ['Hey.', 'Nice day.', 'Mm.', 'Water\'s cold.', 'Sure.'];
+function ashlynnBoat() {        // Ashlynn seated in her kayak, as one movable group (bow toward +z)
+  const mg = new THREE.Group(), body = buildPerson({ ...ASHLYNN_LOOK, gear:ASHLYNN_LOOK.gear.filter(k => k !== 'paddle') }); body.userData.kayak = true; mg.add(body); mg.add(SET.kayak({ c:'#f08a1e' }));
+  const o = HELD.paddle({}); o.rotation.set(0, 0, Math.PI / 2); o.position.set(0, .3, .22); mg.add(o); mg.userData = { body, oar:o }; return mg; }
+const animBoat = (mg, t) => { animPerson(mg.userData.body, false, t, .016); mg.userData.oar.rotation.x = Math.sin(t * 4) * .5; };
+const showEnt = (ids, v) => { for (const id of ids) if (W.npcs[id]) W.npcs[id].visible = v; };
+async function ashlynnLeave() {
+  await say('(Ashlynn picks her kayak up like it weighs nothing, walks it into the shallows, and slides in.)');
+  showEnt(['ashlynn', 'ashlynn_kayak'], false);
+  const mg = ashlynnBoat(); mg.position.set(ASHLYNN_KAYAK[0], WATER_Y(), ASHLYNN_KAYAK[1] - .2); mg.rotation.y = Math.PI; world.add(mg);
+  await tween(1100, k => { mg.position.z = ASHLYNN_KAYAK[1] - .2 - 1.8 * k; animBoat(mg, performance.now() / 1000); });
+  await tween(500, k => { mg.rotation.y = Math.PI - k * Math.PI / 2; animBoat(mg, performance.now() / 1000); });
+  const x0 = mg.position.x, z0 = mg.position.z;
+  await tween(4200, k => { mg.position.x = x0 - 30 * k; mg.position.z = z0 - 2.4 * k; animBoat(mg, performance.now() / 1000); });
+  world.remove(mg); ASHLYNN_AWAY = MAP_VISIT; ENTC.t = 0;
+}
+async function ashlynnPaddle() {
+  const g = W.npcs.ashlynn; npcFace.ashlynn = OPPD[S.dir];
+  await sayAs('Ashlynn', 'I said I\'m fine.');
+  await swingAt(g, 300); MOOD.shake = 1;
+  const ny = S.y + 1, free = (MAPS[S.map].tiles[ny] || [])[S.x]; if (free != null && !SOLID.has(free)) { const y0 = S.y; await tween(260, k => { S.y = y0 + k; }); S.y = ny; }
+  if (g) resetArms(g);
+  await say('(The flat of her paddle catches you square in the chest. Not hard enough to break anything. Hard enough to make the point.)');
+  await sayAs('Ashlynn', 'Stay off the water today.');
+  delete npcFace.ashlynn; return ashlynnLeave();
+}
+async function kayakTrip(withAshlynn) {
+  const P = W.player, u = P.userData, m = MR(), x0 = S.x, y0 = S.y, d0 = S.dir, arms0 = u.arms.map(a => a.rotation.clone());
+  await fadeTo(1, 500);
+  const myK = SET.kayak({ c:'#2f8ab0' }); P.add(myK); const oar = HELD.paddle({ shaftC:'#3a3430', bladeC:'#2f8ab0' }); oar.rotation.set(0, 0, Math.PI / 2); oar.position.set(0, .34, .22); P.add(oar); u.oar = oar;
+  showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], false);
+  let mg = null; if (withAshlynn) { mg = ashlynnBoat(); mg.rotation.y = -Math.PI / 2; mg.position.set(32, WATER_Y(), 1.7); world.add(mg); }
+  RIDE_Y = WATER_Y(); u.sitP = true; S.x = 31; S.y = 3; S.dir = 'left';
+  await fadeTo(0, 500);
+  const leg = async (ms, xa, xb, lineAt) => { await tween(ms, k => { const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2, t = performance.now() / 1000;
+    S.x = xa + (xb - xa) * e; S.y = 3 + Math.sin(k * 5) * .22; RIDE_Y = WATER_Y() + Math.sin(t * 2.2) * .025;
+    if (mg) { mg.position.x = xa + (xb - xa) * e + (xb < xa ? -.9 : .9); mg.position.z = 1.8 + Math.sin(k * 4 + 1) * .2; mg.position.y = WATER_Y() + Math.sin(t * 2.2 + 1) * .025; animBoat(mg, t); } }); };
+  await leg(4600, 31, 17);
+  if (mg) { await sayAs('Ashlynn', m.trips ? pickA(['See that? A seal, maybe. Or a log. I like not knowing.', 'Listen. That\'s it. That\'s the whole thing I come out here for.', 'Race you back. I won\'t race. But you could.']) : 'This is the best part. Out here nobody needs anything from you. You just get to float.'); }
+  else await say(pickA(['(The city goes quiet behind you. Just the drip off the paddle, and gulls a long way off.)', '(The lighthouse turns its slow eye over the water. You let the kayak drift for a while.)', '(Something silver turns under the kayak and is gone.)']));
+  S.dir = 'right'; if (mg) mg.rotation.y = Math.PI / 2;
+  await leg(4000, 17, 31);
+  await fadeTo(1, 500);
+  P.remove(myK); P.remove(oar); u.oar = null; u.sitP = false; u.arms.forEach((a, i) => a.rotation.copy(arms0[i])); u.inner.position.y = 0; RIDE_Y = null;
+  if (mg) world.remove(mg); showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], true);
+  S.x = x0; S.y = y0; S.dir = d0; m.trips++; await fadeTo(0, 500);
+}
+async function ashlynnTalk() {
+  const m = MR(), v = vibeTier();
+  if (ASHLYNN_N.v !== MAP_VISIT) ASHLYNN_N = { v:MAP_VISIT, n:0 }; const n = v !== 'kind' ? ++ASHLYNN_N.n : 1;
+  if (v !== 'kind') {
+    if (v === 'evil' && n >= 2) return ashlynnPaddle();
+    if (n === 1) return sayAs('Ashlynn', v === 'evil' ? 'Hi. (Her hand stays on her paddle.)' : pickA(ASHLYNN_SHORT));
+    await sayAs('Ashlynn', pickA(['Gonna get out on the water.', 'Anyway.', 'I\'m heading out.'])); return ashlynnLeave();
+  }
+  if (!m.met) { m.met = 1;
+    await say('(She\'s rinsing salt off an orange kayak. She doesn\'t look up straight away. When she does, she takes a second, then smiles like she\'s decided something.)');
+    await sayAs('Ashlynn', 'Hi. Sorry, I\'m slow with new people. You seem okay, though. I\'m Ashlynn.');
+    await sayAs('Ashlynn', 'Do you want to come out on the water? I\'ve got a spare kayak. It\'s calm today.'); }
+  else if (n === 1 && m.trips) await sayAs('Ashlynn', ASHLYNN_KIND[m.line++ % ASHLYNN_KIND.length]);
+  const c = await ask(m.trips ? 'Ashlynn: Want to go out?' : 'Go kayaking with Ashlynn?', m.trips ? ['Go kayaking together', 'Just talk', 'Not now'] : ['Yes!', 'Maybe later'], { cancel:true });
+  if (c === 1 && m.trips) return sayAs('Ashlynn', ASHLYNN_KIND[m.line++ % ASHLYNN_KIND.length]);
+  if (c !== 0) return sayAs('Ashlynn', 'Offer stands. The water\'s not going anywhere.');
+  await kayakTrip(true);
+  if (!m.own) { m.own = 1; ENTC.t = 0; await sayAs('Ashlynn', 'You\'re a natural. Keep the spare. It\'s been sitting on my car for a year waiting for somebody.');
+    await say('(You got a kayak! It\'s on the beach by Ashlynn\'s. Take it out any time.)'); }
+  else await sayAs('Ashlynn', pickA(['Same time tomorrow?', 'That was a good one.', 'Thanks for coming out.']));
+}
+async function myKayak() { const c = await ask('Your kayak, blue and a bit scuffed. Take it out?', ['Paddle out', 'Not now'], { cancel:true }); if (c === 0) await kayakTrip(false); }
+function ashlynnPeople() {
+  const m = S.flags.ashlynn || {}, out = [];
+  if (S.flags.ruin) out.push({ id:'ashlynn_note', note:true, x:ASHLYNN_SPOT[0], y:ASHLYNN_SPOT[1], real:true, folk:false, talk:() => say('(A note tucked under a beach stone.) "Paddled up the coast and out of the grey with the people I love. Safe. If you find a blue kayak on this beach, it\'s yours. — M."') });
+  else if (ASHLYNN_AWAY !== MAP_VISIT) out.push(
+    { id:'ashlynn_kayak', x:ASHLYNN_KAYAK[0], y:ASHLYNN_KAYAK[1], dir:'up', model:() => SET.kayak({ c:'#f08a1e' }), folk:false, real:true, talk:() => say('(Ashlynn\'s kayak. Bright orange, scratched all over, lovingly patched.)') },
+    { id:'ashlynn', x:ASHLYNN_SPOT[0], y:ASHLYNN_SPOT[1], dir:'down', name:'Ashlynn', look:ASHLYNN_LOOK, folk:false, real:true, talk:ashlynnTalk });
+  if (m.own) out.push({ id:'my_kayak', x:MY_KAYAK[0], y:MY_KAYAK[1], dir:'up', model:() => SET.kayak({ c:'#2f8ab0', oar:1 }), folk:false, talk:myKayak });
+  return out;
+}
+{ const base = REGION_NPCS.saltmere; REGION_NPCS.saltmere = () => [...base(), ...ashlynnPeople()]; }
+
+// ---------------------------------------------------------------- CLOVER'S POTATO
+// A keepsake that never runs out. Plant it in soft ground anywhere outdoors (from the Bag); walk 250 steps; come back and dig:
+// you get the potato back plus three Roast Potatoes (each heals the whole Chorus by half). The more you grow it, the bigger the crop.
+const POTATO_STEPS = 250;
+Object.assign(ITEMS, { potato:{ name:'Clover\'s Potato', key:true, fieldUse:plantPotato, desc:'Plant it, walk, come back, dig' },
+  roastpot:{ name:'Roast Potato', healAll:.5, desc:'Heals the whole Chorus by half', price:0 } });
+Object.assign(ITEM_INFO, { potato:'From Clover. Lumpy and perfect. Plant it in soft ground anywhere outdoors, walk a while, and come back to dig. It always comes back to you.',
+  roastpot:'Crackly skin, a pinch of salt, Clover\'s rosemary. Shared round, it restores half of your whole Chorus\'s Composure.' });
+BATTLE_ITEMS.push('roastpot');
+const PT = () => S.flags.potato;
+async function plantPotato() {
+  const M = MAPS[S.map], [dx, dy] = DIRS[S.dir], x = S.x + dx, y = S.y + dy, c = (M.tiles[y] || [])[x];
+  if (M.kind === 'inside' || M.kind === 'still' || !(c === '.' || c === ',' || c === 'f') || entAt(x, y)) return say('You need soft ground right in front of you, outdoors. Not road, not floor. Proper dirt.');
+  S.items.potato = 0; S.flags.potato = { map:S.map, x, y, at:S.steps, crops:(PT() && PT().crops) || 0 }; ENTC.t = 0; sfx('settle');
+  await say('You kneel, dig a little hole with your hands, and tuck the potato in. You pat the dirt down. It feels like a promise.');
+}
+function potatoModel() { const p = PT(), k = Math.min(1, (S.steps - p.at) / POTATO_STEPS), g = new THREE.Group();
+  sBall(g, .32, '#5a4028', 0, 0, 0).scale.set(1, .35, 1);
+  if (k > .1) for (let i = 0; i < 3 + Math.floor(k * 5); i++) { const a = i * 2.4, r = .06 + k * .18, l = .1 + k * .28; const lf = sBall(g, l * .5, i % 2 ? '#4f8a3a' : '#5f9a44', Math.cos(a) * r, .08 + k * .25, Math.sin(a) * r); lf.scale.set(1, .5, .7); }
+  if (k >= 1) for (const [x, z, c] of [[-.12, .1, '#f4f1e8'], [.1, -.08, '#c8a0e8'], [0, .14, '#f4f1e8']]) sBall(g, .05, c, x, .5, z);
+  return g; }
+function potatoEnts(map) { const p = PT(); if (!p || p.map !== map) return [];
+  return [{ id:'potato_' + (S.steps - p.at >= POTATO_STEPS ? 'ripe' : Math.floor((S.steps - p.at) / 60)), x:p.x, y:p.y, dir:'down', model:potatoModel, folk:false, talk:digPotato }]; }
+async function digPotato() {
+  const p = PT(), left = POTATO_STEPS - (S.steps - p.at);
+  if (left > 0) return say(left > 160 ? 'A little mound of dirt where your potato is sleeping. Clover said: go have an adventure first.' : left > 60 ? 'A few green leaves have pushed up through the dirt. Not yet.' : 'The plant is big and leafy now. Almost. A little longer.');
+  const n = 3 + Math.min(3, p.crops); p.crops++;
+  S.items.roastpot = (S.items.roastpot || 0) + n; S.items.potato = 1; S.flags.potato = null; S.flags.potatoCrops = p.crops; ENTC.t = 0; sfx('heal');
+  await say(`The plant has little white flowers on it. You dig in with both hands and pull up a whole clutch of potatoes. You roast ${n} of them on the spot, Clover-style. The best one, the lumpiest, goes back in your pocket.`);
+  await say(`(Got ${n} Roast Potatoes, and your potato back. ${p.crops < 3 ? 'Plant it again. It seems to like you.' : 'It\'s the happiest potato in the Welkin.'})`);
+}
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -7553,7 +7886,7 @@ const BATTLE_FLAVOR = {
 const SPEC_CACHE = {};
 // Every place, battle and boss plays a pre-rendered loop (real instruments; music2 render pipeline).
 const MUS = id => ({ id, track:'music/' + id + '.mp3', gapless:true });
-const BLAINE_CITY = { JOY:'music/joy.mp3', HOPE:'music/hope.mp3', FEAR:'music/fear.mp3', SHAME:'music/shame.mp3', SADNESS:'music/sadness.mp3' };
+const BLAINE_CITY = { JOY:'music/joy.mp3', HOPE:'city_HOPE_gotus', FEAR:'music/fear.mp3', SHAME:'music/shame.mp3', SADNESS:'city_SADNESS_hearme' };   // I've Got Us · Hear Me
 const BLAINE_WAY = { CALM:'blaine_trust', CONFIDENCE:'blaine_confidence', DISGUST:'blaine_disgust', SHAME:'blaine_anger' };
 const routeFamily = id => WHEEL.find(t => ROUTES[t].id === id);
 const themeFor = id => { const M = MAPS[id], k = '';
@@ -7939,10 +8272,14 @@ function updateWorld(dt, t) {
   }
   const p = W.player, k = mv.active ? mv.t : 1;
   const px = mv.active ? mv.fx + (S.x - mv.fx) * k : S.x, pz = mv.active ? mv.fy + (S.y - mv.fy) * k : S.y;
-  const py = groundY(px, pz); p.position.set(px, py, pz);
+  const py = RIDE_Y != null ? RIDE_Y : groundY(px, pz); p.position.set(px, py, pz);
   let dy = DIR_YAW[S.dir] - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
   animHero(p, k, mv.active, t);
-  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir; let d2 = DIR_YAW[f] - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } animPerson(g, Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .06, t, dt); if (!g.userData.kneel) g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
+  // Cobb Hollow, with a bad aura: everyone you could see if you were looking out of your own eyes stares at you, and keeps staring, turning as you move.
+  const stare = S.map === 'cobb_hollow' && scene === 'world' && (auraSide() === 'shadow' || darkLevel() >= 1), fy = DIR_YAW[S.dir], fx0 = Math.sin(fy), fz0 = Math.cos(fy);
+  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir;
+    let want = DIR_YAW[f]; if (stare && g.userData.legs && !npcFace[e.id]) { const vx = g.position.x - px, vz = g.position.z - pz, d = Math.hypot(vx, vz); if (d > .5 && d < 13 && (vx * fx0 + vz * fz0) / d > .45) { want = Math.atan2(-vx, -vz); g.userData.staring = 1; } else g.userData.staring = 0; }
+    let d2 = want - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } animPerson(g, Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .06, t, dt); if (g.userData.inner && !g.userData.kneel && !g.userData.sit && !g.userData.kayak && g.userData.swing == null) g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
   tickMood(dt, t);
   autosaveT += dt; if (autosaveT > 90) { autosaveT = 0; if (!busy) autosave(); }
   const n = W.minis.length;
@@ -8007,7 +8344,7 @@ function characterSelect() {
     el.innerHTML = keys.map(k => `<div class="hero" data-h="${k}"><img src="${PORTRAITS[k]}" alt=""><b>${names[k]}</b><span>${{ m:'Male', f:'Female', nb:'Non-binary' }[k]}</span></div>`).join('');
     const sel = () => [...el.children].forEach((c, i) => c.classList.toggle('sel', i === idx));
     const done = () => { selectHandler = null; $('#select').classList.add('hidden'); sfx('keep'); res(keys[idx]); };
-    [...el.children].forEach((c, i) => c.addEventListener('pointerdown', e => { e.stopPropagation(); audioInit(); if (idx === i) done(); else { idx = i; sel(); sfx('tick'); } }));
+    [...el.children].forEach((c, i) => onTap(c, e => { audioInit(); if (idx === i) done(); else { idx = i; sel(); sfx('tick'); } }));
     selectHandler = b => { if (b === 'left' || b === 'up') { idx = (idx + 2) % 3; sel(); sfx('tick'); } else if (b === 'right' || b === 'down') { idx = (idx + 1) % 3; sel(); sfx('tick'); } else if (b === 'a') done(); };
     $('#select').classList.remove('hidden'); sel();
   });
@@ -8019,7 +8356,7 @@ function nameEntry(sub) {
     let upper = true, idx = 0;
     const cells = () => [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(c => upper ? c : c.toLowerCase()).concat(['-', "'", 'Space', 'Aa', '⌫', 'OK']);
     const draw = () => { const C = cells(); grid.innerHTML = C.map((c, i) => `<div data-i="${i}" class="${c.length > 1 ? 'wide' : ''}${i === idx ? ' sel' : ''}">${c}</div>`).join('');
-      [...grid.children].forEach(d => d.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); idx = +d.dataset.i; act(); })); };
+      [...grid.children].forEach(d => onTap(d, e => { audioInit(); idx = +d.dataset.i; act(); })); };
     const clean = v => v.replace(/[^\p{L}\p{N} '\-]/gu, '').replace(/\s+/g, ' ').slice(0, 14);
     const finish = () => { const v = clean(inp.value).trim(); if (!v) { toast('Enter a name first'); sfx('back'); return; } selectHandler = null; el.classList.add('hidden'); inp.blur(); sfx('keep'); res(v); };
     const act = () => { const c = cells()[idx]; sfx('tick');
@@ -8174,7 +8511,7 @@ async function ending(final, kind) {
       const pg = pages[i];
       $('#ecard').innerHTML = `<img src="${PORTRAITS[S.hero]}" alt=""><div class="eb"><div class="ek">${pg.k}</div><h3>${pg.h}</h3><p>${pg.p}</p>${pg.extra || ''}<div class="next">${pg.cont ? '<div class="opt sel" data-e="keep">Continue</div>' : pg.last ? '<div class="opt" data-e="new">New journey</div><div class="opt sel" data-e="keep">Keep walking</div>' : `<div class="opt sel" data-e="next">${i === 0 ? 'Begin' : 'Next'} →</div>`}</div></div>`;
       $('#ecard').style.animation = 'none'; void $('#ecard').offsetWidth; $('#ecard').style.animation = '';
-      $('#ecard').querySelectorAll('[data-e]').forEach(b => b.addEventListener('pointerdown', e => { e.stopPropagation(); act(b.dataset.e); }));
+      $('#ecard').querySelectorAll('[data-e]').forEach(b => onTap(b, () => act(b.dataset.e)));
     };
     const act = a => { sfx('ok'); if (a === 'next') { i++; render(); } else { endingHandler = null; res(a); if (kind !== 'none') finish(a); else $('#ending').classList.add('hidden'); } };
     endingHandler = b => { if (b === 'a') act(pages[i].last ? 'keep' : 'next'); if (b === 'b' && pages[i].last) act('new'); };
