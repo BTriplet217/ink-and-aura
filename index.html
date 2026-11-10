@@ -61,6 +61,12 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 body.padmode #pad{display:none!important}
 body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #pad>*{pointer-events:auto}
+#joy{position:relative;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(27,21,18,.45) 0 55%,rgba(27,21,18,.72) 56%);border:2px solid rgba(232,184,74,.35);touch-action:none;margin:0 0 6px 4px}
+#joy.on{border-color:rgba(232,184,74,.7)}
+#joyKnob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:rgba(232,184,74,.9);border:2px solid var(--gold2);box-shadow:0 3px 10px #0006;transition:transform .12s ease-out;pointer-events:none}
+#joy .t{position:absolute;width:0;height:0;border:6px solid transparent;opacity:.55;pointer-events:none}
+#joy .n{left:50%;top:8px;margin-left:-6px;border-bottom:8px solid var(--gold);border-top:0}#joy .s{left:50%;bottom:8px;margin-left:-6px;border-top:8px solid var(--gold);border-bottom:0}
+#joy .w{top:50%;left:8px;margin-top:-6px;border-right:8px solid var(--gold);border-left:0}#joy .e{top:50%;right:8px;margin-top:-6px;border-left:8px solid var(--gold);border-right:0}
 #dpad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:3px}
 .k{background:rgba(27,21,18,.72);border:2px solid rgba(232,184,74,.35);color:var(--gold);border-radius:12px;font:800 17px 'Nunito Sans';display:flex;align-items:center;justify-content:center;touch-action:none}
 .k.on{background:rgba(74,58,46,.9)}
@@ -169,7 +175,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 <div id="sheet" class="card hidden"></div>
 <div id="bottom"><div id="chorus" class="hidden"></div><div id="cho" class="hidden"></div><div id="dlg" class="card hidden"><span class="who"></span><span class="txt"></span><span class="nxt">▼</span></div></div>
 <div id="pad">
-  <div id="dpad"><div></div><div class="k" data-k="up">▲</div><div></div><div class="k" data-k="left">◀</div><div></div><div class="k" data-k="right">▶</div><div></div><div class="k" data-k="down">▼</div><div></div></div>
+  <div id="joy"><i class="t n"></i><i class="t e"></i><i class="t s"></i><i class="t w"></i><div id="joyKnob"></div></div>
   <div id="ab"><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
 </div>
 <div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Back / menu: X or Esc · Turn camera: Q / E · Zoom: C</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B back · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
@@ -4179,7 +4185,7 @@ function press(b) {
   if (UI.list && UI.list.res) return navList(b);
   if (endingHandler) return endingHandler(b);
   if (scene === 'world' && !busy && !mv.active) {
-    if (b === 'a') runScript(interact);
+    if (b === 'a') { mv.yaw = null; runScript(interact); }
     else if (b === 'b' || b === 'menu') runScript(openMenu);
   }
 }
@@ -4195,6 +4201,34 @@ document.querySelectorAll('[data-k]').forEach(el => {
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
 });
 canvas.addEventListener('pointerdown', () => { audioInit(); canvas.focus(); if (UI.dlg) press('a'); });
+// Analog movement: a touch joystick (tx, ty) or a controller's left stick (gx, gy), screen space with +y up.
+// Keys and D-pads still work, and holding two of them (up + right) walks diagonally.
+const JOY = { tx:0, ty:0, gx:0, gy:0 };
+function moveVector() {
+  let x = JOY.tx || JOY.gx, y = JOY.ty || JOY.gy;
+  if (Math.hypot(x, y) < .3) { x = (held.right ? 1 : 0) - (held.left ? 1 : 0); y = (held.up ? 1 : 0) - (held.down ? 1 : 0); }
+  return Math.hypot(x, y) < .3 ? null : [x, y];
+}
+function worldStep(v) {        // eight directions, turned to match the camera
+  const o = ((Math.round(Math.atan2(v[1], v[0]) / (Math.PI / 4)) % 8) + 8) % 8, sx = [1, 1, 0, -1, -1, -1, 0, 1][o], sy = [0, 1, 1, 1, 0, -1, -1, -1][o];
+  let dx = 0, dy = 0; const add = d => { const [a, b] = DIRS[worldDir(d)]; dx += a; dy += b; };
+  if (sx) add(sx > 0 ? 'right' : 'left'); if (sy) add(sy > 0 ? 'up' : 'down');
+  const face = worldDir(sy && (!sx || Math.abs(v[1]) >= Math.abs(v[0])) ? (sy > 0 ? 'up' : 'down') : (sx > 0 ? 'right' : 'left'));
+  return [dx, dy, face];
+}
+(function joystick() {
+  const base = document.getElementById('joy'), knob = document.getElementById('joyKnob'); if (!base) return;
+  let id = null, last = null, repT = null;
+  const nudge = (x, y) => {       // menus still get single up/down/left/right presses (with repeat while held)
+    const d = Math.hypot(x, y) < .55 ? null : Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'up' : 'down');
+    if (d === last) return; last = d; clearInterval(repT); if (d) { press(d); repT = setInterval(() => { if (last === d && (UI.cho || UI.list || selectHandler)) press(d); }, 260); } };
+  const set = e => { const r = base.getBoundingClientRect(), R = r.width / 2 - 16; let x = (e.clientX - r.left - r.width / 2) / R, y = (r.top + r.height / 2 - e.clientY) / R; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+    JOY.tx = x; JOY.ty = y; knob.style.transform = `translate(${x * R}px, ${-y * R}px)`; nudge(x, y); };
+  base.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); id = e.pointerId; try { base.setPointerCapture(id); } catch (_) {} knob.style.transition = 'none'; base.classList.add('on'); set(e); });
+  base.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
+  const end = e => { if (id == null || (e && e.pointerId !== id)) return; id = null; JOY.tx = JOY.ty = 0; knob.style.transition = ''; knob.style.transform = ''; base.classList.remove('on'); nudge(0, 0); };
+  base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end); base.addEventListener('lostpointercapture', end);
+})();
 const heldDir = () => (lastDir && held[lastDir]) ? lastDir : ['up','down','left','right'].find(k => held[k]) || null;
 if (matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('coarse');
 // =============================================================================
@@ -4237,6 +4271,8 @@ function pollPad(dt) {
   for (const [act] of PAD_ACTIONS) { const i = PAD.map[act]; if (i != null && edge(i)) { if (act === 'recenter') { if (scene === 'world') { camFree = null; camZoomV = null; camQ = 0; toast('View reset'); } } else press(act); } }
   if (PAD.menu2 != null && edge(PAD.menu2) && !Object.values(PAD.map).includes(PAD.menu2)) press('menu');
   // directions (held for walking, edge + auto-repeat for menus)
+  { const st = PAD.move === 'right' || PAD.move === 'dpad+right' ? [2, 3] : PAD.move === 'dpad' ? null : [0, 1];   // analog stick → any direction
+    const ax = st ? gp.axes[st[0]] || 0 : 0, ay = st ? gp.axes[st[1]] || 0 : 0; if (Math.hypot(ax, ay) > .4) { JOY.gx = ax; JOY.gy = -ay; } else JOY.gx = JOY.gy = 0; }
   const d = padDirFrom(gp);
   if (d !== padState.dir) { if (padState.dir) held[padState.dir] = 0; padState.dir = d; padState.dirT = 0; padState.rep = 0; if (d) { held[d] = 1; lastDir = d; press(d); } }
   else if (d) { padState.dirT += dt; const roam = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list; if (!roam && padState.dirT > .38) { padState.rep += dt; if (padState.rep > .11) { padState.rep = 0; press(d); } } }
@@ -4306,7 +4342,7 @@ async function controllerMenu() {
 // =============================================================================
 //  WORLD LOGIC — entities, movement, NPCs, menus
 // =============================================================================
-const mv = { active:false, fx:0, fy:0, t:0 };
+const mv = { active:false, fx:0, fy:0, t:0, diag:false, yaw:null };
 const npcFace = {};
 const LOOKS = {
   wren:    { coat:'#4f5f80', accent:'#d9c6a0', skin:'#d7a985', hair:'#e2ddd4', legs:'#2c221c', build:'slim', hairStyle:'short', gear:['glasses', 'longcoat', 'book', 'bun', 'scarf'] },
@@ -4384,13 +4420,25 @@ const entAt = (x, y) => ents(S.map).find(e => e.x === x && e.y === y);
 const wildAt = (x, y) => W.wilds.find(w => w.x === x && w.y === y);
 const walkable = (x, y) => !SOLID.has(tileAt(x, y)) && !entAt(x, y);
 function tryMove(d) {
-  S.dir = d; const [dx, dy] = DIRS[d], nx = S.x + dx, ny = S.y + dy, M = MAPS[S.map];
+  mv.diag = false; mv.yaw = null; S.dir = d; const [dx, dy] = DIRS[d], nx = S.x + dx, ny = S.y + dy, M = MAPS[S.map];
   if (!introDone() && S.map === 'vellum' && (ny < 0 || nx < 0 || ny >= M.h || nx >= M.w || wildAt(nx, ny))) { npcFace.wren = S.x < 17 ? 'left' : 'right'; runScript(() => say('Wren: Wait! Don\'t go out there empty-handed. Come and talk to me first.')); return; }
   if (ny < 0 || nx < 0 || ny >= M.h || nx >= M.w) { const ex = M.exit(nx, ny); if (ex) runScript(() => changeMap(ex)); return; }
   const w = wildAt(nx, ny); if (w) { startWild(w); return; }
   if (tileAt(nx, ny) === 'D' && M.doors && M.doors[nx + ',' + ny]) { runScript(() => enterDoor(M.doors[nx + ',' + ny])); return; }
   if (!walkable(nx, ny)) return;
   mv.active = true; mv.fx = S.x; mv.fy = S.y; mv.t = 0; S.x = nx; S.y = ny;
+}
+// Joystick / diagonal step: (dx, dy) each -1..1 in world tiles; face is the cardinal direction used for talking.
+// A diagonal step needs the target and both tiles beside the corner to be open (no cutting corners); otherwise slide along the wall.
+function tryMove8(dx, dy, face) {
+  if (!dx || !dy) return tryMove(face);
+  const nx = S.x + dx, ny = S.y + dy, M = MAPS[S.map], inb = (x, y) => x >= 0 && y >= 0 && x < M.w && y < M.h;
+  const gated = !introDone() && S.map === 'vellum';
+  if (inb(nx, ny) && walkable(nx, ny) && walkable(S.x + dx, S.y) && walkable(S.x, S.y + dy) && !(gated && wildAt(nx, ny))) {
+    S.dir = face; const w = wildAt(nx, ny); if (w) { startWild(w); return; }
+    mv.active = true; mv.fx = S.x; mv.fy = S.y; mv.t = 0; mv.diag = true; mv.yaw = Math.atan2(dx, dy); S.x = nx; S.y = ny; return; }
+  const x0 = S.x, y0 = S.y, other = (face === 'up' || face === 'down') ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  tryMove(face); if (S.x === x0 && S.y === y0 && !mv.active && !busy) tryMove(other);
 }
 function startWild(w) {
   if (busy || !S.party.some(m => m.hp > 0)) return;
@@ -8267,13 +8315,13 @@ function loopBody(now) {
 function updateWorld(dt, t) {
   const M = MAPS[S.map];
   if (scene === 'world') {
-    if (mv.active) { mv.t += dt / .2; if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
-    if (!mv.active && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic) { const d = heldDir(); if (d) tryMove(worldDir(d)); }
+    if (mv.active) { mv.t += dt / (mv.diag ? .28 : .2); if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
+    if (!mv.active && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic) { const v = moveVector(); if (v) { const [dx, dy, f] = worldStep(v); tryMove8(dx, dy, f); } }
   }
   const p = W.player, k = mv.active ? mv.t : 1;
   const px = mv.active ? mv.fx + (S.x - mv.fx) * k : S.x, pz = mv.active ? mv.fy + (S.y - mv.fy) * k : S.y;
   const py = RIDE_Y != null ? RIDE_Y : groundY(px, pz); p.position.set(px, py, pz);
-  let dy = DIR_YAW[S.dir] - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
+  let dy = (mv.yaw != null ? mv.yaw : DIR_YAW[S.dir]) - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
   animHero(p, k, mv.active, t);
   // Cobb Hollow, with a bad aura: everyone you could see if you were looking out of your own eyes stares at you, and keeps staring, turning as you move.
   const stare = S.map === 'cobb_hollow' && scene === 'world' && (auraSide() === 'shadow' || darkLevel() >= 1), fy = DIR_YAW[S.dir], fx0 = Math.sin(fy), fz0 = Math.cos(fy);
