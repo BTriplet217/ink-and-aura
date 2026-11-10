@@ -16,6 +16,9 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 .hidden{display:none!important}
 .card{background:var(--parch);border:2px solid var(--ink);border-radius:12px;position:relative;box-shadow:0 10px 28px rgba(27,21,18,.28)}
 .card::before{content:"";position:absolute;inset:3px;border:1px solid rgba(196,138,44,.55);border-radius:8px;pointer-events:none}
+/* scrolling cards: an absolutely placed inner line would scroll with the text and cut through it, so draw it as an inset shadow instead */
+#sheet::before{display:none}
+#sheet{box-shadow:0 10px 28px rgba(27,21,18,.28),inset 0 0 0 3px var(--parch),inset 0 0 0 4px rgba(196,138,44,.55)}
 #bottom{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(660px,94vw);display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:35;pointer-events:none}
 #bottom>*{pointer-events:auto}
 #dlg{width:100%;padding:16px 20px 14px;font-size:16px;line-height:1.5;min-height:72px;cursor:pointer}
@@ -395,8 +398,8 @@ const CODEX = ROSTER.map(r => r[0]);
 const ITEMS = { cake:{ name:'Honey Cake', heal:.45, desc:'Restores some Composure' }, tonic:{ name:'Bitter Tonic', heal:1, desc:'Restores all Composure' } };
 const TIERS = [[6,'radiant','Radiant'],[2,'warm','Warm'],[-1,'neutral','Neutral'],[-5,'shadowed','Shadowed'],[-999,'abyssal','Abyssal']];
 const ORDER = ['abyssal','shadowed','neutral','warm','radiant'];
-const TIERC = { radiant:'#ffd36b', warm:'#e8b84a', neutral:'#cfc4ad', shadowed:'#a585c4', abyssal:'#9a5fc4' };
-const TIER_TXT = { radiant:'#9a6a10', warm:'#8a5a10', neutral:'#5a4c3c', shadowed:'#5e3f7a', abyssal:'#4a2266' };
+const TIERC = { radiant:'#ffd36b', warm:'#e8b84a', neutral:'#cfc4ad', shadowed:'#a585c4', abyssal:'#9a5fc4', tender:'#8fb0d8' };
+const TIER_TXT = { radiant:'#9a6a10', warm:'#8a5a10', neutral:'#5a4c3c', shadowed:'#5e3f7a', abyssal:'#4a2266', tender:'#3a5a80' };
 
 // ---------------------------------------------------------------- towns ------
 // gate: which side of the Vellum hub the road leaves from (wheel position)
@@ -513,7 +516,8 @@ const END = {
     warm:'Most of the time, your aura was Warm. You were easy to be around.',
     neutral:'Most of the time, your aura stayed Neutral. The world never quite decided about you, and maybe you liked it that way.',
     shadowed:'Most of the time, you walked Shadowed. Some doors closed. Others, the quieter ones, opened.',
-    abyssal:'Most of the time, you walked through the dark. Not everyone could follow you there. That doesn\'t make it the wrong path.'
+    abyssal:'Most of the time, you walked through the dark. Not everyone could follow you there. That doesn\'t make it the wrong path.',
+    tender:'Most of the time, you walked Tender: carrying the heavy things where people could see them. Some took advantage. More of them, it turned out, stopped to help.'
   },
   close:'There was no losing. Only finding out what you carry, and why.',
   care:'This is a reflection, not a diagnosis. If something here touched something real, it might be worth talking through with someone you trust.'
@@ -1258,14 +1262,15 @@ const healAll = () => { for (const m of S.party.concat(S.satchel)) m.hp = maxHp(
 const valOf = m => { const d = SPECIES[m.sp]; return d.dyad ? d.val : TYPES[d.type].val; };
 const auraValue = (p = S.party) => p.reduce((a, m) => a + valOf(m), 0) - Math.min(8, Math.floor((S.sins || 0) / 3));
 function tierOf(v = auraValue()) { for (const [min, id] of TIERS) if (v >= min) return id; return 'neutral'; }
-const tierName = id => TIERS.find(t => t[1] === id)[2];
+const tierName = id => id === 'tender' ? 'Tender' : (TIERS.find(t => t[1] === id) || [0, 0, 'Neutral'])[2];
 const auraAtLeast = id => ORDER.indexOf(shownTier()) >= ORDER.indexOf(id);
 const auraAtMost = id => ORDER.indexOf(shownTier()) <= ORDER.indexOf(id);
 const carriesType = t => S.party.some(m => typeOf(m) === t);
 const strongest = () => Math.max(1, ...S.party.concat(S.satchel).map(m => m.lvl));
-const auraLine = () => ({ radiant:'The air warms wherever you walk.', warm:'People meet your eyes, and soften.', neutral:'The world hasn\'t decided about you yet.', shadowed:'Conversations stop when you enter a room.', abyssal:'Doors close in front of you. The dark ones open.' })[tierOf()];
+const auraLine = () => auraWorldLine();   // h12_temper.js: what the world does about the aura you carry
 let auraPulse = 0;
-async function announceShift(before) { const a = tierOf(); if (a !== before) { auraPulse = 1; sfx('shift'); await say(`Your aura shifts: ${tierName(before)} → ${tierName(a)}.`); } }
+// before: the aura's name when the change started (auraName()), so the message matches the pill at the top of the screen
+async function announceShift(before) { const a = auraName(); if (a !== before) { auraPulse = 1; sfx('shift'); await say(`Your aura shifts: ${before} → ${a}.`); } }
 const pill = t => `<span class="pill" style="background:${TYPES[t].c}">${TYPES[t].name}</span>`;
 const sgn = v => (v > 0 ? '+' : '') + v;
 const PRON = { m:{ sub:'he', obj:'him', pos:'his', label:'He / Him' }, f:{ sub:'she', obj:'her', pos:'her', label:'She / Her' }, nb:{ sub:'they', obj:'them', pos:'their', label:'They / Them' } };
@@ -1275,7 +1280,7 @@ function tickTime(dt) {
   S.time += dt; if (S.veil > 0) S.veil = Math.max(0, S.veil - dt);
   for (const m of S.party) m.c = (m.c || 0) + dt;
   for (const m of S.satchel) m.s = (m.s || 0) + dt;
-  if (S.party.length) { const t = tierOf(); S.tierTime[t] = (S.tierTime[t] || 0) + dt; }
+  if (S.party.length) { const t = visTier(); S.tierTime[t] = (S.tierTime[t] || 0) + dt; }
 }
 function recordRelease(m) { S.released.push({ sp:m.sp, type:typeOf(m), c:m.c || 0, s:m.s || 0 }); }
 // =============================================================================
@@ -3382,7 +3387,7 @@ async function talkRouteNpc(R, n) {
   if (!S.flags[mk] && (n.role !== 'talk') && n.trust()) { S.flags[mk] = 1;
     await say(`${n.name}: ${pickA(['And who are you?', 'Haven\'t seen you before. Name?', 'You\'ve got a name, I expect?', 'Who\'s asking?'])}`); await say('(You tell them your name.)'); await say(`${n.name}: {name}. All right, {name}.`); }
   if (n.role === 'guard' || n.role === 'war') return talkTrainer(R, n);
-  if (n.role === 'talk') { if (!n.trust()) return say(n.distrust); return say(n.lines[vibeClass()]); }
+  if (n.role === 'talk') { if (!n.trust()) return say(n.distrust); return say(vline(n.lines, TENDER.route[n.id])); }
   return FAVORS[n.id](R, n);
 }
 
@@ -4373,13 +4378,13 @@ function townLook(type, role) {
 const NUMBED_LOOK = { coat:'#8f8a84', accent:'#a9a59f', skin:'#d2c8bd', hair:'#75716c', legs:'#5a5652' };
 async function talkNumbed(i) { const v = vibeClass();
   if (S.flags.doom || (S.bound || {})[MAPS[S.map].vibe]) return say('Numbed: ' + [`...Yes, ${pname()}. Whatever you say.`, '...I was told to stand here. I will stand here.', '...Are you here to give me an order? Please give me an order.', '...I had a daughter. I think. It doesn\'t matter. What do you need?', '...The Bell rang. I don\'t have to decide anything anymore. Thank you.'][i % 5]);
-  await say('Numbed: ' + (v === 'bright' ? pickA(['...Your light is... warm? I think I used to like warm.', '...You\'re very bright. It doesn\'t reach me. I wish it would.']) : v === 'dark' ? pickA(['...You feel like the quiet. Are you with it?', '...Whatever you\'re carrying, I can\'t feel it. That should frighten me.']) : NUMBED_LINES[(i + S.steps) % NUMBED_LINES.length])); }
+  await say('Numbed: ' + (v === 'tender' ? pickA(TENDER.numbed) : v === 'bright' ? pickA(['...Your light is... warm? I think I used to like warm.', '...You\'re very bright. It doesn\'t reach me. I wish it would.']) : v === 'dark' ? pickA(['...You feel like the quiet. Are you with it?', '...Whatever you\'re carrying, I can\'t feel it. That should frighten me.']) : NUMBED_LINES[(i + S.steps) % NUMBED_LINES.length])); }
 const REMEMBER = { JOY:'I laughed at something just now because it was funny. Not because I had to.', HOPE:'I don\'t know if tomorrow will be better. I\'m going to find out anyway.',
   CALM:'I got cross with the baker for burning the bread. It felt wonderful. I apologised after. That felt wonderful too.', CONFIDENCE:'I was wrong about so many things. I\'m going to make a list.',
   SURPRISE:'Everything is so ordinary now. I love it.', SADNESS:'I miss her. I can miss her now. That\'s so much better than nothing.', FEAR:'I\'m scared of the dark again. Isn\'t that marvellous? It means I care what\'s in it.',
   SHAME:'I remembered something awful I did. And then I remembered I\'m allowed to be more than that.', DISGUST:'The ditch folk brought soup round. I ate it. It was good soup.', ANGER:'I\'m furious about how long I didn\'t feel anything. Good. I\'m keeping it.' };
 async function talkRecovered(t, i) { const v = vibeClass();
-  await say('Townsperson: ' + (v === 'bright' ? pickA(['You\'re so bright. It\'s like standing near a fire after years outside. Thank you, {name}.', 'I can see colours again, and you\'re one of them. Was it you who settled the Heart?'])
+  await say('Townsperson: ' + (v === 'tender' ? pickA(TENDER.recovered) : v === 'bright' ? pickA(['You\'re so bright. It\'s like standing near a fire after years outside. Thank you, {name}.', 'I can see colours again, and you\'re one of them. Was it you who settled the Heart?'])
     : v === 'dark' ? pickA(['I can feel things again. Including about you. You frighten me a little. Is that allowed?', 'Something dark sits on you, {name}. I know that weight. I carried nothing for so long I\'d almost take it.'])
     : (i % 2 ? REMEMBER[t] : pickA(['I was Numbed for years. I don\'t remember the years. I remember this morning, though. All of it.', REMEMBER[t]])))); }
 // Towns and cities are laid out differently now, so people are nudged onto the nearest open tile.
@@ -4629,6 +4634,7 @@ async function saveMenu() {
 let autosaveT = 0;
 function autosave() { if (S && S.party && S.party.length && S.flags && introDone() && scene !== 'title') saveGame(); }
 async function talkMaribel() {
+  if (vibeClass() === 'tender') return maribelTender();
   const c0 = await ask(auraAtLeast('warm') ? 'Maribel: There you are, {name}, love. Bread\'s fresh.' : auraAtMost('shadowed') ? 'Maribel: ...{name}. What do you want.' : 'Maribel: Afternoon, {name}.', ['Talk', 'Buy something', 'Leave']);
   if (c0 === 1) return openShop('bakery');
   if (c0 !== 0) return;
@@ -4641,6 +4647,7 @@ async function talkMaribel() {
 async function talkTobin() { if (await deliverPie()) return; await say(['Tobin: Mum says every city out there is stuck on one feeling. The little villages on the way are mixed up, though. You find all sorts there.', 'Tobin: Wren says Manifs aren\'t good or bad. They\'re just weather. Maribel doesn\'t agree. Do you agree, {name}?', 'Tobin: There\'s a man in the alley who only talks to people with shadows on them.', 'Tobin: The arches are coloured like the wheel. Opposite towns face each other across Vellum.', 'Tobin: I told the whole square {name} is going to settle all ten Hearts. {They} definitely {is}. Right?'][S.steps % 5]); }
 async function talkLookout() {
   if (S.flags.lookoutMoved) return say('Lookout: Go on through. Sable\'s expecting you.');
+  if (vibeClass() === 'tender') return say(pickA(['Lookout: Rough week? Sable likes the sad ones. Says they sell cheap. ...Forget I said that. Come back when you\'ve got some teeth.', 'Lookout: You don\'t want back here like that. They\'ll have the coat off your back and call it charity.']));
   if (auraAtMost('shadowed')) {
     await say('Lookout: ...Yeah. You\'ve got the look. Go on.');
     S.flags.lookoutMoved = 1; const p = W.npcs.lookout; if (p) p.position.set(5, groundY(5, 16), 16); npcFace.lookout = 'left';
@@ -4759,7 +4766,7 @@ async function partyMenu() {
     if (lab === 'Move to front') { S.party.splice(i, 1); S.party.unshift(m); idx = 0; rebuildMinis(); }
     if (lab === 'Set down') {
       if (S.party.length <= 1) { await say('You can\'t set down the last thing you\'re carrying.'); continue; }
-      const before = tierOf(); S.party.splice(i, 1); S.satchel.push(m); idx = Math.max(0, i - 1); rebuildMinis();
+      const before = auraName(); S.party.splice(i, 1); S.satchel.push(m); idx = Math.max(0, i - 1); rebuildMinis();
       await say(nm(m) + ' rests in your Satchel.'); await announceShift(before);
     }
     if (lab === 'Tend') { const it = items[0]; S.items[it]--; m.hp = Math.min(maxHp(m), m.hp + Math.ceil(maxHp(m) * ITEMS[it].heal)); await say(`You give ${nm(m)} a ${ITEMS[it].name}.`); }
@@ -4775,7 +4782,7 @@ async function satchelMenu() {
     if (c === 3) { await listen(m); continue; }
     if (c === 0) {
       if (S.party.length >= 6) { await say('You\'re carrying six already. Set something down first.'); continue; }
-      const before = tierOf(); S.satchel.splice(i, 1); S.party.push(m); idx = Math.max(0, i - 1); rebuildMinis();
+      const before = auraName(); S.satchel.splice(i, 1); S.party.push(m); idx = Math.max(0, i - 1); rebuildMinis();
       await say('You carry ' + nm(m) + ' again.'); await announceShift(before);
     }
     if (c === 1) await summary(m);
@@ -4810,7 +4817,7 @@ async function auraMenu() {
   showSheet(`<h2>Your Aura · ${zoneOf().name}</h2><div class="subt">The sum of what you carry. Everyone you meet can see it.</div>
     ${auraGridSheet()}
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px">${manifIcon(m, 20)}${nm(m)} <span style="font-weight:400;color:var(--muted)">${sgn(valOf(m))} light · ${sgn(Math.round(energyOf(m) * 10) / 10)} fierce</span></span>`).join('')}</div>
-<p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm brighten you; Sadness, Fear, Anger, Shame and Disgust darken you. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
+<p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm lighten you; Sadness, Fear, Anger, Shame and Disgust make you heavy. Heavy isn't the same as dangerous: mostly Anger or Disgust reads as menacing, mostly Sadness, Fear or Shame reads as hurting. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
   await say(auraLine());
   closeSheet();
 }
@@ -4837,19 +4844,21 @@ function activeJobsHTML() {
 // =============================================================================
 //  ECONOMY & PEOPLE — citizens, jobs, shops, the Bag, selling, listening
 // =============================================================================
-const shownTier = () => (S.veil || 0) > 0 ? 'neutral' : tierOf();
-const vibeClass = () => { const t = shownTier(); return t === 'radiant' || t === 'warm' ? 'bright' : t === 'neutral' ? 'plain' : 'dark'; };
+// A hurting aura (mostly Sadness, Fear or Shame) isn't treated as a dark one: shops and gates see it as neutral,
+// and people with their own lines for it (vibeClass 'tender') use them.
+const shownTier = () => (S.veil || 0) > 0 ? 'neutral' : auraRead() === 'hurt' ? 'neutral' : tierOf();
+const vibeClass = () => { if (!(S.veil > 0) && S.party.length && auraRead() === 'hurt') return 'tender'; const t = shownTier(); return t === 'radiant' || t === 'warm' ? 'bright' : t === 'neutral' ? 'plain' : 'dark'; };
 function pay(n) { S.marks = (S.marks || 0) + n; sfx('keep'); }
 const fill = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k] != null ? o[k] : '');
 
 // ---------------------------------------------------------------- citizens ---
 function citizenEnts(map) {
   const M = MAPS[map], out = [];
-  if (M.kind === 'hub') for (const c of CITIZENS.vellum) out.push({ id:c.id, x:c.x, y:c.y, dir:'down', look:c.look, talk:() => say(c[vibeClass()]) });
+  if (M.kind === 'hub') for (const c of CITIZENS.vellum) out.push({ id:c.id, x:c.x, y:c.y, dir:'down', look:c.look, talk:() => say(vline(c, tenderCitizen(c))) });
   if (M.kind === 'city') CITIZEN_SPOTS.city.forEach(([x, y], i) => { const c = CITIZENS.city[M.vibe][i], nmx = CITIZEN_NAMES[(wIdx(M.vibe) * 2 + i) % 16];
-    out.push({ id:'cit' + i, x, y, dir: i ? 'up' : 'down', look:townLook(M.vibe, i ? 'local' : 'keeper'), talk:() => say(c[vibeClass()].replace(/^[^:]+:/, nmx + ':')) }); });
+    out.push({ id:'cit' + i, x, y, dir: i ? 'up' : 'down', look:townLook(M.vibe, i ? 'local' : 'keeper'), talk:() => say(vline(c, tenderCitizen(null, i, M)).replace(/^[^:]+:/, nmx + ':')) }); });
   if (M.kind === 'way') { const [x, y] = CITIZEN_SPOTS.way[0], name = CITIZEN_NAMES[(wIdx(M.vibe) + 9) % 16];
-    out.push({ id:'cit0', x, y, dir:'down', look:townLook(M.vibe, 'local'), talk:() => say(fill(CITIZENS.way[vibeClass()], { name, city:TOWNS[M.vibe].name })) }); }
+    out.push({ id:'cit0', x, y, dir:'down', look:townLook(M.vibe, 'local'), talk:() => say(fill(vline(CITIZENS.way, TENDER.way), { name, city:TOWNS[M.vibe].name })) }); }
   return out;
 }
 
@@ -4869,7 +4878,7 @@ async function talkJob(t, i) {
   if (st === 'done') return say(`${gname.split(' ').pop()}: ${j.tier === 'dark' ? 'We\'re square. Don\'t come asking for favours.' : 'Thank you. I mean it.'}`);
   const vc = vibeClass();
   if (!st && j.tier === 'bright' && vc !== 'bright') return say(`${gname.split(' ').pop()}: ...Never mind. I don't think you'd understand. (Only opens to a Warm or brighter aura.)`);
-  if (!st && j.tier === 'dark' && vc !== 'dark') return say(`${gname.split(' ').pop()}: Not with that glow on you. Come back with some shadow. (Only opens to a Shadowed or darker aura.)`);
+  if (!st && j.tier === 'dark' && vc !== 'dark') return say(`${gname.split(' ').pop()}: Not with that glow on you. Come back with some shadow. (Only opens to a menacing aura: carry Anger or Disgust.)`);
   if (!st) {
     await say(j.ask);
     const c = await ask(`Job: ${j.kind === 'give' ? `hand over a ${TYPES[j.type].name} Manif` : j.kind === 'settle' ? `settle ${j.n} wild Manifs in ${TOWNS[t].name}` : `deliver to the keeper in ${MAPS[j.to].name}`}. Pays ${reward} Marks.`, ['Take the job', 'Not now']);
@@ -4919,7 +4928,7 @@ function countSettle() {
   for (const [id, st] of Object.entries(S.jobs)) { if (st !== 'active') continue; const [, t, i] = id.split('_'); if (!JOBS[t]) continue; const j = JOBS[t][+i]; if (j && j.kind === 'settle' && TOWNS[t].id === S.map) S.jobProg[id] = (S.jobProg[id] || 0) + 1; }
 }
 function removeManif(m, how, marks) {
-  const before = tierOf();
+  const before = auraName();
   let i = S.party.indexOf(m); if (i >= 0) S.party.splice(i, 1); else { i = S.satchel.indexOf(m); if (i >= 0) S.satchel.splice(i, 1); }
   const rec = { sp:m.sp, type:typeOf(m), c:m.c || 0, s:m.s || 0, marks:marks || 0 };
   if (how === 'sold') { S.sold = S.sold || []; S.sold.push(rec); } else if (how === 'gave') { S.gave = S.gave || []; S.gave.push(rec); } else S.released.push(rec);
@@ -5020,9 +5029,10 @@ async function angryShove(e) {
   await say((e.name ? e.name + ': ' : '') + pickA(['Watch where you\'re going!', 'Back OFF. I\'m not in the mood.', 'You looking at me? Keep walking.', 'Move! Some of us have places to be!', 'Get out of my way before I make you.']));
   delete npcFace[e.id];
 }
-const fierceDark = () => S.party.find(m => tierOfSp(m.sp) >= 2 && DARK_FAMS.includes(typeOf(m)));
+// only Anger and Disgust look dangerous; a deep Sadness or Fear makes people sorry for you, not scared of you
+const fierceDark = () => S.party.find(m => tierOfSp(m.sp) >= 2 && HOSTILE_FAMS.includes(typeOf(m)));
 // A fierce dark-family Manif only frightens people when your aura isn't warm. With a warm aura they notice it, and that's all.
-const playerThreat = () => !!fierceDark() && auraSide() !== 'light';
+const playerThreat = () => !!fierceDark() && auraSide() !== 'light' && auraSide() !== 'hurt';
 function threatPoint(map) { const M = MAPS[map]; if (M.kind === 'city') return [17, 7]; if (M.kind === 'hub') return [16, 13]; if (M.kind === 'inside') return [Math.floor(M.w / 2), 1]; return [S.x, S.y]; }
 
 // ---- emote bubbles
@@ -5092,7 +5102,7 @@ async function moodPreTalk(e) {
   if (!isFolk(e) || isChild(e)) return;
   const sayE = l => say((e.name ? e.name + ': ' : '') + l);
   const mood = mapMood(S.map);
-  if (playerThreat() && canRun(e)) { const m = S.party.find(x => tierOfSp(x.sp) >= 2 && DARK_FAMS.includes(typeOf(x)));
+  if (playerThreat() && canRun(e)) { const m = fierceDark();
     await sayE(pickA([`(They flinch away from your ${nm(m)}.) Stay back! Please. I haven't done anything.`, `Don't come any closer with that thing. I mean it.`, `(They won't meet your eyes. Their voice shakes.) Whatever that ${nm(m)} wants, I don't have it.`])); return 'refuse'; }
   if (MOOD.tremorT > 0) { await sayE(mood === 'dread' ? pickA(['Did you feel that?! It\'s under the Archive. Under all of us.', 'Everyone\'s staying close to home. You should too, {name}.']) : pickA(['Did you feel that?! The Heart\'s getting worse every day.', 'Get inside! It always comes in twos!', '(They grab your sleeve.) Was that the shrine? Was that the shrine again?'])); return; }
   const key = e.id, famT = moodFamily(S.map);
@@ -5569,8 +5579,12 @@ const ZONES = {
   'light,still':  { name:'Serene',   d:'Calm and bright. People confess things to you they\'ve never told anyone.' }
 };
 function auraPos() { const v = auraValue(), e = energyValue(); return { v, e, x: v <= -2 ? 'shadow' : v >= 2 ? 'light' : 'even', y: e <= -3 ? 'still' : e >= 3 ? 'fierce' : 'level' }; }
-const ZONE_FLAVOUR = { 'shadow,fierce:FEAR':{ name:'Haunted', d:'Dark and jumpy. Kind people want to shelter you. Cruel ones smell an easy mark.' }, 'shadow,still:SHAME':{ name:'Hiding', d:'Dark and small. People either coax you out or hold it over you.' }, 'light,fierce:SURPRISE':{ name:'Dazzled', d:'Bright and startled. Everything is new to you, and everyone can tell.' } };
-function zoneOf() { const p = auraPos(), key = p.x + ',' + p.y, fl = ZONE_FLAVOUR[key + ':' + (S.party.length ? dominantFam() : '')]; return { ...ZONES[key], ...(fl || {}), ...p, key }; }
+const ZONE_FLAVOUR = { 'light,fierce:SURPRISE':{ name:'Dazzled', d:'Bright and startled. Everything is new to you, and everyone can tell.' } };
+// A heavy aura is named by what's in it: mostly Sadness, Fear or Shame reads as hurting (h12_temper.js), not menacing.
+function zoneOf() { const p = auraPos(), key = p.x + ',' + p.y, read = auraRead();
+  let fl = ZONE_FLAVOUR[key + ':' + (S.party.length ? dominantFam() : '')];
+  if (p.x === 'shadow') fl = read === 'hurt' ? HURT_ZONES[hurtFam()][p.y] : p.y === 'still' ? MENACE_STILL : null;
+  return { ...ZONES[key], ...(fl || {}), ...p, key, base:ZONES[key].name, read }; }
 function dominantFam() { const w = {}; for (const m of S.party) { const d = SPECIES[m.sp]; w[d.type] = (w[d.type] || 0) + 1 + d.tier * .5 + (d.dyad ? 0 : 0); }
   let best = null, bv = 0; for (const k in w) if (w[k] > bv) { bv = w[k]; best = k; } return best; }
 function seedOf() { if (!S.seed) S.seed = 1 + Math.floor(Math.random() * 1e9); return S.seed; }
@@ -5622,10 +5636,10 @@ const GONE = {};
 const DARK_FAM5 = ['SADNESS', 'FEAR', 'ANGER', 'SHAME', 'DISGUST'];
 async function auraPreTalk(e) {
   if (!isFolk(e) || STAY_IDS.has(e.id) && e.id !== 'res_ilse') return;
-  const fam = dominantFam(); if (!fam || !REACT[fam]) return;
-  const moral = moralOf(e), sayE = l => say((e.name ? e.name + ': ' : '') + l), z = zoneOf();
+  const fam0 = dominantFam(); if (!fam0 || !REACT[fam0]) return;
+  const moral = moralOf(e), sayE = l => say((e.name ? e.name + ': ' : '') + l), z = zoneOf(), read = z.read, fam = leadFam() || fam0;
   const M = MAPS[S.map], town = M && (M.vibe || (MAPS[M.route] && MAPS[M.route].vibe));
-  const menace = z.x === 'shadow' && z.y === 'fierce', bright = z.x === 'light';
+  const menace = read === 'menace' && z.y === 'fierce', bright = z.x === 'light';
   // Children are never muggers or attackers. Grown-ups protect them.
   if (isChild(e)) return childTalk(e, z, town, menace);
   S.met = S.met || {}; const key = S.map + ':' + e.id; if (S.met[key]) return; S.met[key] = 1;
@@ -5638,27 +5652,24 @@ async function auraPreTalk(e) {
       if (ok) await say(deal('beatdown', ['They end up on their back in the gutter, spitting blood and teeth, still swearing at you.', 'They stagger off holding their ribs, calling you every name they know.', 'They sit down hard against a wall, nose bleeding, and laugh at nothing.'])); return 'refuse'; }
     return 'refuse';
   }
-  if (z.x === 'shadow' && moral === 'cruel' && Math.random() < .3) {
+  if (read === 'menace' && moral === 'cruel' && Math.random() < .3) {
     await sayE(deal('jump', ['Nice coat. Give it here.', 'You\'re in the wrong street, friend. Empty your pockets.', 'Your sort owe me money. All of you. Pay up.']));
     const c = await ask('They pull a knife.', ['Fight', 'Pay 40 Marks']);
     if (c === 1 || (S.marks || 0) < 40) { S.marks = Math.max(0, (S.marks || 0) - 40); return say('(They take the Marks and spit at your feet.)').then(() => 'refuse'); }
     const ok = await trainerFight(e.name || 'a mugger', [[spAt('DISGUST', 1, 1), Math.max(6, strongest() - 1)]]);
     if (ok) { await say('The knife skids away across the cobbles. They clutch a cut forearm, blood running through their fingers, and run.'); pay(25); await say('(They dropped 25 Marks.)'); } return 'refuse';
   }
-  await sayE(deal('react:' + fam + moral, REACT[fam][moral]));
-  if (moral === 'kind' && ['SADNESS', 'FEAR', 'SHAME'].includes(fam) && Math.random() < .5) { const k = pickA(['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; await say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
-  else if (moral === 'cruel' && EXPLOIT_FAMS.includes(fam) && (S.marks || 0) > 40 && Math.random() < .6) {
-    const amt = 20 + Math.floor(Math.random() * 40);
-    const c = await ask(`${e.name || 'They'} ${fam === 'SHAME' ? 'want' : 'ask for'} ${amt} Marks${fam === 'SHAME' ? ' to keep quiet about you' : fam === 'FEAR' ? ' for "protection"' : fam === 'SADNESS' ? ' for a "charity for the bereaved" that doesn\'t exist' : ' for a "sure thing" that is definitely a con'}.`, ['Pay', 'Refuse']);
-    if (c === 0) { S.marks -= amt; await say(`You hand over ${amt} Marks. They grin, and are gone round the corner before you can blink.`); }
-    else await say(z.y === 'still' ? '(They laugh at you. "Suit yourself, you sad fuck. Plenty more like you.")' : '(They size you up, decide you\'re not worth it, and walk away.)');
-  } else if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
-  else if (moral === 'cruel' && fam === 'JOY' && (S.marks || 0) > 30 && Math.random() < .4) { const m = 10 + Math.floor(Math.random() * 20); S.marks -= m; await say(`(Later you notice ${m} Marks missing from your purse.)`); }
+  // A menacing aura gets the old treatment; everything else meets the six kinds of people.
+  if (read === 'menace') {
+    await sayE(deal('react:' + fam0 + moral, REACT[fam0][moral]));
+    if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam0) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
+  } else if (await reactFolk(e, read, fam, sayE) === 'refuse') return 'refuse';
   // After the world is saved, people still remember how dark you went.
   if (S.flags.hushDone && !S.flags.doom && (S.sins || 0) >= 6 && Math.random() < .35) await sayE(deal('remember', ['You saved us. I know. I still remember what you were before, though.', 'Thank you. Truly. ...You still scare me a little. Is that awful?', 'My sister says you burned a station once. I told her that can\'t be true. Is it true?', 'Funny. You look like a hero now. You didn\'t, a while back.']));
 }
 // Prices: cruel shopkeepers squeeze the vulnerable; nobody haggles with a menace.
-function auraPriceMod() { const z = zoneOf(); return z.name === 'Forlorn' ? 1.15 : z.name === 'Muted' ? 1.05 : z.name === 'Menacing' ? .9 : z.name === 'Serene' || z.name === 'Warm' ? .95 : 1; }
+// Hurting auras get squeezed (the frightened pay most: "protection"); menacing ones get waved through cheap.
+function auraPriceMod() { const n = zoneOf().name; return ({ Forlorn:1.15, Aching:1.1, Raw:1.1, Haunted:1.15, Wary:1.15, Frozen:1.2, Cornered:1.1, Hiding:1.1, Small:1.15, Muted:1.05, Menacing:.9, Sullen:.95, Serene:.95, Warm:.95 })[n] || 1; }
 
 // ---------------------------------------------------------------- grid encounters
 // One per zone. Which town each turns up in is rolled per playthrough; they only appear while your aura sits in that zone.
@@ -5759,14 +5770,14 @@ function auraGridSheet() {
   const z = zoneOf(), fam = dominantFam(), cl = (n, a) => Math.max(-a, Math.min(a, n));
   const px = (cl(z.v, 9) + 9) / 18 * 100, py = (9 - cl(z.e, 9)) / 18 * 100;
   const cells = [['shadow', 'fierce'], ['even', 'fierce'], ['light', 'fierce'], ['shadow', 'level'], ['even', 'level'], ['light', 'level'], ['shadow', 'still'], ['even', 'still'], ['light', 'still']]
-    .map(([x, y]) => { const k = x + ',' + y, on = k === z.key; return `<div style="display:flex;align-items:center;justify-content:center;font:800 11px 'Nunito Sans';color:var(--ink);opacity:${on ? 1 : .5};background:${x === 'light' ? 'rgba(244,207,94,' : x === 'shadow' ? 'rgba(160,120,200,' : 'rgba(200,190,170,'}${on ? .55 : .22});border:1px dashed rgba(27,21,18,.3)">${on ? z.name : ZONES[k].name}</div>`; }).join('');
+    .map(([x, y]) => { const k = x + ',' + y, on = k === z.key; return `<div style="display:flex;align-items:center;justify-content:center;font:800 11px 'Nunito Sans';color:var(--ink);opacity:${on ? 1 : .5};background:${x === 'light' ? 'rgba(244,207,94,' : x === 'shadow' ? (z.read === 'hurt' ? 'rgba(120,155,210,' : 'rgba(160,120,200,') : 'rgba(200,190,170,'}${on ? .55 : .22});border:1px dashed rgba(27,21,18,.3)">${on ? z.name : x === 'shadow' && z.read === 'hurt' ? HURT_ZONES[hurtFam()][y].name : x === 'shadow' && z.read === 'menace' && y === 'still' ? MENACE_STILL.name : ZONES[k].name}</div>`; }).join('');
   const dots = S.party.map(m => { const v = valOf(m), e = energyOf(m); return `<span title="${nm(m)}" style="position:absolute;left:${50 + cl(v, 4.5) * 9}%;top:${50 - cl(e, 4.5) * 9}%;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;background:${TYPES[typeOf(m)].c};border:2px solid var(--ink);opacity:.8"></span>`; }).join('');
   return `<div style="display:grid;grid-template-columns:18px 1fr;grid-template-rows:1fr 16px;gap:2px;max-width:330px;margin:6px auto 8px">
     <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;color:var(--muted);text-align:center">still ← → fierce</div>
     <div style="position:relative;aspect-ratio:1;border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)">${cells}${dots}
-      <span style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:var(--ink);border:3px solid #fff3d6;box-shadow:0 0 10px ${TIERC[tierOf(z.v)]}"></span></div>
-    <span></span><div style="font-size:10px;color:var(--muted);text-align:center">shadow ← → light</div></div>
-    <p style="text-align:center;margin:4px 0"><b>${z.name}</b> · ${z.d}</p>${fam ? `<p style="text-align:center;font-size:13px;color:var(--muted);margin:2px 0">Mostly ${TYPES[fam].name}: people react to that first, and kind ones and cruel ones won't react the same way.</p>` : ''}`;
+      <span style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:var(--ink);border:3px solid #fff3d6;box-shadow:0 0 10px ${TIERC[visTier()]}"></span></div>
+    <span></span><div style="font-size:10px;color:var(--muted);text-align:center">heavy ← → light</div></div>
+    <p style="text-align:center;margin:4px 0"><b>${z.name}</b> · ${z.d}</p>${fam ? `<p style="text-align:center;font-size:13px;color:var(--muted);margin:2px 0">Mostly ${TYPES[leadFam() || fam].name}${z.read === 'hurt' ? ' (hurting, not dangerous)' : z.read === 'menace' ? ' (menacing)' : ''}: people react to that first. Kind people, fixers, avoiders, judges, opportunists and mirrors all react differently.</p>` : ''}`;
 }
 
 // A few children in every town and city, so there's someone for the grown-ups to protect.
@@ -5779,6 +5790,9 @@ function kidEnts(map, base) {
   return out;
 }
 
+const KID_TENDER = { SADNESS:['Are you sad? You can have my sweet. It\'s only a bit licked.', 'My nan says when you\'re sad you have to look at a dog. I\'ll find you a dog.', '(The child pats your arm, very seriously, twice.) There.'],
+  FEAR:['Are you scared? I\'ll hold your hand. I\'m not scared of anything except geese.', 'You can stand behind me. I\'m small but I\'m loud.', 'Monsters aren\'t real in the day. It\'s day. So you\'re fine.'],
+  SHAME:['Did you do something bad? I broke a window once. It was fine after.', 'You\'re looking at the ground. There\'s a beetle there, look.', 'My mum says sorry fixes most things. Not windows, though.'] };
 const isChild = e => /^kid/.test(e.id) || !!(e.look && e.look.small);
 const VIBE_STEP_IN = {
   SADNESS:['Don\'t fill her head with hope. Hope\'s what broke her mother. Come inside, love.', 'She doesn\'t need you smiling at her. She needs to learn the world\'s cruel before it teaches her.'],
@@ -5809,6 +5823,7 @@ function nearestAdult(e) { let best = null, bd = 1e9; for (const a of ents(S.map
 async function childTalk(e, z, town, menace) {
   S.kidTalks = S.kidTalks || {}; const key = S.map + ':' + e.id, n = (S.kidTalks[key] = (S.kidTalks[key] || 0) + 1);
   const adult = nearestAdult(e), who = adult && adult.name ? adult.name : 'A grown-up';
+  if (z.x === 'shadow' && z.read === 'hurt') return say('Child: ' + deal('kidtender:' + hurtFam(), KID_TENDER[hurtFam()]));
   if (z.x === 'shadow') {
     if (n < 2) { await say(deal('kiduneasy', ['(The child goes quiet when you come close, and looks around for someone.)', '(The child takes a small step back.)', '(The child\'s smile slips. They grip their sleeve.)'])); return; }
     const moral = adult ? moralOf(adult) : 'fair';
@@ -5837,7 +5852,11 @@ function begLines() {
     : 'Wren: (She is waiting at the top of the stone steps, and she has been crying.) {name}. Please. I have never asked anyone for anything.';
   const lean = { Menacing:'You walk around like you want to break the world. Break the Hush instead.', Volatile:'I never know which way you\'ll go. Please, just this once, go down.', Blazing:'You\'re the brightest thing left in the Welkin. Take it down there where it\'s dark.',
     Bitter:'I know you think we\'re all rotten. Maybe we are. Save us anyway.', Unread:'You haven\'t decided what you are. Decide now. Decide to go down.', Warm:'You\'ve been kind to every one of us. Be kind one more time.',
-    Forlorn:'I know how heavy everything is. I know. But if you sit down now, nobody ever gets up again.', Muted:'You\'re getting so quiet. Like them. Please don\'t go quiet now.', Serene:'You\'re the calmest person I know. Go down there and be calm at it.' }[z.name];
+    Forlorn:'I know how heavy everything is. I know. But if you sit down now, nobody ever gets up again.', Muted:'You\'re getting so quiet. Like them. Please don\'t go quiet now.', Serene:'You\'re the calmest person I know. Go down there and be calm at it.',
+    Aching:'I know it hurts. You\'ve been hurting the whole way here and you kept walking. Walk a little further.', Raw:'You\'re carrying so much grief it\'s spilling out of you. Take it down there. It\'s the one place it can do some good.',
+    Haunted:'I know you\'re frightened. I am too. Frightened people still get to be brave.', Wary:'You check every door. Check this one, and then go through it.', Frozen:'You\'re so scared you\'ve gone still. Take one step. Then the next. I\'ll be counting them.',
+    Cornered:'You keep bracing like everyone\'s about to blame you. Nobody\'s blaming you. Go down.', Hiding:'You won\'t look at me. That\'s all right. Look at the stairs instead.', Small:'You try so hard to take up no room. Down there, take up all of it.',
+    Sullen:'You\'ve gone cold and quiet on all of us. I don\'t need you warm. I need you to go down.', Dazzled:'Everything\'s new to you. This will be too. Go and see it.' }[z.name] || 'Please.';
   return [open, `Wren: Orrin has held the Hush shut for two hundred years and his arms are failing. When he lets go, it takes everyone. ${lean}`, 'Wren: I can\'t go down there. It knows my face. It has to be you. Please. Please go down.'];
 }
 async function wrenBeg() {
@@ -5952,13 +5971,15 @@ function petFor(e) { const P = PET_POOL(); let h = 0; for (const ch of e.id + S.
 //  can't face you; Sable takes over her services in the Inkgutter. Sable's back
 //  room sells forbidden stock to anyone who passes her three-question test.
 // =============================================================================
-const darkLevel = () => { const v = auraValue(), s = S.sins || 0; return v <= -6 || s >= 10 ? 2 : v <= -2 || s >= 4 ? 1 : 0; };
+// How dark you've gone, for the story: a menacing aura or a record of harm. Being sad, scared or ashamed isn't darkness.
+const darkLevel = () => { const v = auraValue(), s = S.sins || 0, menace = auraRead() === 'menace'; return (menace && v <= -6) || s >= 10 ? 2 : (menace && v <= -2) || s >= 4 ? 1 : 0; };
 const wrenCold = () => darkLevel() === 2 && !S.flags.hushDone && introDone() && !S.flags.wrenFallen;
 const WREN_WORRY = ['Wren: {name}... what are you carrying? Your aura has gone so dark. Are you all right? Honestly?', 'Wren: I keep thinking about you out on the roads with all that weight. Put some of it down. Please.', 'Wren: I\'ve seen people go the way you\'re going. I buried two of them. Don\'t make me bury you.', 'Wren: You don\'t have to keep every awful thing you find, you know. Some of them you\'re allowed to let go.'];
 const WREN_AFTER = ['Wren: You saved us. You did. I just... I still remember how dark you got, before. I worried about you every night.', 'Wren: I\'m proud of you. I\'m allowed to be proud and still a little frightened of what you were, aren\'t I?', 'Wren: Some days I look at you and I still see all that shadow. Then you smile, and it\'s gone.'];
 async function wrenPreface() {
   if (S.flags.hushDone && !S.flags.doom && ((S.sins || 0) >= 4 || darkLevel())) { S.flags.wrenAfter = (S.flags.wrenAfter || 0) + 1; if (S.flags.wrenAfter <= 3) await say(WREN_AFTER[(S.flags.wrenAfter - 1) % WREN_AFTER.length]); return; }
   if (darkLevel() === 1 && !S.flags.hushDone) await say(deal('wrenworry', WREN_WORRY));
+  else if (!S.flags.hushDone && auraRead() === 'hurt' && Math.random() < .7) await say(deal('wrentender:' + hurtFam(), WREN_TENDER[hurtFam()]));
 }
 async function talkWrenCold() {
   await say(deal('wrencold', ['(Wren has her back to you. She doesn\'t turn around.)', '(Wren keeps her eyes on the Codex. Her hands are shaking.)', '(Wren starts to turn, sees you, and stops.)']));
@@ -6373,8 +6394,9 @@ async function giveBack(m) {
 //  Each place treats you by your aura, and each has things to do for a kind
 //  traveller and for a cruel one.
 // =============================================================================
-const auraSide = () => { try { return auraPos().x; } catch (e) { return 'even'; } };   // 'light' | 'even' | 'shadow'
-const sideLine = (o) => o[auraSide()] || o.even || o.any;
+// 'light' | 'even' | 'shadow' (menacing) | 'hurt' (heavy with Sadness, Fear or Shame: people see pain, not danger)
+const auraSide = () => { try { const r = auraRead(); return r === 'menace' ? 'shadow' : r === 'hurt' ? 'hurt' : r === 'bright' ? 'light' : 'even'; } catch (e) { return 'even'; } };
+const sideLine = (o) => o[auraSide()] || o.even || o.any;   // a 'hurt' aura falls back to the even line unless one is written for it
 const sin = n => { S.sins = (S.sins || 0) + n; };
 const lk = (coat, accent, skin, hair, gear = [], o = {}) => ({ ...rLook(coat, accent, skin, hair, o), gear });
 const SK = ['#f0caa6', '#d7a985', '#c79a78', '#b88468', '#8a5a3a', '#6a4028'];
@@ -6450,7 +6472,7 @@ function regionEnts(map) {
 const npc = (id, x, y, dir, name, look, talk, o = {}) => ({ id, x, y, dir, name, look, talk, folk:!!(look && look.small), ...o });
 const sayAs = (name, line) => say(`${name}: ${line}`);
 // A person who likes some auras and not others. Liked: warm. Not liked: turned away, sometimes threatened.
-function judged(name, likes, warm, cold) { return () => { const s = auraSide(); const ok = likes === 'any' || (Array.isArray(likes) ? likes.includes(s) : likes === s); return ok ? warm() : cold(); }; }
+function judged(name, likes, warm, cold) { return () => { const s0 = auraSide(), L = Array.isArray(likes) ? likes : [likes], s = s0 === 'hurt' && !L.includes('hurt') ? 'even' : s0; const ok = likes === 'any' || (Array.isArray(likes) ? likes.includes(s) : likes === s); return ok ? warm() : cold(); }; }
 
 // ---------------------------------------------------------------- new items
 Object.assign(ITEMS, {
@@ -6672,6 +6694,9 @@ async function bankTeller() {
 async function alleyMan() {
   const s = auraSide();
   if (s === 'light') return sayAs('Man in the alley', 'Lost? Ocean Ave\'s that way. Go on. This isn\'t your street.');
+  if (s === 'hurt') { const c = await ask('Man in the alley: Hey. Hey, friend. You look like you\'ve had a week. I\'ve got something for that. Twenty Marks, takes the edge right off.', ['Buy it (20 Marks)', 'No']);
+    if (c !== 0 || (S.marks || 0) < 20) return sayAs('Man in the alley', 'Your loss. Plenty of sad people in Saltmere.');
+    S.marks -= 20; return say('(It\'s a twist of paper with sugar in it. Just sugar. By the time you realise, he\'s gone.)'); }
   if (s === 'even') return sayAs('Man in the alley', 'Nothing to see. Unless you\'re buying.');
   const c = await ask('Man in the alley: You\'ve got the look. I run errands for people with the look. Fifty Marks a job, no questions.', ['What kind of job?', 'Not today']); if (c !== 0) return;
   await sayAs('Man in the alley', 'Fella on Ocean Ave owes my boss. Go and remind him. Remind him hard.');
@@ -6748,6 +6773,7 @@ async function talkMarsh() {
   if (s === 'shadow') { await sayAs('Marsh', 'Stop. Right there. (He has a rifle, and it\'s pointed at the ground near your feet, which is the polite version.)');
     return sayAs('Marsh', 'You can walk around. You can buy what Earl sells you. You go near our kids and I will put you in the ground and plant tomatoes on you.'); }
   if (s === 'even') return sayAs('Marsh', 'Visitor. Fine. Stay where people can see you and we\'ll get along.');
+  if (s === 'hurt') return sayAs('Marsh', 'You look like the grey years. (He lowers the rifle all the way.) Go and see Lottie at the diner. Tell her Marsh said you need feeding.');
   await sayAs('Marsh', 'You said hello loud. Good. People who say hello loud aren\'t sneaking. Welcome to Holdfast.');
 }
 async function talkHoldSupply() {
@@ -6758,6 +6784,8 @@ async function talkHoldSupply() {
 }
 async function talkVosk() {
   const s = auraSide();
+  if (s === 'hurt') { await sayAs('Elder Vosk', 'Everyone here lost someone in the grey years. You\'re carrying that same weight. I can see it.');
+    if (!S.flags.voskOk) { S.flags.voskOk = 1; return sayAs('Elder Vosk', 'Grief that keeps walking is the reason this town is still here. Tell Earl I said to show you the stockroom.'); } return; }
   if (s === 'shadow') return sayAs('Elder Vosk', 'I have buried two worlds already. I know what walks at the end of them. You may stay until dark, and then you will go back the way you came.');
   await sayAs('Elder Vosk', 'Everyone here lost someone in the grey years. We dug down, so it would never take us by surprise again. What\'s under this town is the reason this town is still here.');
   if (s === 'light' && !S.flags.voskOk) { S.flags.voskOk = 1; await sayAs('Elder Vosk', 'You carry light. We could use some, down below. Tell Earl I said to show you the stockroom.'); }
@@ -6889,6 +6917,7 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
 async function talkLottie() {
   const s = auraSide();
   if (s === 'shadow') { await sayAs('Lottie', 'Kitchen\'s closed, hon.'); return say('(The OPEN sign is lit. Hal is cooking. Three people are eating pie.)'); }
+  if (s === 'hurt') { await sayAs('Lottie', pickA(['Oh, sugar. Sit down. No, sit. Pie first, then you can tell me or not tell me.', 'Honey, you look like you need a slice and a refill. Both on me.'])); if (once('lottieTender')) { S.items.coffee = (S.items.coffee || 0) + 2; await say('(Lottie slides two coffees across the counter and won\'t take money for them.)'); } return openShop('diner'); }
   await sayAs('Lottie', s === 'light' ? 'Well, look at you! Sit down, sugar, coffee\'s on the house for a face like that.' : 'Coffee? Pie? We got both, and the pie\'s better.');
   if (s === 'light' && once('lottieCoffee')) S.items.coffee = (S.items.coffee || 0) + 2;
   return openShop('diner');
@@ -6923,7 +6952,7 @@ const HINTS = {
 function hintEnts(map, base) {
   const H = HINTS[map]; if (!H) return []; const [x, y] = spotNear(map, H.x, H.y, base);
   return [{ id:H.id, x, y, dir:'down', name:H.name, look:H.look, talk:async () => { const m = moralOf({ id:H.id }), s = auraSide();
-    const likes = (s === 'light' && m !== 'cruel') || (s === 'even' && m !== 'cruel') || (s === 'shadow' && m === 'cruel');
+    const likes = (s === 'light' && m !== 'cruel') || (s === 'even' && m !== 'cruel') || (s === 'hurt' && m === 'kind') || (s === 'shadow' && m === 'cruel');
     if (likes) { await sayAs(H.name, H.yes); S.flags['heard_' + H.id] = 1; } else await sayAs(H.name, H.no); } }];
 }
 
@@ -7026,9 +7055,10 @@ function dndPeople() {
 }
 async function dndTalk(k) {
   const n = DND_NAME[k], s = auraSide();
-  if (s !== 'light') return dndGoodbye();
-  if (S.flags.dndKicked && !(S.flags['dndRoast_' + k]) && k !== 'lio') { S.flags['dndRoast_' + k] = 1; return sayAs(n, DND_ROAST[k]); }
-  if (k === 'lio' && S.flags.dndHide && !(S.flags.dndTrust >= 3)) {
+  if (s === 'hurt') { await dndTender(k); if (!((k === 'morwen' && !S.flags.dndFossil) || (k === 'lio' && !S.flags.dndEgg))) return; }
+  else if (s !== 'light') return dndGoodbye();
+  if (s === 'light' && S.flags.dndKicked && !(S.flags['dndRoast_' + k]) && k !== 'lio') { S.flags['dndRoast_' + k] = 1; return sayAs(n, DND_ROAST[k]); }
+  if (s === 'light' && k === 'lio' && S.flags.dndHide && !(S.flags.dndTrust >= 3)) {
     S.flags.dndTrust = (S.flags.dndTrust || 0) + 1;
     if (S.flags.dndTrust < 3) return say(['(Lio peeks out from behind Saffi\'s tail, sees you, and ducks back.)', '(Lio peeks out again. He holds up a d20, very slowly, like a peace offering, then hides again.)'][S.flags.dndTrust - 1]);
     await say('(Lio comes all the way out from behind his grown-ups. He looks at you for a long moment.)'); await sayAs('Lio', 'Okay. You\'re nice now. I can tell. Dragons can tell.');
@@ -7078,7 +7108,9 @@ async function toOutside(dx, dy, scene) { await fadeTo(1, 400); for (const k in 
 // DOOR_GUARD is defined in h_npcs.js
 DOOR_GUARD[DND_ID] = async () => {
   const s = auraSide(), lock = S.flags.dndLock;
-  if (S.flags.dndOutside) { await dndBurn(); return false; }
+  if (S.flags.dndOutside && s !== 'hurt') { await dndBurn(); return false; }
+  if (s === 'hurt' && lock === 'evil') { await say('(The door stays shut. Through it, Saffi, quieter than you\'ve ever heard her: "...Are you okay out there? You sound different.")'); if (once('dndStep')) { S.items.cake = (S.items.cake || 0) + 1; await say('(A minute later the letterbox clacks. A cookie in a napkin drops onto the mat. On the napkin, in crayon: FEEL BETTER. — L)'); } return false; }
+  if (s === 'hurt') { if (lock) S.flags.dndLock = 0; for (const k in DND_POS) delete DND_POS[k]; return async () => { await dndTenderDoor(); }; }
   if (lock && s !== 'light') { await say(lock === 'evil' ? '(Through the door, someone calls out: "Sorry, we\'re just a bunch of nerds that can\'t be bothered by your kind.")' : '(A hand-lettered sign is taped to the door: POSITIVE VIBES ONLY.)'); return false; }
   if (lock && s === 'light') { S.flags.dndLock = 0; S.flags.dndKicked = 1; }
   for (const k in DND_POS) delete DND_POS[k];
@@ -7207,8 +7239,8 @@ SET.gametable = p => { const g = new THREE.Group();                      // a sq
 //      Kind: takes you kayaking and gives you her spare. Off: a word or two, then
 //      she paddles away until you leave. Evil, and you push: the paddle, then gone.
 // =============================================================================
-// kind | even | bad | evil
-const vibeTier = () => { const s = auraSide(), dl = darkLevel(); if (S.flags.doom || dl >= 2) return 'evil'; if (s === 'shadow' || dl >= 1) return 'bad'; return s === 'light' ? 'kind' : 'even'; };
+// kind | even | hurt | bad | evil   (hurt: heavy with Sadness, Fear or Shame; they're good people, so it gets kindness)
+const vibeTier = () => { const s = auraSide(), dl = darkLevel(); if (S.flags.doom || dl >= 2) return 'evil'; if (s === 'shadow' || dl >= 1) return 'bad'; if (s === 'hurt') return 'hurt'; return s === 'light' ? 'kind' : 'even'; };
 const resetArms = g => { const u = g.userData; u.swing = null; if (!u.arms) return; if (u.legs) { for (const l of u.legs) { l.rotation.x = 0; l.userData.knee.rotation.x = 0; } } for (const [i, a] of u.arms.entries()) { a.rotation.set(0, 0, (i ? 1 : -1) * .1); a.userData.el.rotation.set(0, 0, 0); } u.inner.rotation.z = 0; u.inner.position.y = 0; };
 async function swingAt(g, ms = 360) { if (!g) return; g.userData.swing = 0; await tween(ms, k => { g.userData.swing = k * k; }); sfx('bighit'); MOOD.shake = .75;
   W.player.rotation.x = -.18; await wait(140); W.player.rotation.x = 0; g.userData.swing = 0; await wait(180); }
@@ -7304,6 +7336,7 @@ const CLOVER_SOUR = [
 async function cloverTalk() {
   const c = CL(), v = vibeTier();
   if (v === 'bad' || v === 'evil') return cloverBat();
+  if (v === 'hurt') return cloverTender();
   if (c.sour > 0) { c.sour--; await sayAs('Clover', CLOVER_SOUR[(CLOVER_SOUR.length - 1 - c.sour) % CLOVER_SOUR.length]);
     if (!c.sour) await sayAs('Clover', 'Fine. Okay. You can sit down. The bat stays where it is, though.'); return; }
   if (v === 'even') { c.line++; return sayAs('Clover', CLOVER_EVEN[c.line % CLOVER_EVEN.length]); }
@@ -7444,6 +7477,7 @@ async function kayakTrip(withAshlynn) {
 }
 async function ashlynnTalk() {
   const m = MR(), v = vibeTier();
+  if (v === 'hurt') return ashlynnTender();
   if (ASHLYNN_N.v !== MAP_VISIT) ASHLYNN_N = { v:MAP_VISIT, n:0 }; const n = v !== 'kind' ? ++ASHLYNN_N.n : 1;
   if (v !== 'kind') {
     if (v === 'evil' && n >= 2) return ashlynnPaddle();
@@ -7518,6 +7552,285 @@ function layFarLine() {
     M.rail = { y }; M.rails = (M.rails || []).filter(r => Array.isArray(r)).concat([{ y, x0:0, x1:M.w - 1 }]); M.stationX = Math.floor(M.w / 3); }
 }
 { const base = applyRestoredTowns; applyRestoredTowns = function () { base(); layFarLine(); }; }
+// =============================================================================
+//  TEMPER — how the world reads the moods you carry.
+//  The grid is still feeling (shadow ↔ light) by energy (still ↔ fierce), but a
+//  heavy aura is no longer automatically a dangerous one:
+//    bright  — light side. People join in, or resent it.
+//    plain   — the middle. Nobody's decided.
+//    menace  — heavy, and mostly Anger or Disgust (or a long record of harm).
+//              People step back, the wrong sort step forward. Unchanged from before.
+//    hurt    — heavy, and mostly Sadness, Fear or Shame. You read as someone in pain:
+//              kind people pity and help, opportunists move in, judges lecture,
+//              avoiders leave, mirrors catch it off you.
+//  Everyone in town is one of six kinds of people (from the reaction-styles doc):
+//    Kind One · Fixer · Avoider · Judge · Opportunist · Mirror
+//  Mild moods get gentler treatment from everyone; intense ones push Avoiders away,
+//  make Judges harsher and draw Opportunists in.
+// =============================================================================
+const HURT_FAMS = ['SADNESS', 'FEAR', 'SHAME'], HOSTILE_FAMS = ['ANGER', 'DISGUST'];
+function famWeights(p = S.party) { const w = {};
+  for (const m of p) { const d = SPECIES[m.sp], k = 1 + (d.heart ? 3 : d.tier) * .5; if (d.dyad) { w[d.type] = (w[d.type] || 0) + k / 2; w[d.type2] = (w[d.type2] || 0) + k / 2; } else w[d.type] = (w[d.type] || 0) + k; }
+  return w; }
+const sumW = (w, fams) => fams.reduce((a, k) => a + (w[k] || 0), 0);
+function auraRead() {
+  if (!S || !S.party || !S.party.length) return 'plain';
+  const x = auraPos().x, sins = S.sins || 0;
+  if (sins >= 10) return 'menace';
+  if (x === 'light') return 'bright';
+  if (x === 'even') return 'plain';
+  const w = famWeights(); return sumW(w, HOSTILE_FAMS) + Math.min(4, sins / 2) >= sumW(w, HURT_FAMS) ? 'menace' : 'hurt';
+}
+function hurtFam() { const w = famWeights(); return HURT_FAMS.slice().sort((a, b) => (w[b] || 0) - (w[a] || 0))[0]; }
+// the family people react to first: for a hurting aura, the strongest of the hurting three
+const leadFam = () => auraRead() === 'hurt' ? hurtFam() : dominantFam();
+// how hard it hits: anything at tier 2 or a Heart in the lead family is intense
+const intenseFam = fam => S.party.some(m => { const d = SPECIES[m.sp]; return (d.type === fam || d.type2 === fam) && (d.heart || d.tier >= 2); });
+// the second feeling, if it's nearly as loud as the first
+function blendFam(fam) { const w = famWeights(), top = w[fam] || 0; let best = null, bv = 0; for (const k in w) if (k !== fam && w[k] > bv) { bv = w[k]; best = k; } return best && bv >= top * .6 ? best : null; }
+const auraName = () => (S && S.party && S.party.length) ? zoneOf().name : 'Unread';
+const visTier = () => !S.party.length ? 'neutral' : (S.veil || 0) > 0 ? 'neutral' : auraRead() === 'hurt' ? 'tender' : tierOf();
+
+// Names for a hurting aura, by which of the three leads and how much energy it has.
+const HURT_ZONES = {
+  SADNESS:{ fierce:{ name:'Raw', d:'Grief with the skin off. Kind people want to hold you up. Some people only see the cracks.' },
+            level:{ name:'Aching', d:'Sad and still standing. People soften their voices around you, and a few soften their prices the wrong way.' },
+            still:{ name:'Forlorn', d:'Heavy and quiet. Kind people pity you. Cruel people see an easy mark.' } },
+  FEAR:   { fierce:{ name:'Haunted', d:'Jumpy and wide-eyed. Kind people want to shelter you. Others sell you protection.' },
+            level:{ name:'Wary', d:'Watching every door. People either reassure you or use it.' },
+            still:{ name:'Frozen', d:'So scared you\'ve gone still. People speak slowly to you, or take what you won\'t defend.' } },
+  SHAME:  { fierce:{ name:'Cornered', d:'Ashamed and bristling. People either talk you down or pile on.' },
+            level:{ name:'Hiding', d:'You won\'t meet anyone\'s eyes. Some people coax you out. Some hold it over you.' },
+            still:{ name:'Small', d:'Trying to take up no room at all. Kind people make room anyway. Judges notice.' } }
+};
+const MENACE_STILL = { name:'Sullen', d:'Cold and quiet and not to be pushed. People give you a wide berth.' };
+
+// What the world tends to do about you, said when you check your aura.
+function auraWorldLine() {
+  if (!S.party.length) return 'Nobody can read you. You aren\'t carrying anything.';
+  if ((S.veil || 0) > 0) return 'The veil hides which way you lean. Nobody can read you.';
+  const r = auraRead(), f = leadFam(), z = zoneOf();
+  if (r === 'hurt') return { SADNESS:'Kind people slow down to walk beside you. Opportunists slow down too, for different reasons.', FEAR:'Kind people check the street for you. Opportunists sell you locks.', SHAME:'Kind people make room for you. Judges make a note.' }[f];
+  if (r === 'menace') return z.y === 'fierce' ? 'Doors close in front of you. The dark ones open.' : 'Conversations stop when you enter a room.';
+  if (r === 'bright') return intenseFam(f) ? 'The air warms wherever you walk. Not everyone likes being warmed.' : 'People meet your eyes, and soften.';
+  return 'The world hasn\'t decided about you yet.';
+}
+
+// ---------------------------------------------------------------- the six kinds of people
+const PTYPES = ['kind', 'fixer', 'avoider', 'judge', 'opportunist', 'mirror'];
+const PTYPE_NAME = { kind:'The Kind One', fixer:'The Fixer', avoider:'The Avoider', judge:'The Judge', opportunist:'The Opportunist', mirror:'The Mirror' };
+// Consistent with each person's morals: kind people are Kind Ones, cruel ones are Opportunists or Judges,
+// and fair-minded people are Fixers, Avoiders, Mirrors or the occasional Judge.
+function personOf(e) { const mo = moralOf(e); let h = seedOf() ^ 0x5bd1e995; for (const ch of (S.map + '#' + e.id)) h = Math.imul(h ^ ch.charCodeAt(0), 2246822519) >>> 0; const r = (h % 100) / 100;
+  if (mo === 'kind') return r < .8 ? 'kind' : 'fixer';
+  if (mo === 'cruel') return r < .65 ? 'opportunist' : 'judge';
+  return r < .3 ? 'fixer' : r < .55 ? 'avoider' : r < .8 ? 'mirror' : 'judge'; }
+
+// Lines: REACT6[family][type] = [mild, mild, intense]
+const REACT6 = {
+  JOY:{ kind:['You\'re in a good mood! What happened? Tell me everything.', 'That smile\'s a good look on you. Keep it.', 'You\'re lit up like a festival. Just... eat something and sleep tonight, all right? Joy that big burns hot.'],
+    fixer:['Good mood? Perfect. Use it. Fix something while it lasts.', 'Happy\'s nice. Happy with a plan is better.', 'All right, all right, calm down a bit. You\'ll knock something over.'],
+    avoider:['(They smile back, relaxed.) Nice day for it.', 'Oh, hello. You\'re easy to be near today.', '(They take a step back from all that.) That\'s... a lot. Have a good one.'],
+    judge:['Pleased with yourself, are we.', 'Some of us have work to do.', 'Keep your voice down. Are you on something?'],
+    opportunist:['Happy people are generous people. Got a Mark for a friend?', 'Big day? Treat yourself. I\'ve got just the thing, cheap.', 'Look at you, flying. Nobody counts their change when they\'re flying.'],
+    mirror:['(They catch your grin and can\'t put it down.) Ha! Stop it. Stop it, you\'re making me do it.', 'Whatever you\'ve got, I\'ve got it now too.', '(They start laughing for no reason at all and can\'t stop.)'] },
+  HOPE:{ kind:['You\'ve got that look, like tomorrow owes you something good. What are you hoping for?', 'Keep hoping. One of us should.', 'I hope you get it. Whatever it is. I really do.'],
+    fixer:['Hope\'s good. Have a backup plan as well.', 'Turn it into steps. Hope with steps gets there.', 'Slow down. Don\'t sign anything while you\'re this keen.'],
+    avoider:['That\'s nice. Optimism. Nice.', '(They nod politely and change the subject to the weather.)', 'That\'s a big dream. Big dreams make me nervous. Good luck though.'],
+    judge:['Don\'t count your chickens.', 'Hope\'s cheap. Let\'s see what you do with it.', 'Stop daydreaming. Know your place.'],
+    opportunist:['A dreamer! I sell exactly what you\'re hoping for. Shortcut, cheap.', 'I could get you there faster. For a small fee.', 'Hope\'s the easiest thing in the world to sell back to someone.'],
+    mirror:['(Their face lifts.) You know what? Maybe it will work out.', 'Huh. Now I\'m hoping too.', '(They\'re suddenly full of plans and can\'t stand still.)'] },
+  CALM:{ kind:['Being near you is like sitting by a still pond. Thank you.', 'Sit a while. No reason.', 'You make the whole street slow down. I\'ll keep the noisy ones off you.'],
+    fixer:['You look steady. Good. I\'ve got a job that needs steady hands.', 'Calm\'s useful. Don\'t waste it.', 'Since nothing rattles you: here, deal with this lot for me.'],
+    avoider:['(They breathe out, relieved, and stay near you a while.)', 'You\'re very restful. I like standing here.', 'Ah. Quiet. Thank you.'],
+    judge:['Nothing gets to you, does it? Lazy, or cold?', 'Don\'t you have work to do?', 'Calm\'s fine until something\'s on fire. Then it\'s just not caring.'],
+    opportunist:['Too calm to make a fuss, I\'d bet.', 'You wouldn\'t notice if I... never mind.', 'Still waters. Easy to push.'],
+    mirror:['(Their shoulders come down an inch.) Oh. That\'s better.', '(They yawn, and then laugh at themselves.)', '(They go very quiet, and seem glad of it.)'] },
+  CONFIDENCE:{ kind:['You walk like you know where you\'re going. It helps the rest of us.', 'Somebody\'s got to lead. Might as well be you.', 'I believe you. Whatever it is. Just remember to rest.'],
+    fixer:['Good. Confident people get things done. Here\'s one.', 'Back it up with a plan.', 'Big talk. Write it down so you can check it later.'],
+    avoider:['(They feel a bit small next to you and drift off.)', 'You\'re very sure. I\'m not sure about anything.', '(They step out of your path without being asked.)'],
+    judge:['Pride comes before a fall.', 'Who the hell do you think you are?', 'Proud ones always fall the hardest.'],
+    opportunist:['A leader! You\'ll want the best gear. I\'ve got the best gear.', 'Let me carry your bag, boss. (Their hand is in it.)', 'Sure of yourself. I\'ll steer, you strut.'],
+    mirror:['(They straighten up.) Right. Yes. Right!', '(They square their shoulders to match yours.)', '(They start talking very loudly about their own plans.)'] },
+  SURPRISE:{ kind:['You keep looking round like the world just changed. Maybe it did. Want to talk about it?', 'Wide eyes like that. You must be new to all this.', 'Breathe. Nothing\'s going to leap out. I\'m right here.'],
+    fixer:['Startled? Here\'s what\'s what. Left is the inn, right is the road.', 'Write down what surprised you. Helps.', 'Sit down before you fall over.'],
+    avoider:['(They jump when you do, and decide to be elsewhere.)', 'You\'re very... jumpy.', '(They flinch at your flinch and hurry off.)'],
+    judge:['Make up your mind which way you\'re going.', 'Can\'t keep still, can you?', 'Pull yourself together.'],
+    opportunist:['BOO. Ha! Easy to rattle. I\'ll remember that.', 'Confused? I\'ll explain everything. For a fee.', 'Someone like you never sees the hand coming.'],
+    mirror:['(They look round too.) What? What is it?', '(Now they\'re wide-eyed as well.)', '(They gasp at nothing, then laugh.)'] },
+  SADNESS:{ kind:['Oh, love. You look like you\'re carrying a coffin on your back. Sit down a moment.', 'I know that face. I wore it for two years. It does lift. Slowly.', 'Come here. You don\'t have to say anything. I\'ll just stand here with you a minute.'],
+    fixer:['Chin up. Fresh air, hot food, early night. Works every time.', 'Keep busy. That\'s the trick. Here, I\'ve got an errand that\'ll take your mind off it.', 'Right. You need a plan. Step one, eat. I\'m serious. Step two, we\'ll see.'],
+    avoider:['Oh. Um. Sorry. I\'ve got to... (They gesture vaguely and go.)', 'Rough day? Hope it gets better. (They\'re already walking.)', '(They see your face, look away fast, and find somewhere else to be.)'],
+    judge:['Moping won\'t mend anything.', 'Everyone\'s got grief. Most of us keep it indoors.', 'Pull yourself together. People are looking.'],
+    opportunist:['Poor thing. You know what helps? A little something I sell. Very reasonable.', 'Grieving folk never haggle. Lovely.', 'You\'d hand over anything to anyone who was nice to you, wouldn\'t you? I\'m being nice.'],
+    mirror:['(Their eyes fill up too.) Oh, don\'t. You\'ll set me off.', '(They go quiet and sad, right along with you.)', '(They start crying before you do. Now neither of you can stop.)'] },
+  FEAR:{ kind:['You\'re shaking. Whatever it is, it\'s not here. You\'re safe here.', 'Stay close to the lamps tonight. I\'ll walk you to the gate if you like.', 'Hey. Hey. Look at me. Breathe with me. In. Out. I\'m not going anywhere.'],
+    fixer:['Scared? Then be prepared. Lamp, salts, a route out. Sorted.', 'Name it. Fear\'s smaller once it\'s got a name.', 'Right, here\'s what we\'re going to do. Sit. Water. Then a plan.'],
+    avoider:['(They glance around nervously and hurry off.)', 'I don\'t want any trouble. (They leave.)', '(Your fear jumps to them like a spark. They\'re gone before you can say anything.)'],
+    judge:['Scared of your own shadow.', 'Grow a spine.', 'Cowards get people killed out on the roads.'],
+    opportunist:['Frightened? I sell protection. Very reasonable rates.', 'Scared little rabbit. You\'d pay anything to feel safe, wouldn\'t you?', 'Nobody\'s safe round here without paying me. Nobody.'],
+    mirror:['(They look over their shoulder too.) What? What did you hear?', '(They\'re whispering now, same as you.)', '(They grab your sleeve, panicking with you.)'] },
+  SHAME:{ kind:['Look up. Go on. Nobody here is judging you.', 'Whatever you did, you\'re still allowed to walk down the street.', 'You don\'t have to apologise for being here. You really don\'t.'],
+    fixer:['Did something wrong? Then put it right. That\'s all there is to it.', 'Apologise, make amends, move on. In that order.', 'Sit down and tell me who you owe. We\'ll make a list.'],
+    avoider:['(They don\'t know where to look either. They pick the other direction.)', 'Oh. Um. Right. (Awkward silence. They leave.)', '(They go red on your behalf and flee.)'],
+    judge:['Guilty conscience? Good. You should have one.', 'Whatever it is, I\'m sure you deserve to feel it.', 'Everyone in town is going to hear about you.'],
+    opportunist:['I know that look. You\'d do anything to keep it quiet, wouldn\'t you?', 'Shame\'s a leash. I could lead you anywhere with it.', 'Secrets are expensive. Yours especially.'],
+    mirror:['(They stare at their shoes with you.)', '(They go pink, apologising for nothing.)', '(They start confessing something they did when they were nine.)'] },
+  ANGER:{ kind:['Easy. Easy. Whoever did it to you, it isn\'t me.', 'That fury will eat you from the inside. Put some of it down.', 'My brother carried Rage for ten years. Please don\'t end up like him.'],
+    fixer:['Angry? Go chop some wood. I\'ve got wood.', 'Use it. Fix whatever made you this cross.', 'Count to ten. Then count to ten again.'],
+    avoider:['(They back off fast.) No trouble. No trouble.', '(They cross the street.)', '(They leave so quickly they drop their shopping.)'],
+    judge:['Don\'t take it out on me. I just live here.', 'Temper like that belongs in a cell.', 'You want a fight? Try the guardhouse.'],
+    opportunist:['Here, take this and go away. Please.', 'Angry, are we? I know someone who pays for angry.', 'You look like you could break something. I\'ll pay you to break something.'],
+    mirror:['(They bristle.) What? What are you looking at?', '(They\'re furious now too, about something.)', '(They start shouting at a wall.)'] },
+  DISGUST:{ kind:['You look like the whole world smells bad. It doesn\'t, not all of it.', 'People are awful. Not all of them. Give us a chance.', 'Here, have something sweet. Take the taste away.'],
+    fixer:['Don\'t like it? Change it.', 'Wash your hands, eat something, you\'ll feel better.', 'Write a complaint. Very satisfying.'],
+    avoider:['(They feel your look and slink off.)', 'Sorry. Sorry for... existing. (They leave.)', '(They practically run.)'],
+    judge:['Bit superior, aren\'t you?', 'If you hate it here so much, keep walking.', 'Too good for us, are you?'],
+    opportunist:['I know your type. Nose in the air, purse in the hand.', 'For you, the premium price.', 'Let\'s see how you like the gutter.'],
+    mirror:['(They wrinkle their nose too.) Ugh. Yes. Ugh.', '(They look round at everything with disgust now.)', '(They spit, for no reason.)'] }
+};
+// When two feelings are nearly as loud as each other, some people notice the mix.
+const BLEND = {
+  'SADNESS+JOY':'Smiling and sad at the same time. That\'s the bravest face there is.', 'SADNESS+HOPE':'Sad, but you haven\'t given up. I can see it. Hold on to that bit.',
+  'SADNESS+CALM':'You\'re grieving quietly. That\'s allowed. Nobody here will hurry you.', 'SADNESS+ANGER':'Angry because it hurts. I know. The hurt\'s the real thing.',
+  'SADNESS+FEAR':'Sad and scared. That\'s a hard pair to carry. Put one of them down with me a minute.', 'SADNESS+SHAME':'You think it\'s your fault. It isn\'t always. Maybe not this time.',
+  'FEAR+HOPE':'Scared and hoping anyway. That\'s what courage actually is.', 'FEAR+CONFIDENCE':'Scared and doing it anyway. Good. That\'s the only way it ever gets done.',
+  'FEAR+ANGER':'You\'re scared, so you\'re fighting. I get it. You can stop fighting here.', 'FEAR+CALM':'You\'re frightened but you\'re keeping it together. I see you doing it.',
+  'FEAR+SHAME':'Scared someone will find out? Whatever it is, you\'re safe here.', 'SHAME+CONFIDENCE':'Head up, but you won\'t look at anyone. You\'re fighting yourself.',
+  'SHAME+JOY':'You\'re laughing like you don\'t think you\'re allowed to. You are.', 'SHAME+HOPE':'You want to do better. That\'s most of it, you know.',
+  'SHAME+SADNESS':'Sorry and sad. Go easy on yourself, eh?', 'SHAME+FEAR':'Scared of being seen. I see you. It\'s fine.',
+  'JOY+ANGER':'Happy and furious at once? You\'re a weather system.', 'HOPE+DISGUST':'You want better and you hate what\'s here. Fair, honestly.'
+};
+const famHas = (fam, list) => list.includes(fam);
+// The everyday reaction from an ordinary townsperson. Returns 'refuse' if they won't talk further.
+async function reactFolk(e, read, fam, sayE) {
+  const pt = personOf(e), intense = intenseFam(fam), deck = (REACT6[fam] || REACT6.CALM)[pt], line = intense ? deck[2] : deck[(S.steps + e.id.length) % 2];
+  await sayE(line);
+  const second = blendFam(fam), bl = second && BLEND[fam + '+' + second];
+  if (bl && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .6) await sayE(bl);
+  const key = S.map + ':' + e.id, hurt = read === 'hurt';
+  if (pt === 'kind' && hurt && Math.random() < .55) { const k = pickA(fam === 'FEAR' ? ['salts', 'cake', 'charm'] : ['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; return say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
+  if (pt === 'fixer' && hurt && Math.random() < .4) { const k = fam === 'FEAR' ? 'salts' : 'tonic'; S.items[k] = (S.items[k] || 0) + 1; return say(`(They hand you a ${ITEMS[k].name}. "There. Practical. Use it.")`); }
+  if (pt === 'avoider' && (intense || hurt || read === 'menace')) { GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
+  if (pt === 'judge' && (hurt || intense)) { await say(pickA(['(They turn their back on you.)', '(They walk off, shaking their head.)', '(They tut, and that\'s the end of the conversation.)'])); return 'refuse'; }
+  if (pt === 'opportunist' && famHas(fam, ['SADNESS', 'FEAR', 'SHAME', 'CALM', 'HOPE']) && (S.marks || 0) > 40 && Math.random() < (hurt || intense ? .75 : .45)) {
+    const amt = (intense ? 35 : 20) + Math.floor(Math.random() * 35);
+    const pitch = { SHAME:`want ${amt} Marks to keep quiet about you`, FEAR:`want ${amt} Marks for "protection"`, SADNESS:`ask for ${amt} Marks for a "charity for the bereaved" that doesn't exist`, HOPE:`ask for ${amt} Marks for a "sure thing" that is definitely a con`, CALM:`ask you to hold ${amt} Marks' worth of "change" for them` }[fam];
+    const c = await ask(`${e.name || 'They'} ${pitch}.`, ['Pay', 'Refuse']);
+    if (c === 0) { S.marks -= amt; return say(`You hand over ${amt} Marks. They grin, and are gone round the corner before you can blink.`); }
+    return say(hurt && auraPos().y === 'still' ? '(They laugh at you. "Suit yourself. Plenty more like you.")' : '(They size you up, decide you\'re not worth the bother, and walk away.)');
+  }
+  if (pt === 'opportunist' && fam === 'JOY' && (S.marks || 0) > 30 && Math.random() < (intense ? .6 : .3)) { const m = 10 + Math.floor(Math.random() * 20); S.marks -= m; return say(`(Later you notice ${m} Marks missing from your purse.)`); }
+  if (pt === 'opportunist' && famHas(fam, ['ANGER', 'CONFIDENCE']) && auraPos().y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); return say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
+  if (pt === 'mirror' && read === 'bright' && once('mirror:' + key)) { for (const m of S.party) m.hp = Math.min(maxHp(m), m.hp + Math.round(maxHp(m) * .15)); return say('(Their good mood bounces right back at you. Your Chorus perks up a little.)'); }
+}
+
+// ---------------------------------------------------------------- tender lines for set people
+const TENDER = {
+  // Vellum citizens
+  v_odette:{ SADNESS:'Odette: Oh, sweetheart. Come stand by me. I\'ll talk about nothing until it passes.', FEAR:'Odette: You\'re safe in Vellum. Nobody comes through the Archive gates without Wren knowing.', SHAME:'Odette: Whatever it is, the city\'s seen worse. The city\'s done worse.' },
+  v_hask:{ SADNESS:'Hask: ...Yeah. I know. (He doesn\'t say anything else. He stays, though.)', FEAR:'Hask: Scared of the roads? Good. Fear\'s kept me alive forty years. Go armed.', SHAME:'Hask: Chin up. I\'ve done worse than you. I\'m sure of it.' },
+  v_ida:{ SADNESS:'Ida: Are you sad? You can have my best stone. It\'s the smooth one. Don\'t lose it.', FEAR:'Ida: I get scared too. I count the arches. There\'s ten. Count them with me.', SHAME:'Ida: Did you get told off? I got told off. It goes away by teatime.' },
+  // city folk, two per city
+  city:{ JOY:['Larkhollow folk: Oh dear. Sad isn\'t allowed here, love, people will talk. Here, take a flower and smile until it sticks.', 'Larkhollow folk: (They look round, then whisper.) I cry in the bath. Everyone does. You don\'t have to hide it from me.'],
+    HOPE:['Trothaven folk: It\'ll get better. It always gets better. Keep going.', 'Trothaven folk: Somebody here sells little bottles of hope. Don\'t buy them. Just stay a night. It\'s free.'],
+    CALM:['Moonmoss folk: Sit by the pool. You don\'t have to fix it today.', 'Moonmoss folk: Breathe in for four. Out for six. I\'ll do it with you.'],
+    CONFIDENCE:['Highcrest folk: Rough patch? Everyone up here has had one. Ropes, rest, try again.', 'Highcrest folk: Don\'t let them see you wobble up here. They\'ll charge you double. Stand straight, I\'ll walk with you.'],
+    SHAME:['Veilham folk: You\'re one of us today. Here, take a veil, if you want one. No questions.', 'Veilham folk: We all carry something here. Yours is safe with us.'],
+    SURPRISE:['Caprice folk: Oh! You\'re sad! Oh. Sorry. Here, have this. I don\'t know what it is.', 'Caprice folk: Things change fast here. Feelings too. Wait an hour.'],
+    FEAR:['Quailmoor folk: You too? Come inside the circle of lamps. We look after each other.', 'Quailmoor folk: Don\'t buy the Choir\'s courage. It wears off, and then you owe them.'],
+    SADNESS:['Sorrowmere folk: You\'re one of us. Come under the eaves, out of the rain.', 'Sorrowmere folk: The bell rings for grief here, not just for death. It\'ll ring for you if you want.'],
+    DISGUST:['Spurnhold folk: Weak. They\'ll eat you alive here. ...Look, go to the inn by the gate. Tell them I sent you.', 'Spurnhold folk: Crying in Spurnhold? Bold. Keep your purse close, they\'ll smell it.'],
+    ANGER:['Emberwick folk: Sad? Here? Get angry instead, it\'s warmer. ...Sorry. Sit by the forge a minute.', 'Emberwick folk: Don\'t let them see you hurting. They go for the soft ones.'] },
+  way:'{name}: You look worn through. The road up to {city} is long. Rest here first.',
+  numbed:['...You hurt. I remember hurting. I\'d give anything to hurt.', '...You\'re heavy. Like rain. I used to like rain.'],
+  recovered:['I can feel things again. Including sorry for you. Sit with me a minute, {name}.', 'You look like I felt the day I woke up. It gets better. Then worse. Then better.'],
+  route:{ lark:'Lark: You look sad. My mum says sad people should smile. I think sad people should have cake. Here.', hollis:'Hollis: You\'re waiting for someone too, aren\'t you? Sit. The bench is long.', ferry:'Old Pell: Sit a spell. The water doesn\'t need anything from you.', carver:'Etta: I carve names. If there\'s a name you\'d like carved, I\'ll do it for nothing.',
+    ys:'Madame Ys: Your fortune: the heavy thing you carry is lighter than it was yesterday. I don\'t need cards for that one.', busker:'Sal: This one\'s for you. (She plays something slow and kind.)', hob:'Hob: Sorry. Sorry you\'re sad. Sorry. That one I mean.', widow:'Bettany: I know that look. Sit. I\'ll sharpen while you breathe.' }
+};
+function tenderCitizen(c, i, M) { const f = hurtFam();
+  if (c && c.id && TENDER[c.id]) return TENDER[c.id][f];
+  if (M && M.kind === 'city' && TENDER.city[M.vibe]) return TENDER.city[M.vibe][i]; return null; }
+// pick a line keyed bright / plain / dark (+ tender for a hurting aura), with a sensible fallback
+const vline = (o, alt) => { const v = vibeClass(); return (v === 'tender' ? (alt || o.tender) : o[v]) || o.plain; };
+
+// ---------------------------------------------------------------- Wren
+const WREN_TENDER = { SADNESS:['Wren: {name}. Come here. No, you don\'t have to explain. Sit with me a minute.', 'Wren: You\'ve been carrying a lot of sad things. That isn\'t weakness. It\'s just heavy. Rest here as long as you like.'],
+  FEAR:['Wren: You\'re safe in the Archive. Nothing comes in here that I don\'t let in. Breathe.', 'Wren: You\'ve gone so jumpy. That\'s the Fear you\'re carrying, love. It isn\'t the truth about the world.'],
+  SHAME:['Wren: Look at me. Whatever you think you\'ve done, I\'m still glad you came back.', 'Wren: Shame lies. It tells you you\'re the worst thing you did. You aren\'t.'] };
+
+// a line that may open with stage directions in brackets: say those as narration, the rest as speech
+async function sayMix(name, l) { const m = l.match(/^(\([^)]*\))\s*(.*)$/); if (!m) return sayAs(name, l); await say(m[1]); if (m[2]) await sayAs(name, m[2]); }
+
+// ---------------------------------------------------------------- Maribel
+async function maribelTender() {
+  const f = hurtFam();
+  const c0 = await ask({ SADNESS:'Maribel: Oh, {name}. Oh, love. Come here.', FEAR:'Maribel: {name}? You\'re white as flour. Come in, shut the door.', SHAME:'Maribel: {name}. Don\'t you hover in the doorway like that. In.' }[f], ['Talk', 'Buy something', 'Leave']);
+  if (c0 === 1) return openShop('bakery');
+  if (c0 !== 0) return;
+  await say({ SADNESS:'Maribel: Sit. You\'re having a honey cake whether you like it or not. Sad on an empty stomach is twice as sad.', FEAR:'Maribel: Nothing gets past my door that I don\'t let past it. Ask the rats. Sit there by the oven where it\'s warm.', SHAME:'Maribel: I don\'t want to know what it was. I want you to eat something. Then you can go and put it right, if it needs putting right.' }[f]);
+  if (once('maribelTender')) { S.items.cake = (S.items.cake || 0) + 2; await say('You received 2 Honey Cakes.'); }
+}
+
+// ---------------------------------------------------------------- Clover (from Heather)
+// Bookish, prickly, fiercely protective of her own. Hurting doesn't get the bat: it gets the good blanket.
+const CLOVER_TENDER = {
+  SADNESS:{ first:['(Clover looks up, sees your face, and closes her book on one finger.)', 'Oh. Oh, no. Okay. Couch. Blanket. No, not that one, the good blanket.',
+      '(She puts the kettle on without asking and hands you a battered paperback.) This one. The sad part\'s in the middle, not the end. I checked.'],
+    again:['You can just sit. I\'ll read out loud if you want. I do voices. They\'re bad.', 'Tea\'s in the pot. Biscuits are in the tin shaped like an owl. You\'re allowed the good biscuits today.', 'Sad nerds get the window seat. House rule.'] },
+  FEAR:{ first:['(Clover takes one look at you, gets up, and locks the door. Then she leans the bat beside it, facing out.)', 'There. Nobody\'s getting in here. I have a bat and a lot of very heavy hardbacks.',
+      'Sit down before you fall down, nerd. You\'re safe. I mean it.'],
+    again:['Door\'s locked. Bat\'s by the door. You\'re fine.', 'When I\'m scared I reread something I know the ending of. Here. You know how this one ends. Everyone lives.', 'Nothing in these woods gets past me. I\'ve checked. Twice.'] },
+  SHAME:{ first:['(Clover watches you hover by the door, not quite coming in.)', 'Oh, for goodness\' sake, come in. You look like a character who thinks they ruined everything in chapter nine.',
+      'Everyone good does something unforgivable around chapter nine. That\'s how you know they\'re the main character. Sit.'],
+    again:['I\'ve read worse. I\'ve read worse about saints.', 'You don\'t have to earn the couch. It\'s a couch.', 'Whatever it was, you came back. Villains don\'t come back to say sorry. Nerd.'] }
+};
+async function cloverTender() {
+  const c = CL(), f = hurtFam(), T = CLOVER_TENDER[f]; c.tender = c.tender || {};
+  if (!c.tender[f]) { c.tender[f] = 1; c.met = 1;
+    for (const l of T.first) await sayMix('Clover', l);
+    for (const m of S.party) m.hp = maxHp(m); await say('(You stay until the tea\'s gone. Your whole Chorus is rested.)'); }
+  else { c.line++; await sayAs('Clover', T.again[c.line % T.again.length]); }
+  if (!c.eat) { c.eat = 1; await sayAs('Clover', 'Here. Take this. It\'s a potato. No, listen: plant it somewhere, go and do something, and come back to it. Something good to come back to. That\'s the whole trick.');
+    S.items.potato = 1; await say('(Clover gives you a potato. It is lumpy and perfect. You can plant it from your Bag.)'); }
+}
+
+// ---------------------------------------------------------------- Ashlynn (from Ashley)
+// Quiet, slow with new people; has lost people, went away for four years, came back different. The water helps her, so she shares it.
+const ASHLYNN_TENDER = {
+  SADNESS:['(She looks at you a second longer than usual.) ...Yeah. I know that one.', 'Water helps. It doesn\'t fix it. It helps. Want to go out for a bit? We don\'t have to talk.'],
+  FEAR:['Hey. It\'s okay. It\'s calm today, I promise. Look how flat it is.', 'We\'ll stay close to shore. I\'ll be right next to you the whole time. Want to try?'],
+  SHAME:['I was gone four years. Came back different. People looked at me like they knew things.', 'Nobody out on the water cares who you were. Want to come out?']
+};
+async function ashlynnTender() {
+  const m = MR(), f = hurtFam(); m.met = 1;
+  for (const l of ASHLYNN_TENDER[f]) await sayMix('Ashlynn', l);
+  const c = await ask('Go out on the water with Ashlynn?', ['Yes', 'Not now'], { cancel:true });
+  if (c !== 0) return sayAs('Ashlynn', 'Okay. I\'ll be here. The water\'s not going anywhere.');
+  await kayakTrip(true);
+  await sayAs('Ashlynn', { SADNESS:'Better? A little? A little counts.', FEAR:'See? You did it. You were out past the rocks.', SHAME:'Same time tomorrow. If you want. No pressure.' }[f]);
+  if (!m.own) { m.own = 1; ENTC.t = 0; await sayAs('Ashlynn', 'Keep the spare. For days like this one. You don\'t have to wait for me.'); await say('(You got a kayak! It\'s on the beach by Ashlynn\'s. Take it out any time.)'); }
+}
+
+// ---------------------------------------------------------------- The Dragon's Table (Mary, Shannon, Blaine, Tony, Liam)
+// Good people at the core: a hurting guest gets pulled up a chair, not shown the door.
+const DND_TENDER = {
+  morwen:{ SADNESS:'You don\'t have to play. You can be the tavern NPC tonight. The tavern NPC just gets snacks and listens.', FEAR:'Nothing in this room rolls initiative unless I say so. And I\'m saying no.', SHAME:'Every single person at this table has done something truly stupid. Tam once arrested a door.' },
+  saffi:{ SADNESS:'Here, sit by me. Take the good chair. Lio, baby, get them a cookie.', FEAR:'Hey. Look at me. You\'re safe here. I\'ve got a bow and a very large tail.', SHAME:'Oh, honey. Whatever it is, it isn\'t the end of your story. I\'ve read your story. Well. I haven\'t. But I can tell.' },
+  brand:{ SADNESS:'Oath of Devotion, clause one: nobody sits sad at my table. Clause two: snacks.', FEAR:'I am literally on fire. Nothing is getting past me. Stand behind the fire guy.', SHAME:'I smote a door tonight. Twice. We\'re all just doing our best here.' },
+  tam:{ SADNESS:'I made a thing. It\'s a lamp. It doesn\'t do anything else, it\'s just warm. Here. Keep it.', FEAR:'Anyone bothering you? Give me a name. I\'m on duty. Sort of. I\'m always sort of on duty.', SHAME:'In the watch we\'ve got a saying: you\'re not what you did, you\'re what you do next.' },
+  lio:{ SADNESS:'(Lio climbs down and puts his d20 in your hand.) You can hold it. It\'s lucky. It only rolls ones for me, but it might work for you.', FEAR:'Dragons aren\'t scared of anything. I\'m part dragon. I\'ll stand here.', SHAME:'Mum says everybody does dumb stuff. I put a bean in my ear once. A big one.' }
+};
+async function dndTender(k) {
+  const n = DND_NAME[k], f = hurtFam(), l = DND_TENDER[k][f];
+  await sayMix(n, l);
+  if (k === 'tam' && f === 'SADNESS' && once('tamLamp')) { S.items.hearth = (S.items.hearth || 0) + 1; await say('(Tam gives you a little brass lamp. It is warm, and that is all it does. It counts as a Hearthstone.)'); }
+  if (k === 'saffi' && once('saffiCookie')) { S.items.cake = (S.items.cake || 0) + 1; await say('(Lio brings you a cookie, very carefully, with both hands. It counts as a Honey Cake.)'); }
+}
+async function dndTenderDoor() {
+  const f = hurtFam();
+  await sayAs('Morwen', { SADNESS:'Oh, hey. Hey. Come in. You look like you need a table.', FEAR:'Oh! Come in, come in, shut the door. You\'re okay. You\'re with nerds now. Nothing scary happens with nerds.', SHAME:'Hey, you. Don\'t lurk in the doorway. Get in here. There\'s a chair.' }[f]);
+}
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -7912,7 +8225,7 @@ async function checkEnd() {
     const start = B.foeModel.position.clone(); sfx('keep');
     await tween(800, k => { B.foeModel.position.lerpVectors(start, B.hero.position.clone().add(V3(0, 1, 0)), k); B.foeModel.scale.multiplyScalar(.985); });
     battleScene.remove(B.foeModel); banner(nm(B.foe), 'Kept');
-    const f = adopt(B.foe), before = tierOf();
+    const f = adopt(B.foe), before = auraName();
     f.hp = Math.ceil(maxHp(f) * .4); S.codex.kept[f.sp] = 1;
     if (S.party.length < 6) { S.party.push(f); await say(`${nm(f)} joins what you carry.`); }
     else { S.satchel.push(f); await say(`You're carrying six already. ${nm(f)} rests in your Satchel.`); }
@@ -8490,16 +8803,16 @@ function updateWorld(dt, t) {
   }
   updateParticles(dt, t, px, pz);
   // aura atmosphere
-  const tid = S.party.length ? tierOf() : 'neutral', tc = new THREE.Color(TIERC[tid]), dark = tid === 'shadowed' || tid === 'abyssal';
-  const strength = { radiant:1, warm:.6, neutral:0, shadowed:.7, abyssal:1 }[tid];
+  const tid = visTier(), tc = new THREE.Color(TIERC[tid]), dark = tid === 'shadowed' || tid === 'abyssal';
+  const strength = { radiant:1, warm:.6, neutral:0, shadowed:.7, abyssal:1, tender:.55 }[tid];
   if (W.lantern) W.lantern.position.set(px, py + 1.4, pz);
   W.light.position.set(px, py + 1, pz); W.light.color.copy(tc); W.light.intensity = (dark ? .6 : 2.2) * strength + auraPulse * 3;
   W.ring.position.set(px, py + .03, pz); W.ring.material.color.copy(dark ? new THREE.Color('#5a2a7a') : tc); W.ring.material.blending = dark ? THREE.NormalBlending : THREE.AdditiveBlending;
   W.ring.material.opacity = (.35 + .1 * Math.sin(t * 2)) * strength + auraPulse * .5; W.ring.scale.setScalar(1 + strength * .5 + auraPulse);
-  const tint = dark ? new THREE.Color(tid === 'abyssal' ? '#5a4868' : '#8a7a90') : tid === 'radiant' ? new THREE.Color('#fff0c0') : null;
+  const tint = dark ? new THREE.Color(tid === 'abyssal' ? '#5a4868' : '#8a7a90') : tid === 'radiant' ? new THREE.Color('#fff0c0') : tid === 'tender' ? new THREE.Color('#9aaac0') : null;
   const bg = W.baseSky.clone(); if (tint) bg.lerp(tint, tid === 'abyssal' ? .45 : .25);
   worldScene.background.lerp(bg, Math.min(1, dt * 2)); worldScene.fog.color.copy(worldScene.background);
-  W.motes.material.color.set(dark ? '#2e1840' : '#ffe08f'); W.motes.material.opacity = dark ? .75 : .95;
+  W.motes.material.color.set(dark ? '#2e1840' : tid === 'tender' ? '#c8daf0' : '#ffe08f'); W.motes.material.opacity = dark ? .75 : .95;
   const arr = W.motes.geometry.attributes.position.array;
   W.moteData.forEach((m, i) => {
     if (m.life <= 0) { if (strength > 0 && Math.random() < dt * 8 * strength) { m.life = 1; m.x = px + rnd(-.6, .6); m.y = py + rnd(.1, .7); m.z = pz + rnd(-.6, .6); m.vx = rnd(-.15, .15); m.vy = dark ? rnd(.1, .3) : rnd(.35, .7); } else { arr[i * 3 + 1] = -50; return; } }
