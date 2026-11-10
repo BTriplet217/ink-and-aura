@@ -7189,9 +7189,9 @@ function buildHobbit(h) {
 }
 
 // ---------------------------------------------------------------- CLOVER
-// Heather: half-hobbit, half-elf druid. Wild red curls, pointed ears, freckles, moss-green dress and cloak with a fur collar, bare feet.
+// Heather: half-hobbit, half-elf druid, small and fit. Wild red curls, pointed ears, freckles, moss-green dress and cloak with a fur collar, bare feet.
 const CLOVER_LOOK = { coat:'#545c34', sleeve:'#4a5230', skirt:'#545c34', legs:'#6a4a2c', boot:'#e2b08e', skin:'#f0c2a0', hair:'#b8401c', brow:'#9a3a18', hairStyle:'curlylong',
-  build:'heavy', accent:'#a89a7a', accent2:'#3e4a2a', sash:'#6a4a2a', gear:['ears', 'cape', 'satchel'] };
+  build:'slim', accent:'#a89a7a', accent2:'#3e4a2a', sash:'#6a4a2a', gear:['ears', 'cape', 'satchel'] };
 const CLOVER_ROOM = 'r_pinewind_in0';
 let CL_POS = null;          // [x, y, dir] while she's up off the couch
 const CL = () => (S.flags.clover = S.flags.clover || { met:0, sour:0, beat:0, line:0, eat:0 });
@@ -7281,11 +7281,10 @@ const showEnt = (ids, v) => { for (const id of ids) if (W.npcs[id]) W.npcs[id].v
 async function ashlynnLeave() {
   await say('(Ashlynn picks her kayak up like it weighs nothing, walks it into the shallows, and slides in.)');
   showEnt(['ashlynn', 'ashlynn_kayak'], false);
-  const mg = ashlynnBoat(); mg.position.set(ASHLYNN_KAYAK[0], WATER_Y(), ASHLYNN_KAYAK[1] - .2); mg.rotation.y = Math.PI; world.add(mg);
-  await tween(1100, k => { mg.position.z = ASHLYNN_KAYAK[1] - .2 - 1.8 * k; animBoat(mg, performance.now() / 1000); });
-  await tween(500, k => { mg.rotation.y = Math.PI - k * Math.PI / 2; animBoat(mg, performance.now() / 1000); });
-  const x0 = mg.position.x, z0 = mg.position.z;
-  await tween(4200, k => { mg.position.x = x0 - 30 * k; mg.position.z = z0 - 2.4 * k; animBoat(mg, performance.now() / 1000); });
+  const mg = ashlynnBoat(); mg.position.set(ASHLYNN_KAYAK[0], WATER_Y(), ASHLYNN_KAYAK[1] - .2); mg.rotation.y = Math.PI; world.add(mg);   // bow to the sea
+  const x0 = mg.position.x, z0 = mg.position.z, path = k => { const d = Math.pow(k, 1.4); return [x0 - 12 * d * d, z0 - 1 - 44 * d]; };      // a slow push off, then steady strokes out and away, bearing a little west, into the haze
+  await tween(16000, k => { const [x, z] = path(k), [x2, z2] = path(Math.min(1, k + .01)); mg.position.set(x, WATER_Y() + Math.sin(performance.now() / 400) * .03, z);
+    mg.rotation.y = Math.atan2(x2 - x, z2 - z); animBoat(mg, performance.now() / 1000); });
   world.remove(mg); ASHLYNN_AWAY = MAP_VISIT; ENTC.t = 0;
 }
 async function ashlynnPaddle() {
@@ -7298,25 +7297,61 @@ async function ashlynnPaddle() {
   await sayAs('Ashlynn', 'Stay off the water today.');
   delete npcFace.ashlynn; return ashlynnLeave();
 }
+// ---- kayaking: you steer. Joystick / stick / arrows paddle in any direction across the bay and out to open sea;
+// B (or Menu) heads back to the beach. Ashlynn, if she's with you, keeps pace alongside. Message bottles drift out there.
+const BOTTLES = [[22, -9, 'A child\'s drawing of a whale, signed "Pip, age 6". On the back: "if you find this you are my best friend now".', 40],
+  [-6, 3, 'A love letter, very wet, mostly illegible. The last line survived: "...and I would row the whole sea for you."', 60],
+  [41, -21, 'A map of the bay with an X. Under the X, in tiny writing: "the X is the bottle. you found it. well done."', 80],
+  [8, -34, 'Lighthouse keeper\'s note, decades old: "Lamp lit at dusk. Sea calm. Someone out there paddling. Kept the light on for them."', 120]];
+const isSea = (x, z) => { if (z < -70 || z > 6 || x < -60 || x > 110) return false; const M = MAPS.saltmere, tx = Math.round(x), tz = Math.round(z);
+  if (tz < 0 || tx < 0 || tx >= M.w) return tz < 0 || tz <= 12 && tx < 0; const c = (M.tiles[tz] || [])[tx]; return c === '~'; };
+function openSea() {          // the bay doesn't end at the map's edge: open water to the north and west, fading into the distance
+  const mat = new THREE.MeshToonMaterial({ color:'#5f8eb4', gradientMap:gradTex, emissive:new THREE.Color('#9cc6e0'), emissiveIntensity:.12 });   // opaque: nothing under it, so it would look washed out
+  if (W.water) W.water.material = mat;                      // one colour for the shallows and the open sea, no seam
+  for (const [w, h, x, z] of [[220, 120, 26, -60.5], [80, 14, -40.5, 6.5]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), mat); m.position.set(x, BASE - .145, z); world.add(m); }
+  W.bottles = []; const got = S.flags.bottles || {};
+  BOTTLES.forEach(([x, z], i) => { if (got[i]) return; const g = new THREE.Group(); sCyl(g, .07, .09, .3, '#5a9a6a', 0, .05, 0, [0, 0, 1.2]); sBox(g, .06, .06, .06, '#a07a44', .19, .12, 0, { ink:0 });
+    const gl = glow('#fff1b0', .5, .7); gl.position.set(0, .2, 0); g.add(gl); g.position.set(x, BASE - .14, z); g.userData.i = i; world.add(g); W.bottles.push(g); });
+}
+{ const base = buildWorld; buildWorld = function (id) { base(id); if (id === 'saltmere') openSea(); }; }
+const nextFrame = () => new Promise(r => requestAnimationFrame(r));
 async function kayakTrip(withAshlynn) {
   const P = W.player, u = P.userData, m = MR(), x0 = S.x, y0 = S.y, d0 = S.dir, arms0 = u.arms.map(a => a.rotation.clone());
   await fadeTo(1, 500);
   const myK = SET.kayak({ c:'#2f8ab0' }); P.add(myK); const oar = HELD.paddle({ shaftC:'#3a3430', bladeC:'#2f8ab0' }); oar.rotation.set(0, 0, Math.PI / 2); oar.position.set(0, .34, .22); P.add(oar); u.oar = oar;
-  showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], false);
-  let mg = null; if (withAshlynn) { mg = ashlynnBoat(); mg.rotation.y = -Math.PI / 2; mg.position.set(32, WATER_Y(), 1.7); world.add(mg); }
-  RIDE_Y = WATER_Y(); u.sitP = true; S.x = 31; S.y = 3; S.dir = 'left';
-  await fadeTo(0, 500);
-  const leg = async (ms, xa, xb, lineAt) => { await tween(ms, k => { const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2, t = performance.now() / 1000;
-    S.x = xa + (xb - xa) * e; S.y = 3 + Math.sin(k * 5) * .22; RIDE_Y = WATER_Y() + Math.sin(t * 2.2) * .025;
-    if (mg) { mg.position.x = xa + (xb - xa) * e + (xb < xa ? -.9 : .9); mg.position.z = 1.8 + Math.sin(k * 4 + 1) * .2; mg.position.y = WATER_Y() + Math.sin(t * 2.2 + 1) * .025; animBoat(mg, t); } }); };
-  await leg(4600, 31, 17);
-  if (mg) { await sayAs('Ashlynn', m.trips ? pickA(['See that? A seal, maybe. Or a log. I like not knowing.', 'Listen. That\'s it. That\'s the whole thing I come out here for.', 'Race you back. I won\'t race. But you could.']) : 'This is the best part. Out here nobody needs anything from you. You just get to float.'); }
-  else await say(pickA(['(The city goes quiet behind you. Just the drip off the paddle, and gulls a long way off.)', '(The lighthouse turns its slow eye over the water. You let the kayak drift for a while.)', '(Something silver turns under the kayak and is gone.)']));
-  S.dir = 'right'; if (mg) mg.rotation.y = Math.PI / 2;
-  await leg(4000, 17, 31);
+  showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], false); for (const g of W.minis) g.visible = false;
+  let mg = null; if (withAshlynn) { mg = ashlynnBoat(); mg.position.set(33.6, WATER_Y(), 2.0); mg.rotation.y = Math.PI; world.add(mg); }
+  let px = 31, pz = 3.2, yaw = Math.PI, sp = 0, quit = false, said = 0, t0 = performance.now(), last = t0;
+  RIDE_Y = WATER_Y(); u.sitP = true; S.x = px; S.y = pz; mv.yaw = yaw; S.dir = 'up';
+  const prevSel = selectHandler; const sel = b => { if (UI.dlg || UI.cho) { selectHandler = null; press(b); selectHandler = sel; return; } if (b === 'b' || b === 'menu') quit = true; }; selectHandler = sel;
+  await fadeTo(0, 500); toast('Paddle anywhere', 'B: back to the beach');
+  if (mg) await sayAs('Ashlynn', m.trips ? 'Lead the way. I\'ll keep up.' : 'You steer. Anywhere you like. I\'ll stay close.');
+  while (!quit) {
+    await nextFrame(); const now = performance.now(), dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
+    if (UI.dlg) continue;
+    const v = moveVector(); let want = 0;
+    if (v) { const th = -camYaw, x = v[0], z = -v[1], wx = x * Math.cos(th) - z * Math.sin(th), wz = x * Math.sin(th) + z * Math.cos(th);
+      const tgt = Math.atan2(wx, wz); let d = Math.atan2(Math.sin(tgt - yaw), Math.cos(tgt - yaw)); yaw += d * Math.min(1, dt * 3.2); want = Math.min(1, Math.hypot(v[0], v[1])) * 2.8; }
+    sp += (want - sp) * Math.min(1, dt * (want > sp ? 1.6 : 1.1));
+    const nx = px + Math.sin(yaw) * sp * dt, nz = pz + Math.cos(yaw) * sp * dt;
+    if (isSea(nx, nz)) { px = nx; pz = nz; } else { sp *= .3; if (pz > 3.4 && nz > pz && px > 12 && px < 51) { quit = true; break; } }   // nudging into the beach lands you
+    S.x = px; S.y = pz; mv.yaw = yaw; RIDE_Y = WATER_Y() + Math.sin(t * 2.2) * .025;
+    S.dir = Math.abs(Math.sin(yaw)) > Math.abs(Math.cos(yaw)) ? (Math.sin(yaw) > 0 ? 'right' : 'left') : (Math.cos(yaw) > 0 ? 'down' : 'up');
+    if (u.oar) u.oar.visible = true;
+    if (mg) { const bx = px + Math.sin(yaw + 2.0) * 2.4, bz = pz + Math.cos(yaw + 2.0) * 2.4, dx = bx - mg.position.x, dz = bz - mg.position.z, dd = Math.hypot(dx, dz);   // she keeps pace off your left shoulder
+      if (dd > .05) { const s2 = Math.min(dd * 1.8, 3.2) * dt; const nx2 = mg.position.x + dx / dd * s2, nz2 = mg.position.z + dz / dd * s2; if (isSea(nx2, nz2)) { mg.position.x = nx2; mg.position.z = nz2; } }
+      { const ax = mg.position.x - px, az = mg.position.z - pz, ad = Math.hypot(ax, az); if (ad < 2.1 && ad > .01) { const k = (2.1 - ad) * Math.min(1, dt * 6); if (isSea(mg.position.x + ax / ad * k, mg.position.z + az / ad * k)) { mg.position.x += ax / ad * k; mg.position.z += az / ad * k; } } }   // never in your lap
+      let dy = (dd > .3 ? Math.atan2(dx, dz) : yaw) - mg.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); mg.rotation.y += dy * Math.min(1, dt * 3); mg.position.y = WATER_Y() + Math.sin(t * 2.2 + 1) * .025; animBoat(mg, t);
+      if (!said && now - t0 > 14000 && pz < -6) { said = 1; await sayAs('Ashlynn', pickA(['This is the best part. Out here nobody needs anything from you.', 'See that? A seal, maybe. Or a log. I like not knowing.', 'Listen. That\'s it. That\'s the whole thing I come out here for.'])); last = performance.now(); } }
+    for (const b of W.bottles || []) { if (!b.parent) continue; b.position.y = BASE - .14 + Math.sin(t * 2 + b.userData.i) * .04; b.rotation.y += dt * .6;
+      if (Math.hypot(b.position.x - px, b.position.z - pz) < 1.1) { const [, , text, marks] = BOTTLES[b.userData.i]; world.remove(b); (S.flags.bottles = S.flags.bottles || {})[b.userData.i] = 1; S.marks = (S.marks || 0) + marks; sfx('keep');
+        await say(`You fish a bottle out of the water. Inside: ${text} (Tucked in with it: ${marks} Marks.)`); const left = BOTTLES.length - Object.keys(S.flags.bottles).length;
+        await say(left ? `(${left} more bottle${left > 1 ? 's' : ''} somewhere out on the water.)` : '(That was the last bottle in the bay.)'); last = performance.now(); } }
+  }
+  selectHandler = prevSel;
   await fadeTo(1, 500);
-  P.remove(myK); P.remove(oar); u.oar = null; u.sitP = false; u.arms.forEach((a, i) => a.rotation.copy(arms0[i])); u.inner.position.y = 0; RIDE_Y = null;
-  if (mg) world.remove(mg); showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], true);
+  P.remove(myK); P.remove(oar); u.oar = null; u.sitP = false; u.arms.forEach((a, i) => a.rotation.copy(arms0[i])); u.inner.position.y = 0; RIDE_Y = null; mv.yaw = null;
+  if (mg) world.remove(mg); showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], true); for (const g of W.minis) g.visible = true;
   S.x = x0; S.y = y0; S.dir = d0; m.trips++; await fadeTo(0, 500);
 }
 async function ashlynnTalk() {
