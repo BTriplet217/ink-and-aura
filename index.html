@@ -1628,6 +1628,8 @@ function animPerson(g, moving, t, dt) {
   for (const [i, h] of u.legs.entries()) h.userData.knee.rotation.x = Math.max(0, (i ? -s : s)) * .5;
   if (u.grab && u.arms) { for (const a of u.arms) a.rotation.x += (-1.25 - a.rotation.x) * .3; return; }
   if (u.pose === 'idle' && u.arms) { const sway = Math.sin(t * 1.3 + u.ph) * .03; u.arms[0].rotation.x = moving ? -s * .45 : sway; u.arms[1].rotation.x = moving ? s * .45 : -sway; }
+  if (u.fists && u.arms && !moving) { const j = Math.sin(t * 7 + u.ph) * .08; for (const [i, a] of u.arms.entries()) { a.rotation.x = -.55 + (i ? j : -j); a.rotation.z = (i ? 1 : -1) * .25; a.userData.el.rotation.x = -1.5; } }   // fists up, bouncing
+  else if (u.slump && u.arms) { for (const a of u.arms) { a.rotation.x = .05; a.userData.el.rotation.x = 0; } }                                         // arms just hanging
 }
 
 // ---------------------------------------------------------------- manifs -----
@@ -3937,11 +3939,15 @@ function buildWorld(id) {
   W.ring = new THREE.Mesh(new THREE.CircleGeometry(.9, 24), new THREE.MeshBasicMaterial({ map:glowTex, color:'#ffd98a', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending }));
   W.ring.rotation.x = -Math.PI / 2; world.add(W.ring);
   W.motes = makePoints(40, .09); W.moteData = Array.from({ length:40 }, () => ({ life:0 })); world.add(W.motes);
-  const count = V.parts === 'rain' ? 240 : V.parts === 'motes' ? 70 : 160;
-  W.parts = makePoints(count, V.parts === 'rain' ? .11 : .16, true); W.parts.material.opacity = V.parts === 'rain' ? .5 : .75;
-  W.partData = Array.from({ length:count }, () => ({ life:-1 })); W.partKind = V.parts; W.partC = V.partC.map(c => new THREE.Color(c));
+  // Weather follows the feeling: the Sadness lands are always raining hard; the Anger lands rain ash and embers.
+  const fam = M.kind === 'inside' || M.kind === 'still' ? null : M.vibe, kind0 = fam === 'SADNESS' ? 'rain' : fam === 'ANGER' ? 'embers' : V.parts;
+  const count = fam === 'SADNESS' ? 620 : fam === 'ANGER' ? 280 : kind0 === 'rain' ? 240 : kind0 === 'motes' ? 70 : 160;
+  const cols0 = fam === 'SADNESS' ? ['#b8cce8', '#9ab4d8', '#c8d8ee'] : fam === 'ANGER' ? ['#ff7a3a', '#ffb050', '#ff5a2a'] : V.partC;
+  W.parts = makePoints(count, kind0 === 'rain' ? .11 : .16, true); W.parts.material.opacity = kind0 === 'rain' ? .5 : .75;
+  W.partData = Array.from({ length:count }, () => ({ life:-1 })); W.partKind = kind0; W.partC = cols0.map(c => new THREE.Color(c));
   // (no additive blending: it made embers flare and blink)
   world.add(W.parts);
+  W.parts2 = null; if (fam === 'ANGER') { const n = 300; W.parts2 = { P:makePoints(n, .13, true), data:Array.from({ length:n }, () => ({ life:-1 })), kind:'ash', C:['#6a6460', '#8a847e', '#4a4440', '#a09a92'].map(c => new THREE.Color(c)) }; world.add(W.parts2.P); }
   rebuildMinis();
   W.wilds = []; for (let k = 0; k < (M.kind === 'city' ? 7 : 5); k++) spawnWild();
   worldLights.sun.position.set((M.w - 1) / 2 - 8, 16, (M.h - 1) / 2 + 9); worldLights.sun.target.position.set((M.w - 1) / 2, 0, (M.h - 1) / 2);
@@ -3975,12 +3981,19 @@ function removeWild(w) { world.remove(w.g); W.wilds.splice(W.wilds.indexOf(w), 1
 
 // ---------------------------------------------------------------- particles --
 function updateParticles(dt, t, px, pz) {
-  const P = W.parts; if (!P) return;
-  const pos = P.geometry.attributes.position.array, cols = P.geometry.attributes.color.array, kind = W.partKind, R = 12;
-  for (let i = 0; i < W.partData.length; i++) {
-    const p = W.partData[i];
+  if (!W.parts) return;
+  stepParts(W.parts, W.partData, W.partKind, W.partC, dt, t, px, pz);
+  if (W.parts2) stepParts(W.parts2.P, W.parts2.data, W.parts2.kind, W.parts2.C, dt, t, px, pz);
+  const M = MAPS[S.map];
+  for (const f of W.fog) { f.position.x += f.userData.v * dt; if (f.position.x > M.w + 3) f.position.x = -3; if (f.position.x < -3) f.position.x = M.w + 3; }
+  if (W.water) W.water.position.y = BASE - .14 + Math.sin(t * 1.2) * .012;
+}
+function stepParts(P, data, kind, partC, dt, t, px, pz) {
+  const pos = P.geometry.attributes.position.array, cols = P.geometry.attributes.color.array, R = 12;
+  for (let i = 0; i < data.length; i++) {
+    const p = data[i];
     if (p.life <= 0) {
-      p.life = rnd(.6, 1); p.x = px + rnd(-R, R); p.z = pz + rnd(-R * .8, R * .6); p.c = pickA(W.partC);
+      p.life = rnd(.6, 1); p.x = px + rnd(-R, R); p.z = pz + rnd(-R * .8, R * .6); p.c = pickA(partC);
       const gy = groundY(p.x, p.z);
       switch (kind) {
         case 'rain':    p.y = gy + rnd(3, 7); p.vy = -rnd(3.6, 4.4); p.vx = -.3; p.life = 1; p.top = p.y; break;
@@ -3990,6 +4003,7 @@ function updateParticles(dt, t, px, pz) {
         case 'wisps':   p.y = gy + rnd(.1, 1.1); p.vy = rnd(-.05, .05); p.vx = rnd(-.4, .4); break;
         case 'fireflies': p.y = gy + rnd(.1, 1.5); p.vy = 0; p.vx = 0; p.ph = rnd(0, 6); break;
         case 'sparks':  p.y = gy + rnd(.1, 2.2); p.vy = rnd(.05, .15); p.vx = rnd(-.1, .1); break;
+        case 'ash':     p.y = gy + rnd(1.5, 6); p.vy = -rnd(.18, .38); p.vx = rnd(.05, .25); p.ph = rnd(0, 6); break;
         default:        p.y = gy + rnd(0, 1.7); p.vy = rnd(.1, .3); p.vx = rnd(-.1, .1);
       }
       p.floor = gy;
@@ -3999,6 +4013,7 @@ function updateParticles(dt, t, px, pz) {
     if (kind === 'rain' && p.y < p.floor) p.life = 0;
     if (kind === 'fireflies') { p.x += Math.sin(t * .7 + p.ph) * dt * .3; p.y += Math.cos(t * .9 + p.ph) * dt * .2; }
     if (kind === 'embers') p.x += Math.sin(t * 3 + p.ph) * dt * .3;
+    if (kind === 'ash') { p.x += Math.sin(t * 1.1 + p.ph) * dt * .45; p.z += Math.cos(t * .8 + p.ph) * dt * .25; p.life += dt * .1; if (p.y < p.floor) p.life = 0; }
     pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
     // Every particle fades in and out smoothly; nothing blinks or pops (seizure-safe).
     const env = Math.min(1, p.life * 3, (1 - p.life) * 4 + .05);
@@ -4008,10 +4023,7 @@ function updateParticles(dt, t, px, pz) {
     cols[i * 3] = p.c.r * b; cols[i * 3 + 1] = p.c.g * b; cols[i * 3 + 2] = p.c.b * b;
   }
   P.geometry.attributes.position.needsUpdate = true; P.geometry.attributes.color.needsUpdate = true;
-  P.material.opacity = kind === 'wisps' ? .7 : kind === 'rain' ? .65 : .95;
-  const M = MAPS[S.map];
-  for (const f of W.fog) { f.position.x += f.userData.v * dt; if (f.position.x > M.w + 3) f.position.x = -3; if (f.position.x < -3) f.position.x = M.w + 3; }
-  if (W.water) W.water.position.y = BASE - .14 + Math.sin(t * 1.2) * .012;
+  P.material.opacity = kind === 'wisps' ? .7 : kind === 'rain' ? .65 : kind === 'ash' ? .85 : .95;
 }
 
 // ---------------------------------------------------------------- camera -----
@@ -4350,7 +4362,7 @@ async function controllerMenu() {
 //  WORLD LOGIC — entities, movement, NPCs, menus
 // =============================================================================
 let RUN = false;
-function setRun(on) { if (RUN === !!on) return; RUN = !!on; document.body.classList.toggle('running', RUN); if (scene === 'world') toast(RUN ? 'Running' : 'Walking', 'Tap B to switch'); }
+function setRun(on) { if (RUN === !!on) return; RUN = !!on; document.body.classList.toggle('running', RUN); }
 const mv = { active:false, fx:0, fy:0, t:0, diag:false, yaw:null };
 const npcFace = {};
 const LOOKS = {
@@ -5006,6 +5018,15 @@ function mapMood(map) {
   if (P.kind === 'way') return S.hearts[P.vibe] ? 'hopeful' : 'calm';
   return 'calm';
 }
+// The feeling a place is steeped in, if its Heart is still restless: inside a house you feel the street outside.
+function moodFamily(map) { const M = MAPS[map]; if (!M) return null; const P = M.kind === 'inside' && M.route ? MAPS[M.route] || M : M; const f = P.vibe; return f && !(S.hearts && S.hearts[f]) && P.kind !== 'still' ? f : null; }
+async function angryShove(e) {
+  const g = W.npcs[e.id]; npcFace[e.id] = OPPD[S.dir] || 'down'; sfx('bighit'); MOOD.shake = Math.max(MOOD.shake, .25);
+  const dx = Math.sign(S.x - e.x), dy = Math.sign(S.y - e.y), nx = S.x + dx, ny = S.y + dy;
+  if (walkable(nx, ny)) { const x0 = S.x, y0 = S.y; await tween(220, k => { S.x = x0 + dx * k; S.y = y0 + dy * k; }); S.x = nx; S.y = ny; }
+  await say((e.name ? e.name + ': ' : '') + pickA(['Watch where you\'re going!', 'Back OFF. I\'m not in the mood.', 'You looking at me? Keep walking.', 'Move! Some of us have places to be!', 'Get out of my way before I make you.']));
+  delete npcFace[e.id];
+}
 const fierceDark = () => S.party.find(m => tierOfSp(m.sp) >= 2 && DARK_FAMS.includes(typeOf(m)));
 // A fierce dark-family Manif only frightens people when your aura isn't warm. With a warm aura they notice it, and that's all.
 const playerThreat = () => !!fierceDark() && auraSide() !== 'light';
@@ -5039,14 +5060,14 @@ function tryStep(map, e, list, away, from) {
 }
 function tickMood(dt, t) {
   if (!world || !MAPS[S.map]) return;
-  if (MOOD.map !== S.map) { MOOD.map = S.map; MOOD.flee = {}; MOOD.greeted = {}; MOOD.tremorT = 0; MOOD.nextTremor = 6 + Math.random() * 8; }
+  if (MOOD.map !== S.map) { MOOD.map = S.map; MOOD.flee = {}; MOOD.greeted = {}; MOOD.shoved = {}; MOOD.vented = {}; MOOD.tremorT = 0; MOOD.nextTremor = 6 + Math.random() * 8; }
   const mood = mapMood(S.map), roam = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list;
   // tremors where something is wrong
   if ((mood === 'uneasy' || mood === 'dread') && roam) { MOOD.nextTremor -= dt;
     if (MOOD.nextTremor <= 0) { MOOD.tremorT = mood === 'dread' ? 7 : 5.5; MOOD.shake = mood === 'dread' ? 1.4 : 1; MOOD.nextTremor = mood === 'dread' ? 14 + Math.random() * 10 : 24 + Math.random() * 18;
       sfx('nerve'); padRumble(600, mood === 'dread' ? .9 : .55); toast(mood === 'dread' ? 'The ground shudders. The floor of the Archive has split open; the way down is inside.' : `A tremor rolls out from the shrine. The Heart of ${TOWNS[MAPS[MAPS[S.map].kind === 'inside' ? MAPS[S.map].route : S.map].vibe].name} is restless.`); } }
   MOOD.tremorT = Math.max(0, MOOD.tremorT - dt); MOOD.shake = Math.max(0, MOOD.shake - dt * .45);
-  const list = ents(S.map), threat = playerThreat(), tp = threatPoint(S.map);
+  const list = ents(S.map), threat = playerThreat(), tp = threatPoint(S.map), fam = moodFamily(S.map);
   // who is frightened right now
   const scaredOf = e => { if (!isFolk(e)) return null; if (MOOD.tremorT > 0) return tp; if (threat && Math.hypot(e.x - S.x, e.y - S.y) <= 3.2) return [S.x, S.y]; return null; };
   MOOD.tick -= dt; const step = MOOD.tick <= 0; if (step) MOOD.tick = .42;
@@ -5058,6 +5079,14 @@ function tickMood(dt, t) {
     MOOD.calmT[e.id] = (MOOD.calmT[e.id] || 0) + dt;
     if (step && MOOD.flee[S.map + ':' + e.id] && MOOD.calmT[e.id] > 2.2) tryStep(S.map, e, list, false);
     if (!isFolk(e)) { setEmote(g, null, false); continue; }
+    // Feelings show in bodies. In the Sadness lands people hang their heads or sit on the ground hugging their knees;
+    // in the Anger lands they stand chest-out with fists up, and some will shove you if you brush past.
+    if (fam === 'SADNESS' && !isChild(e)) { const u = g.userData;
+      if (u.sad == null) { u.sad = hsh(e.x * 3 + e.y, e.y, 7) < .3 && !MOOD.flee[S.map + ':' + e.id] ? 'sit' : 'slump'; if (u.sad === 'sit' && !e.walk) u.sit = true; u.slump = true; }
+      if (!u.sit) { inner.rotation.x += (.32 - inner.rotation.x) * .1; } setEmote(g, '…', ph < .45); continue; }
+    if (fam === 'ANGER' && !isChild(e)) { const u = g.userData; u.fists = true; inner.rotation.x += (-.1 - inner.rotation.x) * .1; setEmote(g, '!', ph < .3);
+      if (step && roam && canRun(e) && !(MOOD.shoved = MOOD.shoved || {})[e.id] && Math.abs(e.x - S.x) + Math.abs(e.y - S.y) === 1 && Math.random() < .25) { MOOD.shoved[e.id] = 1; runScript(() => angryShove(e)); }
+      continue; }
     const happy = mood === 'relieved' || mood === 'joyful' || mood === 'hopeful', pop = ph < (happy ? .9 : .6);
     if (happy) { setEmote(g, mood === 'joyful' ? '♥' : '♪', pop); if (pop) inner.position.y = Math.abs(Math.sin(t * 9)) * .09; }
     else if (mood === 'uneasy' || mood === 'dread') { setEmote(g, '…', pop && ph > .1); inner.rotation.z = Math.sin(t * 1.3 + e.x) * .03; }
@@ -5073,7 +5102,10 @@ async function moodPreTalk(e) {
   if (playerThreat() && canRun(e)) { const m = S.party.find(x => tierOfSp(x.sp) >= 2 && DARK_FAMS.includes(typeOf(x)));
     await sayE(pickA([`(They flinch away from your ${nm(m)}.) Stay back! Please. I haven't done anything.`, `Don't come any closer with that thing. I mean it.`, `(They won't meet your eyes. Their voice shakes.) Whatever that ${nm(m)} wants, I don't have it.`])); return 'refuse'; }
   if (MOOD.tremorT > 0) { await sayE(mood === 'dread' ? pickA(['Did you feel that?! It\'s under the Archive. Under all of us.', 'Everyone\'s staying close to home. You should too, {name}.']) : pickA(['Did you feel that?! The Heart\'s getting worse every day.', 'Get inside! It always comes in twos!', '(They grab your sleeve.) Was that the shrine? Was that the shrine again?'])); return; }
-  const key = e.id;
+  const key = e.id, famT = moodFamily(S.map);
+  if (famT && isFolk(e) && !isChild(e) && !(MOOD.vented = MOOD.vented || {})[key]) { MOOD.vented[key] = 1;
+    if (famT === 'SADNESS') { await sayE(pickA(['(They don\'t look up.) Oh. Hi. Sorry. I don\'t really... I don\'t have much to say today. Or most days.', '(A long breath.) Everything takes so long now. Getting up. Getting dressed. Talking. Sorry.', 'I keep thinking it\'ll lift. It doesn\'t lift.', '(They\'re crying, quietly, and don\'t seem to notice.) What did you need?', 'It\'s raining again. It\'s always raining. I stopped carrying an umbrella. What\'s the point.'])); return; }
+    if (famT === 'ANGER') { await sayE(pickA(['WHAT. What do you want?', 'Make it quick. I\'ve had it up to here with everyone today.', '(They jab a finger at your chest.) You\'re not from here. I can tell. Nobody from here smiles like that.', 'Don\'t. Just don\'t. Whatever it is, the answer\'s no.', 'Everyone in this city is an idiot. Present company probably included.'])); return; } }
   if (!playerThreat() && isFolk(e) && !isChild(e) && fierceDark() && !(MOOD.eyed = MOOD.eyed || {})[key] && Math.random() < .45) { MOOD.eyed[key] = 1; const m = fierceDark();
     await sayE(pickA([`(They glance at your ${nm(m)}, then at you, and relax.) Bit of a storm cloud, that one. You seem alright, though.`, `That ${nm(m)} of yours has a look about it. Good thing it's with someone kind.`, `(A wary look at your ${nm(m)}. Then a small smile for you.) You keep that one close, alright?`])); return; }
   if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
@@ -6049,7 +6081,8 @@ function buildTrain() {
 function puff(g) { const s = glow('#e8e4dc', .7 + Math.random() * .4, .6); s.position.copy(g.userData.stack); g.add(s); return s; }
 async function rideAnim(trainObj, x0, x1, y, ms, ease, carry) {
   if (carry) { RIDE.on = true; RIDE.anchor = trainObj.seat; } const puffs = [];
-  await tween(ms, k => { const e = ease === 'in' ? k * k : ease === 'out' ? 1 - (1 - k) * (1 - k) : k; const xx = x0 + (x1 - x0) * e; trainObj.g.position.set(xx, groundY(Math.max(0, Math.min(MAPS[S.map].w - 1, Math.round(xx))), y), y);
+  const gy0 = groundY(Math.max(0, Math.min(MAPS[S.map].w - 1, Math.round((x0 + x1) / 2))), y);       // one steady height: the rails are level, and per-tile heights made it judder
+  await tween(ms, k => { const e = ease === 'in' ? k * k : ease === 'out' ? 1 - (1 - k) * (1 - k) : k; const xx = x0 + (x1 - x0) * e; trainObj.g.position.set(xx, gy0, y);
     if (Math.random() < .3) puffs.push(puff(trainObj.g));
     for (const p of puffs) { p.position.y += .025; p.position.x -= .02; p.material.opacity *= .97; } });
   for (const p of puffs) trainObj.g.remove(p);
@@ -6063,6 +6096,9 @@ function parkedTrain(id) {
   const sp = trainSpot(id); if (!sp) return null; const tr = buildTrain(); tr.g.position.set(sp.x, groundY(sp.x, sp.y), sp.y); world.add(tr.g); W.train = tr; return tr;
 }
 async function rideTrain() {
+  if (tileAt(S.x, S.y) === 't') {      // talking to him from the rails
+    await say(pickA(['Station master: Off the tracks, kid. Now. Have you never seen Stand By Me? Nobody wins a footrace with a train on a trestle. Platform. Go.',
+      'Station master: Get off the rails! This isn\'t Stand By Me, and you are not outrunning anything. Platform, please, before I need a mop.'])); }
   const stops = trainStops().filter(([id]) => id !== S.map);
   await say(pickA(['Engineer: She runs again! Every line in the Welkin, cleared and relaid. Where to?', 'Station master: All aboard who\'s going aboard. Where are we headed?', 'Station master: Trains every hour, near enough. Pick a stop.']));
   const opts = stops.map(([, n]) => n).concat(['Stay here']);
@@ -6080,13 +6116,15 @@ async function rideTrain() {
   await fadeTo(1, 700); RIDE.on = false;
   // arrive: the train rolls in from the east and stops at the platform
   const sp = trainSpot(id); S.trainAt = id; S.map = id; S.x = sp.x; S.y = sp.y + 1; S.dir = 'down'; buildWorld(id); playMusic(themeFor(id));
+  // decide now where you'll step down (just right of the station master), so you're never drawn on top of him while the train pulls in
+  { const sm = ents(id).find(e => e.id === 'stationmaster' || e.id === 'engineer'), [ax, ay] = spotNear(id, sm ? sm.x + 1 : sp.x + 6, sm ? sm.y : sp.y + 2, ents(id).concat(Array.from({ length:MAPS[id].w }, (_, i) => ({ x:i, y:sp.y })))); S.x = ax; S.y = ay; S.dir = 'down'; RIDE.drop = [ax, ay]; }
   if (W.train) { world.remove(W.train.g); } const tr2 = buildTrain(); world.add(tr2.g); W.train = tr2; for (const m of W.minis) m.visible = false;
   RIDE.on = true; RIDE.anchor = tr2.seat; tr2.g.position.set(sp.x + 14, groundY(Math.min(MAPS[id].w - 1, sp.x + 14), sp.y), sp.y);
   await fadeTo(0, 700); toast(name, 'By rail');
   await rideAnim(tr2, sp.x + 14, sp.x, sp.y, 3000, 'out', true); RIDE.on = false;
   await say('The train sighs to a stop. You climb down onto the platform.');
   for (const m of W.minis) m.visible = true;
-  const sm = ents(id).find(e => e.id === 'stationmaster' || e.id === 'engineer'), [ax, ay] = spotNear(id, sm ? sm.x + 1 : sp.x + 6, sm ? sm.y : sp.y + 2, ents(id).concat(Array.from({ length:MAPS[id].w }, (_, i) => ({ x:i, y:sp.y })))); S.x = ax; S.y = ay; if (W.player) W.player.position.set(ax, groundY(ax, ay), ay); camTarget.set(ax, groundY(ax, ay), ay); updateCamera(1, true);
+  { const [ax, ay] = RIDE.drop; S.x = ax; S.y = ay; if (W.player) W.player.position.set(ax, groundY(ax, ay), ay); camTarget.set(ax, groundY(ax, ay), ay); updateCamera(1, true); }
 }
 function rideTick(dt) {
   for (const s of SPIN) s.o.rotation[s.axis] += s.speed * dt;
@@ -6767,11 +6805,16 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
     furn:[['bench', 2, 2], ['table', 2, 3], ['bench', 2, 4], ['bench', 2, 6], ['table', 2, 7], ['stand', 7, 2, { c:'#4f8aa8' }], ['stand', 9, 2, { c:'#4f8aa8' }], ['stove', 12, 1, { lit:true }], ['piano', 12, 6], ['table', 9, 6]] }, { role:'tavern' });
   B.house(4, 19, 5, '#5a4a3a', '#e8dcc0', { name:'Mae\'s House', w:11, h:8, music:'country', floor:['#8a7458', '#7e6a50'], wall:'#e8d8c0', furn:[['bed', 8, 1], ['table', 3, 3], ['shelf', 1, 1], ['candle', 5, 1]] });
   B.house(10, 19, 5, '#6a7a8a', '#e8e4d8'); B.house(23, 19, 4, '#f3e7c9', '#f4f1e8', null, { role:'shrinehouse' });
-  // the cemetery, fenced, with a gate on the street side
-  rect(m, 28, 19, 11, 1, 'h'); rect(m, 28, 30, 11, 1, 'h'); rect(m, 28, 19, 1, 12, 'h'); rect(m, 38, 19, 1, 12, 'h'); m[19][32] = '.'; m[19][33] = '.';
-  // 25 stones in five rows, a path down the middle from the gate; Walter Ames is front row, middle
-  let gi = 0; for (const y of [21, 23, 25, 27, 29]) for (const x of [29, 31, 33, 35, 37]) { gi++; B.piece('grave', x, y, 1, 1, { cross:hsh(x, y, 7) < .3, flowers:(x === 33 && y === 21) || hsh(x, y, 9) < .2, c:['#9a968a', '#8a867a', '#a8a498', '#7a776e'][Math.floor(hsh(x, y, 3) * 4)] }); }
-  m[18][35] = 's'; B.piece('bench', 37, 28, 1, 1, { keep:1 });
+  // the cemetery: hedged, L-shaped (it wraps round below the chapel, whose back door opens onto it), with a gate on the street.
+  // Three long rows of stones with a path up the middle; a row of benches two steps in front of each, facing the graves.
+  for (let x = 27; x <= 39; x++) m[19][x] = 'h'; for (let y = 19; y <= 23; y++) m[y][27] = 'h'; for (let x = 22; x <= 27; x++) m[23][x] = 'h';
+  for (let y = 23; y <= 30; y++) m[y][22] = 'h'; for (let y = 19; y <= 30; y++) m[y][39] = 'h'; for (let x = 22; x <= 39; x++) m[30][x] = 'h';
+  for (let y = 20; y <= 29; y++) for (let x = 28; x <= 38; x++) m[y][x] = '.'; for (let y = 24; y <= 29; y++) for (let x = 23; x <= 27; x++) m[y][x] = '.';
+  m[19][32] = '.'; m[19][33] = '.'; m[23][25] = '.';                                                                     // street gate; chapel door gap
+  const stone = (x, y) => B.piece('grave', x, y, 1, 1, { cross:hsh(x, y, 7) < .3, flowers:(x === 34 && y === 21) || hsh(x, y, 9) < .2, c:['#9a968a', '#8a867a', '#a8a498', '#7a776e'][Math.floor(hsh(x, y, 3) * 4)] });
+  for (const y of [21, 24, 27]) { for (const x of [28, 29, 30, 31, 34, 35, 36, 37, 38]) stone(x, y); if (y > 21) for (const x of [23, 24, 26]) stone(x, y); }
+  for (const y of [23, 26, 29]) for (const x of y === 23 ? [29, 36] : [24, 29, 36]) B.piece('bench', x, y, 1, 1, { r:Math.PI });   // facing the stones
+  m[18][35] = 's';
   B.piece('watertower', 15, 24, 2, 2); B.piece('car', 16, 19, 2, 1, { c:'#8a3a2a', r:0 });
   for (const [x, y] of [[3, 15], [19, 15], [30, 15], [19, 25]]) B.lamp(x, y);
   regionMap('cobb_hollow', B, { name:'Cobb Hollow', sub:'Population 61', V:COBB_V, music:'country', arrive:'One street, a garage, a dry-goods store, a diner with a blue neon plate in the window and a white chapel, a cemetery behind a hedge. Every porch has someone on it. Every someone has stopped talking.',
@@ -6790,7 +6833,7 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
     npc('reg2', 3, 6, 'right', 'Miss Odette', lk('#8a5a7a', '#f3e7c9', SK[5], '#d8d0c0', ['tophat', 'glasses']), () => sayAs('Miss Odette', 'Child, I\'ll be kind to you because I\'m kind to everybody. But you should know people have been watching you since you walked in off the Dustline. Every porch on the street. Mind yourself.'))];
   IN(3).npcs = [npc('mae', 4, 4, 'up', 'Widow Mae', lk('#3a3a4a', '#f3e7c9', SK[2], '#d8d0c0', ['scarf']), async () => {
     await sayAs('Widow Mae', 'You\'re the stranger. I\'ve heard. They talk about you on every porch. Come in, I don\'t care what they say, I\'m too old to care what anyone says.');
-    await sayAs('Widow Mae', 'My Walter\'s in the cemetery. Front row, middle. If you\'re passing, you might put a flower down. He liked strangers. Hardly anyone ever came through.');
+    await sayAs('Widow Mae', 'My Walter\'s in the cemetery. Front row, just right of the path. If you\'re passing, you might put a flower down. He liked strangers. Hardly anyone ever came through.');
     if (!S.flags.maeAsked) S.flags.maeAsked = 1; else if (S.flags.walterFlower && once('maeThanks')) { await sayAs('Widow Mae', 'You did. I saw from the window. Here: he\'d have wanted you to have this.'); pay(150); S.items.hearth = (S.items.hearth || 0) + 2; await say('(150 Marks and 2 Hearths, from a tin on the mantel.)'); } })];
   REGION_NPCS.cobb_hollow = () => [
     npc('boone', 21, 18, 'down', 'Sheriff Boone', lk('#8a6a3a', '#d8b85a', SK[2], '#3a2414', ['cap', 'stout']), judged('Sheriff Boone', ['light', 'even'],
@@ -6806,9 +6849,9 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
       () => sayAs('Jo\'s dad', '(He stands up off the step without a word and stays between you and his girl the whole time you\'re in sight.)'))),
     npc('mech2', 15, 13, 'left', 'Mechanic under the truck', lk('#3a4a5a', '#c0503a', SK[4], '#141014', ['cap']), judged('Rudy', ['even', 'shadow'], () => sayAs('Rudy', 'Hand me the nine-sixteenths. No, the other nine-sixteenths. Head gasket\'s blown on this old girl. She\'ll run again. Everything runs again, eventually.'),
       () => sayAs('Rudy', 'Busy.'))),
-    npc('signcem', 35, 18, 'up', 'Sign', null, () => say('COBB HOLLOW CEMETERY · EST. 1871. Walk soft. Close the gate behind you. (Somebody has added, in pencil: "Walter Ames, front row, middle. Say hi.")'), { invisible:true }),
-    npc('mourner', 36, 28, 'left', 'Caretaker', lk('#3a3a3a', '#8a8a8a', SK[5], '#d8d0c0', ['tophat']), () => sayAs('Caretaker', 'Sixty-one living in Cobb Hollow. Three hundred and nine in here. They\'re better company. Mostly.')),
-    npc('walter', 33, 21, 'up', 'Walter Ames\' grave', null, async () => { await say('WALTER AMES. "He always had a chair for one more."'); if (S.flags.maeAsked && !S.flags.walterFlower) { const c = await ask('Mae asked you to leave a flower.', ['Leave a wildflower', 'Kick the headstone over', 'Leave']);
+    npc('signcem', 35, 18, 'up', 'Sign', null, () => say('COBB HOLLOW CEMETERY · EST. 1871. Walk soft. Close the gate behind you. (Somebody has added, in pencil: "Walter Ames, front row, just right of the path. Say hi.")'), { invisible:true }),
+    npc('mourner', 38, 25, 'left', 'Caretaker', lk('#3a3a3a', '#8a8a8a', SK[5], '#d8d0c0', ['tophat']), () => sayAs('Caretaker', 'Sixty-one living in Cobb Hollow. Three hundred and nine in here. They\'re better company. Mostly.')),
+    npc('walter', 34, 21, 'up', 'Walter Ames\' grave', null, async () => { await say('WALTER AMES. "He always had a chair for one more."'); if (S.flags.maeAsked && !S.flags.walterFlower) { const c = await ask('Mae asked you to leave a flower.', ['Leave a wildflower', 'Kick the headstone over', 'Leave']);
       if (c === 0) { S.flags.walterFlower = 1; await say('You lay a wildflower from the roadside on the grass. It looks very small and very right.'); }
       if (c === 1) { S.flags.walterFlower = 2; sin(2); await say('The stone goes over on the third kick. Across the street, a curtain in Mae\'s window falls closed, and stays closed.'); } } }, { invisible:true })
   ];
@@ -7356,7 +7399,7 @@ async function kayakTrip(withAshlynn) {
       if (dd > .05) { const s2 = Math.min(dd * 1.8, 3.2) * dt; const nx2 = mg.position.x + dx / dd * s2, nz2 = mg.position.z + dz / dd * s2; if (isSea(nx2, nz2)) { mg.position.x = nx2; mg.position.z = nz2; } }
       { const ax = mg.position.x - px, az = mg.position.z - pz, ad = Math.hypot(ax, az); if (ad < 2.1 && ad > .01) { const k = (2.1 - ad) * Math.min(1, dt * 6); if (isSea(mg.position.x + ax / ad * k, mg.position.z + az / ad * k)) { mg.position.x += ax / ad * k; mg.position.z += az / ad * k; } } }   // never in your lap
       let dy = (dd > .3 ? Math.atan2(dx, dz) : yaw) - mg.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); mg.rotation.y += dy * Math.min(1, dt * 3); mg.position.y = WATER_Y() + Math.sin(t * 2.2 + 1) * .025; animBoat(mg, t);
-      if (!said && now - t0 > 14000 && pz < -6) { said = 1; await sayAs('Ashlynn', pickA(['This is the best part. Out here nobody needs anything from you.', 'See that? A seal, maybe. Or a log. I like not knowing.', 'Listen. That\'s it. That\'s the whole thing I come out here for.'])); last = performance.now(); } }
+      if (!said && now - t0 > 14000 && pz < -6) { said = 1; toast(pickA(['This is the best part. Out here nobody needs anything from you.', 'See that? A seal, maybe. Or a log. I like not knowing.', 'Listen. That\'s it. That\'s the whole thing I come out here for.']), 'Ashlynn'); } }   // said over the water, without stopping you
     for (const b of W.bottles || []) { if (!b.parent) continue; b.position.y = BASE - .14 + Math.sin(t * 2 + b.userData.i) * .04; b.rotation.y += dt * .6;
       if (Math.hypot(b.position.x - px, b.position.z - pz) < 1.1) { const [, , text, marks] = BOTTLES[b.userData.i]; world.remove(b); (S.flags.bottles = S.flags.bottles || {})[b.userData.i] = 1; S.marks = (S.marks || 0) + marks; sfx('keep');
         await say(`You fish a bottle out of the water. Inside: ${text} (Tucked in with it: ${marks} Marks.)`); const left = BOTTLES.length - Object.keys(S.flags.bottles).length;
@@ -7436,7 +7479,7 @@ async function digPotato() {
 // ---------------------------------------------------------------- THE FAR LINE
 // After the endgame the train runs past the Welkin too: a line is laid edge to edge across Saltmere, Holdfast and
 // Cobb Hollow, each gets a platform and a station master, and all three are stops on every train.
-const FAR_LINE = [['saltmere', 'Saltmere', 40], ['holdfast', 'Holdfast', 26], ['cobb_hollow', 'Cobb Hollow', 31]];
+const FAR_LINE = [['saltmere', 'Saltmere', 41], ['holdfast', 'Holdfast', 26], ['cobb_hollow', 'Cobb Hollow', 31]];
 function layFarLine() {
   if (layFarLine.done) return; layFarLine.done = 1;
   for (const [id, , y] of FAR_LINE) { const M = MAPS[id]; if (!M) continue;
@@ -8386,7 +8429,7 @@ function updateWorld(dt, t) {
   }
   const p = W.player, k = mv.active ? mv.t : 1;
   const px = mv.active ? mv.fx + (S.x - mv.fx) * k : S.x, pz = mv.active ? mv.fy + (S.y - mv.fy) * k : S.y;
-  const py = RIDE_Y != null ? RIDE_Y : groundY(px, pz); p.position.set(px, py, pz);
+  const py = RIDE_Y != null ? RIDE_Y : groundY(px, pz); if (!RIDE.on) p.position.set(px, py, pz);
   let dy = (mv.yaw != null ? mv.yaw : DIR_YAW[S.dir]) - p.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.rotation.y += dy * Math.min(1, dt * 16);
   animHero(p, k, mv.active, t);
   // Cobb Hollow, with a bad aura: everyone you could see if you were looking out of your own eyes stares at you, and keeps staring, turning as you move.
@@ -8432,7 +8475,7 @@ function updateWorld(dt, t) {
     m.life -= dt * .7; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vx * dt * .5; arr[i * 3] = m.x; arr[i * 3 + 1] = m.y; arr[i * 3 + 2] = m.z;
   });
   W.motes.geometry.attributes.position.needsUpdate = true;
-  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : zoneOf().name); camTarget.set(px, py, pz); updateCamera(dt); }
+  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : zoneOf().name); if (!RIDE.on) { camTarget.set(px, py, pz); updateCamera(dt); } }   // while riding, rideTick alone moves the camera (two targets fought and shook the screen)
   else { const a = t * .1, cx = (M.w - 1) / 2, cz = (M.h - 1) / 2; camera.position.set(cx + Math.sin(a) * 16, 9, cz + Math.cos(a) * 16); camera.lookAt(cx, 0, cz); worldSky.position.copy(camera.position); }
 }
 function updateBattle(dt, t) {
