@@ -6091,9 +6091,10 @@ function parkedTrain(id) {
 async function rideTrain() {
   const RM = MAPS[S.map], onRails = tileAt(S.x, S.y) === 't' || (RM.rail && S.y === RM.rail.y) || (RM.rails || []).some(r => r && r.y === S.y && S.x >= (r.x0 || 0) && S.x <= (r.x1 == null ? RM.w : r.x1));
   if (onRails) {      // talking to him from the rails
-    await say(pickA(['Station master: Off the tracks, kid. Now. You ever see Stand By Me? This old engine\'s near enough the twin of the one that ran those boys off the trestle. Nobody wins a footrace with her. Platform. Go.',
-      'Station master: Get off the rails! This isn\'t Stand By Me, and you are not outrunning her. Those kids only made it in the movie. Platform, please.',
-      'Station master: Whoa, whoa. Step off the line. I\'ve seen Stand By Me enough times to know how train dodging ends: badly, and with leeches. Platform.'])); }
+    await say(pickA(['Station master: Off the tracks, kid. Now. Four boys once tried crossing a trestle in front of an engine just like this one. Only in the movies does everybody make it.',
+      'Station master: Get off the line! You out here walking the tracks looking for a body? Keep it up and you\'ll be the one somebody finds. Platform.',
+      'Station master: Step off the rails. Train dodging ends one of two ways: a dive into a swamp full of leeches, or a whole lot worse.']));
+    await offTheRails(); }
   const stops = trainStops().filter(([id]) => id !== S.map);
   await say(S.map === 'r_siding' ? 'Engineer: She runs again! Every line in the Welkin, cleared and relaid. Where to?' : pickA(['Station master: All aboard who\'s going aboard. Where are we headed?', 'Station master: Trains every hour, near enough. Pick a stop.']));
   const opts = stops.map(([, n]) => n).concat(['Stay here']);
@@ -6121,6 +6122,28 @@ async function rideTrain() {
   await say('The train sighs to a stop. You climb down onto the platform.');
   for (const m of W.minis) m.visible = true;
   stepOffTrain(id, sp);
+}
+// After his telling-off, you walk yourself off the line to stand beside him, then he carries on.
+async function scriptStep(dx, dy) {
+  mv.active = true; mv.fx = S.x; mv.fy = S.y; mv.t = 0; mv.diag = !!(dx && dy); mv.yaw = dx && dy ? Math.atan2(dx, dy) : null;
+  S.dir = dy > 0 ? 'down' : dy < 0 ? 'up' : dx > 0 ? 'right' : 'left'; S.x += dx; S.y += dy;
+  while (mv.active) await frame(); mv.yaw = null; mv.diag = false;
+}
+async function offTheRails() {
+  const list = ents(S.map), sm = list.find(e => e.id === 'stationmaster' || e.id === 'engineer'); if (!sm) return;
+  const M = MAPS[S.map], rail = y => tileAt(0, y) === 't' || tileAt(S.x, y) === 't' || (M.rail && y === M.rail.y);
+  const open = (x, y) => !SOLID.has(tileAt(x, y)) && tileAt(x, y) !== 'D' && tileAt(x, y) !== 't' && !rail(y) && !list.some(e => !e.invisible && e.x === x && e.y === y);
+  const side = S.x < sm.x ? -1 : 1, goal = [[sm.x + side, sm.y], [sm.x - side, sm.y], [sm.x + side, sm.y + 1], [sm.x - side, sm.y + 1]].find(([x, y]) => open(x, y)); if (!goal) return;
+  const blocked = (x, y) => SOLID.has(tileAt(x, y)) || tileAt(x, y) === 'D' || list.some(e => !e.invisible && e.x === x && e.y === y);
+  for (let n = 0; n < 14 && (S.x !== goal[0] || S.y !== goal[1]); n++) {
+    const dx = Math.sign(goal[0] - S.x), dy = Math.sign(goal[1] - S.y);
+    const tries = [[dx, 0], [0, dy], [dx, dy]].filter(([a, b]) => (a || b) && !blocked(S.x + a, S.y + b) && !(a && b && (blocked(S.x + a, S.y) || blocked(S.x, S.y + b))));
+    // move sideways along the rails first, then step straight down onto the platform beside him
+    const pick = tries[0]; if (!pick) break;
+    await scriptStep(pick[0], pick[1]);
+  }
+  S.dir = S.x > sm.x ? 'left' : S.x < sm.x ? 'right' : 'down';
+  await wait(250);
 }
 // Put the player on the platform just right of the station master: never on him, never on the rails.
 function stepOffTrain(id, sp) {
