@@ -72,6 +72,7 @@ body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 .k.on{background:rgba(74,58,46,.9)}
 #ab{display:flex;gap:14px;align-items:center;margin-bottom:24px}
 .k.round{width:66px;height:66px;border-radius:50%;font-size:20px}
+body.running #pad .k[data-k="b"]{background:rgba(232,184,74,.55);color:var(--ink);box-shadow:0 0 12px rgba(232,184,74,.6)}
 #kA{background:rgba(232,184,74,.92);color:var(--ink);border-color:var(--gold2)}
 #sheet{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(580px,94vw);max-height:76vh;overflow:auto;z-index:18;padding:18px 18px 14px}
 #sheet h2{font:26px 'IM Fell English',serif;margin:0 0 2px;display:flex;align-items:center;gap:10px}
@@ -178,7 +179,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
   <div id="joy"><i class="t n"></i><i class="t e"></i><i class="t s"></i><i class="t w"></i><div id="joyKnob"></div></div>
   <div id="ab"><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
 </div>
-<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Back / menu: X or Esc · Turn camera: Q / E · Zoom: C</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B back · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
+<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom: C</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
 <div id="fade"></div>
 <script type="module">
 import * as THREE from 'three';
@@ -1486,8 +1487,8 @@ function buildHero(kind) {
 }
 function animHero(g, k, moving, t) {
   const u = g.userData, sw = moving ? Math.sin(k * Math.PI * 2) * .55 : 0;
-  if (u.sitP) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; u.inner.position.y = -.42; u.inner.rotation.x = 0; const p = Math.sin(t * 4); u.arms[0].rotation.set(-1.1 + p * .35, 0, -.3); u.arms[1].rotation.set(-1.1 - p * .35, 0, .3);
-    if (u.oar) u.oar.rotation.z = p * .5; return; }
+  if (u.sitP) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; u.inner.position.y = -.42; u.inner.rotation.x = 0; const p = Math.sin(t * 3.2); u.arms[0].rotation.set(-1.25 - p * .3, 0, -.15); u.arms[1].rotation.set(-1.25 + p * .3, 0, .15); for (const a of u.arms) if (a.userData.el) a.userData.el.rotation.x = -.5;
+    if (u.oar) strokeOar(u.oar, t); return; }
   if (u.kneelP) { u.legs[0].rotation.x = u.legs[1].rotation.x = 1.45; u.arms[0].rotation.set(-.2, 0, -.7); u.arms[1].rotation.set(-.2, 0, .7); u.inner.position.y = -.36; u.inner.rotation.x = .12; return; }
   u.arms[0].rotation.y = u.arms[1].rotation.y = 0; u.inner.rotation.x = 0;
   u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
@@ -1615,8 +1616,9 @@ function animPerson(g, moving, t, dt) {
   moving = moving || !!u.forceWalk;
   if (u.sit) { u.legs[0].rotation.x = u.legs[1].rotation.x = -2.0; for (const h of u.legs) h.userData.knee.rotation.x = 2.3; u.inner.position.y = -.08; u.inner.rotation.z = .12;
     for (const [i, a] of u.arms.entries()) { a.rotation.set(-1.05, 0, (i ? 1 : -1) * -.25); a.userData.el.rotation.x = -.7; } return; }
-  if (u.kayak) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = -.4; const p = Math.sin(t * 4);
-    u.arms[0].rotation.set(-1.1 + p * .35, 0, -.3); u.arms[1].rotation.set(-1.1 - p * .35, 0, .3); return; }
+  if (u.kayak) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = -.4; const p = Math.sin(t * 3.2);
+    u.arms[0].rotation.set(-1.25 - p * .3, 0, -.15); u.arms[1].rotation.set(-1.25 + p * .3, 0, .15); for (const a of u.arms) a.userData.el.rotation.x = -.5; return; }
+  if ((u.ready || u.swing != null) && !u.sit) { u.legs[0].rotation.x = u.legs[1].rotation.x = 0; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = 0; u.inner.rotation.z = 0; }   // on her feet
   if (u.ready && u.swing == null) { u.arms[1].rotation.set(-2.5, 0, .3); u.arms[1].userData.el.rotation.x = -.7; u.arms[0].rotation.set(-1.3, 0, -.25); u.arms[0].userData.el.rotation.x = -.5; return; }   // bat cocked over the shoulder
   else if (u.swing != null) { const k = u.swing; u.arms[1].rotation.set(-2.6 + k * 2.9, 0, .2); u.arms[1].userData.el.rotation.x = -.4; u.arms[0].rotation.set(-1.4 + k * 1.2, 0, -.2); return; }
   if (u.inner.rotation.z) u.inner.rotation.z = 0; if (!u.kneel && u.inner.position.y) u.inner.position.y = 0;
@@ -4175,6 +4177,7 @@ function press(b) {
   if (typeof TITLE_GATE !== 'undefined' && TITLE_GATE) { TITLE_GATE(); return; }
   if (b === "a" && typeof PADHOOK !== "undefined" && PADHOOK.fn) { const f = PADHOOK.fn; PADHOOK.fn = null; f(); return; }
   audioInit();
+  if (b === 'esc') b = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list && !selectHandler ? 'menu' : 'b';   // Esc: menu while walking, back inside menus
   if (b === 'mute') { toggleMute(); return; }
   if (b === 'zoom') { if (scene === 'world') cycleZoom(1); return; }
   if (b === 'rotl' || b === 'rotr') { if (scene === 'world') { if (camFree != null) { camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; camYaw = camFree; camFree = null; } camQ = (camQ + (b === 'rotl' ? 1 : 3)) % 4; } return; }
@@ -4189,11 +4192,12 @@ function press(b) {
   if (endingHandler) return endingHandler(b);
   if (scene === 'world' && !busy && !mv.active) {
     if (b === 'a') { mv.yaw = null; runScript(interact); }
-    else if (b === 'b' || b === 'menu') runScript(openMenu);
+    else if (b === 'b') setRun(!RUN);          // B toggles running; it stays on until you go indoors or tap B again
+    else if (b === 'menu') runScript(openMenu);
   }
 }
 const KEYS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', w:'up', s:'down', a:'left', d:'right', W:'up', S:'down', A:'left', D:'right',
-  z:'a', Z:'a', ' ':'a', Enter:'a', x:'b', X:'b', Escape:'b', Backspace:'b', m:'menu', M:'menu', q:'rotl', Q:'rotl', e:'rotr', E:'rotr', c:'zoom', C:'zoom' };
+  z:'a', Z:'a', ' ':'a', Enter:'a', x:'b', X:'b', Escape:'esc', Backspace:'b', m:'menu', M:'menu', q:'rotl', Q:'rotl', e:'rotr', E:'rotr', c:'zoom', C:'zoom' };
 addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); press(e.key === 'Enter' ? 'menu' : 'b'); } return; } const k = KEYS[e.key]; if (!k) return; e.preventDefault(); if (k in held) { if (!held[k]) lastDir = k; held[k] = 1; } press(k); });
 addEventListener('keyup', e => { const k = KEYS[e.key]; if (k in held) held[k] = 0; });
 addEventListener('blur', () => { for (const k in held) held[k] = 0; });
@@ -4345,6 +4349,8 @@ async function controllerMenu() {
 // =============================================================================
 //  WORLD LOGIC — entities, movement, NPCs, menus
 // =============================================================================
+let RUN = false;
+function setRun(on) { if (RUN === !!on) return; RUN = !!on; document.body.classList.toggle('running', RUN); if (scene === 'world') toast(RUN ? 'Running' : 'Walking', 'Tap B to switch'); }
 const mv = { active:false, fx:0, fy:0, t:0, diag:false, yaw:null };
 const npcFace = {};
 const LOOKS = {
@@ -4449,7 +4455,7 @@ function startWild(w) {
   runScript(async () => { const r = await battle(newManif(w.sp, w.lvl)); if (r === 'blackout') await blackout(); });
 }
 const DOOR_GUARD = {};   // door id → async () => false (stay out) | true | function to run after entering
-async function enterDoor(id) { const gd = DOOR_GUARD[id] ? await DOOR_GUARD[id]() : true; if (gd === false) return; sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); if (typeof gd === 'function') { await wait(300); await gd(); } }
+async function enterDoor(id) { setRun(false); const gd = DOOR_GUARD[id] ? await DOOR_GUARD[id]() : true; if (gd === false) return; sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); if (typeof gd === 'function') { await wait(300); await gd(); } }
 async function changeMap(ex) {
   setTimeout(autosave, 1500);
   if (ex.city) {
@@ -4459,6 +4465,7 @@ async function changeMap(ex) {
       if (c !== 1) return;
     }
   }
+  if (MAPS[ex.map] && MAPS[ex.map].kind === 'inside') setRun(false);
   await fadeTo(1, 300); S.map = ex.map; S.x = ex.x; S.y = ex.y; S.dir = ex.dir; buildWorld(S.map); playMusic(themeFor(S.map));
   await fadeTo(0, 300);
   const M = MAPS[S.map]; toast(M.name, M.sub);
@@ -4999,7 +5006,9 @@ function mapMood(map) {
   if (P.kind === 'way') return S.hearts[P.vibe] ? 'hopeful' : 'calm';
   return 'calm';
 }
-const playerThreat = () => S.party.some(m => tierOfSp(m.sp) >= 2 && DARK_FAMS.includes(typeOf(m)));
+const fierceDark = () => S.party.find(m => tierOfSp(m.sp) >= 2 && DARK_FAMS.includes(typeOf(m)));
+// A fierce dark-family Manif only frightens people when your aura isn't warm. With a warm aura they notice it, and that's all.
+const playerThreat = () => !!fierceDark() && auraSide() !== 'light';
 function threatPoint(map) { const M = MAPS[map]; if (M.kind === 'city') return [17, 7]; if (M.kind === 'hub') return [16, 13]; if (M.kind === 'inside') return [Math.floor(M.w / 2), 1]; return [S.x, S.y]; }
 
 // ---- emote bubbles
@@ -5064,7 +5073,10 @@ async function moodPreTalk(e) {
   if (playerThreat() && canRun(e)) { const m = S.party.find(x => tierOfSp(x.sp) >= 2 && DARK_FAMS.includes(typeOf(x)));
     await sayE(pickA([`(They flinch away from your ${nm(m)}.) Stay back! Please. I haven't done anything.`, `Don't come any closer with that thing. I mean it.`, `(They won't meet your eyes. Their voice shakes.) Whatever that ${nm(m)} wants, I don't have it.`])); return 'refuse'; }
   if (MOOD.tremorT > 0) { await sayE(mood === 'dread' ? pickA(['Did you feel that?! It\'s under the Archive. Under all of us.', 'Everyone\'s staying close to home. You should too, {name}.']) : pickA(['Did you feel that?! The Heart\'s getting worse every day.', 'Get inside! It always comes in twos!', '(They grab your sleeve.) Was that the shrine? Was that the shrine again?'])); return; }
-  const key = e.id; if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
+  const key = e.id;
+  if (!playerThreat() && isFolk(e) && !isChild(e) && fierceDark() && !(MOOD.eyed = MOOD.eyed || {})[key] && Math.random() < .45) { MOOD.eyed[key] = 1; const m = fierceDark();
+    await sayE(pickA([`(They glance at your ${nm(m)}, then at you, and relax.) Bit of a storm cloud, that one. You seem alright, though.`, `That ${nm(m)} of yours has a look about it. Good thing it's with someone kind.`, `(A wary look at your ${nm(m)}. Then a small smile for you.) You keep that one close, alright?`])); return; }
+  if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
   if (mood === 'relieved') await sayE(pickA(['It feels like I can breathe again.', 'Did you hear? The Heart settled! The whole street\'s been crying and laughing all morning.', '{name}! People are saying it was you who settled the Heart.']));
   else if (mood === 'joyful') await sayE(pickA(['Everything feels so loud now. In a good way. Mostly.', 'The Stillwell\'s quiet. You did it, {name}. You actually did it.']));
   else if (mood === 'dread') await sayE('(They keep glancing at the Archive.) The floor in there split open. There are steps going down. Nobody will go near it. Are you going down there, {name}?');
@@ -6074,7 +6086,7 @@ async function rideTrain() {
   await rideAnim(tr2, sp.x + 14, sp.x, sp.y, 3000, 'out', true); RIDE.on = false;
   await say('The train sighs to a stop. You climb down onto the platform.');
   for (const m of W.minis) m.visible = true;
-  const [ax, ay] = spotNear(id, sp.x + 6, sp.y + 2, ents(id).concat(Array.from({ length:MAPS[id].w }, (_, i) => ({ x:i, y:sp.y })))); S.x = ax; S.y = ay; if (W.player) W.player.position.set(ax, groundY(ax, ay), ay); camTarget.set(ax, groundY(ax, ay), ay); updateCamera(1, true);
+  const sm = ents(id).find(e => e.id === 'stationmaster' || e.id === 'engineer'), [ax, ay] = spotNear(id, sm ? sm.x + 1 : sp.x + 6, sm ? sm.y : sp.y + 2, ents(id).concat(Array.from({ length:MAPS[id].w }, (_, i) => ({ x:i, y:sp.y })))); S.x = ax; S.y = ay; if (W.player) W.player.position.set(ax, groundY(ax, ay), ay); camTarget.set(ax, groundY(ax, ay), ay); updateCamera(1, true);
 }
 function rideTick(dt) {
   for (const s of SPIN) s.o.rotation[s.axis] += s.speed * dt;
@@ -6616,7 +6628,7 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
   rect(m, 26, 22, 6, 4, '.'); rect(m, 14, 3, 6, 3, ','); rect(m, 38, 7, 5, 3, ',');
   B.piece('car', 28, 24, 2, 1, { c:'#5a6a5a', moss:1 }); B.piece('hut', 15, 4, 2, 2); B.piece('barricade', 46, 12); B.m[10][40] = 's'; B.piece('junk', 33, 25);
   // a side path south through the pines to Clover's log cabin (all books inside)
-  carve(m, [[8, 14], [8, 21]], '.'); rect(m, 2, 19, 13, 9, '.'); rect(m, 3, 25, 3, 1, 'f'); rect(m, 11, 24, 3, 1, 'f'); rect(m, 7, 24, 2, 3, '=');
+  carve(m, [[8, 14], [8, 21]], '.'); rect(m, 2, 19, 13, 9, '.'); rect(m, 3, 16, 10, 3, '.'); rect(m, 3, 25, 3, 1, 'f'); rect(m, 11, 24, 3, 1, 'f'); rect(m, 7, 24, 2, 3, '=');
   B.house(5, 20, 5, '#5f7a3e', '#e8dcc0', { name:'Clover\'s Cabin', sub:'In the Pinewind', w:13, h:9, music:'country', floor:['#8a6440', '#7e5a3a'], wall:'#c89a68', light:{ sky:'#2a1c12', hemi:'#ffd8a0', sun:1.0 }, furn:CLOVER_FURN }, { hobbit:true });
   B.lamp(10, 23); B.m[18][9] = 's';
   regionMap('r_pinewind', B, { name:'The Pinewind', sub:'Off Gutterlight Lane', V:PINE_V, music:'prepper', arrive:'The lane gives out into pines so close and dark that the noise of the city just stops. Somebody has nailed tin cans to the trees at head height. They clank when the wind goes through.',
@@ -7123,7 +7135,7 @@ SET.gametable = p => { const g = new THREE.Group();                      // a sq
 // =============================================================================
 // kind | even | bad | evil
 const vibeTier = () => { const s = auraSide(), dl = darkLevel(); if (S.flags.doom || dl >= 2) return 'evil'; if (s === 'shadow' || dl >= 1) return 'bad'; return s === 'light' ? 'kind' : 'even'; };
-const resetArms = g => { const u = g.userData; u.swing = null; if (!u.arms) return; for (const [i, a] of u.arms.entries()) { a.rotation.set(0, 0, (i ? 1 : -1) * .1); a.userData.el.rotation.set(0, 0, 0); } u.inner.rotation.z = 0; u.inner.position.y = 0; };
+const resetArms = g => { const u = g.userData; u.swing = null; if (!u.arms) return; if (u.legs) { for (const l of u.legs) { l.rotation.x = 0; l.userData.knee.rotation.x = 0; } } for (const [i, a] of u.arms.entries()) { a.rotation.set(0, 0, (i ? 1 : -1) * .1); a.userData.el.rotation.set(0, 0, 0); } u.inner.rotation.z = 0; u.inner.position.y = 0; };
 async function swingAt(g, ms = 360) { if (!g) return; g.userData.swing = 0; await tween(ms, k => { g.userData.swing = k * k; }); sfx('bighit'); MOOD.shake = .75;
   W.player.rotation.x = -.18; await wait(140); W.player.rotation.x = 0; g.userData.swing = 0; await wait(180); }
 
@@ -7273,10 +7285,12 @@ const ASHLYNN_KIND = [
   'I was gone four years. Came back different. The water was the only thing that felt exactly the same.'
 ];
 const ASHLYNN_SHORT = ['Hey.', 'Nice day.', 'Mm.', 'Water\'s cold.', 'Sure.'];
+function makeOar(shaftC, bladeC) { const w = new THREE.Group(), p = HELD.paddle({ shaftC, bladeC }); p.rotation.set(0, 0, 0); p.position.y = -.32; const s = new THREE.Group(); s.add(p); s.rotation.z = Math.PI / 2; w.add(s); return w; }   // centred, lying across the boat
+const strokeOar = (o, t) => { const k = Math.sin(t * 3.2); o.rotation.set(0, Math.cos(t * 3.2) * .35, k * .38); };   // dip one blade, sweep it back, then the other
 function ashlynnBoat() {        // Ashlynn seated in her kayak, as one movable group (bow toward +z)
   const mg = new THREE.Group(), body = buildPerson({ ...ASHLYNN_LOOK, gear:ASHLYNN_LOOK.gear.filter(k => k !== 'paddle') }); body.userData.kayak = true; mg.add(body); mg.add(SET.kayak({ c:'#f08a1e' }));
-  const o = HELD.paddle({}); o.rotation.set(0, 0, Math.PI / 2); o.position.set(0, .3, .22); mg.add(o); mg.userData = { body, oar:o }; return mg; }
-const animBoat = (mg, t) => { animPerson(mg.userData.body, false, t, .016); mg.userData.oar.rotation.x = Math.sin(t * 4) * .5; };
+  const o = makeOar('#2a4a8a', '#f09a2a'); o.position.set(0, .5, .28); mg.add(o); mg.userData = { body, oar:o }; return mg; }
+const animBoat = (mg, t) => { animPerson(mg.userData.body, false, t, .016); strokeOar(mg.userData.oar, t); };
 const showEnt = (ids, v) => { for (const id of ids) if (W.npcs[id]) W.npcs[id].visible = v; };
 async function ashlynnLeave() {
   await say('(Ashlynn picks her kayak up like it weighs nothing, walks it into the shallows, and slides in.)');
@@ -7318,7 +7332,7 @@ const nextFrame = () => new Promise(r => requestAnimationFrame(r));
 async function kayakTrip(withAshlynn) {
   const P = W.player, u = P.userData, m = MR(), x0 = S.x, y0 = S.y, d0 = S.dir, arms0 = u.arms.map(a => a.rotation.clone());
   await fadeTo(1, 500);
-  const myK = SET.kayak({ c:'#2f8ab0' }); P.add(myK); const oar = HELD.paddle({ shaftC:'#3a3430', bladeC:'#2f8ab0' }); oar.rotation.set(0, 0, Math.PI / 2); oar.position.set(0, .34, .22); P.add(oar); u.oar = oar;
+  const myK = SET.kayak({ c:'#2f8ab0' }); P.add(myK); const oar = makeOar('#3a3430', '#2f8ab0'); oar.position.set(0, .48, .28); P.add(oar); u.oar = oar;
   showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], false); for (const g of W.minis) g.visible = false;
   let mg = null; if (withAshlynn) { mg = ashlynnBoat(); mg.position.set(33.6, WATER_Y(), 2.0); mg.rotation.y = Math.PI; world.add(mg); }
   let px = 31, pz = 3.2, yaw = Math.PI, sp = 0, quit = false, said = 0, t0 = performance.now(), last = t0;
@@ -8367,7 +8381,7 @@ function loopBody(now) {
 function updateWorld(dt, t) {
   const M = MAPS[S.map];
   if (scene === 'world') {
-    if (mv.active) { mv.t += dt / (mv.diag ? .28 : .2); if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
+    if (mv.active) { mv.t += dt / ((mv.diag ? .28 : .2) * (RUN ? .5 : 1)); if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
     if (!mv.active && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic) { const v = moveVector(); if (v) { const [dx, dy, f] = worldStep(v); tryMove8(dx, dy, f); } }
   }
   const p = W.player, k = mv.active ? mv.t : 1;
