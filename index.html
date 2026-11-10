@@ -1514,8 +1514,10 @@ const HELD = {
   paddle:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.018, .018, 1.5, 8), L.shaftC || '#2a4a8a', [0, .32, 0]));
     for (const s of [-1, 1]) { const b = part(new THREE.BoxGeometry(.13, .3, .02), L.bladeC || '#f09a2a', [0, .32 + s * .86, 0]); b.rotation.y = s > 0 ? 0 : Math.PI / 2; g.add(b); }
     g.rotation.x = .08; g.userData.held = 'paddle'; return g; },
-  bat:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.05, .02, .62, 10), '#b8834a', [0, .28, 0])); g.add(part(new THREE.CylinderGeometry(.028, .028, .05, 8), '#2a2420', [0, -.02, 0]));
-    g.userData.held = 'bat'; return g; },
+  bat:L => { const g = new THREE.Group();     // gripped at the knob, the barrel sticks out past the fingers (away from the arm)
+    g.add(part(new THREE.CylinderGeometry(.035, .085, .66, 12), '#c08a4e', [0, -.44, 0])); g.add(part(new THREE.SphereGeometry(.085, 10, 8), '#c08a4e', [0, -.77, 0]));
+    g.add(part(new THREE.CylinderGeometry(.026, .03, .16, 8), '#3a2a20', [0, -.04, 0])); g.add(part(new THREE.CylinderGeometry(.04, .04, .025, 10), '#2a2018', [0, .05, 0]));
+    g.rotation.x = .35; g.userData.held = 'bat'; return g; },
   lanternstaff:L => { const g = new THREE.Group(); g.add(part(new THREE.CylinderGeometry(.022, .03, 1.45, 8), '#5a3a1e', [0, .3, 0]));
     for (let i = 0; i < 6; i++) g.add(part(new THREE.SphereGeometry(.035, 6, 5), '#4a6a2a', [Math.sin(i * 2.1) * .03, .1 + i * .18, Math.cos(i * 2.1) * .03]));
     g.add(part(new THREE.BoxGeometry(.1, .14, .1), '#2a2622', [.1, .9, 0])); const o = glow('#ffcf70', .5, .9); o.position.set(.1, .9, 0); g.add(o); g.userData.held = 'lanternstaff'; return g; },
@@ -1615,7 +1617,8 @@ function animPerson(g, moving, t, dt) {
     for (const [i, a] of u.arms.entries()) { a.rotation.set(-1.05, 0, (i ? 1 : -1) * -.25); a.userData.el.rotation.x = -.7; } return; }
   if (u.kayak) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = -.4; const p = Math.sin(t * 4);
     u.arms[0].rotation.set(-1.1 + p * .35, 0, -.3); u.arms[1].rotation.set(-1.1 - p * .35, 0, .3); return; }
-  if (u.swing != null) { const k = u.swing; u.arms[1].rotation.set(-2.6 + k * 2.9, 0, .2); u.arms[1].userData.el.rotation.x = -.4; u.arms[0].rotation.set(-1.4 + k * 1.2, 0, -.2); return; }
+  if (u.ready && u.swing == null) { u.arms[1].rotation.set(-2.5, 0, .3); u.arms[1].userData.el.rotation.x = -.7; u.arms[0].rotation.set(-1.3, 0, -.25); u.arms[0].userData.el.rotation.x = -.5; return; }   // bat cocked over the shoulder
+  else if (u.swing != null) { const k = u.swing; u.arms[1].rotation.set(-2.6 + k * 2.9, 0, .2); u.arms[1].userData.el.rotation.x = -.4; u.arms[0].rotation.set(-1.4 + k * 1.2, 0, -.2); return; }
   if (u.inner.rotation.z) u.inner.rotation.z = 0; if (!u.kneel && u.inner.position.y) u.inner.position.y = 0;
   if (u.kneel) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.3; for (const h of u.legs) h.userData.knee.rotation.x = 1.5; u.inner.position.y = -.2; for (const a of u.arms) a.rotation.x = -1.4; return; }
   u.wt = (u.wt || 0) + (moving ? dt * 9 : 0); const s = moving ? Math.sin(u.wt) : 0;
@@ -7233,8 +7236,9 @@ async function cloverBat() {
   const c = CL(), g = W.npcs.clover;
   await say(c.beat ? '(Clover looks up from her book, sees you, and is off the couch before the book lands.)' : '(Clover glances up from her book. Then she really looks at you. The book drops into her lap.)');
   await sayAs('Clover', c.beat ? 'Oh, absolutely not. Not again. NOT IN MY HOUSE.' : 'Nope. No. Nope nope nope. I know that look. Get OUT of my house!');
-  CL_POS = [2, 6, 'right']; ENTC.t = 0; if (g) { g.userData.sit = false; if (g.userData.book) g.userData.inner.remove(g.userData.book); resetArms(g); }
-  await wait(900); const g2 = W.npcs.clover; if (g2) { holdItem(g2, 'bat'); npcFace.clover = 'right'; }
+  if (g) { g.userData.sit = false; if (g.userData.book) g.userData.inner.remove(g.userData.book); resetArms(g); holdItem(g, 'bat'); g.userData.ready = true; }   // up off the couch with the bat already in her hand
+  CL_POS = [2, 6, 'right']; ENTC.t = 0; npcFace.clover = 'right';
+  await wait(900); const g2 = W.npcs.clover; if (g2 && g2 !== g) holdItem(g2, 'bat');
   await say('(She snatches a baseball bat from beside the couch. It has clearly been waiting there for exactly this.)');
   for (let i = 0; i < 3; i++) { await swingAt(W.npcs.clover); if (i === 1) await sayAs('Clover', 'OUT! OUT! OUT!'); }
   await lie(true, 300); await fadeTo(1, 1000); W.player.rotation.x = 0;
