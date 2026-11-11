@@ -4561,6 +4561,7 @@ function tryMove(d) {
   if (ny < 0 || nx < 0 || ny >= M.h || nx >= M.w) { const ex = M.exit(nx, ny); if (ex) runScript(() => changeMap(ex)); return; }
   const w = wildAt(nx, ny); if (w) { startWild(w); return; }
   if (tileAt(nx, ny) === 'D' && M.doors && M.doors[nx + ',' + ny]) { runScript(() => enterDoor(M.doors[nx + ',' + ny])); return; }
+  { const e = entAt(nx, ny); if (e && e.walkIn && e.talk && !busy) { runScript(() => e.talk()); return; } }   // doors drawn on set pieces (the lighthouse): walk into them like any door
   if (!walkable(nx, ny)) return;
   mv.active = true; mv.fx = S.x; mv.fy = S.y; mv.t = 0; S.x = nx; S.y = ny;
 }
@@ -6822,7 +6823,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   IN(6).npcs = [npc('surf', 7, 5, 'down', 'Kai', lk('#3a6a8a', '#f4cf5e', SK[3], '#e2c070', ['bandana']), surfShack)];
   IN(7).npcs = [npc('teller', 6, 2, 'down', 'Teller', lk('#5a5a5a', '#f3e7c9', SK[1], '#3a2414', ['glasses']), bankTeller), npc('guard_b', 2, 6, 'right', 'Bank guard', lk('#2a3448', '#d8b85a', SK[4], '#141014', ['cap', 'baton', 'stout']), () => sayAs('Bank guard', sideLine({ light:'Morning.', even:'Keep it moving.', shadow:'Don\'t even think about it.' })))];
   REGION_NPCS.saltmere = () => [
-    npc('lhdoor', 4, 3, 'up', 'Sharyn Lighthouse', null, climbLighthouse, { invisible:true }),
+    npc('lhdoor', 4, 3, 'up', 'Sharyn Lighthouse', null, climbLighthouse, { invisible:true, walkIn:true }),
     npc('lhsign', 4, 7, 'up', 'Sign', null, () => say('THE SHARYN LIGHTHOUSE. Named for Sharyn, strong and steady, who weathered a storm that lasted years and never once took her eyes off the light. Eighty feet of white stone on Gull Point. The keeper\'s house is open to callers. (Under it, scratched in: "She still turns. Wave at her.")'), { invisible:true }),
     npc('fisher', 9, 7, 'down', 'Fisherman', lk('#5a6a3a', '#e8a83a', SK[2], '#8a8078', ['cap', 'beard']), () => sayAs('Fisherman', S.flags.lightOut ? 'A boat came onto the rocks last night. Light was out. Nobody knows who climbed up there and put it out. (He looks at you, and keeps looking.)' : 'Mackerel\'s running. First time in eleven years. I cried, a bit. Don\'t tell anyone.')),
     npc('sunbather', 19, 9, 'up', 'Sunbather', lk('#e8a83a', '#fff3d6', SK[1], '#7a3e1e', ['glasses']), () => sayAs('Sunbather', sideLine({ light:'Sit down, there\'s room. The sun\'s for everybody.', even:'You\'re in my light. A little bit.', shadow:'(She gathers up her towel and moves twenty feet away.)' }))),
