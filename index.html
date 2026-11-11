@@ -211,8 +211,8 @@ const dyadOf = (a, b) => a && b && a !== b ? DYADS[[a, b].sort().join('+')] : nu
 const wIdx = t => WHEEL.indexOf(t);
 const wAt = i => WHEEL[((i % WN) + WN) % WN];
 const oppOf = t => wAt(wIdx(t) + WN / 2);
-const isOpp = (a, b) => a && b && oppOf(a) === b;
-const isAdj = (a, b) => { const d = (wIdx(a) - wIdx(b) + WN) % WN; return d === 1 || d === WN - 1; };
+const isOpp = (a, b) => a && b && wIdx(a) >= 0 && wIdx(b) >= 0 && oppOf(a) === b;   // feelings outside the wheel have no opposite
+const isAdj = (a, b) => { if (wIdx(a) < 0 || wIdx(b) < 0) return false; const d = (wIdx(a) - wIdx(b) + WN) % WN; return d === 1 || d === WN - 1; };
 function eff(atk, def) { if (!atk) return 1; if (isOpp(atk, def)) return 2; if (atk === def) return 0.5; return 1; }
 
 // Each family shares four Expressions: [mild attack, status, core attack @L10, intense attack @L22]
@@ -1719,7 +1719,7 @@ function manifGeometry(shape) {
 const EYE_Z = { star:.16, knot:.3, wisp:.29, spark:.22, drop:.33, blob:.31, thorn:.29, flame:.33 };
 const BROW = { thorn:-1, drop:1, blob:-.6, wisp:1 };
 function buildManif(sp, o = {}) {
-  const g = (typeof SCULPT !== 'undefined' && SCULPT[sp]) ? buildSculpt(sp, o) : buildManifLegacy(sp, o);
+  const g = SPECIES[sp] && SPECIES[sp].special ? buildSpecialManif(sp, o) : (typeof SCULPT !== 'undefined' && SCULPT[sp]) ? buildSculpt(sp, o) : buildManifLegacy(sp, o);
   if (sp !== 'HUSH' && SPECIES[sp]) addManifAura(g, SPECIES[sp], o);
   return g;
 }
@@ -1807,6 +1807,7 @@ function animManif(g, t, k = 1) {
   const u = g.userData;
   if (u.sculpt) { animSculpt(u, t); return; } u.body.position.y = Math.sin(t * 2.2 + u.phase) * .06 * k;
   u.body.rotation.y = Math.sin(t * .9 + u.phase) * .35;
+  if (u.special) { animSpecial(g, t); return; }
   if (u.ring) u.ring.rotation.z = t * 1.2;
   animDecor(u.body, t);
   switch (u.shape) {
@@ -5207,6 +5208,7 @@ async function moodPreTalk(e) {
     if (famT === 'ANGER') { await sayE(pickA(['WHAT. What do you want?', 'Make it quick. I\'ve had it up to here with everyone today.', '(They jab a finger at your chest.) You\'re not from here. I can tell. Nobody from here smiles like that.', 'Don\'t. Just don\'t. Whatever it is, the answer\'s no.', 'Everyone in this city is an idiot. Present company probably included.'])); return; } }
   if (!playerThreat() && isFolk(e) && !isChild(e) && fierceDark() && !(MOOD.eyed = MOOD.eyed || {})[key] && Math.random() < .45) { MOOD.eyed[key] = 1; const m = fierceDark();
     await sayE(pickA([`(They glance at your ${nm(m)}, then at you, and relax.) Bit of a storm cloud, that one. You seem alright, though.`, `That ${nm(m)} of yours has a look about it. Good thing it's with someone kind.`, `(A wary look at your ${nm(m)}. Then a small smile for you.) You keep that one close, alright?`])); return; }
+  if (savedHere() && wouldSnub(e)) return;   // the ungrateful don't thank you first (auraPreTalk deals with them)
   if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
   if (mood === 'relieved') await sayE(pickA(['It feels like I can breathe again.', 'Did you hear? The Heart settled! The whole street\'s been crying and laughing all morning.', '{name}! People are saying it was you who settled the Heart.']));
   else if (mood === 'joyful') await sayE(pickA(['Everything feels so loud now. In a good way. Mostly.', 'The Stillwell\'s quiet. You did it, {name}. You actually did it.']));
@@ -5555,6 +5557,7 @@ async function talkSuperboss() {
   } else {
     await say('In the clear water stands an old man made of white ink. He has been holding something shut for two hundred years, and his arms are shaking.');
     await say('Orrin Vale: Child. I am so tired. I gave them a well to put their grief in, and it ate them. Show me what a person can carry without it. Show me, and I can rest.');
+    await orrinLoveGift();
   }
   const c = await ask(doom ? 'Wren, the Last Unbound (Lv 55)' : 'The Echo of Orrin Vale (Lv 55)', ['Face it', 'Not yet']); if (c !== 0) return;
   const team = doom ? [[spAt('HOPE', 2, 2), 53], [spAt('JOY', 2, 1), 54], [heartOf('CALM'), 55]] : [[spAt('SADNESS', 2, 2), 53], [spAt('FEAR', 2, 1), 54], [heartOf('SADNESS'), 55]];
@@ -5738,6 +5741,7 @@ async function auraPreTalk(e) {
   const menace = read === 'menace' && z.y === 'fierce', bright = z.x === 'light';
   // Children are never muggers or attackers. Grown-ups protect them.
   if (isChild(e)) return childTalk(e, z, town, menace);
+  if (savedHere() && wouldSnub(e)) return snubAfterSave(e, sayE);
   S.met = S.met || {}; const key = S.map + ':' + e.id; if (S.met[key]) return; S.met[key] = 1;
   // Menacing auras make ordinary people run; cruel ones might go for you instead.
   if (menace && moral !== 'cruel' && Math.random() < .55) { await say(deal('flee', FLEE_LINES)); GONE[key] = performance.now() + 90000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
@@ -6068,6 +6072,8 @@ function endingFilter(map, list) {
       if (e.invisible) { out.push(e); continue; }
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, look:NUMBED_LOOK, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
     return out; }
+  // the world is saved: nobody stays Numbed, not in the towns, not in the houses, not down in the Stillwell
+  if (fl.restored && !fl.doom) return list.map(e => e.numb || e.look === NUMBED_LOOK ? unNumb(e, map) : e).map(e => e.look && !e.numb && isFolk(e) ? { ...e, pet:true } : e);
   if (fl.restored) return list.map(e => e.look && !e.numb && isFolk(e) ? { ...e, pet:true } : e);
   return list;
 }
@@ -6095,6 +6101,21 @@ function wreckedTrain(x, y) {
   for (let k = 0; k < 3; k++) { const e = glow('#ff6a2a', .3, .55); e.position.set(-.5 - k * 2.2, .3, .9 - k * .5); g.add(e); }
   g.traverse(m => { if (m.isMesh && m.material && m.material.color && m.material !== INK) { m.material = m.material.clone(); m.material.color.lerp(new THREE.Color('#4a4642'), .35); } });
   return g;
+}
+
+// After the good ending: a Numbed person wakes up with their own colours back and something to say about it.
+const WOKEN_LINES = {
+  still:['I was down here so long I forgot there was an up. There\'s an up! Look at it!', 'I can feel how cold this water is. I could never feel it before. It\'s horrible. It\'s wonderful.',
+    'Orrin held the door the whole time. I heard him. Every night. I couldn\'t care, then. I care now.', 'I put my grief in the well, years ago. It came back this morning. I\'m so glad. I want to keep it.'],
+  any:['I woke up this morning and cried at the kettle. Just at the kettle. It was beautiful.', 'Everything\'s so loud. Colours, smells, people. I don\'t ever want it quiet again.',
+    'I remember being grey. I remember not minding. I mind now. Thank you.', 'My hands are warm. Were they always warm? I can\'t remember the last time I noticed.']
+};
+function unNumb(e, map) {
+  const M = MAPS[map] || {}, fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe) || WHEEL[(e.id.length * 7 + (e.x || 0)) % WN];
+  let h = 0; for (const ch of e.id + map) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const lines = M.kind === 'still' ? WOKEN_LINES.still : WOKEN_LINES.any, line = lines[h % lines.length];
+  return { ...e, numb:false, look:roomLook(fam, h % 9, { small:!!(e.look && e.look.small) }), name:e.name && e.name !== 'Numbed' ? e.name : 'Townsperson', folk:true,
+    talk:() => say(`${e.name && e.name !== 'Numbed' ? e.name : 'Townsperson'}: ${line}`) };
 }
 // =============================================================================
 //  DARKNESS & THE BLACK MARKET — Wren worries as you darken, and past a point she
@@ -7195,7 +7216,7 @@ async function dndTalk(k) {
   }
   if (k === 'morwen' && !S.flags.dndFossil) { S.flags.dndFossil = 1; await sayAs(n, 'Before you go: I use this as a mini for the ancient ammonite god. Long story. Campaign three. Here. It looks better on you.');
     await say('(Morwen gives you a spiral fossil, coiled like a staircase. It\'s warm from the table lamp.)'); S.items.hearth = (S.items.hearth || 0) + 1; return; }
-  if (k === 'lio' && !S.flags.dndEgg) { S.flags.dndEgg = 1; await sayAs(n, 'This is my egg. It\'s a dragon egg. It might be a dragon. It might be anything. You keep it warm and at the very end it becomes whatever you want it to be. That\'s the rule.');
+  if (k === 'lio' && !S.flags.dndEgg) { S.flags.dndEgg = 1; await sayAs(n, 'This is my egg. It\'s a dragon egg. It might be a dragon. It might be anything. You keep it warm and at the very end it hatches. I think it\'s a curious one. It keeps wiggling when I talk.');
     await say('(Lio puts a speckled egg in your hands, very carefully, with both of his. It is the size of a fist and faintly humming.)'); return; }
   const deck = DND_FUN[k], i = (S.flags['dndLine_' + k] || 0); S.flags['dndLine_' + k] = i + 1; return sayAs(n, deck[i % deck.length]);
 }
@@ -7335,14 +7356,8 @@ function burnMarks(obj) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(.055 * s, 8, 6), toon(fy > .8 ? '#7a2a1a' : '#3a1e14')); m.scale.set(1, 1, .35);
     m.position.set(fx * .2, b.min.y + fy * h, fz * .22); inner.add(m); }
 }
-// Lio's egg hatches at the very end into whatever you choose.
-async function hatchEgg() {
-  await say('The egg Lio gave you is moving. It cracks once, twice, and stops, as if it\'s waiting for you to decide.');
-  const fams = WHEEL.slice(); const f = await ask('What should it become?', fams.map(t => TYPES[t].name)); const t = fams[Math.max(0, f)];
-  const pool = ROSTER.filter(r => r[1] === t); const c = await ask(`${TYPES[t].name}: which one?`, pool.map(r => SPECIES[r[0]] ? SPECIES[r[0]].name : r[0])); const sp = pool[Math.max(0, c)][0];
-  const m = adopt(newManif(sp, Math.max(5, strongest()))); (S.party.length < 6 ? S.party : S.satchel).push(m); S.flags.eggHatched = 1; sfx('level');
-  await say(`The shell falls away. A ${SPECIES[sp] ? SPECIES[sp].name : sp} unfolds in your hands, blinks at you, and decides you're home. Somewhere in Larkhollow, a kid would be very proud.`);
-}
+// Lio's egg hatches at the very end. It was always going to be Curiosity (h15_special.js).
+async function hatchEgg() { return hatchCuriosity(); }
 SET.blank = () => new THREE.Group();
 // ---------------------------------------------------------------- the rest of the room
 // The golden d20 in the middle of the map is the table's own die: anyone welcome at the table can roll it, once a visit.
@@ -8047,6 +8062,34 @@ async function dndTenderDoor() {
   const f = hurtFam();
   await sayAs('Morwen', { SADNESS:'Oh, hey. Hey. Come in. You look like you need a table.', FEAR:'Oh! Come in, come in, shut the door. You\'re okay. You\'re with nerds now. Nothing scary happens with nerds.', SHAME:'Hey, you. Don\'t lurk in the doorway. Get in here. There\'s a chair.' }[f]);
 }
+
+// ---------------------------------------------------------------- after the world is saved
+// Not everyone is grateful. Cruel people, and people whose own feeling runs opposite to yours on the wheel,
+// don't thank you and then insult you: they skip the thanks. Out in the street they pick a fight, storm off,
+// or just walk away; in their own homes they stay put and make it clear you're not welcome.
+const townFam = () => { const M = MAPS[S.map]; return M && (M.vibe || (MAPS[M.route] && MAPS[M.route].vibe)); };
+const savedHere = () => (S.flags.hushDone && !S.flags.doom) || !!(townFam() && S.hearts[townFam()]);
+function wouldSnub(e) { if (!isFolk(e) || isChild(e)) return false; const m = moralOf(e); if (m === 'kind') return false; if (m === 'cruel') return true;
+  const lf = leadFam(), t = townFam(); return !!(lf && t && isOpp(lf, t)); }
+const SNUB = {
+  bright:['Oh, look. The hero. Take your shine somewhere else.', 'Saved the world, did you? Didn\'t ask you to.', 'Everyone\'s falling over themselves to thank you. Not me.', 'Get that smug glow out of my street.'],
+  hurt:['Saved us all and you\'re still moping? Pathetic.', 'Hero of the Welkin, crying in my street. Wonderful.', 'Don\'t expect sympathy from me just because you were useful once.'],
+  menace:['Saved us? You? I\'d rather have the Hush back.', 'Whatever you did down there, you came back worse. Stay away from me.', 'I don\'t care what you saved. You still scare the hell out of me.'],
+  plain:['Hero, are you? Don\'t expect me to bow.', 'So you went down a hole and came back up. Big deal.', 'Nobody asked you to save anything.']
+};
+async function snubAfterSave(e, sayE) {
+  const key = S.map + ':' + e.id, M = MAPS[S.map], home = M && M.kind === 'inside', read = auraRead();
+  S.snubbed = S.snubbed || {}; const again = S.snubbed[key]; S.snubbed[key] = 1;
+  if (again) { await sayE(pickA(['I said what I had to say.', 'Still here?', 'No.', '(They ignore you completely.)'])); return 'refuse'; }
+  await sayE(deal('snub:' + read, SNUB[read] || SNUB.plain));
+  if (home) { await say(pickA(['(They turn back to what they were doing, as if you\'d already gone.)', '(They hold the door open for you, pointedly.)', '(They stay in their chair and stare at you until you leave.)'])); return 'refuse'; }
+  const r = Math.random();
+  if (moralOf(e) === 'cruel' && r < .3) { await say('(They square up to you.)');
+    const ok = await trainerFight(e.name || 'a sore loser', [[spAt(townFam() || 'ANGER', 1, 1), Math.max(8, strongest() - 1)]]); if (ok) await say(pickA(['(They pick themselves up, spit, and stalk off muttering.)', '(They limp away without another word.)']));
+    GONE[key] = performance.now() + 120000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
+  if (r < .65) { await say(pickA(['(They shove past you and storm off down the street.)', '(They turn on their heel and leave.)', '(They go inside and slam the door.)'])); GONE[key] = performance.now() + 120000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
+  await say(pickA(['(They walk away without looking back.)', '(They turn their back on you.)'])); return 'refuse';
+}
 // =============================================================================
 //  HOW PEOPLE RESPOND TO EACH MANIF — from Blaine's reaction doc. Every Manif has a
 //  row: what the Kind One, Fixer, Avoider, Judge, Opportunist and Mirror do when they
@@ -8330,6 +8373,130 @@ function tickDay(dt) {
   NIGHT_K = inside ? 0 : d.night;
 }
 let NIGHT_K = 0;
+// =============================================================================
+//  TWO FEELINGS OUTSIDE THE WHEEL — they belong to no family, live in no town and
+//  are never found in the wild. Each has its own strengths and weaknesses.
+//    LOVE       a gift from Orrin Vale, at the bottom of the Stillwell, once the world is saved.
+//               Disarms Anger, Disgust, Shame and Fear; breaks under Sadness.
+//    MAKE-BELIEVE  what Lio's egg hatches into: the feeling only children can hold. Dissolves Fear,
+//               shut down by Anger and Disgust.
+// =============================================================================
+Object.assign(TYPES, {
+  LOVE:    { name:'Love',      c:'#e8607a', val:3, ladder:['Fondness', 'Love', 'Devotion'],  shape:'special', prof:[54, 14, 13, 12], special:true },
+  CURIOUS: { name:'Make-Believe', c:'#4fb8a6', val:1, ladder:['Pretend', 'Make-Believe', 'Imagination'], shape:'special', prof:[42, 14, 10, 16], special:true }
+});
+Object.assign(MOVES, {
+  EMBRACE:{ name:'Embrace', type:'LOVE', pow:46, acc:100 }, CHERISH:{ name:'Cherish', fx:'healall', desc:'Heals the whole Chorus a little' }, DEVOTE:{ name:'Devote', type:'LOVE', pow:70, acc:95 }, ADORATION:{ name:'Adoration', type:'LOVE', pow:96, acc:90 },
+  POKE:{ name:'Pretend Poke', type:'CURIOUS', pow:44, acc:100 }, ASK_WHY:{ name:'Pillow Fort', fx:'def+', desc:'Raises its Poise' }, INVESTIGATE:{ name:'Dragon Roar', type:'CURIOUS', pow:68, acc:95 }, DISCOVERY:{ name:'Happily Ever After', type:'CURIOUS', pow:94, acc:90 }
+});
+Object.assign(LEARN, { LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
+Object.assign(AROUSAL, { LOVE:0, CURIOUS:2 });
+Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead' });
+Object.assign(FAM_LEAN, { LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
+// strengths and weaknesses, outside the wheel's opposites
+const SPECIAL_EFF = {
+  LOVE:    { atk:{ ANGER:2, DISGUST:2, SHAME:2, FEAR:2, LOVE:.5 },          def:{ SADNESS:2, JOY:.5, HOPE:.5, CALM:.5, ANGER:.5, LOVE:.5 } },
+  CURIOUS: { atk:{ FEAR:2, CALM:2, SHAME:2, SURPRISE:.5, CURIOUS:.5 },      def:{ ANGER:2, DISGUST:2, SURPRISE:.5, JOY:.5, HOPE:.5, CURIOUS:.5 } }
+};
+{ const wheelEff = eff; eff = function (atk, def) {
+    if (SPECIAL_EFF[atk]) return SPECIAL_EFF[atk].atk[def] || 1;
+    if (SPECIAL_EFF[def]) return SPECIAL_EFF[def].def[atk] || 1;
+    return wheelEff(atk, def); }; }
+const SPECIAL_SP = {
+  LOVE_X:  { name:'Love', type:'LOVE', desc:'Warm, steady and unafraid. The one feeling Orrin Vale never put in the well.' },
+  CURIO_X: { name:'Make-Believe', type:'CURIOUS', desc:'The feeling only children can hold: a whole kingdom in a cardboard box, a dragon in the airing cupboard. Grown-ups lose the knack. It hatched from Lio\'s egg, and it has decided you still count.' }
+};
+for (const [id, s] of Object.entries(SPECIAL_SP)) { const p = TYPES[s.type].prof, k = 1.22;
+  SPECIES[id] = { id, name:s.name, type:s.type, tier:2, line:0, heart:false, special:true, desc:s.desc, base:{ hp:Math.round(p[0] * k), atk:Math.round(p[1] * k), def:Math.round(p[2] * k), spd:Math.round(p[3] * k) } }; }
+ECHOES.LOVE_X = ['I held on to this the whole time. Two hundred years. It was the only thing I didn\'t give away.', 'I loved them. All of them. That\'s why I built the well.', 'It doesn\'t fix anything. It just stays.', 'Take care of them. Take care of yourself, too. That counts.', 'Even down here, it was warm.', 'Please don\'t put me away somewhere.', 'Still here. Still here.'];
+ECHOES.CURIO_X = ['I\'m a dragon. You\'re the knight. No, wait, you\'re a dragon too.', 'The floor is lava. It\'s ALWAYS lava.', 'This stick is a sword. This box is a castle. You\'re the queen of the castle.', 'Grown-ups can\'t see me unless they remember how.', 'Let\'s pretend everything is going to be okay. Pretending is how it starts.'];
+// The doc rows for how people take each one: kind | fixer | avoider | judge | opportunist | mirror
+Object.assign(MANIF_REACT, {
+  LOVE_X:['(They go soft around the eyes and stay right where they are.)', '"Whoever that\'s for, make sure they know. Today."', '(It\'s a lot. They smile, a bit embarrassed, and give you room.)', '"Bit much, isn\'t it?"', '(They look at you like you\'d give them anything. You might.)', '(They\'re smiling too, now, and can\'t say why.)'],
+  CURIO_X:['(They kneel down and pretend right along with you.)', '"Here. A cardboard crown. Every knight needs one."', '(They don\'t know how to play anymore. They wander off.)', '"Grow up."', '"I\'ll sell you a real dragon. Well. A lizard."', '(They\'re a pirate now too, apparently.)'],
+});
+Object.assign(REACT6, {
+  LOVE:{ kind:['That\'s a lovely thing to be carrying.', 'Hold on to that one.', 'Oh. Whoever you love, they\'re lucky.'], fixer:['Love\'s good. Tell them, though. Don\'t just carry it.', 'Make it count.', 'Write them a letter. Tonight.'],
+    avoider:['(They smile, a bit shy.)', 'That\'s... nice.', '(It\'s too much warmth. They step back.)'], judge:['Wear your heart on your sleeve, do you.', 'Sentimental.', 'Love\'s what gets people killed.'],
+    opportunist:['Someone that warm will lend a friend a Mark or two.', 'Love\'s generous. Lucky me.', 'You\'d do anything for someone, wouldn\'t you? Good to know.'], mirror:['(They light up too.)', '(They catch it like a cold.)', '(They\'re tearing up and laughing.)'] },
+  CURIOUS:{ kind:['Pretending, are we? Can I play?', 'Don\'t ever lose that.', 'What are we today? Knights? Dragons?'], fixer:['Imagination\'s good. Put it to work.', 'Write it down. That\'s how books happen.', 'There\'s a toy shop in Larkhollow.'],
+    avoider:['(They smile, a bit lost, and slip away.)', 'I don\'t really... do pretend.', '(Too silly for them. They leave.)'], judge:['Childish.', 'Grow up.', 'You\'re too old for that.'],
+    opportunist:['Toys, cheap. Real magic ones.', 'A wand? Ten Marks. Definitely real.', 'Kids pay anything for a dragon. So do you, I bet.'], mirror:['(Now they\'re pretending too.)', '(They pick up a stick. It\'s a sword now.)', '(They\'re roaring like a dragon. Nobody knows why.)'] }
+});
+Object.assign(REACT, {
+  LOVE:{ kind:['There\'s love all over you. It suits you.'], fair:['You look like someone who\'s in love. Good luck to you.'], cruel:['Love. Ugh. Easiest people in the world to fleece.'] },
+  CURIOUS:{ kind:['Oh, you can still see it. Most of us can\'t anymore.'], fair:['Playing pretend at your age?'], cruel:['Grow up.'] }
+});
+// models: nothing like the wheel's Manifs
+function buildSpecialManif(sp, o = {}) {
+  const d = SPECIES[sp], c = new THREE.Color(TYPES[d.type].c), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const mat = toon(c, { emissive:c.clone(), emissiveIntensity:.35, wash:1 }), add = (geo, m, p, sc, rot) => { const x = new THREE.Mesh(geo, m); x.position.set(...p); if (sc) x.scale.set(...sc); if (rot) x.rotation.set(...rot); x.castShadow = true; body.add(x); return x; };
+  const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
+  if (sp === 'LOVE_X') {
+    // a heart that floats: two lobes and a point, a little gold halo, small wings, a calm face, tiny hearts circling
+    for (const sx of [-1, 1]) { const l = add(new THREE.SphereGeometry(.24, 18, 14), mat, [sx * .15, .12, 0]); inkScale(l, 1.06); }
+    const pt = add(new THREE.ConeGeometry(.35, .5, 18), mat, [0, -.2, 0], [1, 1, .75], [Math.PI, 0, 0]); inkScale(pt, 1.05);
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(.17, .022, 8, 24), toon('#f4cf5e', { emissive:new THREE.Color('#f4cf5e'), emissiveIntensity:.6 })); halo.rotation.x = Math.PI / 2; halo.position.y = .52; body.add(halo);
+    for (const sx of [-1, 1]) { const w = add(new THREE.SphereGeometry(.16, 12, 8), toon('#fff3f0', { emissive:new THREE.Color('#ffd8e0'), emissiveIntensity:.3 }), [sx * .4, .14, -.05], [1.1, .55, .25], [0, 0, sx * .5]); w.userData.wing = sx; }
+    for (const sx of [-1, 1]) { add(new THREE.SphereGeometry(.03, 8, 6), blk, [sx * .09, .08, .23], [1, 1.25, .5]); add(new THREE.SphereGeometry(.009, 6, 5), wht, [sx * .09 + .012, .1, .245]); }
+    add(new THREE.TorusGeometry(.04, .01, 6, 12, Math.PI), blk, [0, -.02, .23], null, [0, 0, Math.PI]);
+    for (let i = 0; i < 3; i++) { const h = new THREE.Group(); for (const sx of [-1, 1]) { const b = new THREE.Mesh(new THREE.SphereGeometry(.035, 8, 6), mat); b.position.set(sx * .025, .01, 0); h.add(b); } const tp = new THREE.Mesh(new THREE.ConeGeometry(.05, .07, 8), mat); tp.rotation.x = Math.PI; tp.position.y = -.03; h.add(tp); h.userData.orb = i; g.add(h); }
+  } else {
+    // a round little make-believer: one huge eye, one small, a crooked paper crown and a cardboard sword
+    const b = add(new THREE.SphereGeometry(.3, 20, 16), mat, [0, 0, 0], [1, .92, .95]); inkScale(b, 1.05);
+    add(new THREE.SphereGeometry(.12, 14, 10), wht, [-.07, .06, .24], [1, 1, .5]); add(new THREE.SphereGeometry(.06, 12, 8), blk, [-.07, .05, .3], [1, 1, .5]); add(new THREE.SphereGeometry(.018, 6, 5), wht, [-.05, .08, .33]);
+    add(new THREE.SphereGeometry(.06, 12, 8), wht, [.13, .09, .24], [1, 1, .5]); add(new THREE.SphereGeometry(.03, 8, 6), blk, [.13, .085, .27], [1, 1, .5]);
+    add(new THREE.TorusGeometry(.03, .008, 5, 10, Math.PI), blk, [0, -.1, .27], null, [0, 0, Math.PI]);
+    for (const sx of [-1, 1]) add(new THREE.SphereGeometry(.06, 10, 8), mat, [sx * .29, -.08, .08]);
+    const sw = new THREE.Group(); sw.position.set(.34, -.02, .14); sw.rotation.z = -.5; body.add(sw);                          // a cardboard sword
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(.06, .38, .015), toon('#c8a070')); blade.position.y = .2; sw.add(blade);
+    const tipm = new THREE.Mesh(new THREE.ConeGeometry(.043, .07, 4), toon('#c8a070')); tipm.position.y = .42; tipm.rotation.y = Math.PI / 4; tipm.scale.z = .35; sw.add(tipm);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(.16, .03, .03), toon('#d8584a')); sw.add(guard);
+    const scrib = new THREE.Mesh(new THREE.BoxGeometry(.02, .3, .018), toon('#5a8ac8')); scrib.position.y = .2; sw.add(scrib);
+    const crown = new THREE.Group(); crown.position.set(-.04, .25, 0); crown.rotation.z = .18; body.add(crown);                 // a paper crown, slightly crooked
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(.15, .16, .08, 10, 1, true), toon('#f4cf5e', { side:THREE.DoubleSide })); crown.add(band);
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, pt = new THREE.Mesh(new THREE.ConeGeometry(.035, .08, 4), toon('#f4cf5e')); pt.position.set(Math.cos(a) * .15, .07, Math.sin(a) * .15); crown.add(pt); }
+    body.userData.ant = crown;   // the crown wobbles as it looks around
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(.03, .04, .1, 8), toon('#2a6a64'), [sx * .12, -.3, .02]);
+  }
+  g.userData = { body, mat, glow:null, shape:'special', phase:Math.random() * 6, tier:2, baseE:.35, special:sp };
+  g.scale.setScalar((o.scale || 1) * 1.05);
+  return g;
+}
+// little hearts circle Love; Make-Believe's crown wobbles as it looks around
+function animSpecial(g, t) { const u = g.userData;
+  for (const h of g.children) if (h.userData.orb != null) { const a = t * 1.3 + h.userData.orb * 2.09; h.position.set(Math.cos(a) * .55, .1 + Math.sin(t * 2 + h.userData.orb) * .12, Math.sin(a) * .55); h.rotation.y = -a; }
+  u.body.traverse(m => { if (m.userData && m.userData.wing) m.rotation.z = m.userData.wing * (.5 + Math.sin(t * 6) * .25); });
+  if (u.body.userData.ant) u.body.userData.ant.rotation.z = Math.sin(t * 2.4 + u.phase) * .25;
+}
+
+// ---------------------------------------------------------------- the gifts
+async function giveSpecial(sp, nick) {
+  const m = adopt(newManif(sp, Math.max(20, strongest()))); m.canon = true; if (nick) m.nick = nick;
+  (S.party.length < 6 ? S.party : S.satchel).push(m); S.codex.seen[sp] = 1; S.codex.kept[sp] = 1; rebuildMinis(); sfx('keep');
+  banner(SPECIES[sp].name, 'A feeling outside the wheel');
+  return m;
+}
+// Orrin Vale, at the bottom of the Stillwell, after you've saved the world
+async function orrinLoveGift() {
+  if (S.flags.loveGift || S.flags.doom) return false; S.flags.loveGift = 1;
+  await say('Before you can say anything, the old man of white ink lowers one shaking hand and holds it out to you, closed.');
+  await sayAs('Orrin Vale', 'Wait. Before anything else. When I built the well, everyone poured their feelings into it. Grief, fear, rage, all of it. I poured mine in too. All but one.');
+  await sayAs('Orrin Vale', 'I kept this. Two hundred years, I kept it, in this hand, while the other one held the door. It is the only reason I am still a person and not a shape in the water.');
+  await say('He opens his hand. Something small and warm and rose-coloured lifts out of it, looks at you, and settles against your chest as if it has been waiting for exactly you.');
+  await giveSpecial('LOVE_X');
+  await sayAs('Orrin Vale', 'Love. It belongs to no family. It was never on the wheel, because it isn\'t a weather. It\'s what you do in the weather. Take it up into the light for me.');
+  return true;
+}
+// Lio's egg: it was always going to be Make-Believe, the feeling only children can hold
+async function hatchCuriosity() {
+  await say('The egg Lio gave you is moving. It rocks, it wobbles, it cracks down one side, and a single enormous eye peers out of the crack at you.');
+  await say('The shell falls away. Out climbs a small round creature in a paper crown, waving a cardboard sword it seems to have brought with it.');
+  await say('It is Make-Believe: the one feeling only children can hold. Grown-ups lose the knack of it. This one looks you up and down, and decides you still count.');
+  await giveSpecial('CURIO_X');
+  await say('It immediately declares your boots a castle. Somewhere in Larkhollow, a kid would be very, very proud.');
+  S.flags.eggHatched = 1;
+}
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
