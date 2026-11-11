@@ -1657,11 +1657,20 @@ function buildPerson(L) {
   if (hair === 'curly') for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r2 = i % 2 ? .13 : .1; add(new THREE.SphereGeometry(.055, 8, 6), hc, [Math.cos(a) * r2, HY + .1 + (i % 3) * .025, Math.sin(a) * r2 - .03], { ink:1.05 }); }
   if (hair === 'bob') add(new THREE.CylinderGeometry(.18, .185, .2, 16, 1, true, Math.PI * .3, Math.PI * 1.4), hc, [0, HY - .03, -.005], { mo:{ side:THREE.DoubleSide }, ink:0 });
   if (hair === 'long') { add(new THREE.CylinderGeometry(.17, .2, .42, 16, 1, true, Math.PI * .3, Math.PI * 1.4), hc, [0, HY - .14, -.01], { mo:{ side:THREE.DoubleSide }, ink:0 }); }
-  if (hair === 'curlylong') {               // long wavy hair: curls on top, a full fall down the back and over the shoulders, face left clear
-    cap(.18, .52); add(new THREE.CylinderGeometry(.17, .23, .5, 16, 1, true, Math.PI * .32, Math.PI * 1.36), hc, [0, HY - .17, -.01], { mo:{ side:THREE.DoubleSide }, ink:0 });
-    for (let i = 0; i < 10; i++) { const a = -1.2 + i / 9 * 2.4; add(new THREE.SphereGeometry(.058, 8, 6), hc, [Math.sin(a) * .15, HY + .1 + (i % 2) * .02, -Math.cos(a) * .15 + .02], { ink:1.05 }); }
-    for (let row = 0; row < 3; row++) for (let i = 0; i < 9; i++) { const a = -1.75 + i / 8 * 3.5, r3 = .19 + row * .025;
-      add(new THREE.SphereGeometry(.062 - row * .006, 8, 6), hc, [Math.sin(a) * r3, HY - .05 - row * .14 - (i % 2) * .03, -Math.cos(a) * r3], { ink:1.04 }); } }
+  if (hair === 'curlylong') {               // long curly hair: a full wavy fall down the back and shoulders made of corkscrew ringlets, face left clear
+    const hc2 = new THREE.Color(hc).offsetHSL(0, .04, .07).getStyle(), hc3 = new THREE.Color(hc).multiplyScalar(.78).getStyle();
+    cap(.18, .52);
+    // the mass of hair behind: a rippled shell, so it reads as waves rather than a smooth tube
+    const sh = new THREE.CylinderGeometry(.17, .25, .52, 28, 8, true, Math.PI * .3, Math.PI * 1.4), sp = sh.attributes.position;
+    for (let v = 0; v < sp.count; v++) { const x = sp.getX(v), y = sp.getY(v), z = sp.getZ(v), a = Math.atan2(x, z), r = Math.hypot(x, z), k = 1 + .07 * Math.sin(a * 11 + y * 9) + .03 * Math.sin(y * 23); sp.setX(v, Math.sin(a) * r * k); sp.setZ(v, Math.cos(a) * r * k); }
+    sh.computeVertexNormals(); add(sh, hc3, [0, HY - .18, -.01], { mo:{ side:THREE.DoubleSide }, ink:0 });
+    // ringlets: little corkscrew curls hanging round the sides and back, alternating two shades of copper
+    const ringlet = (len, rad) => { const pts = []; for (let t = 0; t <= 1.0001; t += 1 / 40) pts.push(new THREE.Vector3(Math.cos(t * Math.PI * 2 * 3.2) * rad, -t * len, Math.sin(t * Math.PI * 2 * 3.2) * rad));
+      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, .03, 6, false); };
+    for (let i = 0; i < 23; i++) { const a = -2.05 + i / 22 * 4.1, r3 = .2 + (i % 3) * .012, len = .36 + (1 - Math.abs(Math.cos(a))) * 0 + ((i * 7) % 5) * .035 + (Math.abs(a) > 1.5 ? .12 : 0);
+      add(ringlet(len, .03 + (i % 2) * .008), i % 2 ? hc : hc2, [Math.sin(a) * r3, HY + .02, -Math.cos(a) * r3], { ink:0, rot:[0, a * 1.7, 0] }); }
+    // soft curls framing the crown
+    for (let i = 0; i < 9; i++) { const a = -1.1 + i / 8 * 2.2; add(ringlet(.1, .022), i % 2 ? hc2 : hc, [Math.sin(a) * .16, HY + .15, -Math.cos(a) * .16 + .03], { ink:0, rot:[Math.PI / 2 - .5, a, 0] }); } }
   if (hair === 'ponytail') add(new THREE.ConeGeometry(.06, .3, 8), hc, [0, HY - .02, -.2], { rot:[-2.6, 0, 0] });
   if (L.hat) add(new THREE.ConeGeometry(.24, .26, 14), L.hat, [0, HY + .21, 0], { ink:1.08 });
   // gear (stout and tall are builds now; held things go in the hand)
@@ -7723,7 +7732,7 @@ function buildHobbit(h) {
 
 // ---------------------------------------------------------------- CLOVER
 // Heather: half-hobbit, half-elf druid, small and fit. Wild red curls, pointed ears, freckles, moss-green dress and cloak with a fur collar, bare feet.
-const CLOVER_LOOK = { coat:'#545c34', sleeve:'#4a5230', skirt:'#545c34', legs:'#6a4a2c', boot:'#e2b08e', skin:'#f0c2a0', hair:'#b8401c', brow:'#9a3a18', hairStyle:'curlylong',
+const CLOVER_LOOK = { coat:'#545c34', sleeve:'#4a5230', skirt:'#545c34', legs:'#6a4a2c', boot:'#e2b08e', skin:'#f0c2a0', hair:'#8e2c14', brow:'#7a2810', hairStyle:'curlylong',
   build:'slim', accent:'#a89a7a', accent2:'#3e4a2a', sash:'#6a4a2a', gear:['ears', 'cape', 'satchel'] };
 const CLOVER_ROOM = 'r_pinewind_in0';
 let CL_POS = null;          // [x, y, dir] while she's up off the couch
