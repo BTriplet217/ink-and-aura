@@ -6573,10 +6573,10 @@ SET.lighthouse = p => { const g = new THREE.Group();                 // after th
   part && g.add(part(new THREE.ConeGeometry(.66, .55, 16), '#2a2826', [0, 6.2, 0])); sBall(g, .09, '#2a2826', 0, 6.55, 0);
   // the door and windows sit on the tapering wall (radius .95 at the base, .62 at the top), tilted to match it
   const rAt = y => .95 - .0635 * y, tilt = -Math.atan(.0635);
-  sBox(g, .48, .78, .06, '#e2ddd0', 0, .39, rAt(.39) + .02, { ink:0, rot:[tilt, 0, 0] });                       // stone surround
-  sBox(g, .36, .66, .05, '#5a3a24', 0, .35, rAt(.35) + .055, { ink:0, rot:[tilt, 0, 0] });                       // wooden door
-  sBox(g, .02, .6, .02, '#3e2818', 0, .35, rAt(.35) + .085, { ink:0, rot:[tilt, 0, 0] }); sBall(g, .025, '#b08a3a', .11, .36, rAt(.36) + .09);
-  sBox(g, .6, .08, .3, '#bdb6a8', 0, .04, 1.06);                                                                  // a stone step
+  sBox(g, .74, 1.12, .06, '#e2ddd0', 0, .56, rAt(.56) + .02, { ink:0, rot:[tilt, 0, 0] });                      // stone surround, big enough to walk through
+  sBox(g, .6, 1.0, .05, '#5a3a24', 0, .5, rAt(.5) + .055, { ink:0, rot:[tilt, 0, 0] });                          // wooden door
+  sBox(g, .02, .94, .02, '#3e2818', 0, .5, rAt(.5) + .085, { ink:0, rot:[tilt, 0, 0] }); sBall(g, .035, '#b08a3a', .2, .5, rAt(.5) + .09);
+  sBox(g, .84, .08, .34, '#bdb6a8', 0, .04, 1.08);                                                                // a stone step
   for (const y of [1.6, 3.0, 4.2]) sBox(g, .16, .26, .05, '#2a2826', 0, y, rAt(y) + .01, { ink:0, rot:[tilt, 0, 0] });
   // the beam: two long soft cones from the lamp, swung round slowly after dark (h14 turns it)
   const beam = new THREE.Group(); beam.position.set(0, 5.62, 0); g.add(beam);
@@ -6586,7 +6586,9 @@ SET.lighthouse = p => { const g = new THREE.Group();                 // after th
     fragmentShader:'varying float vT; varying float vF; uniform float op; uniform vec3 col; void main(){ float edge = pow(vF, 2.2); float along = smoothstep(0.0, .06, vT) * pow(1.0 - vT, 1.6); gl_FragColor = vec4(col * edge * along * op, 1.0); }' });
   for (const s of [1, -1]) for (const [r, k] of [[.55, 1], [.95, .6], [1.45, .35]]) { const m = bm.clone(); m.uniforms = { op:{ value:0 }, col:{ value:new THREE.Color('#fff2b0').multiplyScalar(k) } };
     const c = new THREE.Mesh(new THREE.ConeGeometry(r, 14, 24, 1, true), m); c.rotation.z = s * Math.PI / 2; c.position.x = s * 7.15; c.renderOrder = 5; beam.add(c); }
-  g.userData.lamp = lamp; g.userData.beam = beam; g.userData.glass = glass; g.userData.bulb = bulb; LIGHTHOUSES.push(g); return g; };
+  g.userData.lamp = lamp; g.userData.beam = beam; g.userData.glass = glass; g.userData.bulb = bulb; LIGHTHOUSES.push(g);
+  g.scale.setScalar(LH_SCALE); return g; };
+const LH_SCALE = 1.35;                  // tall enough that you fit through the door and stand on the gallery
 const LIGHTHOUSES = [];
 // A stairwell going down through the floor: a dark opening, the first steps vanishing into it, a rail round three sides,
 // a lamp on a hook and a stencilled sign. (Holdfast Supply's stockroom, down to Holdfast Deep.)
@@ -6598,6 +6600,14 @@ SET.stairdown = p => { const g = new THREE.Group();
   sBox(g, .04, .04, .96, '#c8a03a', -.46, .78, 0, { ink:0 }); sBox(g, .04, .04, .96, '#c8a03a', .46, .78, 0, { ink:0 }); sBox(g, .96, .04, .04, '#c8a03a', 0, .78, -.46, { ink:0 });
   sBox(g, .4, .22, .03, '#d8c040', 0, .62, -.47, { ink:0 }); sBox(g, .3, .05, .035, '#2a2826', 0, .62, -.47, { ink:0 });
   const lg = glow('#ffd890', .5, .5); lg.position.set(.46, .95, -.46); g.add(lg); sBall(g, .05, '#ffe8a0', .46, .9, -.46, null, { ink:0 });
+  return g; };
+// the inside of the lighthouse: an iron spiral stair winding up through the ceiling
+SET.spiral = p => { const g = new THREE.Group(); sCyl(g, .07, .07, 3.2, '#2a2826', 0, 1.6, 0, null, { ink:0 });
+  for (let i = 0; i < 14; i++) { const a = i * .55, y = .12 + i * .2, st = new THREE.Group(); st.position.y = y; st.rotation.y = a; g.add(st);
+    sBox(st, .72, .05, .26, '#4a4844', .38, 0, 0, { ink:0 }); sCyl(st, .015, .015, .5, '#2a2826', .72, .25, 0, null, { ink:0 }); }
+  const rail = new THREE.Group(); g.add(rail); for (let i = 0; i < 13; i++) { const a0 = i * .55, a1 = a0 + .55, y0 = .62 + i * .2, y1 = y0 + .2;
+    const x0 = Math.cos(-a0) * .72, z0 = Math.sin(-a0) * .72, x1 = Math.cos(-a1) * .72, z1 = Math.sin(-a1) * .72, L = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+    const r = sCyl(rail, .018, .018, L, '#c8a03a', (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, null, { ink:0 }); r.lookAt(x1, y1, z1); r.rotateX(Math.PI / 2); }
   return g; };
 SET.deepsign = p => { const g = new THREE.Group(); sBox(g, .08, 1.1, .08, '#4a3a2c', 0, .55, 0); sBox(g, .9, .5, .06, '#d8c040', 0, 1.05, 0); sBox(g, .7, .06, .065, '#2a2826', 0, 1.12, 0, { ink:0 }); sBox(g, .5, .05, .065, '#2a2826', 0, .98, 0, { ink:0 }); return g; };
 // the top of the stairs, seen from Holdfast Deep: a cut doorway in the rock with steps climbing up into the dark
@@ -6772,6 +6782,11 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   rect(m, 2, 40, 48, 2, '.'); B.piece('gatepost', 50, 30, 1, 2, { keep:1 });
   regionMap('saltmere', B, { name:'Saltmere', sub:'City on the sea', V:SALT_V, music:'saltmere', arrive:'The whole city leans toward the water. Boardwalk, neon, gulls, the Sharyn Lighthouse white on its black rock, and the sea, huge and blue and not grey at all.',
     exit:(nx, ny) => nx >= 52 ? { map:'r_coast', x:1, y:9, dir:'right' } : null });
+  // inside the Sharyn Lighthouse: the round whitewashed base of the tower, the keeper's logbook, oilskins on a hook, the spiral stair going up
+  regionRoom('saltmere', 'lh', [4, 3], { name:'Sharyn Lighthouse', sub:'Ninety-two steps', w:9, h:9, music:'saltmere', floor:['#8a8478', '#7e786c'], wall:'#f0ece0', light:{ sky:'#1a1a20', hemi:'#fff4dc', sun:1.0 },
+    furn:[['spiral', 4, 3], ['desk', 1, 2], ['shelf', 7, 1], ['pallet', 7, 5], ['stove', 1, 5, { lit:true }]],
+    npcs:[npc('lh_stair', 4, 3, 'up', 'Spiral stair', null, () => climbToGallery(), { invisible:true })],
+    note:{ x:1, y:2, text:'(The keeper\'s log, open on the desk. Forty years of the same three lines in the same hand.) "Lamp lit at dusk. Sea calm. No ships." And then, on the last page, in letters twice the size: "SHIPS."' } });
   const IN = i => MAPS['saltmere_in' + i].room;
   IN(0).npcs = [npc('keeper_lh', 5, 5, 'down', 'Keeper Ardis', lk('#2a3448', '#f3e7c9', SK[2], '#d8d0c0', ['beard', 'cap', 'longcoat']), talkLightKeeper)];
   IN(1).npcs = [npc('curio', 7, 5, 'down', 'Marisol', lk('#4f8a8a', '#f4cf5e', SK[3], '#141014', ['earrings', 'scarf']), async () => {
@@ -6833,11 +6848,38 @@ async function climbLighthouse() {
   const dark = auraSide() === 'shadow';
   if (dark && !S.flags.lhForced) { const c = await ask('The tower door is locked. The keeper took the key.', ['Leave it', 'Kick it in']); if (c !== 1) return; S.flags.lhForced = 1; sin(1); sfx('hurt'); await say('Three kicks. The old wood gives, and the whole headland hears it.'); }
   else if (!dark && !S.flags.ardisMet) { S.flags.ardisMet = 1; }
-  await fadeTo(1, 400); await fadeTo(0, 400);
-  await say('The Sharyn Lighthouse. Ninety-two steps, around and around. At the top the lantern room is hot and bright and humming, and the whole city is under you: the boardwalk, the neon, the roofs, the coast road running back east toward everything you know.');
+  return changeMap({ map:'saltmere_inlh', x:4, y:7, dir:'up' });
+}
+// Up the spiral stair and out onto the gallery: you're actually standing up there in Saltmere, by the lamp, and the view
+// swings slowly round the whole city and the sea while things happen. Then back down to the base.
+async function climbToGallery() {
+  await say('Ninety-two steps, around and around, the iron ringing under your feet.');
+  await fadeTo(1, 500);
+  await changeMap({ map:'saltmere', x:4, y:4, dir:'down' });
+  const R = .78 * LH_SCALE, top = 5.32 * LH_SCALE, cx = 4, cz = 3;               // the tower's centre (2x2 piece at 3,2) and the gallery floor
+  const P = W.player, sc0 = P.scale.x, z0 = camZoom, q0 = camQ; P.scale.setScalar(sc0 * .62);
+  S.x = cx; S.y = cz + R * .9; RIDE_Y = top; S.dir = 'down'; mv.yaw = 0; camZoom = 0;
+  let orbit = true, yaw = camYaw; const spin = () => { if (!orbit) return; yaw -= .0045; camFree = yaw; requestAnimationFrame(spin); }; spin();
+  let keeper = null;
+  try {
+    await fadeTo(0, 700);
+    await say('At the top the lantern room is hot and bright and humming, and the whole city is under you: the boardwalk, the neon, the roofs, the coast road running back east toward everything you know.');
+    await galleryEvents(k => { keeper = k; });
+    await ask('The wind up here smells of salt and lamp oil.', ['Climb back down']);
+  } finally {
+    orbit = false; await fadeTo(1, 500);
+    if (keeper) world.remove(keeper); P.scale.setScalar(sc0); RIDE_Y = null; mv.yaw = null; camFree = null; camQ = q0; camZoom = z0;
+    await changeMap({ map:'saltmere_inlh', x:4, y:5, dir:'down' }); await fadeTo(0, 500);
+  }
+}
+async function galleryEvents(setKeeper) {
+  const dark = auraSide() === 'shadow';
   if (!dark) { await say('Out on the water, a fishing boat blinks its lamp at the tower, twice. You find yourself waving, even though they can\'t see you.'); if (once('lhTop')) { pay(80); await say('(You find a tin of coins on the gallery, marked "FOR WHOEVER CLIMBS". 80 Marks.)'); }
-    if (S.flags.hushDone && !S.flags.doom) await ardisBeaconGift(); return; }
-  const c = await ask('The great lamp turns slowly beside you. There\'s a breaker on the wall, marked in red.', ['Climb back down', 'Throw the breaker']);
+    if (S.flags.hushDone && !S.flags.doom && !S.flags.beaconGift) {   // Keeper Ardis is up here with you, polishing the lens
+      const k = buildPerson(lk('#2a3448', '#f3e7c9', SK[2], '#d8d0c0', ['beard', 'cap', 'longcoat'])); k.scale.multiplyScalar(.62); k.position.set(4 - .78 * LH_SCALE * .8, 5.32 * LH_SCALE, 3 + .3); k.rotation.y = Math.PI / 2; world.add(k); setKeeper(k);
+      await ardisBeaconGift(); }
+    return; }
+  const c = await ask('The great lamp turns slowly beside you. There\'s a breaker on the wall, marked in red.', ['Leave it', 'Throw the breaker']);
   if (c !== 1) return; S.flags.lightOut = 1; sin(3); sfx('nerve');
   await say('The light goes out. The whole coast goes dark at once, like a held breath. Somewhere out on the water, a horn sounds, and keeps sounding, closer and closer to the rocks, and then the sound of a hull opening on stone carries all the way up to you.');
 }
