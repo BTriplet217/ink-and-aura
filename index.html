@@ -2641,6 +2641,7 @@ let SET_CLEAN = false;
 const moss = (g, pts) => { if (SET_CLEAN) return; for (const [x, y, z, s] of pts) sBall(g, .14 * (s || 1), pickA(['#4f7a36', '#5f8f40', '#3f6a30']), x, y, z, [1.3, .6, 1.1], { lump:1, ink:0 }); };
 const DARK_GLASS = '#26303a';
 
+const LAMP_POOLS = [];
 const SET = {
   // A rusting sedan, doors seized, tyres gone soft.
   car(p) { const g = new THREE.Group(), c = p.c || '#6a7a8a', r = hsh(p.x, p.y, 4);
@@ -2706,8 +2707,12 @@ const SET = {
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const sp = sBox(w, 1.9, .04, .04, '#b89848', Math.cos(a) * .95, Math.sin(a) * .95, 0, { ink:0 }); sp.rotation.z = a;
       if (i !== 5 || p.fixed) sBox(w, .4, .32, .36, pickA(['#c0503a', '#4f8a8a', '#e8a83a']), Math.cos(a) * 1.9, Math.sin(a) * 1.9 - .22, 0); }
     w.position.y = 3.1; if (!p.fixed) { w.rotation.z = .3; g.rotation.x = -.08; } else for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; const b = glow(i % 2 ? '#ffd98a' : '#8ad8e8', .2, .85); b.position.set(Math.cos(a) * 1.9, Math.sin(a) * 1.9, .1); w.add(b); } return g; },
-  lamp(p) { const g = new THREE.Group(); sCyl(g, .05, .07, 1.9, '#2a2a2c', 0, .95, 0); sBox(g, .3, .08, .08, '#2a2a2c', .14, 1.9, 0); sBox(g, .2, .2, .2, '#3a3a3c', .28, 1.82, 0);
-    if (p.lit) { const gl = glow('#ffd98a', 1.4, .55); gl.position.set(.28, 1.75, 0); g.add(gl); } g.rotation.z = p.lean || 0; return g; },
+  // a street lamp: the arm reaches out over the path (fitLamps turns it), and at night it throws a warm pool of light on the ground under the head
+  lamp(p) { const g = new THREE.Group(), r = p.onPath ? .62 : .28; sCyl(g, .05, .07, 1.9, '#2a2a2c', 0, .95, 0); sBox(g, r + .04, .08, .08, '#2a2a2c', r / 2, 1.9, 0); sBox(g, .2, .2, .2, '#3a3a3c', r, 1.82, 0);
+    if (p.lit) { const gl = glow('#ffd98a', 1.4, .55); gl.position.set(r, 1.75, 0); g.add(gl);
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(1.15, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map:glowTex, color:'#ffd98a', transparent:true, opacity:.1, blending:THREE.AdditiveBlending, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 }));
+      pool.position.set(r, .05, 0); g.add(pool); LAMP_POOLS.push(pool); }
+    g.rotation.y = p.rotY || 0; g.rotation.z = p.lean || 0; return g; },
   junk(p) { const g = new THREE.Group(); sBall(g, .9, '#4a4238', 0, .1, 0, [1.2, .7, 1], { lump:1 });
     for (let i = 0; i < 5; i++) { const r = hsh(p.x, p.y, i); sBox(g, .3 + r * .4, .2 + r * .3, .3, pickA(['#6a5a48', '#5a6a6a', '#7a4226', '#3a3a3a']), (r - .5) * 1.4, .55 + r * .3, (hsh(p.x, p.y, i + 9) - .5) * 1.2, { rot:[r, r * 2, r * 3] }); }
     sCyl(g, .18, .18, .5, '#5a5a5a', .5, .7, .2, [.6, 0, .9]); return g; },
@@ -3961,11 +3966,25 @@ function buildRouteExtras(M, V) {
   return g;
 }
 let MAP_VISIT = 0, RIDE_Y = null;      // MAP_VISIT counts arrivals (for people who leave until you go); RIDE_Y holds the hero up on water
+// Street lamps belong beside the path, arm out over it: any lamp that isn't next to a path tile ('=') moves to the
+// nearest free spot that is (within 3 tiles), and every lamp turns its arm toward the path. Done once per map.
+function fitLamps(M) {
+  if (M._lampsFit || !M.set) return; M._lampsFit = 1; const T = M.tiles, H = T.length, Wd = T[0].length;
+  const at = (x, y) => (T[y] || [])[x], path = (x, y) => at(x, y) === '=' || at(x, y) === 'b', N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const pathNb = (x, y) => N4.filter(([dx, dy]) => path(x + dx, y + dy));
+  const free = (x, y) => ['.', ',', 'f'].includes(at(x, y)) && x > 0 && y > 0 && x < Wd - 1 && y < H - 1 && !N4.some(([dx, dy]) => at(x + dx, y + dy) === 'D')
+    && !M.set.some(q => q.tiles && x >= q.tiles[0] && x < q.tiles[0] + q.tiles[2] && y >= q.tiles[1] && y < q.tiles[1] + q.tiles[3]);
+  for (const p of M.set) { if (p.k !== 'lamp' || !p.tiles || p.tiles[2] !== 1) continue; let [x, y] = p.tiles;
+    if (!pathNb(x, y).length) { let best = null, bd = 99;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const nx = x + dx, ny = y + dy, d = Math.abs(dx) + Math.abs(dy); if (d < bd && free(nx, ny) && pathNb(nx, ny).length) { best = [nx, ny]; bd = d; } }
+      if (best) { if (T[y][x] === 'o') T[y][x] = '.'; [x, y] = best; T[y][x] = 'o'; p.tiles = [x, y, 1, 1]; p.x = x; p.y = y; } }
+    const nb = pathNb(x, y); if (nb.length) { const [dx, dy] = nb[0]; p.rotY = Math.atan2(-dy, dx); p.onPath = 1; } }
+}
 function buildWorld(id) {
   MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld()) applyRestoredFair();
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
-  const M = MAPS[id], V = worldVibe(id);
+  const M = MAPS[id], V = worldVibe(id); fitLamps(M);
   worldScene.background.set(V.sky); worldScene.fog.color.set(V.fog); worldScene.fog.near = V.fogNear + 2; worldScene.fog.far = V.fogFar + 8; W.fogBase = [V.fogNear + 2, V.fogFar + 8];
   worldLights.hemi.color.set(V.hemi); worldLights.sun.intensity = V.sun; tintSky(worldSky, V);
   W.baseSky = new THREE.Color(V.sky);
@@ -8570,6 +8589,8 @@ function tickDay(dt) {
   if (W.player) nightLamp.position.set(W.player.position.x, W.player.position.y + 1.6, W.player.position.z);
   // lamp glows and windows read brighter at night
   NIGHT_K = inside ? 0 : d.night;
+  // street lamps: the pool of light on the path is faint by day and warm after dark
+  for (let i = LAMP_POOLS.length - 1; i >= 0; i--) { const pl = LAMP_POOLS[i]; let o = pl, live = false; while (o) { if (o === world) { live = true; break; } o = o.parent; } if (!live) { LAMP_POOLS.splice(i, 1); continue; } pl.material.opacity = .06 + .5 * NIGHT_K; }
   // lighthouses: at night the lamp blazes and the beam sweeps round (unless someone threw the breaker)
   for (let i = LIGHTHOUSES.length - 1; i >= 0; i--) { const g = LIGHTHOUSES[i]; let o = g, live = false; while (o) { if (o === world) { live = true; break; } o = o.parent; }
     if (!live) { LIGHTHOUSES.splice(i, 1); continue; }
