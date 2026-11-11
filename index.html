@@ -1304,44 +1304,63 @@ float wn3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3. - 2. * f);
              mix(mix(wh3(i + vec3(0,0,1)), wh3(i + vec3(1,0,1)), f.x), mix(wh3(i + vec3(0,1,1)), wh3(i + vec3(1,1,1)), f.x), f.y), f.z); }
 float wsh(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 `;
+// ── HD-2D SURFACES ─────────────────────────────────────────────────────────
+// Pixel-art texturing in world space: every surface is broken into chunky texels with a hand-placed
+// feel. Stone-coloured ground gets cobbles, stone walls get bricks, sloped roofs get tile rows,
+// and everything else (grass, painted walls) gets texel speckle. Characters and Manifs (kind 1/2)
+// get finer texels and banded, sprite-like shading with crisp silhouettes.
 function washPatch(m, kind) {
-  const edge = [.35, .8, .55, .5][kind], diss = [0, .5, .66, .3][kind];
+  const chars = kind >= 1;
   m.onBeforeCompile = sh => {
     sh.uniforms.wTime = WASH.time;
-    sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
-      { vec4 wp = vec4(transformed, 1.);
+    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+      { vec4 wp = vec4(transformed, 1.); vec3 wn = objectNormal;
         #ifdef USE_INSTANCING
-        wp = instanceMatrix * wp;
+        wp = instanceMatrix * wp; wn = mat3(instanceMatrix) * wn;
         #endif
-        vWP = (modelMatrix * wp).xyz; }`);
-    sh.fragmentShader = 'uniform float wTime; varying vec3 vWP;\n' + WASH_GLSL + sh.fragmentShader.replace('#include <opaque_fragment>', `{
-        float ndv = abs(dot(normalize(normal), normalize(vViewPosition)));
-        float rim = 1. - ndv;
-        float n1 = wn3(vWP * 5.), n2 = wn3(vWP * 23. + 3.1), n3 = wn3(vWP * 1.3 + 7.);
-        outgoingLight *= .84 + .22 * n1 + .1 * n2 - .08 * n3;
-        float lum = dot(outgoingLight, vec3(.3, .59, .11));
-        outgoingLight = mix(outgoingLight, outgoingLight * (.55 + .45 * n2), (1. - lum) * .35);
-        outgoingLight = mix(outgoingLight, outgoingLight * outgoingLight * .85, smoothstep(.4, .97, rim) * ${edge.toFixed(2)});
-        ${diss ? `float gq = wsh(floor(gl_FragCoord.xy * .75) + floor(wTime * 6.) * .37);
-        float thr = smoothstep(${diss.toFixed(2)}, 1., rim + (n2 - .5) * .45);
-        if (gq < thr * .92) discard;` : ''}
+        vWP = (modelMatrix * wp).xyz; vWN = normalize(mat3(modelMatrix) * wn); }`);
+    sh.fragmentShader = 'uniform float wTime; varying vec3 vWP; varying vec3 vWN;\n' + WASH_GLSL + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+        float TX = ${chars ? '28.' : '12.'};
+        vec3 tp = (floor(vWP * TX) + .5) / TX;                       // texel-snapped world position
+        float fw = length(fwidth(vWP * TX)), near1 = 1. - smoothstep(.45, 1.1, fw);   // texels smaller than a screen pixel fade out (no shimmer)
+        float t1 = mix(.5, wh3(tp * 3.17 + 1.3), near1), t2 = mix(.5, wn3(tp * 1.7), near1), t3 = wn3(vWP * .35);
+        vec3 dc = diffuseColor.rgb; float sat = max(dc.r, max(dc.g, dc.b)) - min(dc.r, min(dc.g, dc.b));
+        vec3 N = normalize(vWN); float ny = abs(N.y);
+        float shade = .92 + .1 * t1 + .1 * (t2 - .5) + .06 * (t3 - .5);
+        ${chars ? `
+        // sprite shading: light in a few clean bands, a cool tint in the shadow band
+        float L = dot(outgoingLight, vec3(.3, .59, .11)), base = max(dot(dc, vec3(.3, .59, .11)), .05);
+        float k = clamp(L / base, 0., 1.6); float band = k < .55 ? .62 : k < .95 ? .86 : k < 1.25 ? 1. : 1.12;
+        outgoingLight = mix(outgoingLight, outgoingLight / max(k, .05) * band * mix(vec3(.82, .8, .98), vec3(1.), step(.6, k)), .6) * (.96 + .08 * t1);
+        float rim = 1. - abs(dot(normalize(normal), normalize(vViewPosition)));
+        outgoingLight *= 1. - smoothstep(.55, .95, rim) * .35;` : `
+        float pat = 1.;
+        bool green = dc.g > dc.r * 1.04 && dc.g > dc.b;
+        if (sat < .2 && !green) {
+          if (ny > .8) {                                              // cobbles
+            vec2 u = tp.xz * 2.1; float row = floor(u.y); u.x += mod(row, 2.) * .5; vec2 f = fract(u), id = floor(u);
+            float g = max(step(f.x, .08), step(f.y, .1)); pat = mix(.86 + .2 * wsh(id), .6, g);
+          } else if (ny < .35) {                                      // bricks / blocks
+            float h = abs(N.x) > abs(N.z) ? tp.z : tp.x; vec2 u = vec2(h * 2.4, tp.y * 4.2); float row = floor(u.y); u.x += mod(row, 2.) * .5; vec2 f = fract(u), id = floor(u);
+            float g = max(step(f.x, .06), step(f.y, .1)); pat = mix(.86 + .18 * wsh(id + 3.), .66, g);
+            pat *= 1. - .18 * smoothstep(.55, .8, wn3(vec3(tp.x, tp.y * .4, tp.z) * 2.3));   // grime streaks
+          }
+        }
+        if (ny > .3 && ny < .8) { float f = fract(tp.y * 6.5 + wsh(floor(vec2(tp.x + tp.z, 0.) * 3.)) * .3); pat *= .78 + .26 * smoothstep(0., .7, f); }   // roof tile rows
+        if ((sat >= .2 || green) && ny > .8) pat *= .9 + .2 * step(.82, t1) - .12 * step(t1, .12);   // grass tufts and dark speckle
+        outgoingLight *= shade * mix(1. - (1. - pat) * .45, pat, near1);`}
       }
       #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'wash' + kind;
+  m.customProgramCacheKey = () => 'hd2d' + kind;
   return m;
 }
 let WASH_DEFAULT = 0;
 const toon = (c, o = {}) => { const { wash, ...rest } = o; return washPatch(new THREE.MeshToonMaterial({ color:c, gradientMap:gradTex, ...rest }), wash != null ? wash : WASH_DEFAULT); };
 const withWash = (k, f) => function (...a) { const p = WASH_DEFAULT; WASH_DEFAULT = k; try { return f.apply(this, a); } finally { WASH_DEFAULT = p; } };
 // Ink hulls become broken charcoal lines rather than clean vector outlines.
-const INK = (() => { const m = new THREE.MeshBasicMaterial({ color:0x1e1712, side:THREE.BackSide });
-  m.onBeforeCompile = sh => {
-    sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 wp = vec4(transformed, 1.);\n#ifdef USE_INSTANCING\nwp = instanceMatrix * wp;\n#endif\nvWP = (modelMatrix * wp).xyz; }');
-    sh.fragmentShader = 'varying vec3 vWP;\n' + WASH_GLSL + sh.fragmentShader.replace('#include <opaque_fragment>', `{ float b = wn3(vWP * 9.) * .7 + wsh(floor(gl_FragCoord.xy * .6)) * .3; if (b < .3) discard; outgoingLight *= .7 + .6 * wn3(vWP * 31.); }
-      #include <opaque_fragment>`);
-  };
-  m.customProgramCacheKey = () => 'inkwash'; return m; })();
+// Outlines: solid dark lines, like the edge of a pixel sprite.
+const INK = new THREE.MeshBasicMaterial({ color:0x1e1712, side:THREE.BackSide });
 // Lumpy, hand-sculpted spheres for foliage and bodies (no faceting).
 function lumpy(geo, amt = .08, freq = 3.5, seed = 0) {
   const p = geo.attributes.position, v = new THREE.Vector3(), n = new THREE.Vector3();
@@ -1541,6 +1560,8 @@ function buildPerson(L) {
     const knee = new THREE.Group(); knee.position.set(0, -.25, 0); hip.add(knee);
     add(new THREE.CylinderGeometry(B.leg * .9 * baggy, B.leg * .8, .1, 12), L.shorts ? skin : legsC, [0, -.04, 0], { to:knee, ink:1.1 });
     add(new THREE.CylinderGeometry(B.leg * 1.05, B.leg * 1.1, .12, 12), boot, [0, -.13, 0], { to:knee, ink:1.12 });
+    add(new THREE.CylinderGeometry(B.leg * 1.14, B.leg * 1.12, .025, 12), new THREE.Color(boot).multiplyScalar(.7).getStyle(), [0, -.075, 0], { to:knee });
+    add(new THREE.BoxGeometry(B.leg * 2.15, .018, B.leg * 3.25), '#1e1712', [0, -.205, .03], { to:knee });
     add(new THREE.BoxGeometry(B.leg * 2.1, .05, B.leg * 3.2), boot, [0, -.185, .03], { to:knee });
     hip.userData.knee = knee; }
   if (L.pattern) for (const [k, hip] of legs.entries()) for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(B.leg * baggy * 1.04, B.leg * baggy * 1.04, .045, 12), L.pattern[(i + k) % L.pattern.length], [0, -.05 - i * .07, 0], { to:hip, ink:0 });
@@ -1552,6 +1573,16 @@ function buildPerson(L) {
   add(new THREE.CylinderGeometry(B.waist + .01, B.waist + .012, L.sash ? .06 : .04, 16), L.sash || new THREE.Color(coat).multiplyScalar(.55).getStyle(), [0, .53, 0]);
   add(new THREE.CylinderGeometry(B.sh * .55, B.sh * .9, .06, 16), L.accent || coat, [0, .815, 0]);           // collar / scarf
   add(new THREE.CylinderGeometry(.05, .055, .07, 10), skin, [0, .84, 0]);
+  // finer details, so people read like hand-drawn sprites up close: buckle, buttons, hem trim, a pouch, ears
+  { const dk = new THREE.Color(coat).multiplyScalar(.6).getStyle(), lt = new THREE.Color(coat).lerp(new THREE.Color('#fff3d6'), .35).getStyle(), metal = (seed % 3) ? '#c9a24a' : '#a8a8b0';
+    add(new THREE.BoxGeometry(.06, .045, .02), metal, [0, .53, B.waist + .008]);
+    add(new THREE.BoxGeometry(.03, .022, .022), new THREE.Color(L.sash || coat).multiplyScalar(.45).getStyle(), [0, .53, B.waist + .012]);
+    if (!L.pattern && !gear.includes('apron') && !gear.includes('armor')) for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.012, 6, 5), (seed >> 2) % 2 ? lt : metal, [0, .6 + i * .07, B.waist + (B.sh * .92 - B.waist) * (.1 + i * .33) + .012]);
+    add(new THREE.BoxGeometry(.006, .26, .006), dk, [0, .67, B.waist + (B.sh * .92 - B.waist) * .5 + .006]);
+    add(new THREE.CylinderGeometry(B.waist + .006, B.waist + .008, .02, 16), dk, [0, .565, 0]);
+    if (!gear.includes('satchel') && !gear.includes('toolbelt') && (seed >> 4) % 2) { add(new THREE.BoxGeometry(.08, .07, .05), '#6b4528', [B.waist * .75, .5, B.waist * .55], { rot:[0, -.7, 0] }); add(new THREE.BoxGeometry(.085, .025, .055), '#4a2e1a', [B.waist * .75, .54, B.waist * .55], { rot:[0, -.7, 0] }); }
+    if (!gear.includes('ears')) for (const sx of [-1, 1]) add(new THREE.SphereGeometry(.03, 8, 6), skin, [sx * .158, .955, -.005], { sc:[.5, 1, .8] });
+  }
   // arms (shoulder pivots); pose: idle | open (palms out) | hold (right hand forward, holding something)
   const arms = [], hands = [];
   for (const sx of [-1, 1]) { const sh = new THREE.Group(); sh.position.set(sx * (B.sh * .95 + B.arm * .4), .79, 0); inner.add(sh); arms.push(sh);
@@ -1559,6 +1590,7 @@ function buildPerson(L) {
     add(new THREE.CylinderGeometry(B.arm, B.arm * .92, .2, 10), sleeve, [0, -.1, 0], { to:sh, ink:1.1 });
     const el = new THREE.Group(); el.position.set(0, -.2, 0); sh.add(el);
     add(new THREE.CylinderGeometry(B.arm * .92, B.arm * .8, .17, 10), L.cuff && sx > 0 ? L.cuff : sleeve, [0, -.085, 0], { to:el, ink:1.1 });
+    add(new THREE.CylinderGeometry(B.arm * .86, B.arm * .86, .03, 10), new THREE.Color(L.cuff && sx > 0 ? L.cuff : sleeve).lerp(new THREE.Color('#fff3d6'), .3).getStyle(), [0, -.17, 0], { to:el });
     const hand = new THREE.Group(); hand.position.set(0, -.2, 0); el.add(hand); hands.push(hand);
     add(new THREE.SphereGeometry(B.arm * .95, 10, 8), L.glove && sx > 0 ? L.glove : skin, [0, 0, 0], { to:hand, sc:[1, 1.15, .8] });
     sh.rotation.z = sx * .1; sh.userData.el = el; }
@@ -1649,8 +1681,27 @@ function manifGeometry(shape) {
 const EYE_Z = { star:.16, knot:.3, wisp:.29, spark:.22, drop:.33, blob:.31, thorn:.29, flame:.33 };
 const BROW = { thorn:-1, drop:1, blob:-.6, wisp:1 };
 function buildManif(sp, o = {}) {
-  if (typeof SCULPT !== 'undefined' && SCULPT[sp]) return buildSculpt(sp, o);
-  return buildManifLegacy(sp, o);
+  const g = (typeof SCULPT !== 'undefined' && SCULPT[sp]) ? buildSculpt(sp, o) : buildManifLegacy(sp, o);
+  if (sp !== 'HUSH' && SPECIES[sp]) addManifAura(g, SPECIES[sp], o);
+  return g;
+}
+// Every Manif wears a glow in its family's colour, so you can tell its mood type at a glance:
+// a soft halo behind it, a ring of light on the ground under it, and a few motes rising off it.
+// Stronger forms glow brighter; a Heart's aura is huge. Dyads blend their two colours.
+const AURA_RING = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 10, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.55, 'rgba(255,255,255,.55)'); gr.addColorStop(.75, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+function addManifAura(g, d, o) {
+  const c = new THREE.Color(TYPES[d.type].c); if (d.dyad && d.type2) c.lerp(new THREE.Color(TYPES[d.type2].c), .5);
+  const tier = d.heart ? 3 : d.tier || 0, mini = !!o.mini, k = (mini ? .55 : 1) * (1 + tier * .22);
+  const halo = glow(c, 2 * k, mini ? .45 : .62 + tier * .08); halo.position.set(0, .05, -.05); halo.renderOrder = -1; g.add(halo);
+  const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.5 * k, 1.5 * k), new THREE.MeshBasicMaterial({ map:AURA_RING, color:c, transparent:true, opacity:mini ? .45 : .7, blending:THREE.AdditiveBlending, depthWrite:false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = mini ? -.5 : -.62; g.add(ring);
+  const motes = []; for (let i = 0; i < (mini ? 3 : 5 + tier * 2); i++) { const m = glow(c, (mini ? .1 : .16) * (1 + tier * .1), .9); m.userData.ph = Math.random() * 6.28; m.userData.r = .25 + Math.random() * .35; g.add(m); motes.push(m); }
+  const t0 = Math.random() * 10;
+  halo.onBeforeRender = () => { const t = performance.now() / 1000 + t0; halo.material.opacity = (mini ? .42 : .6 + tier * .08) * (.82 + .18 * Math.sin(t * 2.1));
+    ring.material.opacity = (mini ? .4 : .65) * (.75 + .25 * Math.sin(t * 2.1 + 1));
+    for (const m of motes) { const u = (t * .35 + m.userData.ph) % 1; m.position.set(Math.cos(m.userData.ph + t * .6) * m.userData.r, -.45 + u * 1.5, Math.sin(m.userData.ph + t * .6) * m.userData.r); m.material.opacity = Math.sin(u * Math.PI) * .9; } };
+  g.userData.aura = { halo, ring, motes, color:c };
 }
 function manifColor(d) {
   const ty = TYPES[d.type], tier = d.tier || 0;
@@ -1842,67 +1893,57 @@ const SETTINGS = { paint: (() => { try { return localStorage.getItem('ia_paint')
 const post = (() => {
   const size = new THREE.Vector2();
   renderer.getDrawingBufferSize(size);
-  const mk = () => { const dt = new THREE.DepthTexture(size.x, size.y); dt.type = THREE.UnsignedIntType; return new THREE.WebGLRenderTarget(size.x, size.y, { depthTexture:dt, samples: LOWPOWER ? 2 : 4, type:THREE.HalfFloatType }); };
+  // the scene renders straight into a small target (one texel per screen pixel-art pixel), then is scaled up crisp
+  const PIX = () => Math.max(2, Math.floor(size.y / 400)), lowW = () => Math.floor(size.x / PIX()), lowH = () => Math.floor(size.y / PIX());
+  const mk = () => { const dt = new THREE.DepthTexture(lowW(), lowH()); dt.type = THREE.UnsignedIntType; const r = new THREE.WebGLRenderTarget(lowW(), lowH(), { depthTexture:dt, samples: LOWPOWER ? 0 : 2, type:THREE.HalfFloatType, minFilter:THREE.NearestFilter, magFilter:THREE.NearestFilter }); return r; };
   let rt = mk();
   const mat = new THREE.ShaderMaterial({
     uniforms:{ tColor:{ value:rt.texture }, tDepth:{ value:rt.depthTexture }, res:{ value:size.clone() }, near:{ value:.1 }, far:{ value:140 }, time:{ value:0 }, paper:{ value:new THREE.Color('#f3e7c9') }, ink:{ value:new THREE.Color('#1b1512') }, tilt:{ value:1 }, focusY:{ value:.5 } },
     vertexShader:'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
     fragmentShader:`
+      // HD-2D finish: the scene is snapped to a chunky pixel grid, outlined where depth breaks,
+      // graded warm with cool shadows, dithered, bloomed, and blurred top and bottom like a diorama.
       uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 res; uniform float near, far, time, tilt, focusY; uniform vec3 paper, ink; varying vec2 vUv;
-      float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-      float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h21(i), h21(i + vec2(1,0)), f.x), mix(h21(i + vec2(0,1)), h21(i + vec2(1,1)), f.x), f.y); }
-      float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.03; a *= .5; } return s; }
       float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
       float luma(vec3 c){ return dot(c, vec3(.299, .587, .114)); }
+      float bayer(vec2 p){ vec2 q = mod(p, 4.); int i = int(q.x) + int(q.y) * 4;
+        float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
+        for (int k = 0; k < 16; k++) if (k == i) return m[k] / 16. - .47; return 0.; }
       void main(){
-        vec2 px = 1. / res, sc = res / 900.;
-        vec2 wob = (vec2(vnoise(vUv * res * .018), vnoise(vUv * res * .018 + 31.)) - .5) * px * 3.;
-        vec2 uv = vUv + wob * .22;
+        float pix = max(2., floor(res.y / 400.));
+        vec2 lr = floor(res / pix), cell = floor(vUv * lr), uv = (cell + .5) / lr, lp = 1. / lr;
         vec3 col = texture2D(tColor, uv).rgb;
-        // tilt-shift: soften top and bottom of frame like a miniature
-        float ts = smoothstep(.32, .62, abs(vUv.y - focusY)) * tilt * .7;
-        if (ts > .01) { vec3 acc = col; float r = ts * 2.2; acc += texture2D(tColor, uv + vec2( r, 0.) * px * sc).rgb; acc += texture2D(tColor, uv + vec2(-r, 0.) * px * sc).rgb; acc += texture2D(tColor, uv + vec2(0.,  r) * px * sc).rgb; acc += texture2D(tColor, uv + vec2(0., -r) * px * sc).rgb;
-          acc += texture2D(tColor, uv + vec2( r,  r) * .7 * px * sc).rgb; acc += texture2D(tColor, uv + vec2(-r, -r) * .7 * px * sc).rgb; acc += texture2D(tColor, uv + vec2(r, -r) * .7 * px * sc).rgb; acc += texture2D(tColor, uv + vec2(-r, r) * .7 * px * sc).rgb; col = acc / 9.; }
-        // ink: depth discontinuities (laplacian ignores flat ground) + strong colour edges
-        vec2 e = px * (1.2 + .6 * sc.x); vec2 du = uv + wob;
-        float d0 = lin(du), dl = lin(du - vec2(e.x, 0.)), dr = lin(du + vec2(e.x, 0.)), dd = lin(du - vec2(0., e.y)), dt2 = lin(du + vec2(0., e.y));
-        float lap = (abs(dl + dr - 2. * d0) + abs(dd + dt2 - 2. * d0)) / max(d0, .001);
-        float edge = smoothstep(.012, .045, lap) * (1. - smoothstep(60., 110., d0));
-        float l0 = luma(col), lx = luma(texture2D(tColor, uv + vec2(e.x, 0.)).rgb) - luma(texture2D(tColor, uv - vec2(e.x, 0.)).rgb), ly = luma(texture2D(tColor, uv + vec2(0., e.y)).rgb) - luma(texture2D(tColor, uv - vec2(0., e.y)).rgb);
-        float cedge = smoothstep(.16, .38, length(vec2(lx, ly)));
-        float stroke = .6 + .4 * vnoise(vUv * res * .09 + 7.);
-        // charcoal line: broken, grainy, heavier in places
-        float grit = step(.32, h21(floor(vUv * res * .85))) * .55 + .45 * vnoise(vUv * res * .4);
-        float inkAmt = clamp(max(edge, cedge * .5) * stroke * (.45 + .7 * grit), 0., 1.);
-        // pigment bleed: colour creeps a few pixels past its edges
-        vec2 bl = (vec2(fbm(vUv * res * .02), fbm(vUv * res * .02 + 17.)) - .5) * px * 5.;
-        col = mix(col, texture2D(tColor, uv + bl).rgb, .2);
-        // granulation: pigment settles into the paper tooth, more in the darks
-        float lumc = luma(col);
-        float gran = vnoise(vUv * res * .35) * .55 + vnoise(vUv * res * .11) * .45;
-        col *= .9 + .16 * gran - (1. - lumc) * (gran - .5) * .35;
-        col = mix(col, col * col * 1.15, cedge * .3);
-        // blooms and stains: big soft blotches with darker dried rims
-        float bloom = fbm(vUv * vec2(res.x / res.y, 1.) * 3.1 + 4.);
-        float rimS = smoothstep(.42, .5, bloom) - smoothstep(.5, .58, bloom);
-        col *= .94 + .1 * bloom - rimS * .07;
-        // grungy grade: a little sepia, a little dirt
-        col = mix(col, vec3(luma(col)) * vec3(1.06, .96, .82), .2);
-        float dirt = fbm(vUv * res * .012 + 9.);
-        col *= .92 + .1 * dirt;
-        float p = fbm(vUv * res * .006) * .55 + vnoise(vUv * res * .5) * .45;
-        vec3 paperC = paper * (.88 + .14 * p);
-        col = mix(col, col * paperC * 1.1, .55) + paperC * .03;
-        col = mix(col, ink, inkAmt * .8);
-        float v = smoothstep(1.05, .3, length((vUv - .5) * vec2(1.1, 1.)));
-        col *= mix(.7, 1., v);
-        gl_FragColor = vec4(col, 1.);
+        // outline: depth breaks on the pixel grid (silhouettes of people, props, building edges)
+        float d0 = lin(uv), dl = lin(uv - vec2(lp.x, 0.)), dr = lin(uv + vec2(lp.x, 0.)), dd = lin(uv - vec2(0., lp.y)), du = lin(uv + vec2(0., lp.y));
+        float jump = max(max(dl, dr), max(dd, du)) - d0;
+        float edge = step(.06 * d0 + .25, jump) * (1. - smoothstep(55., 90., d0));
+        col = mix(col, col * vec3(.32, .26, .3), edge * .8);
+        // tilt-shift depth of field: foreground and far rows go soft, like the reference shots
+        float ts = smoothstep(.22, .55, abs(vUv.y - focusY)) * tilt;
+        if (ts > .02) { vec3 acc = col; float r = ts * 3.2; float n = 1.;
+          for (int i = 0; i < 12; i++) { float a = float(i) * 2.39996; vec2 o = vec2(cos(a), sin(a)) * r * sqrt(float(i + 1) / 12.) * lp * 1.6; acc += texture2D(tColor, (floor((vUv + o) * lr) + .5) / lr).rgb; n += 1.; }
+          col = mix(col, acc / n, clamp(ts * 1.3, 0., 1.)); }
+        // bloom: lights and bright glows bleed into their neighbours
+        vec3 bl = vec3(0.);
+        for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; vec2 o = vec2(cos(a), sin(a)) * (2. + float(i)) * lp; vec3 c = texture2D(tColor, uv + o).rgb; bl += max(c - .72, 0.); }
+        col += bl * .16;
+        // grade: warm, slightly sepia highlights; cool violet shadows; a touch more contrast
+        float L = luma(col);
+        col = mix(col, vec3(L) * vec3(1.08, .98, .86), .14);
+        col = mix(col * vec3(.92, .9, 1.05), col * vec3(1.05, 1.0, .92), smoothstep(.15, .7, L));
+        col = (col - .5) * 1.06 + .5;
+        // ordered dither and a gentle colour step, so gradients band like pixel art
+        col += bayer(cell) * (1. / 72.);
+        col = floor(col * 56. + .5) / 56.;
+        float v = smoothstep(1.1, .35, length((vUv - .5) * vec2(1.15, 1.)));
+        col *= mix(.72, 1., v);
+        gl_FragColor = vec4(clamp(col, 0., 1.), 1.);
         #include <colorspace_fragment>
       }`,
     depthTest:false, depthWrite:false
   });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat), qs = new THREE.Scene(), qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); quad.frustumCulled = false; qs.add(quad);
-  function resizePost() { renderer.getDrawingBufferSize(size); rt.setSize(size.x, size.y); rt.depthTexture.image.width = size.x; rt.depthTexture.image.height = size.y; mat.uniforms.res.value.copy(size); }
+  function resizePost() { renderer.getDrawingBufferSize(size); rt.dispose(); rt = mk(); mat.uniforms.tColor.value = rt.texture; mat.uniforms.tDepth.value = rt.depthTexture; mat.uniforms.res.value.copy(size); }
   return {
     render(scene, cam, t) {
       WASH.time.value = t;
