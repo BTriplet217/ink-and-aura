@@ -250,7 +250,7 @@ const ROSTER = [
   ['JUBILATION','JOY',2,1,'Leaping, arms flung high, the whole body cheering.'],
   ['WARMTH','JOY',0,2,'The glow of walking into a kitchen where someone loves you.'],
   ['GRATITUDE','JOY',1,2,'Holds a small light close, as if it was handed something precious.'],
-  ['RAPTURE','JOY',2,2,'So lifted by joy it forgets where its edges are.'],
+  ['RAPTURE','JOY',2,2,'So lifted by joy it forgets where its edges are.','Bliss'],
   ['SATISFACTION','JOY',0,3,'A job well done, settled into a comfortable glow.'],
   ['PRIDE','JOY',1,3,'A flame of a body, standing tall in every colour it has.'],
   ['TRIUMPH','JOY',2,3,'The moment the hard thing finally gave way. Fists to the sky.'],
@@ -1077,7 +1077,7 @@ const SHADE = {
   JUBILATION:'Jubilation is celebration with the whole body. It holds communities together. It\'s exhausting when you\'re the one keeping the party going.',
   WARMTH:'Warmth is the glow of belonging somewhere. Your happiness seems to live largely in your people.',
   GRATITUDE:'Gratitude is noticing what you\'ve been given. It\'s one of the most reliable roads to lasting happiness there is.',
-  RAPTURE:'Rapture is joy so total the self dissolves into it. Beautiful, and also a way of not being anywhere else. Worth asking what it lifts you away from.',
+  RAPTURE:'Bliss is joy so total the self dissolves into it. Beautiful, and also a way of not being anywhere else. Worth asking what it lifts you away from.',
   SATISFACTION:'Satisfaction is the quiet joy of a job done well. It\'s durable, and it belongs to people who finish things.',
   PRIDE:'Pride is joy in who you are and what you\'ve made. Healthy pride stands tall without needing anyone else to stand lower.',
   TRIUMPH:'Triumph is the moment the hard thing finally gives way. Savour it. Just notice whether you need another one to feel all right.',
@@ -1528,8 +1528,8 @@ function animHero(g, k, moving, t) {
   u.arms[0].rotation.y = u.arms[1].rotation.y = 0; u.inner.rotation.x = 0;
   u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
   u.arms[0].rotation.x = -sw * .7; u.arms[1].rotation.x = sw * .7;
-  if (u.cape) u.cape.rotation.x = -.08 - (moving ? .18 + Math.abs(sw) * .1 : Math.sin(t * 1.5) * .03);
-  if (u.hairBack) u.hairBack.rotation.x = moving ? -.2 : -.05 + Math.sin(t * 1.3) * .03;
+  if (u.cape) u.cape.rotation.x = moving ? .22 + Math.abs(sw) * .14 : .05 + Math.sin(t * 1.5) * .03;   /* positive swings it out behind, clear of the legs */
+  if (u.hairBack) u.hairBack.rotation.x = moving ? .16 + Math.abs(sw) * .06 : .03 + Math.sin(t * 1.3) * .03;   /* streams back, never into the jacket */
   u.inner.position.y = moving ? Math.abs(Math.sin(k * Math.PI)) * .05 : Math.sin(t * 2) * .006;
 }
 
@@ -1544,6 +1544,14 @@ const BUILDS = {
   tall:  { sh:.18, hip:.14, waist:.14, leg:.052, arm:.043, hy:1.14 }
 };
 const HAIRS = ['short', 'short', 'long', 'bob', 'curly', 'ponytail', 'spiky', 'bald'];
+// a spiral tie-dye print: bright bands swirling out from the middle of the chest, soft-edged where the dyes ran
+const TIEDYE = {};
+function tieDyeTex(cols) { const k = cols.join(); if (TIEDYE[k]) return TIEDYE[k];
+  const W = 256, H = 128, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx = cv.getContext('2d'), img = cx.createImageData(W, H), C = cols.map(c => new THREE.Color(c));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const dx = (x - W * .5) / W * 2.2, dy = (y - H * .45) / H, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+    let v = (a / (Math.PI * 2) * 3 + r * 4.2 + 10) % 1, f = v * C.length, i0 = Math.floor(f) % C.length, i1 = (i0 + 1) % C.length, m = f - Math.floor(f); m = m < .7 ? 0 : (m - .7) / .3;
+    const c = C[i0].clone().lerp(C[i1], m), w = 1 - .12 * Math.abs(Math.sin(a * 6 + r * 9)), o = (y * W + x) * 4; img.data[o] = c.r * 255 * w; img.data[o + 1] = c.g * 255 * w; img.data[o + 2] = c.b * 255 * w; img.data[o + 3] = 255; }
+  cx.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return TIEDYE[k] = t; }
 function personSeed(L) { let h = 7; for (const c of (L.coat || '') + (L.skin || '') + (L.hair || '') + (L.accent || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
 // Things people carry in a hand. Each is built in the hand's own space (the arm hangs, so +y is up).
 const HELD = {
@@ -1587,6 +1595,7 @@ function buildPerson(L) {
   add(new THREE.CylinderGeometry(B.hip, B.hip * 1.02, .1, 16), L.skirt ? L.skirt : legsC, [0, .49, 0], { ink:1.08 });
   if (L.skirt) add(new THREE.CylinderGeometry(B.hip * 1.02, B.hip * 1.9, .3, 18, 1, true), L.skirt, [0, .36, 0], { ink:1.06, mo:{ side:THREE.DoubleSide } });
   add(new THREE.CylinderGeometry(B.sh * .92, B.waist, .3, 16), coat, [0, .67, 0], { ink:1.08 });
+  if (L.tiedye) { const td = new THREE.Mesh(new THREE.CylinderGeometry(B.sh * .92 + .004, B.waist + .004, .3, 24, 1, true), new THREE.MeshToonMaterial({ map:tieDyeTex(L.tiedye), gradientMap:gradTex })); td.position.y = .67; inner.add(td); }
   if (L.pattern) for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(B.waist + (B.sh * .92 - B.waist) * (.2 + i * .3) + .004, B.waist + (B.sh * .92 - B.waist) * (.2 + i * .3) + .004, .05, 16), L.pattern[i % L.pattern.length], [0, .56 + i * .09, 0], { ink:0 });
   add(new THREE.CylinderGeometry(B.waist + .01, B.waist + .012, L.sash ? .06 : .04, 16), L.sash || new THREE.Color(coat).multiplyScalar(.55).getStyle(), [0, .53, 0]);
   add(new THREE.CylinderGeometry(B.sh * .55, B.sh * .9, .06, 16), L.accent || coat, [0, .815, 0]);           // collar / scarf
@@ -1644,6 +1653,7 @@ function buildPerson(L) {
   const hc = L.hair || '#3a2414', cap = (r = .176, cut = .5) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12, 0, Math.PI * 2, 0, Math.PI * cut), toon(hc)); m.position.set(0, HY + .015, -.02); m.rotation.x = -.42; inner.add(m); return m; };
   if (hair === 'short' || hair === 'ponytail' || hair === 'bob' || hair === 'long') cap();
   if (hair === 'spiky') { cap(.172, .42); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; add(new THREE.ConeGeometry(.04, .11, 6), hc, [Math.cos(a) * .1, HY + .14, Math.sin(a) * .1 - .02], { rot:[Math.sin(a) * .5, 0, -Math.cos(a) * .5], ink:0 }); } }
+  if (hair === 'curly') { cap(.168, .45); for (let i = 0; i < 5; i++) add(new THREE.SphereGeometry(.06, 8, 6), hc, [Math.cos(i * 1.26) * .05, HY + .16, Math.sin(i * 1.26) * .05 - .03], { ink:1.05 }); }   // fill the crown: no bald spot
   if (hair === 'curly') for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r2 = i % 2 ? .13 : .1; add(new THREE.SphereGeometry(.055, 8, 6), hc, [Math.cos(a) * r2, HY + .1 + (i % 3) * .025, Math.sin(a) * r2 - .03], { ink:1.05 }); }
   if (hair === 'bob') add(new THREE.CylinderGeometry(.18, .185, .2, 16, 1, true, Math.PI * .3, Math.PI * 1.4), hc, [0, HY - .03, -.005], { mo:{ side:THREE.DoubleSide }, ink:0 });
   if (hair === 'long') { add(new THREE.CylinderGeometry(.17, .2, .42, 16, 1, true, Math.PI * .3, Math.PI * 1.4), hc, [0, HY - .14, -.01], { mo:{ side:THREE.DoubleSide }, ink:0 }); }
@@ -7336,7 +7346,7 @@ const DND_LOOK = {
   morwen:{ coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#3a2a20', skin:'#8a8cc8', hair:'#e8d488', brow:'#c8b070',
     hairStyle:'long', build:'slim', pose:'open', gear:['ears', 'glasses', 'satchel'] },
   // Shannon: brass dragonborn ranger. Gold scales, snout, curly brown hair up, glasses, teal scarf, tie-dye top and baggy trousers, tail. A dragon's muzzle and swept horns (no bow).
-  saffi:{ coat:'#7ab0a0', pattern:['#e8c860', '#7ab0d8', '#a0c060', '#e88a6a'], legs:'#6a9a9a', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
+  saffi:{ coat:'#7ab0a0', tiedye:['#f2c84a', '#e86a8a', '#8a6ad8', '#4ab0e0', '#6ac87a', '#f08a3a'], sleeve:'#e86a8a', legs:'#6a9a9a', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
     accent:'#3a8a7a', build:'heavy', gear:['glasses', 'bun', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a', hornC:'#f0dca0' },
   // Liam: dragonborn/human kid. Tousled brown hair, little horns, pointed ears, teal scarf, grey-green tunic, satchel.
   lio:{ coat:'#a8b8a8', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', hairStyle:'spiky', small:true, 
@@ -9029,12 +9039,55 @@ const VT = {
     ['I keep {thing} for days with {sky}. And for you, with {t1}.', 'Your {M} {act}, and there\'s {sky}, and I\'ve got {thing}. All\'s well.', '{T2}. Come find me later. I\'ll show you {thing}. {Sky}, too.'] ],
 };
 VT.fair = VT.kind;
+// The D&D table: each of them sounds like themselves.
+//  Morwen: dry, sarcastic, secretly soft. Brand: chaotic, loud, all heart. Tam: logical, outspoken, says it straight.
+//  Saffi: the kindest person in any room, until something threatens Lio. Lio: a kid with a dragon egg and a plan.
+Object.assign(VT, {
+  morwen:[
+    ['{T1}. Wow. Subtle. Nobody will ever notice that.', 'Your {M} {act}. I\'d roll for insight, but honestly, I don\'t need to.', 'Oh good, {t2}. Exactly what this table needed. Another plot hook.'],
+    ['I could cast Detect Feelings, but your {M} is doing all the work for me. It {act}.', '{T2}? That\'s a third-level emotion at least. Don\'t look at me, I\'m out of spell slots.', 'If I had a copper for every time someone walked in with {t1}, I\'d own this table. And the chairs.'],
+    ['Fine. Sit. You can borrow my second-best quill, and if it comes back chewed, we\'re having words.', 'Your {M} {act}. Adorable. Don\'t tell anyone I said adorable.', '{T1}. I\'m not worried. I\'m just... monitoring. Sarcastically. From over here.'],
+    ['Let me guess: {t2}, and you want me to pretend I didn\'t notice. Done. (She noticed.)', 'Brand would hug you. Saffi would feed you. I\'m going to raise one eyebrow at you, and that\'s my version of both.', 'Your {M} {act}, and I\'m choosing to find it charming rather than suspicious. You\'re welcome.'],
+    ['{T1}. Look, the dice hate everyone equally. It\'s the only fair thing in this world.', 'For the record, {feel} looks better on you than you\'d think. Not that I\'m keeping records. (She is keeping records.)', 'Your {M} {act}. I\'m writing that down. For science. And blackmail.'] ],
+  brand:[
+    ['{T1}! YES! Okay, new plan: we charge in, I set something on fire, and you bring your {M}.', 'Your {M} {act}, and I am FULLY on board with whatever it\'s planning.', 'Is that {t2}? Come here. I\'m hugging you. It\'s happening. Brace.'],
+    ['I swore an oath to protect the weak, the lost, and anyone with {t1}. I added that last one just now.', 'Your {M} {act}! I once did that in a tavern and they banned me. Worth it.', 'Hold this torch. No, the other end. NO, THE OTHER END. Okay, we\'re fine. Hi! {T2}!'],
+    ['{T1}? Easy fix: second breakfast. I\'ve got bacon. It\'s mostly bacon. Some of it might be on fire.', 'If anyone gives you trouble for {t2}, I will politely explode at them. Politely.', 'Your {M} {act}. I\'d like to make it an honorary paladin. I don\'t think I\'m allowed. I\'m doing it anyway.'],
+    ['Look at you, with {t1}. I\'m not crying, my eyes are just literally on fire. Genasi thing.', 'Your {M} {act}, and honestly that\'s the best thing that\'s happened all session. Including when I fell down the well.', 'Whatever you\'re feeling, {feel} or otherwise, you\'re on my side of the table. That\'s the rule. I just made it.'],
+    ['Roll initiative! No, wait, wrong thing. Roll... a hug. {T2}. Come here.', 'Your {M} {act}. If it wants, I\'ll carry it on my shoulders. I carry everyone eventually.', '{T1}! I have a great idea and a terrible plan, and they\'re the same thing. You in?'] ],
+  tam:[
+    ['{T1}. Noted. Let\'s establish what happened before anyone panics.', 'Your {M} {act}. That\'s not random behaviour. Something set it off. What was it?', 'Okay, straight talk: {t2}. It\'s fine to feel it. Just don\'t make decisions in it.'],
+    ['I\'ll say what everyone\'s thinking: you look {feel}. There. Now we can actually deal with it.', 'Evidence: {t1}. Conclusion: you need to sit down and eat something. Case closed.', 'Your {M} {act}. In my experience, that means it\'s trying to tell you something. Listen to it.'],
+    ['{T2}. Look, I\'m not going to sugar-coat it, but I\'m also not going anywhere. Both things.', 'For the record, Brand\'s plan is bad. Your {M}\'s instincts are better. It {act}. Trust that.', 'Here\'s the procedure: breathe, drink some water, then tell me who caused {t1}. I\'ll take it from there.'],
+    ['Your {M} {act}. I\'ve seen that before. It resolves. Usually by morning. Usually.', 'I\'m not a cop to you. I\'m a guy at a table who noticed {t2}, and I\'m saying something because nobody else will.', '{T1}. Logically, you\'re allowed. Feelings don\'t need permits. I checked.'],
+    ['Okay, honest assessment? Your {M} {act}, and you\'re handling it better than most people I know.', 'I\'ll be blunt: {t2} isn\'t weakness. Pretending you don\'t have it is.', '{T1}. Write it down, what you\'re feeling and when. Patterns matter. Trust me, I do this for a living.'] ],
+  saffi:[
+    ['Oh, sweetheart. {T1}. Come here, sit by me. Lio, baby, get them a cookie.', 'Your {M} {act}, and I love it. I love it so much. Do you want a blanket? I have three.', '{T2}. Whatever you need, you just say. I\'ve got snacks, I\'ve got tea, and I\'ve got all night.'],
+    ['Honey, {t1} is nothing to hide. Everyone\'s welcome at this table. Everyone. Even Brand.', 'Your {M} {act}! Look at it! Lio, look! Isn\'t that the sweetest thing?', 'You look {feel}. That\'s okay. Here, I saved you the good chair and the corner piece of the brownies.'],
+    ['I packed extra sandwiches because I had a feeling someone would need one. {T2}. It was you.', 'Your {M} can curl up on my tail if it wants. It\'s warm. Ask Lio. He naps on it constantly.', '{T1}. Oh, I want to wrap you in a quilt and never let anything bad happen to you.'],
+    ['You know, Lio had {t2} last week and we made pancakes shaped like dragons. It helped. I\'ll make you some.', 'Your {M} {act}. That\'s just the bravest little thing. You\'re both doing so well.', 'Whatever today\'s been, honey, it isn\'t the whole story. Sit. Eat. Breathe. I\'ve got you.'],
+    ['{T1}. Can I give you a hug? A big one? Dragonborn hugs are the best hugs, it\'s a known fact.', 'Your {M} {act}, and you\'re here, and you\'re okay. That\'s all that matters to me.', 'You\'re always welcome in our house. You don\'t even have to knock. Lio will let you in. Lio lets everyone in.'] ],
+  saffi_guard:[
+    ['That {M} {act}. It\'s a long way from my son. Let\'s keep it that way. (Her voice is very soft and very calm. Her hand is resting near something sharp.)', '{T1}. You\'re welcome here, honey. That thing stays on the far side of the table, away from Lio. I won\'t ask twice.', 'Lio, sweetheart, come stand behind Mummy. (She smiles at you. Her eyes do not.)'],
+    ['I\'m the nicest person you will ever meet. And if that {M} goes near my boy, I will be the last person it ever meets.', '{T2}. I understand. I do. Now take three steps back from my child.', 'Your {M} {act}. Interesting. I\'ve put down dire wolves for less. Gently, though. I\'m not a monster.'],
+    ['(Saffi is suddenly between you and Lio. Nobody saw her move.) Sorry, honey. Reflex. What were you saying?', 'You can bring whatever you like into my house. It answers to me if it frightens him.', '{T1}. I\'m going to make you some tea, and you\'re going to keep that {M} on a very short leash.'],
+    ['I don\'t mind {t2}. I mind anything that might frighten my son. And right now, I mind a little.', 'Lio, baby, why don\'t you show Brand your egg? Over there. Far over there. (To you, sweetly:) We\'re fine. We\'re all fine.', 'You know what dragonborn moms do to things that threaten their young? No? Good. Let\'s keep it that way.'],
+    ['Your {M} {act}. Keep it calm and we\'ll have the loveliest afternoon. Cookies?', '{T2}. I\'ve got you. And I\'ve got him. Don\'t make me choose. You wouldn\'t like it.', '(Her tail curls round Lio, very gently, very completely.) Go on, honey. I\'m listening.'] ],
+  lio:[
+    ['Your {M} {act}! My egg does that! Well, it wiggles. It\'s basically the same.', '{T1}! Are you a wizard? Mum says I can\'t be a wizard till I\'m nine.', 'Can your {M} fight a dragon? I have a dragon. In an egg. It doesn\'t count yet.'],
+    ['Brand says your {M} is an honorary paladin. I\'m an honorary paladin too. We\'re a club.', '{T2}. I\'ll draw you a picture. It\'ll be a dragon. Everything I draw is a dragon.', 'Your {M} {act}! I\'m gonna put that in our campaign. Morwen says I can\'t. I\'m gonna anyway.'],
+    ['When my egg hatches, it\'s gonna be best friends with your {M}. I already decided.', 'You look {feel}. I get like that when Tam won\'t let me roll the big dice.', 'Your {M} {act}. Can I hold it? I\'ll be gentle. I\'m always gentle. Mostly.'],
+    ['Mom says {feel} is okay, and you just have to have a snack. Do you want half my snack?', '{T1}! That\'s like when I rolled a twenty! I rolled a twenty ONE time.', 'I\'m gonna be a ranger like Mom when I grow up. Your {M} can be my animal friend. It {act}, that\'s perfect.'],
+    ['Your {M} {act}. That\'s so cool. That\'s SO cool. Mom! MOM! Look!', '{T2}. Want to see my horns? They\'re small now but they\'ll be huge.', 'If anything scary comes, my mom will get it. She got a bear once. With a spoon.'] ],
+});
+const DND_KEY = e => { const m = /^dndo?_(\w+)$/.exec(e.id || ''); return m && VT[m[1]] ? m[1] : null; };
 
 const VB = s => s.charAt(0).toUpperCase() + s.slice(1);
 // The person-specific line about one Manif. idx 0-4.
 function voiceLine(e, m, idx) {
   const v = voiceOf(e), sp = m.sp, d = SPECIES[sp], t = TELLS[String(sp).toUpperCase()] || TELLS[(d.name || '').toUpperCase()] || ['that look on you', 'the feeling coming off you', 'is watching me'];
-  const kind = voiceKind(e), slots = VT[kind] || VT.kind; let h = 2166136261; for (const ch of v.key + '|' + sp) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const dk = DND_KEY(e), menacing = ['ANGER', 'DISGUST'].includes(d.type) || ['FEAR'].includes(d.type) && d.tier > 1;
+  const kind = dk ? (dk === 'saffi' && menacing ? 'saffi_guard' : dk) : voiceKind(e), slots = VT[kind] || VT.kind; let h = 2166136261; for (const ch of v.key + '|' + sp) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
   const fr = slots[idx % 5][(h + idx) % 3], act2 = t[2].replace(/^is /, 'is ').replace(/^has /, 'has ');
   const rep = { t1:t[0], t2:t[1], act:t[2], act2, M:nm(m), feel:FEEL[d.type] || 'like that', kin:v.kin, place:v.place, pet:v.pet, petN:v.petN, mem:v.mem, who:v.who, saying:v.saying,
     kkin:v.kkin, kkinN:v.kkinN, kkinW:v.kkin.replace(/^my /, '').replace(/ \S+$/, ''), kspot:v.kspot, kgame:v.kgame, thing:v.thing, sky:v.sky, habit:v.habit, hn:v.hn };
