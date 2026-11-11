@@ -626,7 +626,7 @@ const RESPONSES = [
 // ---------------------------------------------------------------- items ------
 Object.assign(ITEMS, {
   salts:    { name:'Smelling Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
-  hearth:   { name:'Hearthstone',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
+  hearth:   { name:'Heart Stone',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
   charm:    { name:'Kindred Charm',  res:30, desc:'+30 Resonance with a wild Manif', price:140 },
   ember:    { name:'Ember Draught',  atk:2, desc:'Sharply raises one Manif\'s Force', price:110 },
   iron:     { name:'Iron Tea',       def:2, desc:'Sharply raises one Manif\'s Poise', price:110 },
@@ -3821,7 +3821,11 @@ const worldScene = new THREE.Scene(), battleScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 140);
 const bcam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 140);
 let activeScene = worldScene, activeCam = camera;
-function resize() { renderer.setSize(innerWidth, innerHeight, false); for (const c of [camera, bcam]) { c.aspect = innerWidth / innerHeight; c.fov = innerWidth < innerHeight ? 50 : 38; c.updateProjectionMatrix(); } post.resize(); }
+function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp = innerWidth / innerHeight;
+  for (const c of [camera, bcam]) { c.aspect = asp; c.fov = innerWidth < innerHeight ? 50 : 38; c.updateProjectionMatrix(); }
+  // on a tall phone screen the world view would be a narrow slot: open it out so you see about as far side to side as up and down
+  if (asp < 1) { camera.fov = Math.min(64, Math.max(50, 2 * Math.atan(Math.tan(16 * Math.PI / 180) / asp) * 180 / Math.PI)); camera.updateProjectionMatrix(); }
+  post.resize(); }
 addEventListener('resize', resize); resize();
 function setupLights(scene, span) {
   const hemi = new THREE.HemisphereLight(0xfff4dc, 0x6b5a48, 1.2); scene.add(hemi);
@@ -3983,7 +3987,13 @@ function buildWorld(id) {
   world.add(buildKit(TREE_KITS[V.trees], trees, V.treeC));
   if (V.prop && props.length) { const kit = PROP_KITS[V.prop]; world.add(buildKit(kit.parts, props, ['#888'])); if (kit.glow) for (const [x, y, z] of props) { const gl = glow(kit.glow[0], kit.glow[2], .7); gl.position.set(x, y + kit.glow[1], z); world.add(gl); } }
   W.water = null;
-  if (hasWater) { const wm = new THREE.Mesh(new THREE.PlaneGeometry(M.w, M.h).rotateX(-Math.PI / 2), new THREE.MeshToonMaterial({ color:V.water || '#7aa6c8', gradientMap:gradTex, transparent:true, opacity:.8, emissive:new THREE.Color('#9cc6e0'), emissiveIntensity:.15 })); wm.position.set((M.w - 1) / 2, BASE - .14, (M.h - 1) / 2); wm.receiveShadow = true; world.add(wm); W.water = wm; }
+  if (hasWater) {
+    // a coast: if much of the map's edge is water, the sea carries on past the edge to the horizon over a dark seabed,
+    // so nothing ends in a hard line (you see it from the lighthouse gallery, and from the far zoom)
+    let edge = 0, wet = 0; for (let x = 0; x < M.w; x++) for (const y of [0, M.h - 1]) { edge++; if (M.tiles[y][x] === '~') wet++; } for (let y = 0; y < M.h; y++) for (const x of [0, M.w - 1]) { edge++; if (M.tiles[y][x] === '~') wet++; }
+    const coast = wet / edge > .2, SW = coast ? 600 : M.w, SH = coast ? 600 : M.h;
+    const wm = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH).rotateX(-Math.PI / 2), new THREE.MeshToonMaterial({ color:V.water || '#7aa6c8', gradientMap:gradTex, transparent:true, opacity:.8, emissive:new THREE.Color('#9cc6e0'), emissiveIntensity:.15 })); wm.position.set((M.w - 1) / 2, BASE - .14, (M.h - 1) / 2); wm.receiveShadow = true; world.add(wm); W.water = wm;
+    if (coast) { const bed = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color:new THREE.Color(V.water || '#7aa6c8').multiplyScalar(.45) })); bed.position.set((M.w - 1) / 2, BASE - .5, (M.h - 1) / 2); world.add(bed); } }
   if (flowers.length) {
     const fm = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.07, 0), toon('#ffffff'), flowers.length * 5);
     let k = 0; const fc = V === HUB_VIBE ? ['#f4cf5e','#e9776a','#f6efe0','#c59ae0'] : [...V.partC, ...V.treeC];
@@ -4121,7 +4131,7 @@ function placePlayer(snap) {
   W.player.position.set(S.x, y, S.y); W.player.rotation.y = DIR_YAW[S.dir]; camTarget.set(S.x, y, S.y);
   if (snap) { camYaw = camQ * Math.PI / 2; updateCamera(1, true); }
 }
-const CAM_ZOOMS = [1.85, 1, .74, .44]; let camZoom = 2;
+const CAM_ZOOMS = [1.85, 1.15, .86, .5]; let camZoom = 2;
 function cycleZoom(d = 1) { camZoomV = null; camZoom = (camZoom + d + CAM_ZOOMS.length) % CAM_ZOOMS.length; toast(['Far view', 'Wide view', 'Standard view', 'Close view'][camZoom]); }
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
@@ -4135,9 +4145,10 @@ const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag
 addEventListener('pointerup', dragEnd); addEventListener('pointercancel', dragEnd);
 addEventListener('wheel', e => { if (scene !== 'world') return; const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
 const camFocus = new THREE.Vector3();
+let CAM_TILT = null;        // [dist, height] to override the usual angle (the lighthouse gallery looks out level, to the horizon)
 function updateCamera(dt, snap) {
   const tgtYaw = camFree != null ? camFree : camQ * Math.PI / 2; let d = tgtYaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); const freeing = camFree != null; camYaw += d * (snap ? 1 : 1 - Math.exp(-dt * (freeing ? 30 : 9)));
-  const portrait = innerWidth < innerHeight, z = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom], dist = (portrait ? 12 : 10.8) * z, ht = (portrait ? 9.6 : 6.6) * z;
+  const portrait = innerWidth < innerHeight, z = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom], dist = (CAM_TILT ? CAM_TILT[0] : portrait ? 8.6 : 8.4) * z, ht = (CAM_TILT ? CAM_TILT[1] : portrait ? 12.2 : 8.6) * z;   // a steeper, more overhead view (between our old angle and the classic Pokémon one) so buildings hide less
   // the camera follows a smoothed point, not the hero's exact feet: little height steps between tiles
   // and the start/stop of each stride (sharpest when running) no longer jolt the view
   if (snap || !camFocus.init) { camFocus.copy(camTarget); camFocus.init = true; }
@@ -4704,7 +4715,7 @@ const WREN_TOPICS = [
   ['people', 'People and trust', ['Out on the routes, people train Manifs. Some train them to protect, some train them for war. They\'ll spar with you if they trust you, and pay you for it.',
     'Others need help. Do them a favour and they\'ll give you something back. Whether anyone trusts you depends on your aura, and on what you\'re carrying.']],
   ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from trainers and from favours.',
-    'Honey Cakes and Hearthstones restore Composure. Bitter Tonic and Smelling Salts clear bad states. Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
+    'Honey Cakes and Heart Stones restore Composure. Bitter Tonic and Smelling Salts clear bad states. Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
   ['hearts', 'Hearts, the Hush and the Stillwell', ['Each city has a Heart at its shrine, far stronger than anything on its road. Settle all ten and the way to the Stillwell opens, under the Archive.',
     'The Hush waits down there. It wears whatever feeling it\'s facing, so think about what you carry when you go.']],
   ['codex', 'Closing your Codex', ['Your Codex is your record: every Manif you met, kept, let go, gave away or sold. Close it with me whenever you like, and it will read back what you carried longest and what that says about you.']],
@@ -5852,7 +5863,7 @@ async function meetNumbGirl(z) {
   const c = await ask('She holds out a grey hand.', ['Follow her', 'Gently send her home']); if (c !== 0) { S.zq[z] = 1; return say('(She stands where you left her, perfectly still, for the rest of the day.)'); }
   await say('She leads you behind the shrine to a cellar full of things the Numbed stopped caring about: wedding rings, letters, a child\'s shoe, a box of Marks nobody counted.');
   for (const k of ['tonic', 'salts', 'hearth']) S.items[k] = (S.items[k] || 0) + 1; pay(120);
-  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Hearthstone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
+  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Heart Stone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
 }
 async function meetCalloway(z) {
   await say('Brother Calloway: Forgive me. You have a face people tell things to. I have to tell someone before the Heart takes me too.');
@@ -6540,7 +6551,7 @@ async function giveBack(m) {
   removeManif(m, 'gave'); rebuildMinis(); S.sins = Math.max(0, (S.sins || 0) - 2);
   await say(`${nm(m)} drifts over to ${P.name} and settles against their chest. They cry for a long time. ${e[3] ? 'You hear it say, very quietly: "' + e[3] + '"' : ''}`);
   const marks = 300 + m.lvl * 25; pay(marks); S.items.quill = (S.items.quill || 0) + 2; S.items.hearth = (S.items.hearth || 0) + 1;
-  await say(`${P.name}: Take these. Please. It isn't enough. Nothing would be enough. (You received ${marks} Marks, 2 Insight Quills and a Hearthstone.)`);
+  await say(`${P.name}: Take these. Please. It isn't enough. Nothing would be enough. (You received ${marks} Marks, 2 Insight Quills and a Heart Stone.)`);
   buildWorld(S.map);
 }
 // =============================================================================
@@ -6608,6 +6619,11 @@ SET.spiral = p => { const g = new THREE.Group(); sCyl(g, .07, .07, 3.2, '#2a2826
   const rail = new THREE.Group(); g.add(rail); for (let i = 0; i < 13; i++) { const a0 = i * .55, a1 = a0 + .55, y0 = .62 + i * .2, y1 = y0 + .2;
     const x0 = Math.cos(-a0) * .72, z0 = Math.sin(-a0) * .72, x1 = Math.cos(-a1) * .72, z1 = Math.sin(-a1) * .72, L = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
     const r = sCyl(rail, .018, .018, L, '#c8a03a', (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, null, { ink:0 }); r.lookAt(x1, y1, z1); r.rotateX(Math.PI / 2); }
+  return g; };
+SET.tunnelmouth = p => { const g = new THREE.Group(); sBox(g, 1, 2.2, 2.2, '#3e3a34', .2, 1.1, 0);
+  const dark = new THREE.Mesh(new THREE.BoxGeometry(.05, 1.5, 1.3), new THREE.MeshBasicMaterial({ color:'#060505' })); dark.position.set(-.31, .75, 0); g.add(dark);
+  for (const z of [-.75, .75]) sBox(g, .16, 1.7, .16, '#6a5040', -.34, .85, z); sBox(g, .16, .16, 1.66, '#6a5040', -.34, 1.68, 0);
+  sCyl(g, .13, .13, 2.4, '#7a6a5a', -.1, .2, .9, [Math.PI / 2, 0, Math.PI / 2], { ink:0 }); const hum = glow('#ffd8a0', .7, .35); hum.position.set(-.4, .4, .2); g.add(hum);
   return g; };
 SET.deepsign = p => { const g = new THREE.Group(); sBox(g, .08, 1.1, .08, '#4a3a2c', 0, .55, 0); sBox(g, .9, .5, .06, '#d8c040', 0, 1.05, 0); sBox(g, .7, .06, .065, '#2a2826', 0, 1.12, 0, { ink:0 }); sBox(g, .5, .05, .065, '#2a2826', 0, .98, 0, { ink:0 }); return g; };
 // the top of the stairs, seen from Holdfast Deep: a cut doorway in the rock with steps climbing up into the dark
@@ -6858,7 +6874,7 @@ async function climbToGallery() {
   await changeMap({ map:'saltmere', x:4, y:4, dir:'down' });
   const R = .78 * LH_SCALE, top = 5.32 * LH_SCALE, cx = 4, cz = 2.3;             // the tower's centre (3x2 piece at 3,2, nudged back) and the gallery floor
   const P = W.player, sc0 = P.scale.x, z0 = camZoom, q0 = camQ; P.scale.setScalar(sc0 * .62);
-  S.x = cx; S.y = cz + R * .9; RIDE_Y = top; S.dir = 'down'; mv.yaw = 0; camZoom = 0;
+  S.x = cx; S.y = cz + R * .9; RIDE_Y = top; S.dir = 'down'; mv.yaw = 0; camZoom = 1; CAM_TILT = [9.5, 2.6];
   let orbit = true, yaw = camYaw; const spin = () => { if (!orbit) return; yaw -= .0045; camFree = yaw; requestAnimationFrame(spin); }; spin();
   let keeper = null;
   try {
@@ -6868,7 +6884,7 @@ async function climbToGallery() {
     await ask('The wind up here smells of salt and lamp oil.', ['Climb back down']);
   } finally {
     orbit = false; await fadeTo(1, 500);
-    if (keeper) world.remove(keeper); P.scale.setScalar(sc0); RIDE_Y = null; mv.yaw = null; camFree = null; camQ = q0; camZoom = z0;
+    if (keeper) world.remove(keeper); P.scale.setScalar(sc0); RIDE_Y = null; mv.yaw = null; camFree = null; CAM_TILT = null; camQ = q0; camZoom = z0;
     await changeMap({ map:'saltmere_inlh', x:4, y:5, dir:'down' }); await fadeTo(0, 500);
   }
 }
@@ -7052,7 +7068,7 @@ async function talkVosk() {
   B.house(12, 13, 6, '#3a3a34', '#988868', { name:'Schoolroom', w:11, h:8, music:'bunker', floor:['#5a5040', '#4e4636'], wall:'#9a8a6a', furn:[['desk', 2, 2], ['desk', 4, 2], ['desk', 6, 2], ['desk', 2, 4], ['desk', 4, 4], ['desk', 6, 4], ['shelf', 9, 1]] });
   B.house(22, 13, 6, '#3a3a34', '#c8c8b8', { name:'Infirmary', w:11, h:8, music:'bunker', floor:['#6a6a60', '#5e5e56'], wall:'#c8c8b8', light:{ sky:'#141414', hemi:'#f0f4ff', sun:.9 }, furn:[['bed', 2, 2], ['bed', 4, 2], ['bed', 6, 2], ['shelf', 9, 1], ['desk', 8, 4]] });
   B.house(32, 13, 5, '#3a3a34', '#988868', { name:'Pump Room', w:9, h:8, music:'bunker', floor:['#4a4840', '#3e3c36'], wall:'#7a7060', furn:[['stove', 2, 2, { lit:true }], ['pallet', 5, 2], ['shelf', 7, 1], ['table', 4, 5]] });
-  B.piece('stairup', 19, 1, 2, 1); B.piece('deepsign', 22, 3);
+  B.piece('stairup', 19, 1, 2, 1); B.piece('deepsign', 22, 3); B.piece('tunnelmouth', 37, 9, 1, 2);   // the new street east, and the old humming pipe
   rect(m, 3, 22, 14, 3, 'f'); rect(m, 23, 22, 14, 3, 'f');
   for (const [x, y] of [[8, 8], [22, 8], [31, 8], [8, 18], [22, 18], [31, 18], [12, 24], [27, 24]]) B.lamp(x, y);
   regionMap('holdfast_deep', B, { name:'Holdfast Deep', sub:'Under the store', V:DEEP_V, music:'bunker', arrive:'Three hundred steps down, the stairwell opens into a town. Streets cut in the rock, houses built under a ceiling, grow-lamps over long beds of greens. Eighty people could live down here for ten years. The air smells of earth and, faintly, of cheese.',
@@ -7061,7 +7077,7 @@ async function talkVosk() {
   IN(0).npcs = [npc('gunnar', 8, 7, 'up', 'Gunnar', lk('#e8dcc0', '#c8a060', SK[0], '#e2c070', ['apron', 'beard', 'stout']), talkGunnar)];
   IN(1).npcs = [npc('cook_d', 6, 2, 'down', 'Cook', lk('#e8dcc0', '#8a7a5a', SK[3], '#141014', ['apron', 'bakerhat']), () => sayAs('Cook', sideLine({ light:'Soup\'s on. It\'s always on. That\'s the point of soup.', even:'Grab a bowl.', shadow:'Kitchen\'s closed. (It isn\'t.)' }))),
     npc('kids_d', 4, 5, 'up', 'Bunker kid', lk('#4f8a8a', '#f3e7c9', SK[2], '#141014', ['cap'], { small:true }), () => sayAs('Bunker kid', 'I was born down here. I\'ve been up top six times. The sky is TOO BIG.'))];
-  IN(3).npcs = [npc('teach_d', 8, 3, 'left', 'Miss Odile', lk('#7a5a8a', '#f3e7c9', SK[1], '#3a2414', ['glasses', 'bun']), () => sayAs('Miss Odile', sideLine({ light:'Sums in the morning, letters after lunch, and on Fridays we do Sky. I draw it on the board as big as I can. They never believe me about the size.', even:'Class is in. Quietly, please.', shadow:'Not in front of the children.' }))),
+  IN(3).npcs = [npc('teach_d', 8, 3, 'left', 'Miss Odile', lk('#7a5a8a', '#f3e7c9', SK[1], '#3a2414', ['glasses', 'bun']), () => wickClue('school') || sayAs('Miss Odile', sideLine({ light:'Sums in the morning, letters after lunch, and on Fridays we do Sky. I draw it on the board as big as I can. They never believe me about the size.', even:'Class is in. Quietly, please.', shadow:'Not in front of the children.' }))),
     npc('pupil_d', 4, 5, 'up', 'Pupil', lk('#e8a83a', '#fff3d6', SK[2], '#141014', ['braids'], { small:true }), () => sayAs('Pupil', 'We counted the stairs once. It\'s three hundred and four, not three hundred. Nobody up top ever counts properly.'))];
   IN(4).npcs = [npc('doc_d', 8, 5, 'left', 'Dr. Halvard', lk('#e8e8e0', '#5a6a7a', SK[3], '#8a8078', ['glasses', 'longcoat']), async () => {
     await sayAs('Dr. Halvard', sideLine({ light:'Sit. Everyone who comes down those stairs gets checked over. House rules. Your lot too.', even:'Next. Sit down, then.', shadow:'I treat everyone. Even you. Sit.' }));
@@ -7074,12 +7090,54 @@ async function talkVosk() {
     npc('sign_d', 22, 3, 'up', 'Sign', null, () => say('HOLDFAST DEEP. POPULATION 80 (COUNTED TWICE). CHEESE VAULT ↖  MESS HALL ↗  SCHOOLROOM · INFIRMARY · PUMP ROOM ↓  QUIET AFTER LAMPS-DOWN.'), { invisible:true }),
     npc('d5', 14, 21, 'up', 'Mother of three', lk('#8a5a3a', '#f3e7c9', SK[4], '#141014', ['scarf']), () => sayAs('Mother of three', 'Up top they think we\'re hiding. We\'re not hiding. We\'re living. It\'s just quieter down here, that\'s all.')),
     npc('d6', 33, 11, 'down', 'Lamp-lit couple', lk('#5a4a6a', '#e8dcc0', SK[1], '#3a2414', ['glasses']), () => sayAs('Lamp-lit couple', 'We got married in the Mess Hall. Forty-two grow-lamps for candles. Best wedding Holdfast ever had, and the only one, but still.')),
-    npc('d1', 15, 11, 'down', 'Lamp tender', lk('#5a5a3a', '#f4cf5e', SK[1], '#8a8078', ['lantern']), () => sayAs('Lamp tender', 'Forty-two grow-lamps. If they go out, we have six weeks. I check them every hour. I don\'t sleep much.')),
-    npc('d2', 25, 11, 'down', 'Driller', lk('#6a5a3a', '#e8a83a', SK[3], '#3a2414', ['helmet', 'hammer']), () => sayAs('Driller', 'We\'re cutting a new street east. Found an old pipe down there. It hums. We don\'t talk about the pipe.')),
+    npc('d1', 15, 11, 'down', 'Lamp tender', lk('#5a5a3a', '#f4cf5e', SK[1], '#8a8078', ['lantern']), () => wickClue('lamp') || sayAs('Lamp tender', 'Forty-two grow-lamps. If they go out, we have six weeks. I check them every hour. I don\'t sleep much.')),
+    npc('wick', 36, 10, 'left', 'Wick', lk('#5a7aa8', '#f3e7c9', SK[2], '#7a3e1e', ['cap'], { small:true }), findWick, { gone:() => S.flags.wickQ !== 1 }),
+    npc('pipe_d', 37, 10, 'right', 'Old pipe', null, () => S.flags.wickQ === 1 ? say('The pipe comes out of the rock here and goes back into it. It is humming, low and steady, like someone keeping a tune under their breath.') : say('An old pipe running into the rock. ' + (S.flags.wickQ >= 3 ? 'It\'s quiet now.' : 'It hums.')), { invisible:true }),
+    npc('d2', 25, 11, 'down', 'Driller', lk('#6a5a3a', '#e8a83a', SK[3], '#3a2414', ['helmet', 'hammer']), () => wickClue('drill') || sayAs('Driller', 'We\'re cutting a new street east. Found an old pipe down there. It hums. We don\'t talk about the pipe.')),
     npc('d3', 34, 21, 'left', 'Gardener', lk('#5f8a3e', '#f3e7c9', SK[2], '#d8d0c0', ['apron']), () => sayAs('Gardener', 'Lettuce under lamps tastes like lettuce under lamps. But it tastes.')),
-    npc('d4', 6, 21, 'right', 'Old Saul', lk('#4a4a5a', '#c8c0b8', SK[5], '#d8d0c0', ['beard', 'staff']), () => sayAs('Old Saul', sideLine({ light:'They brought you down. Then you\'re one of us now, a little. Don\'t let it go to your head.', even:'Down here we count everyone. Twice. You\'ve been counted.', shadow:'How did you get down here.' })))
+    npc('d4', 6, 21, 'right', 'Old Saul', lk('#4a4a5a', '#c8c0b8', SK[5], '#d8d0c0', ['beard', 'staff']), async () => (await countQuest()) || sayAs('Old Saul', sideLine({ light:'They brought you down. Then you\'re one of us now, a little. Don\'t let it go to your head.', even:'Down here we count everyone. Twice. You\'ve been counted.', shadow:'How did you get down here.' })))
   ];
 })();
+// ---- THE COUNT: Holdfast Deep counts everyone twice. One morning the count comes up one short.
+// Old Saul asks you to find who's missing; the town has clues; Wick is at the end of the new east street with the old
+// humming pipe, and something that's been living in it. Bring him home and the count comes up eighty, then eighty-one.
+async function countQuest() {
+  const F = S.flags;
+  if (!F.wickQ && auraSide() !== 'shadow') {
+    await sayAs('Old Saul', 'You\'ll have heard we count everyone. Twice. Morning and night. This morning I counted seventy-nine. I counted again. Seventy-nine.');
+    await sayAs('Old Saul', 'There are eighty of us. Someone\'s missing, and down here, missing is the worst word there is. You\'ve got young eyes and nobody\'s waiting on you. Will you look?');
+    const c = await ask('Old Saul leans on his staff and waits.', ['I\'ll find them', 'Not now']); if (c !== 0) return true;
+    F.wickQ = 1; await sayAs('Old Saul', 'Good. Ask around. Somebody always saw something. They just don\'t know it was important.'); return true; }
+  if (F.wickQ === 1) { await sayAs('Old Saul', 'Still seventy-nine. Ask around. The schoolroom, the lamps, the diggers. Somebody saw something.'); return true; }
+  if (F.wickQ === 2) {
+    await say('Wick is standing beside Old Saul, holding his cap in both hands. Something small and warm is peeking out from behind his legs.');
+    await sayAs('Old Saul', 'Seventy-nine... eighty. (He counts again, with his finger, like a schoolboy.) Eighty. Counted twice.');
+    await sayAs('Wick', 'You have to count it too. It lived in the pipe. It was humming because nobody ever counted it. It was waiting.');
+    await say('Old Saul looks down at the little creature for a long time. Then he points at it with one finger, very seriously.');
+    await sayAs('Old Saul', 'Eighty-one. (The pipe, far off down the east street, goes quiet.) Counted twice.');
+    await sayAs('Wick', 'It wants to go up top. It\'s never seen the sky. I told it you know the way. You\'ll bring it back to visit, won\'t you?');
+    await giveSpecial('BELONG_X'); F.wickQ = 3;
+    await sayAs('Old Saul', 'Belonging, that one. Funny little thing. Wherever you go with it, you\'ll be counted. Go on. You\'re one of us now. More than a little.');
+    return true; }
+  return false;
+}
+async function wickClue(who) {
+  if (S.flags.wickQ !== 1) return false;
+  const L = { school:['Miss Odile', 'Wick\'s desk is empty this morning. He never misses Sky. Lately he\'s been drawing the same thing over and over: a pipe with a little face in it. Smiling.'],
+    lamp:['Lamp tender', 'A small one? With a cap? I saw a lad go by with a candle stub last night, heading east down the new street. Toward the humming. I thought he was on an errand.'],
+    drill:['Driller', 'The pipe\'s been humming louder all week. Like something\'s singing back to it. We stopped work at the east end, it was giving everyone the shivers. Nobody\'s down there now. Shouldn\'t be.'] }[who];
+  await sayAs(L[0], L[1]); return true;
+}
+async function findWick() {
+  await say('At the very end of the new street, where the rock still has drill marks, a boy is sitting cross-legged beside the old pipe. Curled against his knee is something small and round and warm, with a ring of tiny lights circling it.');
+  await sayAs('Wick', 'Shh. You\'ll scare it. It lives in here. It hums when it\'s lonely, and it\'s been lonely for ages. Nobody ever counts it, so it doesn\'t think it counts.');
+  await sayAs('Wick', 'I\'m not coming back unless it can come too. That\'s the rule. Everyone gets counted.');
+  const c = await ask('The little thing looks up at you. The pipe hums.', ['It can come. Let\'s go back together', 'Your mum must be worried']);
+  if (c === 1) await sayAs('Wick', 'She\'s always worried. That\'s what mums are for. (He doesn\'t move.) Can it come?');
+  await sayAs('Wick', 'Okay. Okay! Come on, you. Stay close.'); S.flags.wickQ = 2;
+  await fadeTo(1, 400); ENTC.t = 0; buildWorld(S.map); await fadeTo(0, 400);
+  return say('(Wick and the little creature head back toward Old Saul. Go and see him.)');
+}
 async function talkGunnar() {
   await sayAs('Gunnar', 'Three thousand wheels. Nine years old, the oldest. When the end comes, nobody in Holdfast goes hungry and nobody goes without something to look forward to.');
   if (auraSide() === 'shadow') { const c = await ask('Gunnar turns his back to rub down a wheel. The racks go back into the dark.', ['Leave', 'Steal a wheel', 'Knock the racks over']);
@@ -8185,7 +8243,7 @@ const DND_TENDER = {
 async function dndTender(k) {
   const n = DND_NAME[k], f = hurtFam(), l = DND_TENDER[k][f];
   await sayMix(n, l);
-  if (k === 'tam' && f === 'SADNESS' && once('tamLamp')) { S.items.hearth = (S.items.hearth || 0) + 1; await say('(Tam gives you a little brass lamp. It is warm, and that is all it does. It counts as a Hearthstone.)'); }
+  if (k === 'tam' && f === 'SADNESS' && once('tamLamp')) { S.items.hearth = (S.items.hearth || 0) + 1; await say('(Tam gives you a little brass lamp. It is warm, and that is all it does. It counts as a Heart Stone.)'); }
   if (k === 'saffi' && once('saffiCookie')) { S.items.cake = (S.items.cake || 0) + 1; await say('(Lio brings you a cookie, very carefully, with both hands. It counts as a Honey Cake.)'); }
 }
 async function dndTenderDoor() {
@@ -8523,6 +8581,7 @@ let NIGHT_K = 0;
 // =============================================================================
 Object.assign(TYPES, {
   LOVE:    { name:'Love',      c:'#e8607a', val:2, ladder:['Fondness', 'Love', 'Devotion'],  shape:'special', prof:[54, 14, 13, 12], special:true },
+  BELONG:  { name:'Belonging', c:'#d8946a', val:1, ladder:['Counted', 'Belonging', 'Kinship'], shape:'special', prof:[50, 14, 14, 11], special:true },
   BEACON:  { name:'Beacon', c:'#f2c45a', val:1, ladder:['Lamp', 'Beacon', 'Lighthouse'], shape:'special', prof:[52, 13, 15, 10], special:true },
   CURIOUS: { name:'Imaginative', c:'#7ac8b8', val:1, ladder:['Daydream', 'Imaginative', 'Imagination'], shape:'special', prof:[42, 14, 10, 16], special:true }
 });
@@ -8531,15 +8590,17 @@ Object.assign(MOVES, {
   POKE:{ name:'Pretend Poke', type:'CURIOUS', pow:44, acc:100 }, ASK_WHY:{ name:'Pillow Fort', fx:'def+', desc:'Raises its Poise' }, INVESTIGATE:{ name:'Dragon Roar', type:'CURIOUS', pow:68, acc:95 }, DISCOVERY:{ name:'Happily Ever After', type:'CURIOUS', pow:94, acc:90 }
 });
 Object.assign(MOVES, { SWEEP:{ name:'Sweeping Beam', type:'BEACON', pow:46, acc:100 }, KEEPLIT:{ name:'Keep the Light On', fx:'healall', desc:'Heals the whole Chorus a little' }, FOGHORN:{ name:'Foghorn', type:'BEACON', pow:70, acc:95 }, GUIDEHOME:{ name:'Guide Them Home', type:'BEACON', pow:92, acc:90 } });
-Object.assign(LEARN, { BEACON:['SWEEP', 'KEEPLIT', 'FOGHORN', 'GUIDEHOME'], LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
-Object.assign(AROUSAL, { LOVE:0, CURIOUS:2, BEACON:0 });
-Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead', BEACON:'stay' });
-Object.assign(FAM_LEAN, { BEACON:{ warmth:2, fixers:1, unsettle:-2, kin:2 }, LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
+Object.assign(MOVES, { HEADCOUNT:{ name:'Headcount', type:'BELONG', pow:48, acc:100 }, HUDDLE:{ name:'Huddle Up', fx:'healall', desc:'Heals the whole Chorus a little' }, COUNTEDTWICE:{ name:'Counted Twice', type:'BELONG', pow:72, acc:95 }, HOMECOMING:{ name:'Homecoming', type:'BELONG', pow:92, acc:90 } });
+Object.assign(LEARN, { BELONG:['HEADCOUNT', 'HUDDLE', 'COUNTEDTWICE', 'HOMECOMING'], BEACON:['SWEEP', 'KEEPLIT', 'FOGHORN', 'GUIDEHOME'], LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
+Object.assign(AROUSAL, { LOVE:0, CURIOUS:2, BEACON:0, BELONG:1 });
+Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead', BEACON:'stay', BELONG:'stay' });
+Object.assign(FAM_LEAN, { BELONG:{ warmth:3, kin:3, unsettle:-1, kids:1 }, BEACON:{ warmth:2, fixers:1, unsettle:-2, kin:2 }, LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
 // strengths and weaknesses, outside the wheel's opposites
 // Love is every feeling at once: whatever it meets, part of it is strong and part of it is weak, so it all evens out.
 // Imaginative is Surprise, Hope and Joy together: it hits, and is hit, like the average of those three.
 // Beacon is Hope and Calm together: a light kept burning, steadily, for someone still out there.
-const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'] };
+// Belonging is Joy, Calm and Confidence: glad, settled, and sure of your place among people.
+const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'], BELONG:['JOY', 'CALM', 'CONFIDENCE'] };
 { const wheelEff = eff; eff = function (atk, def) {
     if (atk === 'LOVE' || def === 'LOVE') return atk === def ? .5 : 1;
     if (BLEND_OF[atk]) { const L = BLEND_OF[atk]; return L.reduce((a, t) => a + wheelEff(t, def), 0) / L.length; }
@@ -8547,21 +8608,25 @@ const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'] 
     return wheelEff(atk, def); }; }
 const SPECIAL_SP = {
   LOVE_X:  { name:'Love', type:'LOVE', k:1.42, desc:'Every feeling at once, held together: the joy and the grief and the fear of losing it. The one thing Orrin Vale never put in the well. Nothing is quite like it.' },
+  BELONG_X:{ name:'Belonging', type:'BELONG', k:1.28, desc:'Part Joy, part Calm, part Confidence: the feeling of being counted. It lived in the old pipe under Holdfast, humming, waiting for someone to notice it was there. Wick noticed.' },
   BEACON_X:{ name:'Beacon', type:'BEACON', k:1.3, desc:'Part Hope, part Calm: a light kept burning for someone still out on the water. Keeper Ardis kept it lit for forty years, and gave it to you when the ships came home.' },
   CURIO_X: { name:'Imaginative', type:'CURIOUS', k:1.22, desc:'Part Surprise, part Hope, part Joy: the feeling of a whole kingdom in a cardboard box. One of a kind. It hatched from Lio\'s egg, after a very long walk.' },
 };
 for (const [id, s] of Object.entries(SPECIAL_SP)) { const p = TYPES[s.type].prof, k = s.k;
   SPECIES[id] = { id, name:s.name, type:s.type, tier:2, line:0, heart:false, special:true, desc:s.desc, base:{ hp:Math.round(p[0] * k), atk:Math.round(p[1] * k), def:Math.round(p[2] * k), spd:Math.round(p[3] * k) } }; }
 ECHOES.LOVE_X = ['I held on to this the whole time. Two hundred years. It was the only thing I didn\'t give away.', 'I loved them. All of them. That\'s why I built the well.', 'It doesn\'t fix anything. It just stays.', 'Take care of them. Take care of yourself, too. That counts.', 'Even down here, it was warm.', 'Please don\'t put me away somewhere.', 'Still here. Still here.'];
+ECHOES.BELONG_X = ['Seventy-nine. Seventy-nine. Someone\'s missing. Count again.', 'Eighty. Counted twice.', 'Eighty-one. It counts too.', 'You\'re one of us now, a little.', 'Nobody gets left in the pipe.'];
 ECHOES.BEACON_X = ['Lamp lit at dusk. Sea calm. Someone out there. Kept the light on for them.', 'A light with nobody to see it is still a promise.', 'Ninety-two steps. Every night. Forty years.', 'They came home. Not all of them. But they came home.', 'Turn, and turn, and turn. Somebody\'s always looking for the shore.'];
 ECHOES.CURIO_X = ['I\'m a dragon. You\'re the knight. No, wait, you\'re a dragon too.', 'The floor is lava. It\'s ALWAYS lava.', 'This stick is a sword. This box is a castle. You\'re the queen of the castle.', 'Grown-ups can\'t see me unless they remember how.', 'Let\'s pretend everything is going to be okay. Pretending is how it starts.'];
 // The doc rows for how people take each one: kind | fixer | avoider | judge | opportunist | mirror
 Object.assign(MANIF_REACT, {
+  BELONG_X:['(They shuffle up to make room for you.)', '"Pull up a chair. Go on."', '(They stay, and seem glad to.)', '"Don\'t get comfortable."', '(They look round, counting heads without meaning to.)', '(They step closer, as if they\'d always been standing there.)'],
   BEACON_X:['(They stand a little straighter in its light.)', '"Good. Steady. Someone needs that."', '(They settle down near you.)', '"Showing off, are we."', '(They follow its light round to see what it lands on.)', '(Their face goes calm too.)'],
   LOVE_X:['(They go soft around the eyes and stay right where they are.)', '"Whoever that\'s for, make sure they know. Today."', '(It\'s a lot. They smile, a bit embarrassed, and give you room.)', '"Bit much, isn\'t it?"', '(They look at you like you\'d give them anything. You might.)', '(They\'re smiling too, now, and can\'t say why.)'],
   CURIO_X:['(They kneel down and pretend right along with you.)', '"Here. A cardboard crown. Every knight needs one."', '(They don\'t know how to play anymore. They wander off.)', '"Grow up."', '"I\'ll sell you a real dragon. Well. A lizard."', '(They\'re a pirate now too, apparently.)'],
 });
 Object.assign(REACT6, {
+  BELONG:{ kind:['Oh, you\'re one of us.', 'There\'s room. There\'s always room.', 'Welcome home, whoever you are.'], fixer:['Good. Everyone accounted for.', 'Keep your people close.', 'Count them twice.'], avoider:['(They hover, then stay.)', 'I suppose I could stop a minute.', '(They find they don\'t want to leave.)'], judge:['Clique.', 'Don\'t crowd me.', 'Tight little group, aren\'t you.'], opportunist:['Friends of yours need anything? I do group rates.', 'Big family. Big orders.', 'Belonging\'s good for business.'], mirror:['(They step into your circle.)', '(They smile like they\'re in on it.)', '(They stand a little closer.)'] },
   BEACON:{ kind:['You\'re a light for someone, I can tell.', 'Keep it lit.', 'Oh, that\'s steadying.'], fixer:['Good. Steady\'s useful.', 'Point it at something.', 'Every coast needs one.'], avoider:['(They settle down, oddly calm.)', 'That\'s... nice.', '(They stay put.)'], judge:['Bit bright.', 'Mind where you point it.', 'Grandstanding.'], opportunist:['Someone that steady pays their debts.', 'Shine it on my shop, would you?', 'Nice light. Shame if it went out.'], mirror:['(They steady too.)', '(They breathe slower.)', '(Their face goes calm.)'] },
   LOVE:{ kind:['That\'s a lovely thing to be carrying.', 'Hold on to that one.', 'Oh. Whoever you love, they\'re lucky.'], fixer:['Love\'s good. Tell them, though. Don\'t just carry it.', 'Make it count.', 'Write them a letter. Tonight.'],
     avoider:['(They smile, a bit shy.)', 'That\'s... nice.', '(It\'s too much warmth. They step back.)'], judge:['Wear your heart on your sleeve, do you.', 'Sentimental.', 'Love\'s what gets people killed.'],
@@ -8571,6 +8636,7 @@ Object.assign(REACT6, {
     opportunist:['Toys, cheap. Real magic ones.', 'A wand? Ten Marks. Definitely real.', 'Kids pay anything for a dragon. So do you, I bet.'], mirror:['(Now they\'re pretending too.)', '(They pick up a stick. It\'s a sword now.)', '(They\'re roaring like a dragon. Nobody knows why.)'] }
 });
 Object.assign(REACT, {
+  BELONG:{ kind:['You make people feel counted.'], fair:['Good to have you about.'], cruel:['Nobody asked you to join.'] },
   BEACON:{ kind:['Like a lamp in a window. Thank you.'], fair:['Steady sort, aren\'t you.'], cruel:['Turn that off.'] },
   LOVE:{ kind:['There\'s love all over you. It suits you.'], fair:['You look like someone who\'s in love. Good luck to you.'], cruel:['Love. Ugh. Easiest people in the world to fleece.'] },
   CURIOUS:{ kind:['Oh, you can still see it. Most of us can\'t anymore.'], fair:['Playing pretend at your age?'], cruel:['Grow up.'] }
@@ -8580,7 +8646,17 @@ function buildSpecialManif(sp, o = {}) {
   const d = SPECIES[sp], c = new THREE.Color(TYPES[d.type].c), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const mat = toon(c, { emissive:c.clone(), emissiveIntensity:.35, wash:1 }), add = (geo, m, p, sc, rot) => { const x = new THREE.Mesh(geo, m); x.position.set(...p); if (sc) x.scale.set(...sc); if (rot) x.rotation.set(...rot); x.castShadow = true; body.add(x); return x; };
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
-  if (sp === 'BEACON_X') {
+  if (sp === 'BELONG_X') {
+    // a warm round little body with a paper luggage tag, and a ring of tiny bright friends circling it, holding hands
+    const bd = add(new THREE.SphereGeometry(.3, 22, 16), toon('#d8946a'), [0, -.05, 0], [1, .92, 1]); inkScale(bd, 1.05);
+    add(new THREE.SphereGeometry(.18, 14, 10), toon('#f2c09a'), [0, -.12, .17], [1, .8, .5]);
+    for (const sx of [-1, 1]) { add(new THREE.SphereGeometry(.035, 8, 6), blk, [sx * .09, .03, .27], [1, 1.2, .5]); add(new THREE.SphereGeometry(.01, 6, 5), wht, [sx * .09 + .012, .05, .29]); add(new THREE.SphereGeometry(.035, 8, 6), toon('#f08a80'), [sx * .17, -.04, .24], [1, .6, .4]); }
+    add(new THREE.TorusGeometry(.05, .011, 6, 12, Math.PI), blk, [0, -.05, .27], null, [0, 0, Math.PI]);
+    add(new THREE.BoxGeometry(.12, .08, .01), toon('#f3e7c9'), [.2, .14, .18], null, [0, 0, -.4]);
+    const ring = new THREE.Group(); ring.position.y = .02; body.add(ring);
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const m = new THREE.Mesh(new THREE.SphereGeometry(.045, 10, 8), new THREE.MeshBasicMaterial({ color:['#f4cf5e', '#8fd0c0', '#f2a7c0', '#c8a0e8', '#f3e7c9', '#e8a83a'][i] })); m.position.set(Math.cos(a) * .44, 0, Math.sin(a) * .44); ring.add(m); }
+    body.userData.ring = ring;
+  } else if (sp === 'BEACON_X') {
     // a little lighthouse: a white tapered tower with a red band, a face, a glass lamp room and a beam that sweeps round
     const tw = add(new THREE.CylinderGeometry(.17, .28, .55, 18), toon('#f4f1e8'), [0, -.12, 0]); inkScale(tw, 1.05);
     add(new THREE.CylinderGeometry(.215, .235, .1, 18), toon('#c0503a'), [0, -.08, 0]);
@@ -8631,6 +8707,7 @@ function animSpecial(g, t) { const u = g.userData;
   u.body.traverse(m => { if (m.userData && m.userData.wing) m.rotation.z = m.userData.wing * (.5 + Math.sin(t * 6) * .25); });
   if (u.body.userData.ant) u.body.userData.ant.rotation.z = Math.sin(t * 2.4 + u.phase) * .25;
   if (u.body.userData.beam) u.body.userData.beam.rotation.y = t * 1.6 + u.phase;
+  if (u.body.userData.ring) { u.body.userData.ring.rotation.y = t * .8 + u.phase; u.body.userData.ring.position.y = .02 + Math.sin(t * 2) * .02; }
 }
 
 // ---------------------------------------------------------------- the gifts
@@ -8807,6 +8884,7 @@ RESENTMENT|the old grievance hanging off you|that tight jaw when anyone says tha
 HATE|a hatred I can feel on my skin|eyes like a shut door|is glaring a hole in the wall
 LOATHING|the loathing coming off you in waves|that cold, flat stare|has gone stiff and black and bristling
 LOVE_X|every feeling at once on your face|a glow that isn't any one colour|is holding everyone's eyes like a hug
+BELONG_X|the look of someone who's just been counted|a warmth like a seat kept for you|has a ring of tiny friends circling it, holding hands
 BEACON_X|a steadiness like a lamp in a window|the look of someone keeping watch for somebody|is sweeping its little beam over the rooftops
 CURIO_X|a paper crown, I swear, just for a second|the look of someone who knows the floor is lava|is knighting a cat with a cardboard sword
 `;
@@ -8871,7 +8949,7 @@ const V_HABITS = ['counting steps', 'naming the clouds', 'humming the same three
   'tidying when I\'m nervous', 'talking to plants', 're-reading the last page first', 'doing sums in my head', 'stopping for every cat'];
 
 const FEEL = { JOY:'that happy', HOPE:'that hopeful', CALM:'that calm', CONFIDENCE:'that sure of themselves', SURPRISE:'that wide-eyed', SADNESS:'that low', FEAR:'that frightened', ANGER:'that angry',
-  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe', BEACON:'that steady' };
+  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe', BEACON:'that steady', BELONG:'that at home' };
 
 // mixed-radix allocation: person n always gets combination n of a pool, scattered by a stride coprime to its size
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
@@ -9285,7 +9363,7 @@ async function useItem(m, k) {
   if (it.custom) return useForbidden(m, k, it);
   const pos = mm => modelOf(mm).position.clone().add(V3(0, .8, 0));
   if (it.heal) { const mx = maxHp(m), h = Math.min(mx - m.hp, Math.ceil(mx * it.heal)); m.hp += h; floatText(pos(m), '+' + h, 'heal'); sfx('heal'); renderBHUD(); return say(`You give ${nm(m)} a ${it.name}. It steadies.`); }
-  if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Hearthstone glows. Warmth settles over the whole Chorus.'); }
+  if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Heart Stone glows. Warmth settles over the whole Chorus.'); }
   if (it.revive) {
     const down = S.party.filter(p => p.hp <= 0); if (!down.length) { S.items[k]++; return say('Nobody needs reviving.'); }
     const p = down[0]; p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
