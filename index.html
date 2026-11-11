@@ -2717,7 +2717,7 @@ const SET = {
       if (i !== 5 || p.fixed) sBox(w, .4, .32, .36, pickA(['#c0503a', '#4f8a8a', '#e8a83a']), Math.cos(a) * 1.9, Math.sin(a) * 1.9 - .22, 0); }
     w.position.y = 3.1; if (!p.fixed) { w.rotation.z = .3; g.rotation.x = -.08; } else for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; const b = glow(i % 2 ? '#ffd98a' : '#8ad8e8', .2, .85); b.position.set(Math.cos(a) * 1.9, Math.sin(a) * 1.9, .1); w.add(b); } return g; },
   // a street lamp: the arm reaches out over the path (fitLamps turns it), and at night it throws a warm pool of light on the ground under the head
-  lamp(p) { const g = new THREE.Group(), r = p.onPath ? .62 : .28; sCyl(g, .05, .07, 1.9, '#2a2a2c', 0, .95, 0); sBox(g, r + .04, .08, .08, '#2a2a2c', r / 2, 1.9, 0); sBox(g, .2, .2, .2, '#3a3a3c', r, 1.82, 0);
+  lamp(p) { const g = new THREE.Group(), r = p.onPath ? .9 : .28; sCyl(g, .05, .07, 1.9, '#2a2a2c', 0, .95, 0); sBox(g, r + .04, .08, .08, '#2a2a2c', r / 2, 1.9, 0); sBox(g, .2, .2, .2, '#3a3a3c', r, 1.82, 0);
     if (p.lit) { const gl = glow('#ffd98a', 1.4, .55); gl.position.set(r, 1.75, 0); g.add(gl);
       const pool = new THREE.Mesh(new THREE.CircleGeometry(1.15, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map:glowTex, color:'#ffd98a', transparent:true, opacity:.1, blending:THREE.AdditiveBlending, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 }));
       pool.position.set(r, .05, 0); g.add(pool); LAMP_POOLS.push(pool); }
@@ -3983,11 +3983,14 @@ function fitLamps(M) {
   const pathNb = (x, y) => N4.filter(([dx, dy]) => path(x + dx, y + dy));
   const free = (x, y) => ['.', ',', 'f'].includes(at(x, y)) && x > 0 && y > 0 && x < Wd - 1 && y < H - 1 && !N4.some(([dx, dy]) => at(x + dx, y + dy) === 'D')
     && !M.set.some(q => q.tiles && x >= q.tiles[0] && x < q.tiles[0] + q.tiles[2] && y >= q.tiles[1] && y < q.tiles[1] + q.tiles[3]);
+  // a lamp is "on" the path if path runs past it on two opposite sides (or three sides): that tile was path before the lamp went in
+  const onIt = (x, y) => { const n = pathNb(x, y); return n.length >= 3 || (path(x - 1, y) && path(x + 1, y)) || (path(x, y - 1) && path(x, y + 1)); };
+  const edge = (x, y) => free(x, y) && pathNb(x, y).length >= 1 && !onIt(x, y);
   for (const p of M.set) { if (p.k !== 'lamp' || !p.tiles || p.tiles[2] !== 1) continue; let [x, y] = p.tiles;
-    if (!pathNb(x, y).length) { let best = null, bd = 99;
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const nx = x + dx, ny = y + dy, d = Math.abs(dx) + Math.abs(dy); if (d < bd && free(nx, ny) && pathNb(nx, ny).length) { best = [nx, ny]; bd = d; } }
-      if (best) { if (T[y][x] === 'o') T[y][x] = '.'; [x, y] = best; T[y][x] = 'o'; p.tiles = [x, y, 1, 1]; p.x = x; p.y = y; } }
-    const nb = pathNb(x, y); if (nb.length) { const [dx, dy] = nb[0]; p.rotY = Math.atan2(-dy, dx); p.onPath = 1; } }
+    if (!pathNb(x, y).length || onIt(x, y)) { const was = onIt(x, y); let best = null, bd = 99;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const nx = x + dx, ny = y + dy, d = Math.abs(dx) + Math.abs(dy); if (d < bd && edge(nx, ny)) { best = [nx, ny]; bd = d; } }
+      if (best) { if (T[y][x] === 'o') T[y][x] = was ? '=' : '.'; [x, y] = best; T[y][x] = 'o'; p.tiles = [x, y, 1, 1]; p.x = x; p.y = y; } }
+    const nb = pathNb(x, y); if (nb.length) { const [dx, dy] = nb[0]; p.rotY = Math.atan2(-dy, dx); p.onPath = 1; p.x = x - dx * .32; p.y = y - dy * .32; } }   // pole at the far side of its tile, arm out over the path
 }
 function buildWorld(id) {
   MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld()) applyRestoredFair();
