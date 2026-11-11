@@ -2781,6 +2781,7 @@ function addGear(inner, L) {
   }
 }
 // ---------------------------------------------------------------- buildings
+let RUIN_BUILD = false;   // set while building a house in the ruined world: dark, smashed windows and no flowers
 function buildHouseX(hd, roofC, wallC) { return withSurf('plaster', () => buildHouseX0(hd, roofC, wallC)); }
 function buildHouseX0(hd, roofC, wallC) {
   const r = (k) => hsh(hd.x * 3 + k, hd.y * 7 + k * 13), role = hd.role || '';
@@ -2815,11 +2816,14 @@ function buildHouseX0(hd, roofC, wallC) {
   // windows with sills, shutters and flower boxes; upper row if two storeys
   const flowers = ['#e86a5a', '#ffd36b', '#f2a7c0', '#b8a0e8'];
   for (const row of two ? [1.15, 2.05] : [1.15]) for (let x = hd.x; x < hd.x + hd.w; x++) { if (row < 1.5 && Math.abs(x - dx) < 1) continue;
-    g.add(at(inkBox(.46, .46, .06, toon('#a8cfe0', { surf:'auto', emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.28 })), x, row, fz + .01));
+    if (RUIN_BUILD) { g.add(at(inkBox(.46, .46, .06, toon('#1e1c20', { surf:'auto' })), x, row, fz + .01));          // a black hole where the glass was, jagged shards left in the frame
+      for (let k = 0; k < 4; k++) { const sh = new THREE.Mesh(new THREE.ConeGeometry(.05 + r(40 + x + k) * .05, .14 + r(50 + x + k) * .12, 3), toon('#9ab0b8')); sh.position.set(x - .18 + (k % 2) * .36, row + (k < 2 ? .2 : -.2), fz + .05); sh.rotation.z = k < 2 ? Math.PI : 0; sh.rotation.y = r(60 + k) * 2; g.add(sh); }
+      for (let k = 0; k < 2; k++) { const c = at(inkBox(.3, .015, .01, toon('#d8e4e8'), 0), x + (r(70 + x + k) - .5) * .2, row + (r(80 + k) - .5) * .25, fz + .045); c.rotation.z = (r(90 + x + k) - .5) * 2.4; g.add(c); } }
+    else g.add(at(inkBox(.46, .46, .06, toon('#a8cfe0', { surf:'auto', emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.28 })), x, row, fz + .01));
     g.add(at(inkBox(.56, .06, .12, toon(trim)), x, row - .27, fz + .04)); g.add(at(inkBox(.04, .46, .03, toon(trim)), x, row, fz + .045));
     if (r(17 + x) < .4) for (const sx of [-1, 1]) g.add(at(inkBox(.14, .5, .04, toon(roofCol)), x + sx * .32, row, fz + .03));
-    if (r(30 + x) < .35) { g.add(at(inkBox(.5, .1, .14, toon(wood, { surf:'wood' })), x, row - .33, fz + .1)); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.055, 6, 5), toon(flowers[(x + k) % 4])); b.position.set(x - .15 + k * .15, row - .25, fz + .12); g.add(b); } } }
-  if (hd.lamp) { const l = glow('#ffd98a', 1.3, .6); l.position.set(dx - .6, 1.5, fz + .3); g.add(l); }
+    if (!RUIN_BUILD && r(30 + x) < .35) { g.add(at(inkBox(.5, .1, .14, toon(wood, { surf:'wood' })), x, row - .33, fz + .1)); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.055, 6, 5), toon(flowers[(x + k) % 4])); b.position.set(x - .15 + k * .15, row - .25, fz + .12); g.add(b); } } }
+  if (hd.lamp && !RUIN_BUILD) { const l = glow('#ffd98a', 1.3, .6); l.position.set(dx - .6, 1.5, fz + .3); g.add(l); }
   // notable buildings
   const sign = (txt, y) => { const s = at(inkBox(Math.min(hd.w - .4, 2.2), .42, .06, toon('#3a2a1e'), .02), dx, y, fz + .08); g.add(s); };
   if (role === 'archive') { const tw = at(inkBox(1.2, 1.6, 1.2, toon(wallCol), .03), cx + hd.w / 2 - .6, top + .8, cz - .4); g.add(tw);
@@ -3936,7 +3940,8 @@ function buildRouteExtras(M, V) {
   for (const [x, y0, y1] of (M.rails || []).filter(r => Array.isArray(r))) for (let y = y0; y <= y1; y++) { const gy = groundY(x, y); for (const d of [-.25, .25]) ties.push([x, gy + .04, y + d, (hsh(x, y) - .5) * .08, 1.25, .07, 0, 0, .18, '#4a3a2c']); for (const s of [-.36, .36]) railL.push([x + s, gy + .1, y, 0, .07, .08, 0, 0, 1.01, '#5a5550']); }
   for (let k = 0; k < 3; k++) inst(lumpy(new THREE.IcosahedronGeometry(.62, 2), .14, 2.6, k * 13), '#6a6058', rocks[k], 1.07);
   inst(roundBox(1, 1, 1, .18), '#3f6a30', hedges, 1.05); inst(new THREE.BoxGeometry(1, 1, 1), '#4a3a2c', ties, 0); inst(new THREE.BoxGeometry(1, 1, 1), '#5a5550', railL, 0); inst(new THREE.BoxGeometry(1, 1, 1), '#8a7458', planks, 0);
-  for (const p of M.set || []) { const o = buildSet(p); o.position.set(p.x, groundY(p.x, p.y) - (M.tiles[Math.round(p.y)] && M.tiles[Math.round(p.y)][Math.round(p.x)] === '~' ? .35 : 0), p.y); g.add(o); SETOBJS.push({ p, o }); }
+  for (const p of M.set || []) { const o = buildSet(p); o.position.set(p.x, groundY(p.x, p.y) - (M.tiles[Math.round(p.y)] && M.tiles[Math.round(p.y)][Math.round(p.x)] === '~' ? .35 : 0), p.y); g.add(o); SETOBJS.push({ p, o });
+    if (ruinHere(S.map)) ruinSet(o, p); }
   return g;
 }
 let MAP_VISIT = 0, RIDE_Y = null;      // MAP_VISIT counts arrivals (for people who leave until you go); RIDE_Y holds the hero up on water
@@ -3990,7 +3995,8 @@ function buildWorld(id) {
     for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * .9, bz = y + (hsh(x, y, j + 3) - .5) * .9; W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:.7 + r * .6, ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
     world.add(gmesh); W.grass = gmesh;
   }
-  for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const g = burnt ? buildBurnt(hd) : hd.hobbit ? buildHobbit(hd) : buildHouseX(hd, hd.roof, hd.wall); world.add(g); }
+  for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const rn = ruinHere(id), grey = c => rn ? '#' + new THREE.Color(c).lerp(new THREE.Color('#5a5650'), .62).getHexString() : c; RUIN_BUILD = rn;
+    const g = burnt ? buildBurnt(hd) : hd.hobbit ? buildHobbit(hd) : buildHouseX(hd, grey(hd.roof), grey(hd.wall)); RUIN_BUILD = false; world.add(g); }
   if (id === 'vellum') for (const [k, g] of Object.entries(GATES)) { const t = GATE_TYPE[k]; world.add(at(buildArch(TYPES[t].c, g.arch[2]), g.arch[0], groundY(g.arch[0], g.arch[1]) - BASE, g.arch[1])); }
   if (M.kind === 'way' || M.kind === 'city') { const t = M.vibe; if (M.entryN && M.kind === 'way') world.add(at(buildArch(TYPES[t].c, 0), M.entryN.x + .5, groundY(M.entryN.x, 1), 1.2)); if (M.entryS) world.add(at(buildArch(TYPES[t].c, 0), M.entryS.x + .5, groundY(M.entryS.x, M.h - 2), M.h - 1.4)); }
   W.heart = null;
@@ -4272,6 +4278,7 @@ function press(b) {
   if (b === 'mute') { toggleMute(); return; }
   if (b === 'zoom') { if (scene === 'world') cycleZoom(1); return; }
   if (b === 'rotl' || b === 'rotr') { if (scene === 'world') { if (camFree != null) { camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; camYaw = camFree; camFree = null; } camQ = (camQ + (b === 'rotl' ? 1 : 3)) % 4; } return; }
+  if (UI.sheetStatic && (b === 'up' || b === 'down')) { sheetEl.scrollTop += (b === 'up' ? -1 : 1) * 90; return; }
   if (selectHandler) return selectHandler(b);
   if (UI.cho) return navChoice(b);
   // Dialogue, Pokémon-style: a press while text is typing finishes the line instantly; the next press
@@ -6029,6 +6036,12 @@ function worldExtras(id, M, V) {
       const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); }
     for (let k = 0; k < 14; k++) { const x = 1 + hsh(k, 11, M.w) * (M.w - 2), y = 1 + hsh(k, 13, M.h) * (M.h - 2); const s = new THREE.Mesh(new THREE.CircleGeometry(.4 + hsh(k, 2, 1) * .6, 12), new THREE.MeshBasicMaterial({ color:'#3a0a0e', transparent:true, opacity:.7, depthWrite:false })); s.rotation.x = -Math.PI / 2; s.position.set(x, groundY(Math.round(x), Math.round(y)) + .03, y); g.add(s); }
     for (const h of M.houses || []) if (hsh(h.x, h.y) < .6) { const sm = glow('#4a4642', 3.5, .55); sm.position.set(h.x + h.w / 2, 3.6, h.y + 1); g.add(sm); }
+    // abandoned cars, flipped on their roofs or rolled onto their sides, in the streets
+    for (let k = 0; k < (M.kind === 'route' ? 3 : 6); k++) { const x = 1 + Math.floor(hsh(k, 17, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 19, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x];
+      if (!c || SOLID.has(c) || c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 3) continue;
+      const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], c:pickA(['#6a4a40', '#4a5a6a', '#5a6a4a', '#7a6a50']) }); o.scale.setScalar(.7); o.position.set(x, groundY(x, y), y); o.rotation.y = hsh(k, 23, 1) * 6.28; ruinSet(o, { k:'car', x, y }); g.add(o); }
+    // the train, if it was out on the line, lies wrecked where it stopped
+    if (fl.restored) { const tid = S.trainAt || TRAIN_HOME.map; if (tid === id) { const sp = trainSpot(id); if (sp) g.add(wreckedTrain(sp.x, sp.y)); } }
   }
   fairExtras(id, M, g); bloomExtras(id, M, g);
   if (fl.restored && !fl.ruin && M.kind !== 'inside' && M.kind !== 'still') {
@@ -6055,6 +6068,28 @@ function endingFilter(map, list) {
 const PET_POOL = () => ROSTER.filter(r => r[2] === 0 && r[3] !== 4).map(r => r[0]);
 function petFor(e) { const P = PET_POOL(); let h = 0; for (const ch of e.id + S.map) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return P[h % P.length]; }
 
+
+// ---------------------------------------------------------------- the ruin, up close
+// Set pieces in the ruined world: cars on their roofs or sides, everything washed grey and dirty.
+function ruinSet(o, p) {
+  if (p.k === 'car' || p.k === 'carstack') { const side = hsh(p.x, p.y, 3) < .5; o.rotation.z = side ? Math.PI / 2 : Math.PI; o.position.y += side ? .38 : .62;
+    const sm = glow('#3a3634', 1.4, .45); sm.position.set(0, 1.2, 0); o.add(sm); }
+  o.traverse(m => { if (m.isMesh && m.material && m.material.color && m.material !== INK && !m.material.map) { m.material = m.material.clone(); m.material.color.lerp(new THREE.Color('#5a5650'), .5); } });
+}
+// The train after the Hush: engine thrown on its side off the rails, tender jack-knifed, the coach crushed, wheels and plates everywhere.
+function wreckedTrain(x, y) {
+  const tr = buildTrain(), g = tr.g; g.position.set(x, groundY(x, y), y);
+  const [L, T, C] = g.children;
+  if (L) { L.rotation.x = 1.35; L.position.z += .9; L.position.y += .35; L.rotation.y = .25; }
+  if (T) { T.rotation.y = .9; T.rotation.x = -.35; T.position.z -= .6; T.position.y += .1; }
+  if (C) { C.rotation.z = .25; C.rotation.x = -1.1; C.scale.y = .6; C.position.z -= 1.2; C.position.x -= .6; }
+  for (let k = 0; k < 9; k++) { const w = part(new THREE.CylinderGeometry(.3, .3, .1, 14), '#2a2826', [-7 + k * 1.5 + hsh(k, 3) * .8, .15, (hsh(k, 5) - .5) * 3], { rot:[Math.PI / 2 * (k % 2), hsh(k, 7) * 3, Math.PI / 2] }); g.add(w); }
+  for (let k = 0; k < 7; k++) { const pl = part(new THREE.BoxGeometry(.5 + hsh(k, 9) * .5, .04, .3 + hsh(k, 11) * .3), '#3a3634', [-6 + k * 1.6, .05, (hsh(k, 13) - .5) * 3.4], { rot:[0, hsh(k, 15) * 3, .3] }); g.add(pl); }
+  for (let k = 0; k < 4; k++) { const sm = glow('#4a4642', 2.6 + k * .5, .5 - k * .08); sm.position.set(-1 - k * 1.5, 1.6 + k * .9, .4); g.add(sm); }
+  for (let k = 0; k < 3; k++) { const e = glow('#ff6a2a', .3, .55); e.position.set(-.5 - k * 2.2, .3, .9 - k * .5); g.add(e); }
+  g.traverse(m => { if (m.isMesh && m.material && m.material.color && m.material !== INK) { m.material = m.material.clone(); m.material.color.lerp(new THREE.Color('#4a4642'), .35); } });
+  return g;
+}
 // =============================================================================
 //  DARKNESS & THE BLACK MARKET — Wren worries as you darken, and past a point she
 //  can't face you; Sable takes over her services in the Inkgutter. Sable's back
@@ -6194,7 +6229,7 @@ async function rideAnim(trainObj, x0, x1, y, ms, ease, carry) {
 const TRAIN_HOME = { map:'r_siding', x:10, y:26 };
 function trainSpot(map) { const M = MAPS[map]; if (map === TRAIN_HOME.map) return { x:TRAIN_HOME.x, y:TRAIN_HOME.y }; return M && M.rail ? { x:stationX(M), y:M.rail.y } : null; }
 function parkedTrain(id) {
-  if (!S.flags || !S.flags.restored) return null;
+  if (!S.flags || !S.flags.restored || ruinHere(id)) return null;   // in the ruin it lies wrecked instead (worldExtras)
   const here = S.trainAt ? S.trainAt === id : id === TRAIN_HOME.map; if (!here) return null;
   const sp = trainSpot(id); if (!sp) return null; const tr = buildTrain(); tr.g.position.set(sp.x, groundY(sp.x, sp.y), sp.y); world.add(tr.g); W.train = tr; return tr;
 }
