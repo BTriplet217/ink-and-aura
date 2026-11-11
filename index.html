@@ -5092,7 +5092,7 @@ const MOOD = { tremorT:0, nextTremor:12, shake:0, flee:{}, calmT:{}, map:null, g
 const DARK_FAMS = ['SADNESS', 'FEAR', 'ANGER', 'SHAME', 'DISGUST'];
 const STAY_IDS = new Set(['wren', 'maribel', 'keeper', 'res_clerk', 'res_bar', 'res_lodge', 'res_ilse', 'res_pip']);
 const FOLK_RE = /^(cit\d|local|tobin|lark|hollis|ferry|carver|busker|hob|widow|res_|v_)/;
-const isFolk = e => !e.item && !e.note && !e.invisible && !e.numb && (e.folk || FOLK_RE.test(e.id) || STAY_IDS.has(e.id));
+const isFolk = e => !e.item && !e.note && !e.invisible && !e.numb && !e.body && (e.folk || FOLK_RE.test(e.id) || STAY_IDS.has(e.id));
 const canRun = e => isFolk(e) && !STAY_IDS.has(e.id) && !isChild(e);   // children freeze rather than run
 function mapMood(map) {
   const M = MAPS[map]; if (!M) return 'calm';
@@ -5157,7 +5157,7 @@ function tickMood(dt, t) {
   // who is frightened right now
   const scaredOf = e => { if (!isFolk(e)) return null; if (MOOD.tremorT > 0) return tp; if (threat && Math.hypot(e.x - S.x, e.y - S.y) <= 3.2) return [S.x, S.y]; return null; };
   MOOD.tick -= dt; const step = MOOD.tick <= 0; if (step) MOOD.tick = .42;
-  for (const e of list) { const g = W.npcs[e.id]; if (!g || !g.userData.inner) continue;
+  for (const e of list) { const g = W.npcs[e.id]; if (!g || !g.userData.inner || e.body || e.numb) { if (g && g.userData.emote) setEmote(g, null, false); continue; }
     const from = scaredOf(e), inner = g.userData.inner, ph = (t * .9 + (e.x * 7 + e.y * 3) % 10 / 10) % 6;
     if (from) { setEmote(g, '!', true); inner.rotation.z = Math.sin(t * 38 + e.x) * .05; MOOD.calmT[e.id] = 0;
       if (step && canRun(e)) tryStep(S.map, e, list, true, from); continue; }
@@ -5971,6 +5971,7 @@ async function indifferentEnding() {
   await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it to the bakery door. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
+  await say('Clover left her cabin in the pines grumbling every step, with a cart of good books and her bat, and she is safe. Ashlynn paddled out past the mainland to the islands, where the grey can\'t follow across the water. She is safe too.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
   $('#c') && ($('#c').style.transition = 'filter 3s'); document.querySelector('canvas').style.transition = 'filter 3s'; document.querySelector('canvas').style.filter = 'grayscale(1) brightness(.75)';
@@ -5999,9 +6000,12 @@ async function ruinTour() {
 }
 
 // ---------------------------------------------------------------- world states
+// Saltmere is off the mainland: when the Hush comes up, it never reaches the coast.
+const offMainland = id => { const M = MAPS[id]; return !!M && (id === 'saltmere' || M.route === 'saltmere'); };
+const ruinHere = id => !!(S && S.flags && S.flags.ruin) && !offMainland(id);
 function worldVibe(id) {
   const V = vibeOf(id);
-  if (S && S.flags && S.flags.ruin) { const g = c => '#' + new THREE.Color(c).lerp(new THREE.Color('#5a5650'), .7).getHexString();
+  if (ruinHere(id)) { const g = c => '#' + new THREE.Color(c).lerp(new THREE.Color('#5a5650'), .7).getHexString();
     return { ...V, sky:g(V.sky), fog:g(V.fog), hemi:g(V.hemi), sun:(V.sun || 1) * .55, ground:(V.ground || []).map(g), tall:(V.tall || []).map(g), treeC:(V.treeC || []).map(g), parts:'motes', partC:['#8a8680', '#6a6660'], fogNear:Math.min(V.fogNear || 12, 10), fogFar:Math.min(V.fogFar || 30, 28) }; }
   if (S && S.flags && S.flags.restored && !V.inside && MAPS[id].kind !== 'still') { const b = c => '#' + new THREE.Color(c).offsetHSL(0, .06, .04).getHexString();
     return { ...V, ground:(V.ground || []).map(b), tall:(V.tall || []).map(b), sun:(V.sun || 1) * 1.08, parts:V.parts === 'rain' || V.parts === 'sparks' || V.parts === 'embers' ? 'motes' : V.parts, partC:V.parts === 'rain' || V.parts === 'sparks' || V.parts === 'embers' ? ['#fff3d6', '#f6efe0'] : V.partC, groundFog:null }; }
@@ -6019,7 +6023,7 @@ function applyRestored() {
 function worldExtras(id, M, V) {
   try { const fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe); if (fam && AC.ctx) { preloadMusic(battleTheme(fam)); if (M.kind === 'city') preloadMusic(battleTheme(fam, true)); } } catch (e) {}
   const g = new THREE.Group(), fl = S.flags || {};
-  if (fl.ruin && M.kind !== 'inside') {
+  if (fl.ruin && !offMainland(id) && M.kind !== 'inside') {
     // rubble, wrecked carts and dark stains everywhere; smoke from the roofs
     for (let k = 0; k < (M.kind === 'route' ? 10 : 22); k++) { const x = 1 + Math.floor(hsh(k, 3, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 7, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c)) continue;
       const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); }
@@ -6039,7 +6043,7 @@ function worldExtras(id, M, V) {
 // People in the ruin are Numbed or dead; in the restored world they carry their own Manifs again.
 function endingFilter(map, list) {
   const fl = S.flags || {};
-  if (fl.ruin) { const out = []; let n = 0;
+  if (fl.ruin && !offMainland(map)) { const out = []; let n = 0;
     for (const e of list) { if (e.real) continue;   // characters based on real people always leave the region unharmed
       if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
       if (e.invisible) { out.push(e); continue; }
@@ -7526,7 +7530,7 @@ async function cloverBat() {
   await say('You wake up on the floor of the Archive with a lump on your head exactly the shape of a bat. Somebody carried you here. You get the feeling it wasn\'t Clover.');
 }
 function cloverPeople() {
-  if (S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "Took the boy and the good books and went west before the grey got into the woods. We\'re safe. The kettle\'s yours if you need it. Shoes off. — C."') }];
+  if (S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But the grey got into the woods, so: west, with the good books and the bat. We\'re safe. Annoyed, but safe. The kettle\'s yours. Shoes off. — C."') }];
   const [x, y, dir] = CL_POS || [3, 5, 'down'];
   return [{ id:'clover', x, y, dir, name:'Clover', model:cloverModel, folk:false, real:true, talk:cloverTalk }];
 }
@@ -7636,6 +7640,7 @@ async function kayakTrip(withAshlynn) {
 }
 async function ashlynnTalk() {
   const m = MR(), v = vibeTier();
+  if (S.flags.ruin) return sayMix('Ashlynn', pickA(['(She\'s watching the mainland across the water. It\'s gone grey all the way to the hills.) It stopped at the shore. It doesn\'t like the sea, I think. We\'re okay out here.', 'People keep rowing over from the mainland. We take them in. There\'s room.', 'I paddled out to the point this morning. You can see the grey from there. It doesn\'t come any closer.']));
   if (v === 'hurt') return ashlynnTender();
   if (ASHLYNN_N.v !== MAP_VISIT) ASHLYNN_N = { v:MAP_VISIT, n:0 }; const n = v !== 'kind' ? ++ASHLYNN_N.n : 1;
   if (v !== 'kind') {
@@ -7659,7 +7664,7 @@ async function ashlynnTalk() {
 async function myKayak() { const c = await ask('Your kayak, blue and a bit scuffed. Take it out?', ['Paddle out', 'Not now'], { cancel:true }); if (c === 0) await kayakTrip(false); }
 function ashlynnPeople() {
   const m = S.flags.ashlynn || {}, out = [];
-  if (S.flags.ruin) out.push({ id:'ashlynn_note', note:true, x:ASHLYNN_SPOT[0], y:ASHLYNN_SPOT[1], real:true, folk:false, talk:() => say('(A note tucked under a beach stone.) "Paddled up the coast and out of the grey with the people I love. Safe. If you find a blue kayak on this beach, it\'s yours. — M."') });
+  if (false) out.push({ id:'ashlynn_note', note:true, x:ASHLYNN_SPOT[0], y:ASHLYNN_SPOT[1], real:true, folk:false, talk:() => say('(A note tucked under a beach stone.) "Paddled out past the mainland to the islands with the people I love. The grey can\'t cross the water. We\'re safe out here. If you find a blue kayak on this beach, it\'s yours. — A."') });
   else if (ASHLYNN_AWAY !== MAP_VISIT) out.push(
     { id:'ashlynn_kayak', x:ASHLYNN_KAYAK[0], y:ASHLYNN_KAYAK[1], dir:'up', model:() => SET.kayak({ c:'#f08a1e' }), folk:false, real:true, talk:() => say('(Ashlynn\'s kayak. Bright orange, scratched all over, lovingly patched.)') },
     { id:'ashlynn', x:ASHLYNN_SPOT[0], y:ASHLYNN_SPOT[1], dir:'down', name:'Ashlynn', look:ASHLYNN_LOOK, folk:false, real:true, talk:ashlynnTalk });
@@ -9232,7 +9237,7 @@ function updateWorld(dt, t) {
   animHero(p, k, mv.active, t);
   // Cobb Hollow, with a bad aura: everyone you could see if you were looking out of your own eyes stares at you, and keeps staring, turning as you move.
   const stare = S.map === 'cobb_hollow' && scene === 'world' && (auraSide() === 'shadow' || darkLevel() >= 1), fy = DIR_YAW[S.dir], fx0 = Math.sin(fy), fz0 = Math.cos(fy);
-  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift) continue; if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir;
+  for (const e of ents(S.map)) { const g = W.npcs[e.id]; if (!g || e.note || e.rift || e.body) continue; /* the dead lie still */ if (e.item) { g.material.opacity = .6 + .2 * Math.sin(t * 1.6); continue; } const f = npcFace[e.id] || e.dir;
     let want = DIR_YAW[f]; if (stare && g.userData.legs && !npcFace[e.id]) { const vx = g.position.x - px, vz = g.position.z - pz, d = Math.hypot(vx, vz); if (d > .5 && d < 13 && (vx * fx0 + vz * fz0) / d > .45) { want = Math.atan2(-vx, -vz); g.userData.staring = 1; } else g.userData.staring = 0; }
     let d2 = want - g.rotation.y; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); g.rotation.y += d2 * Math.min(1, dt * 10); if (Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .01) { const kk = Math.min(1, dt * 2.6); g.position.x += (e.x - g.position.x) * kk; g.position.z += (e.y - g.position.z) * kk; g.position.y = groundY(g.position.x, g.position.z); } animPerson(g, Math.abs(g.position.x - e.x) + Math.abs(g.position.z - e.y) > .06, t, dt); if (g.userData.inner && !g.userData.kneel && !g.userData.sit && !g.userData.kayak && g.userData.swing == null) g.userData.inner.position.y = Math.sin(t * 2 + e.x) * .01; }
   tickMood(dt, t);
@@ -9437,8 +9442,8 @@ async function ending(final, kind) {
   const tot = Object.values(E.carried).reduce((a, b) => a + b, 0) || 1;
   const head = t => t ? `<span class="mi" style="background:${TYPES[t].c}"></span>${TYPES[t].name}` : '';
   const pages = [];
-  if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p>' });
-  if (none) pages.push({ k:'The roads out', h:'Some got away', p:'Not everyone stayed to go grey. Many saw it coming and left the Welkin while the roads were still open: carts, families, a battered wagon loaded with dice and rulebooks and a sleepy half-dragon kid, all rolling west, unharmed. Wherever they went, they are still minding. Still feeling everything. Still playing.' });
+  if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p><p style="font-size:14px;color:var(--muted)">Some got out. The Dragon\'s Table packed up the campaign and Lio and went west. Clover went too, complaining the whole way and carrying as many books as she could, and she is safe. Out past the mainland, the grey stopped at the shore: Ashlynn\'s coast never went quiet at all.</p>' });
+  if (none) pages.push({ k:'The roads out', h:'Some got away', p:'Not everyone stayed to go grey. Many saw it coming and left the Welkin while the roads were still open: carts, families, a battered wagon loaded with dice and rulebooks and a sleepy half-dragon kid, all rolling west, unharmed. A red-haired woman from a cabin in the pines went with them, very much against her will, with a cart of good books and a baseball bat, complaining the whole way, and perfectly safe. Out past the coast, beyond the mainland where the grey can\'t cross the water, a woman with an orange kayak paddles between the islands, safe too. Wherever they went, they are still minding. Still feeling everything. Still playing.' });
   else if (doom) pages.push({ k:'The Grand Chord', h:`The Hymn of ${pname()}`, p:'The Chord goes out through all ten Hearts at once. In Larkhollow the dancing stops. In Emberwick the forges go cold with the hammers still raised. Mothers put down their children and forget to pick them up. Across the Welkin, every person stands where the note found them, and waits for your word.', extra:`<p style="font-size:14px;color:var(--muted)">The cities still stand. Nobody will ever burn one again. Nobody will ever build one again, either. The fields go to seed. The Numbed eat when they are told to eat. Some of them are not told in time. The Hollow Choir's grey banners hang in every square, and every face beneath them turns toward you when you pass. ${S.flags.wrenFallen ? 'On the Archive steps, Wren sits with her hands in her lap.' : 'Wren was never seen again.'} ${choir().burned ? 'At the Long Siding, a cat still sits on the rails by a burned-out station.' : ''}</p>` });
   else if (final) pages.push({ k:'The Stillwell', h:'The Welkin wakes', p:'Beneath Vellum, ten colours seep back into the water. Above, the whole Welkin feels everything at once: the grief and the joy, the rage and the trust. It is loud. It hurts. It is alive.', extra:'<p style="font-size:14px;color:var(--muted)">The Numbed of every city remember how to cry, and how to laugh, and how to be angry about the years they lost. Nobody calls it a happy ending. Everybody calls it an ending they can feel.</p>' });
   pages.push(
