@@ -9884,7 +9884,7 @@ async function askName(sub) {
 // TEST BUILD ONLY: a ready-made late-game journey — three Hearts settled (Joy, Hope, Calm), a strong level-45 team
 // across six feelings, plenty of items and Marks — so the rest of the game and the Hush can be played through quickly.
 function makeTestSave(kind = 'final') {
-  const T = fresh(); T.hero = 'm'; T.name = 'Tester'; T.map = 'vellum'; T.x = 16; T.y = 18; T.dir = 'up'; S = T;
+  const T = fresh(); T.hero = { final:'f', good:'nb', evil:'m' }[kind] || 'm'; T.name = 'Tester'; T.map = 'vellum'; T.x = 16; T.y = 18; T.dir = 'up'; S = T;
   T.flags.wrenIntro = 1; T.flags.heartNamed = 1; T.flags.ilseGift = 1;
   for (const t of ['JOY', 'HOPE', 'CALM']) { T.hearts[t] = 1; for (const id of [WAYTOWNS[t].id, ROUTES[t].id, TOWNS[t].id]) T.visited[id] = 1; }
   T.visited.vellum = 1;
@@ -9895,11 +9895,12 @@ function makeTestSave(kind = 'final') {
   for (const k of CODEX.slice(0, 60)) T.codex.seen[k] = 1;
   T.items = { cake:20, tonic:10, salts:10, hearth:5, charm:5, ember:5, iron:5, quill:3, veil:2, waystone:5 };
   T.marks = 5000; T.steps = 4000; T.time = 3 * 3600;
-  // Every checkpoint: all ten Hearts settled and every Manif at Lv 48, standing in the Archive.
+  // Every checkpoint: all ten Hearts settled and every Manif at Lv 100, standing in the Archive.
+  // Before the final battle plays as the woman, after the good ending as the nonbinary hero, after the evil ending as the man.
   for (const t of WHEEL) { T.hearts[t] = 1; for (const id of [WAYTOWNS[t].id, ROUTES[t].id, TOWNS[t].id]) T.visited[id] = 1; }
-  for (const m of T.party) { m.lvl = 48; m.hp = maxHp(m); } for (const m of T.satchel) { m.lvl = 48; m.hp = maxHp(m); }
+  for (const m of [...T.party, ...T.satchel]) { m.lvl = 100; m.moves = movesForSp(m.sp, 100); m.hp = maxHp(m); }
   // testers carry every Manif in the game (not Love or Imaginative: those are earned gifts)
-  { const have = new Set([...T.party, ...T.satchel].map(m => m.sp)); for (const sp of Object.keys(SPECIES)) if (!SPECIES[sp].special && !have.has(sp)) { const m = adopt(newManif(sp, 48)); m.hp = maxHp(m); T.satchel.push(m); }
+  { const have = new Set([...T.party, ...T.satchel].map(m => m.sp)); for (const sp of Object.keys(SPECIES)) if (!SPECIES[sp].special && !have.has(sp)) { const m = adopt(newManif(sp, 100)); m.hp = maxHp(m); T.satchel.push(m); }
     for (const sp of Object.keys(SPECIES)) if (!SPECIES[sp].special) { T.codex.seen[sp] = 1; T.codex.kept[sp] = 1; T.canon[sp] = 1; } }
   T.items.tonic = 20; T.items.cake = 30; T.marks = 9000;
   T.map = 'vellum_room0'; const R = MAPS.vellum_room0; T.x = Math.floor(R.w / 2); T.y = R.h - 2; T.dir = 'up';
