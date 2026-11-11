@@ -5661,7 +5661,7 @@ async function auraPreTalk(e) {
   }
   // A menacing aura gets the old treatment; everything else meets the six kinds of people.
   if (read === 'menace') {
-    await sayE(deal('react:' + fam0 + moral, REACT[fam0][moral]));
+    const mr = manifReaction(e, fam0); if (mr) await sayManifReaction(e, mr); else await sayE(deal('react:' + fam0 + moral, REACT[fam0][moral]));
     if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam0) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
   } else if (await reactFolk(e, read, fam, sayE) === 'refuse') return 'refuse';
   // After the world is saved, people still remember how dark you went.
@@ -7705,14 +7705,18 @@ const famHas = (fam, list) => list.includes(fam);
 // The everyday reaction from an ordinary townsperson. Returns 'refuse' if they won't talk further.
 async function reactFolk(e, read, fam, sayE) {
   const pt = personOf(e), intense = intenseFam(fam), deck = (REACT6[fam] || REACT6.CALM)[pt], line = intense ? deck[2] : deck[(S.steps + e.id.length) % 2];
-  await sayE(line);
+  // first what they do about your strongest Manif in that family (the reaction doc), then, if they only acted, a word or two
+  const mr = manifReaction(e, fam);
+  if (mr) { await sayManifReaction(e, mr); if (!mr.spoken && pt !== 'avoider' && Math.random() < .5) await sayE(line); } else await sayE(line);
   const second = blendFam(fam), bl = second && BLEND[fam + '+' + second];
   if (bl && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .6) await sayE(bl);
   const key = S.map + ':' + e.id, hurt = read === 'hurt';
   if (pt === 'kind' && hurt && Math.random() < .55) { const k = pickA(fam === 'FEAR' ? ['salts', 'cake', 'charm'] : ['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; return say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
   if (pt === 'fixer' && hurt && Math.random() < .4) { const k = fam === 'FEAR' ? 'salts' : 'tonic'; S.items[k] = (S.items[k] || 0) + 1; return say(`(They hand you a ${ITEMS[k].name}. "There. Practical. Use it.")`); }
+  // Sadness that deepens drives people off: even fixers drift away (the depression pattern in the doc)
+  if (pt === 'fixer' && fam === 'SADNESS' && intense && Math.random() < .5) { await say('(After a while they run out of things to say, and drift off.)'); GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
   if (pt === 'avoider' && (intense || hurt || read === 'menace')) { GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
-  if (pt === 'judge' && (hurt || intense)) { await say(pickA(['(They turn their back on you.)', '(They walk off, shaking their head.)', '(They tut, and that\'s the end of the conversation.)'])); return 'refuse'; }
+  if (pt === 'judge' && (hurt || intense)) { if (mr && !mr.spoken) return 'refuse'; await say(pickA(['(They turn their back on you.)', '(They walk off, shaking their head.)', '(They tut, and that\'s the end of the conversation.)'])); return 'refuse'; }
   if (pt === 'opportunist' && famHas(fam, ['SADNESS', 'FEAR', 'SHAME', 'CALM', 'HOPE']) && (S.marks || 0) > 40 && Math.random() < (hurt || intense ? .75 : .45)) {
     const amt = (intense ? 35 : 20) + Math.floor(Math.random() * 35);
     const pitch = { SHAME:`want ${amt} Marks to keep quiet about you`, FEAR:`want ${amt} Marks for "protection"`, SADNESS:`ask for ${amt} Marks for a "charity for the bereaved" that doesn't exist`, HOPE:`ask for ${amt} Marks for a "sure thing" that is definitely a con`, CALM:`ask you to hold ${amt} Marks' worth of "change" for them` }[fam];
@@ -7830,6 +7834,163 @@ async function dndTender(k) {
 async function dndTenderDoor() {
   const f = hurtFam();
   await sayAs('Morwen', { SADNESS:'Oh, hey. Hey. Come in. You look like you need a table.', FEAR:'Oh! Come in, come in, shut the door. You\'re okay. You\'re with nerds now. Nothing scary happens with nerds.', SHAME:'Hey, you. Don\'t lurk in the doorway. Get in here. There\'s a chair.' }[f]);
+}
+// =============================================================================
+//  HOW PEOPLE RESPOND TO EACH MANIF — from Blaine's reaction doc. Every Manif has a
+//  row: what the Kind One, Fixer, Avoider, Judge, Opportunist and Mirror do when they
+//  pick that feeling up on you. People react to the strongest Manif in the family that
+//  leads your aura. "Quoted" entries are said aloud; (bracketed) ones are what they do.
+//  Columns: kind | fixer | avoider | judge | opportunist | mirror
+// =============================================================================
+const MANIF_REACT_SRC = `
+CONTENTMENT|(They sit with you a while, enjoying the quiet.)|"You look settled. Good. So what's the next big thing? Aim higher."|(They relax and stay nearby.)|"Settled already? That's how people stop trying."|(They notice how relaxed you are, and how loosely you're holding your bag.)|(They settle down too, shoulders dropping.)
+JOY|"You're happy! What happened? Tell me everything."|(They let you be happy. They don't try to fix a thing.)|(They happily stay and chat.)|"Fine. Just keep it down."|"While you're in a good mood, could you spare a few Marks?"|(They grin. It's catching.)
+EUPHORIA|"Ha! Enjoy it. Drink some water. I'll keep an eye on you."|"Whoa. Calm down a bit, you'll knock something over."|(It's too much for them. They back off.)|"Are you on something?"|"Feeling invincible? Sign here, quick, before the feeling wears off."|(They get hyped with you, louder and louder.)
+AMUSEMENT|(They laugh along with you.)|"Ha. Right. Anyway, back to business."|(They relax and smile.)|"This isn't the time for jokes."|(They tell you a joke, and step a little too close while you laugh.)|(They laugh too, without knowing why.)
+GLEE|(They delight in it with you.)|"Shh! People are looking."|(They cringe a little.)|"How childish."|"Bet you'd be up for a prank. I know just the house."|(They start giggling along.)
+JUBILATION|"Yes! Whatever it is, we're celebrating!"|"Right, if we're celebrating, we need a plan: food, music, who to invite."|(They slip out of the crowd forming round you.)|"Must you be so loud?"|(They show up at your celebration for the free food and drink.)|(They join the chant.)
+WARMTH|(They warm right back to you.)|"You've been kind. Let me do you a favour in return."|(They open up, slowly.)|"Nobody's this nice without wanting something. What is it?"|(They see how much you trust people, and decide to use it.)|(They soften, and warm up too.)
+GRATITUDE|"You're welcome. Truly."|"No need, it was nothing!"|(They go red and wave it off, embarrassed.)|"Good. You should be grateful."|"Grateful, are you? Then you owe me one. I'll collect."|(They feel thankful too, suddenly.)
+RAPTURE|(They stay quietly beside you, letting it be.)|"Hey. Come back down to earth a minute."|(It makes them very uncomfortable. They leave.)|"That's fanaticism, that is."|"Whatever's lit you up like that, I can sell you more of it."|(They get swept up in it with you.)
+SATISFACTION|"Well done. You earned that."|"Great. Now, what's the next job?"|(They nod, and move on.)|"Let's see the work, then. Hm."|"Nice work. Mind if I borrow it?"|(They feel accomplished, just being near you.)
+PRIDE|"You worked hard for that. I can tell."|"Good work. But next time..."|(They feel small next to you and withdraw.)|"Pride comes before a fall."|"Someone as capable as you should really try this. Trust me."|(They puff up and start comparing themselves to you.)
+TRIUMPH|"You did it! You actually did it!"|"Great. What's next?"|(They step out of the spotlight.)|"Don't gloat."|(They attach themselves to you, the winner, and tell everyone they're with you.)|(The crowd's energy rises round you.)
+RADIANCE|"You're shining. Remember to rest, all right? Even the sun sets."|"Use it while it lasts!"|(They feel outshone and keep their distance.)|"Nothing's that bright without something rotten behind it."|(They hang around you, hoping for perks.)|(Everyone in the street seems to brighten.)
+WISHFULNESS|"What are you dreaming about? Tell me."|"Good dream. Let's turn it into a plan."|(They change the subject.)|"Stop daydreaming."|"I can get you there faster. Shortcut. Small fee."|(They drift off into a daydream of their own.)
+OPTIMISM|"That's the spirit. Keep it."|"Love it. Have a backup plan as well."|(They're relieved to be near some good news.)|"That's naive."|"You're right, it'll all work out. Especially if you buy this."|(They perk up.)
+FAITH|"That's strength, that is. I respect it."|"Faith's good. Have a practical fallback too."|(They avoid the topic.)|"Believe what the rest of us believe, or keep it to yourself."|(They take a sudden, very interested look at what you believe in.)|(They start to believe it too.)
+INTEREST|"Ooh, what's caught your eye? Tell me."|"Interested? Here. Read this, ask her, start there."|(They nod politely.)|"That's a distraction."|"Interested? I've got just the thing. First taste is free."|(They get curious too.)
+ANTICIPATION|"Ooh, something's coming? I'm excited for you!"|"Just in case it doesn't happen, don't get your hopes too high."|(They stay neutral.)|"Don't count your chickens."|"Can't wait, can you? Pay a little extra and it comes sooner."|(They get antsy too.)
+EAGERNESS|"Go on, you lead. I'll follow."|"Slow down. One step at a time."|(They're overwhelmed and step back.)|"That's reckless."|"Keen? Sign here. Quick, before you think about it."|(They rev up too.)
+COMFORT|(They settle in beside you.)|"Since you're comfy, could you hold this? And this?"|(They relax.)|"Soft. Too soft."|(They tell you to stay comfortable, very soothingly, and nudge your purse.)|(They relax too.)
+REASSURANCE|"That's right. It's going to be all right."|"It's fine! It's fine. It's totally fine!"|(They take that as their cue to leave.)|"Don't get complacent."|"Guaranteed. Absolutely guaranteed. You have my word. Pay up front."|(They calm down too.)
+TRUST|"I won't let you down. I mean it."|"Leave it with me. I'll sort your problems out."|(Being relied on makes them uneasy.)|"Trust is earned. Let's see if you earn it."|(They smile at how easily you trust, and file it away for later.)|(They trust you right back.)
+YEARNING|"What are you missing? Tell me about it."|"Want it? Go and get it."|(It feels heavy to them. They retreat.)|"You've got plenty already. Ungrateful."|"I can get you what you're missing. For a price."|(They ache for something too.)
+ASPIRATION|"Go for it. I mean it. Go for it."|"Right. Here's your roadmap."|(They're intimidated.)|"Know your place."|(They listen very carefully to your big idea. Too carefully.)|(They get ambitious too.)
+DEVOTION|"That's beautiful. Are you resting, though?"|"Devotion's good. Set some boundaries."|(The intensity puts them off.)|"That's obsession. Or a cult."|(They see how loyal you are and work out how to use it.)|(They become devoted too.)
+ELEVATION|"That's moved me. Thank you."|"We should turn this into a project. A proper one."|(They're quietly touched.)|"Nobody's that good. What's the catch?"|(They start a collection in your name. You never see the money.)|(They're inspired.)
+EASE|(They relax with you.)|"You've got time? Great. Here's a job."|(They're relieved to be near you.)|"Lazy."|(While you're at ease, they slip something past you.)|(They unwind.)
+RELAXATION|(They join you in it.)|"Shouldn't you be doing your chores?"|(They're comfortable around you.)|"Don't you have work?"|(They strike while you're off guard. Your purse feels lighter.)|(They yawn along with you.)
+TRANQUILITY|(They sit quietly with you.)|"While it's quiet, let me tell you my plans. All of them."|(They find you restful.)|"Don't you care about anything?"|(They wait, patiently, for an opening.)|(They slow down.)
+PATIENCE|"You're very patient. I appreciate that."|"Patient? Good. I need it done by tomorrow."|(They're relieved.)|"That's not patience, that's being passive."|(They make you wait. And wait. And wait.)|(They calm down.)
+COMPOSURE|"If anything happens, I'm coming to you."|"Steady hands. You get the hard job."|(They lean on you.)|"Cold. Unfeeling."|(They poke at you, trying to crack it.)|(They steady themselves beside you.)
+EQUANIMITY|"How do you stay so balanced? I admire that."|"What's your method? Teach me."|(They feel safe near you.)|"That's not balance. That's detachment."|(They can't read you, and it makes them suspicious.)|(They find their balance too.)
+STILLNESS|(They let the silence be.)|"So! Anyway! Did I tell you about my cousin?"|(They're comfortable with you.)|"Sulking, are we?"|(They poke at your quiet, looking for a weak spot.)|(They go quiet too.)
+CALMNESS|"You're my rock, you know that?"|"Since you're calm, here's everything that's gone wrong this week."|(They're relieved.)|"Nothing that matters bothers you, does it?"|(They try to provoke you, just to get a reaction.)|(They settle.)
+PEACEFULNESS|(They quietly make sure nobody disturbs you.)|"Peaceful's nice. Watch out for the real dangers, though."|(They're drawn to you.)|"Peace is for the naive."|(They see easy prey.)|(They're at peace.)
+SURRENDER|"It's all right to let it go."|"Don't give up! Not yet."|(They're glad the fight's over.)|"That's weakness."|(They quietly take what you gave up.)|(They give up too.)
+ACCEPTANCE|"That's wise. That's really wise."|"Accepting it's fine. Changing it's better."|(They're relieved.)|"You're just giving up."|"Exactly. Accept it. Accept that I'm keeping your change."|(They accept it too.)
+CENTEREDNESS|"Can I ask your advice about something?"|"You're so grounded. Go and fix my brother."|(They're comfortable with you.)|"Bit smug, aren't you?"|(They'd like you as a leader, and themselves as your treasurer.)|(They feel grounded.)
+SERENITY|(They rest in it.)|"If we could bottle this, we'd make a fortune."|(People flock to you.)|"Holier than thou."|(They start charging people to stand near you.)|(The whole town slows down.)
+POISE|"I respect how you carry yourself."|"You'd be good at presenting. Do the speech."|(They admire you from afar.)|(They watch you for any sign of arrogance.)|(They mark you as a rival.)|(They stand taller.)
+SELF-ASSURANCE|"I trust you."|"You're in charge, then."|(They defer to you.)|"Who do you think you are?"|"Someone like you deserves the best. Allow me."|(They gain some confidence.)
+DIGNITY|(They treat you with honour.)|"Can I get your opinion on something?"|(They keep a respectful distance.)|"You'd better have the rank to carry yourself like that."|(They try to humiliate you.)|(They carry themselves better.)
+BOLDNESS|"Go on. I'm watching your back."|"Bold. Good. Here's the safety plan."|(They're nervous and keep away.)|"That's reckless."|"Bet you won't jump that wall."|(They get daring.)
+ASSERTIVENESS|"Fair enough. Your boundary, your call."|"Let's negotiate."|(They give in.)|"That's rude. And pushy."|(They test where your limit is.)|(They assert themselves right back.)
+DEFIANCE|"What are you pushing back against?"|"Let's all calm down and talk this through."|(They avoid the conflict.)|"Defy me again and you'll regret it."|"You hate how things are? Join us."|(They rebel too.)
+RESOLVE|"I'm with you."|"You need supplies for that. Here."|(They stay out of your way.)|"Fine, as long as you follow the rules."|(They lean on how reliable you are.)|(They firm up.)
+GRIT|"Keep going. And rest, too."|"There's an easier way, you know."|(They admire you quietly.)|"Push harder."|(They pile their work onto you.)|(They push harder too.)
+ENDURANCE|"Are you burning out? Be honest."|"Here, let me take some of that."|(They assume you're fine.)|"That's the standard. Nothing special."|(They pile more on.)|(They keep going.)
+NERVE|"That took nerve. I admire it."|"Have a backup plan."|(They hold their breath.)|"That's foolhardy."|"Double dare you."|(They get brave.)
+COURAGE|(They stand beside you.)|"Let's do the safer version."|(They hide behind you.)|"Brave. Good. Brave for the right side, I hope."|(They send you in first.)|(They find their courage.)
+VALOR|(They honour you.)|"Let me patch you up."|(They're grateful from a distance.)|"You'll make a fine symbol for us."|(They use you as a shield.)|(They rally.)
+CONVICTION|"I'm with you. But can I ask you something first?"|"Easy. Temper it a bit."|(They're intimidated.)|(They clash with you. It turns into a power struggle.)|(They work out how to point you at their enemies.)|(They become a zealot.)
+INTRIGUE|"Ooh, what's the mystery?"|"Oh, that? Simple. Here's what's going on."|(They shrug.)|"Nosy."|"Want to know a secret? Come closer."|(They lean in.)
+CURIOSITY|"Ask me anything."|"Here's the answer. Saves you the bother."|(They're tired of the questions.)|"Curiosity killed the cat."|"I sell secrets. Want one?"|(They wonder too.)
+FASCINATION|"Isn't it amazing? Show me."|"Fascinating, sure. Back to work."|(They back off.)|"That's an obsession."|(They feed the fixation, for a fee.)|(They stare too.)
+PUZZLEMENT|"Let's think it through together."|"The answer's three. It's always three."|(They leave you to it.)|"You don't know? Everyone knows."|(They tell you the wrong answer on purpose.)|(They get puzzled too.)
+CONFUSION|"Let me explain. Slowly. No rush."|(They explain. And explain. And keep explaining.)|(They walk away.)|"Are you slow?"|(They slip something into the fine print while you're confused.)|(They get confused too.)
+PERPLEXITY|"Let's sit with the puzzle a bit."|"Let's break it into steps."|(They give up on you.)|"Oh, come on."|"I've got the solution right here. Twenty Marks."|(They spiral too.)
+STARTLE|"You all right? You jumped."|(They quickly remove whatever startled you.)|(They jump too, then laugh it off.)|"Calm down. It was nothing."|"BOO. Ha. Again?"|(They jump.)
+SHOCK|(They stay close and slow everything down.)|"So here's what happened, and here's what that means, and..."|(They freeze.)|"Pull yourself together."|(They strike while you're dazed.)|(They go numb.)
+ASTONISHMENT|(They let it land.)|"Here's how it happened, actually."|(They look away.)|"Naive."|(They make a show of it for the crowd.)|(They gape.)
+WONDER|(They share it quietly.)|"It's all science, you know. Here's how it works."|(They smile from a distance.)|"Childish."|(They start charging admission.)|(They're awed too.)
+AMAZEMENT|"Wow! I know!"|"It's a trick. Here's how it's done."|"Wow."|"Gullible."|(They do a trick for you, then hold out a hat.)|(They're amazed too.)
+AWE|(They keep you quiet company.)|"What could we use that for?"|(They're humbled into silence.)|(They turn it into doctrine.)|(They sell awe in little bottles.)|(They're awestruck.)
+EPIPHANY|"Something changed in you. What was it?"|"Then act on it. Now."|(The sudden change makes them wary.)|"Revelations are cheap."|(They take credit for your insight.)|(They're caught up in it.)
+WISTFULNESS|"Remember when? Tell me about it."|"That was then. What about now?"|(They let it pass.)|"Live in the now."|"The good old days? I sell bits of them. Look."|(They get nostalgic.)
+LONGING|(They listen.)|"What is it you need? Maybe I can get it."|(They change the subject.)|"Pining, are we?"|"I know someone who's got what you're missing."|(They ache too.)
+HEARTBREAK|(They stay and listen.)|"Plenty of fish in the sea!"|(They avoid the topic.)|"Well, what did you do to them?"|"Their loss. I'm free tonight, by the way."|(Their eyes fill with tears.)
+DISAPPOINTMENT|"That's allowed to hurt."|"Look on the bright side!"|(They change the subject.)|"You expected too much."|"I've got just the thing to fix that. Quick fix. Cheap."|(They deflate.)
+DEJECTION|(They sit with you.)|"Come on, chin up! You've got this!"|(They withdraw.)|"Snap out of it."|(They see an easy target.)|(They slump.)
+DESPAIR|"Are you safe? Talk to me. I'm going to get you some help."|"Here's what you do: one, two, three, four, five..."|(They disappear.)|(They lecture you.)|(They lean on your hopelessness, offering a terrible deal.)|(They lose hope too.)
+MELANCHOLY|(They keep you gentle company.)|"Let's cheer you up! Come on!"|(They leave you alone.)|"Moping again."|(They wait for you to stop caring.)|(They turn gloomy.)
+SORROW|(They comfort you.)|(They bring you food and quietly do a few of your chores.)|(They say they'll send a card, and keep away.)|"You get a week. Then you move on."|(They pick through what you lost.)|(They weep.)
+GRIEF|"Tell me about them. I'll remember the dates."|"You have to move on at some point."|(They won't say the dead person's name.)|"That's not how you grieve."|"Was there an inheritance, at all?"|(They mourn too.)
+SOLITUDE|(They respect your space.)|"Come out with us tonight!"|(They're relieved to be left alone.)|"Antisocial."|(They make sure you stay on your own.)|(They withdraw too.)
+LONELINESS|"I'll come and see you every week. I mean it."|"You should join a club! I'll sign you up."|(They feel guilty, and avoid you.)|"Your own fault."|"I've been so lonely too. Could you lend me a few Marks? I'll pay you back."|(They feel lonely too.)
+DEPRESSION|"I'm not going anywhere. And let's find you some real help."|"Just exercise more. Think positive!"|(They drift away.)|"That's just laziness."|(They take advantage of how tired you are.)|(They get dragged down with you.)
+LAMENT|(They grieve alongside you.)|"We should hold a memorial. I'll organise it."|(They stay away.)|"Enough. Some of us are trying to get on with things."|(They profit from the funerals.)|(The whole town mourns.)
+UNEASE|"Something feel off? What is it?"|"Nah, you're fine."|(They feel it too, and leave.)|"You're imagining it."|"You're right to be uneasy round here. Very right."|(They get uneasy.)
+WORRY|(They listen, then help you plan.)|"Don't worry about it!"|(They avoid the topic.)|"What a worrier."|"Worried? I sell protection."|(They worry too.)
+ANXIETY|"Slow down. Feet on the floor. Breathe with me."|"It's fine! Really! Totally fine!"|(They keep their distance.)|"That's weakness."|"I sell a cure for that. Works every time."|(They get anxious.)
+NERVOUSNESS|"You'll be fine. Take your time."|(They over-prepare you for everything.)|(They feel awkward.)|"Come on, spit it out."|(They loom over you.)|(They get jittery.)
+ALARM|"Is it real? Let me check."|(They leap into action.)|(They flee.)|"Calm down this instant."|(They use the chaos.)|(They sound the alarm.)
+PANIC|"I'm here. I'm calm. Breathe with me."|"Do this! No, this! Quickly!"|(They run.)|"Stop panicking!"|(They loot in the confusion.)|(They stampede.)
+SUSPICION|"Let's check the facts together."|"I'll prove you wrong."|(They keep their distance.)|(They get suspicious of you right back.)|(They feed your suspicion.)|(They grow suspicious too.)
+PARANOIA|(They stay calm, and neither argue nor agree.)|"That's not logical. Look: one, two, three."|(They avoid you.)|"I'm reporting you to the watch."|"You're right. They're watching. I can tell you who."|(They turn paranoid.)
+HYSTERIA|(They stay calm and fetch help.)|(They shout at you to snap out of it.)|(They flee.)|(They try to restrain you.)|(They exploit the scene.)|(It spreads.)
+APPREHENSION|"I'll walk with you."|"Here's how to get ready for it."|(They hang back with you.)|"Don't be a coward."|"Oh, it's dangerous. Very dangerous. You'll want an escort."|(They hesitate too.)
+DREAD|"That sounds awful. I believe you."|"Let's think about something else!"|(They avoid you.)|"It's nothing."|(They use it as leverage.)|(They feel the dread.)
+TERROR|"Here. Behind me. Let's get you safe first."|"Right. Exit's that way. Go. GO."|(They freeze, then flee.)|"You'll be ashamed of this later."|(They use it as a weapon.)|(They're terrified.)
+HORROR|"Come away from it. Come with me."|(They board up the windows.)|(They flee town.)|"Who brought this here? Who's to blame?"|(They thrive on it.)|(The whole town panics.)
+ANNOYANCE|"What's bugging you?"|(They quietly remove the irritating thing.)|(They tiptoe around you.)|"Lighten up."|(They needle you.)|(They get snappy.)
+IRRITATION|(They give you space, then check in.)|(They fix the small thing.)|(They avoid you.)|"Touchy."|(They provoke you, for fun.)|(They get irritable.)
+EXASPERATION|"Yeah, that's a lot."|"Here, let me take that off you."|(They go quiet.)|"Watch your tone."|(They try to make you blow up in public.)|(They sigh along.)
+IMPATIENCE|"I know, the wait's awful."|"I'll hurry it along."|(They rush to get out of your way.)|(They make you wait, on principle.)|"Faster line, five Marks."|(They grow restless.)
+FRUSTRATION|"You can't get to what you want, can you?"|"Try this way round instead."|(They leave you to it.)|"Try harder."|"I've got a shortcut. Small fee."|(They get frustrated.)
+HOSTILITY|(They stay calm, and keep a safe distance.)|"Come on. Let's be reasonable."|(They try to appease you.)|(They meet it with force.)|"I know who you should be angry at."|(They get hostile.)
+INDIGNATION|"That's not fair. Tell me what happened."|"I'll file the complaint for you."|(They stay out of it.)|"Rules are rules."|"Righteous fury? Good. We could use it."|(They join the outrage.)
+BITTERNESS|"That old wound still hurts, doesn't it?"|"Let it go."|(They avoid the topic.)|"Ungrateful."|(They feed your grudge.)|(They grow bitter.)
+SPITE|"What do you actually need?"|"Talk me through it. Calmly."|(They get away from you.)|(They punish it.)|"Want revenge? I can help."|(They start plotting too.)
+AGITATION|(They lower their voice and slow down.)|"Here, give me a hand with this."|(They leave.)|"Sit down!"|(They push your buttons.)|(They pace too.)
+ANGER|"You're allowed to be angry. Just don't hurt anyone with it."|"Let's look at the facts, shall we?"|(They try to appease you.)|"Show some respect!"|"Angry? Good. Point it at him."|(They yell back.)
+RAGE|(They step back to a safe distance. They'll talk later.)|(They try to restrain you.)|(They flee and hide.)|(They call for the watch.)|"I know some people who need hurting."|(They join the brawl.)
+WRATH|(They shield the people around you and wait it out.)|(They put out fires around you.)|(They evacuate.)|"This town is under martial law."|(They profit from the war.)|(The town turns on itself.)
+SHYNESS|"Take your time. I've got all day."|"Speak up! Go on!"|(They're comfortable with you in silence.)|"Rude. Or aloof."|(They talk right over you.)|(They go quiet too.)
+SELF-CONSCIOUSNESS|"You look fine. Really."|"It's not a big deal!"|(They look away.)|"You've got something on your face."|(They pick at your insecurity.)|(They feel watched too.)
+INSECURITY|"You're doing better than you think. I mean that."|"You're great! You're amazing! Look at you!"|(They avoid the neediness.)|"You're right to doubt yourself."|"I sell self-improvement. You need it."|(They grow insecure.)
+AWKWARDNESS|(They laugh with you, not at you.)|(They smooth it over.)|(They cringe and leave.)|"Elbows off the table."|(They mock you for laughs.)|(They get awkward too.)
+EMBARRASSMENT|(They act like it never happened.)|(They quietly clean up the mess.)|(They cringe on your behalf.)|"Serves you right."|(They tell everyone the story.)|(They blush.)
+MORTIFICATION|(They step between you and the people staring.)|"Let's undo this. Quick."|(They avoid you for days.)|(They scold you in public.)|"I saw everything. Pay me and nobody else will."|(They want to disappear too.)
+CONTRITION|"I accept your apology."|"Right. Here's how you make amends."|"It's fine, it's fine." (They want it over with.)|"That's not enough."|"Sorry, are you? Then you owe me."|(They apologise too.)
+GUILT|"You did a bad thing. That doesn't make you a bad person."|"Here's how to put it right: one, two, three."|(They avoid the subject.)|"Guilty."|(They hold it over you.)|(They feel guilty too.)
+REMORSE|"I forgive you. Let's fix it together."|"Move on. You can't change it now."|(They keep their distance.)|"I don't forgive you."|(They milk your regret.)|(They sink too.)
+REGRET|(They listen without judging.)|"Learn from it."|(They change the subject.)|"You should've known better."|"Want a second chance? I sell those."|(They get regretful.)
+DISGRACE|(They stand by you, in public.)|(They manage the fallout.)|(They distance themselves.)|(They strip your status.)|(They take your position.)|(They join the shunning.)
+HUMILIATION|(They quietly help you get your dignity back.)|"Leave it with me. I'll fix your reputation."|(They avoid being seen with you.)|(They make an example of you.)|(They make sure the story gets passed round.)|(They laugh with the crowd.)
+SELF-LOATHING|"Are you safe? Talk to me. I'm getting you some help."|"You're wonderful! Brilliant! The best!"|(They pull away.)|"Maybe you're right about yourself."|(They prey on it.)|(The town hides indoors.)
+DISTASTE|"Fair enough. Not your thing."|"Here, have this instead."|(They quietly agree.)|"Picky."|"Try the better version. Costs more."|(They wrinkle their nose too.)
+AVERSION|"You don't have to."|"Fine, we'll go round it."|(They steer clear too.)|"Don't be so sensitive."|(They use it to steer your choices.)|(They avoid it too.)
+REPULSION|"Come away from it."|(They clean it up.)|(They leave the room.)|"Vile. You're right. Vile."|(They use it to smear someone they don't like.)|(They gag too.)
+QUEASINESS|"Fresh air. Water. Sit."|"I've got something for that."|(They keep their distance.)|"Toughen up."|"Tonic? Ten Marks."|(They feel sick too.)
+SQUEAMISHNESS|"I'll do the gross part. Look away."|"I'll talk you through it."|(They look away too.)|"Soft."|"Pay me and you don't have to touch it."|(They squirm.)
+ABHORRENCE|"What is it about this that gets to you?"|(They get you away from it.)|(They flee.)|"That should be against the law."|(They exploit the taboo.)|(They join the outrage.)
+SCORN|"What's behind that look?"|"So! The weather."|(They stay off your radar.)|(They scorn you right back.)|"You're right. You're better than all of them."|(They sneer along.)
+DISDAIN|"Is that fair, though?"|"Can't we all just get along?"|(They avoid you.)|(They start a quiet game of who outranks whom.)|(They take your side, for what they can get.)|(They look down on everyone too.)
+CONTEMPT|"No. That's hurting people. I won't go along with it."|"There's two sides. Let's hear both."|(They leave.)|(They turn it into who's in and who's out.)|"I know whose fault it all is."|(Their contempt joins yours. A whole group of it.)
+DISLIKE|"Each to their own."|"Give it another go. You'll like it."|(They agree, to keep the peace.)|"Difficult, aren't you?"|(They use it to divide people.)|(They dislike it too.)
+RESENTMENT|"That wasn't fair to you. Tell me."|"Let's work out a deal."|(They avoid both sides.)|"That's envy."|(They stoke the grudge.)|(They grow resentful.)
+HATE|"I'm not leaving. But I won't hate with you. What hurt you?"|"You don't really believe that. Come on."|(They get out of the way.)|(They punish it. Or they share it.)|"We could use someone like you."|(They spread the hate.)
+LOATHING|(They protect whoever it's aimed at.)|(They try to clean up the town.)|(They leave town.)|(They start a purge.)|(They run the mob.)|(The whole town shuns.)
+`;
+const MANIF_REACT = {};
+for (const ln of MANIF_REACT_SRC.trim().split('\n')) { const [id, ...cols] = ln.split('|'); MANIF_REACT[id.trim()] = cols.map(c => c.trim()); }
+const PT_COL = { kind:0, fixer:1, avoider:2, judge:3, opportunist:4, mirror:5 };
+// the Manif people react to: the strongest one in the family leading your aura
+function leadManif(fam) { let best = null, bv = -1;
+  for (const m of S.party) { const d = SPECIES[m.sp]; if (d.type !== fam && d.type2 !== fam) continue; const v = (d.heart ? 10 : d.tier * 3) + m.lvl / 100; if (v > bv) { bv = v; best = m; } }
+  return best; }
+// the reaction row entry for a person, ready to say: "quoted" → said by them; (bracketed) → narration
+function manifReaction(e, fam) {
+  const m = leadManif(fam); if (!m) return null;
+  const id = String(m.sp).toUpperCase(), row = MANIF_REACT[id] || MANIF_REACT[(SPECIES[m.sp].name || '').toUpperCase()]; if (!row) return null;
+  const t = row[PT_COL[personOf(e)]]; if (!t) return null;
+  return { m, text:t, spoken:t.startsWith('"') };
+}
+async function sayManifReaction(e, r) {
+  if (!r.spoken) return say(r.text);
+  const m = r.text.match(/^"([^"]*)"\s*(.*)$/); await say(`${e.name || 'They'}: ${m ? m[1] : r.text}`); if (m && m[2]) await say(m[2]);
 }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
