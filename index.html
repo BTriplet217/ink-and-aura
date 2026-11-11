@@ -4534,7 +4534,15 @@ function entsBase(map) {
 }
 const entAt = (x, y) => ents(S.map).find(e => e.x === x && e.y === y);
 const wildAt = (x, y) => W.wilds.find(w => w.x === x && w.y === y);
-const walkable = (x, y) => !SOLID.has(tileAt(x, y)) && !entAt(x, y);
+const walkable = (x, y) => !SOLID.has(tileAt(x, y)) && !entAt(x, y) && !trainAt(x, y);
+// The train (parked at a station, or lying wrecked in the ruin) is solid: you can't walk through its cars.
+const _tb = new THREE.Box3();
+function trainAt(x, y) {
+  const inWorld = o => { while (o) { if (o === world) return true; o = o.parent; } return false; };
+  for (const g of [W.train && W.train.g, W.trainWreck]) { if (!g || !inWorld(g)) continue; g.updateMatrixWorld(true);
+    for (const car of g.children.slice(0, 3)) { _tb.setFromObject(car); if (_tb.isEmpty()) continue;
+      if (x > _tb.min.x - .2 && x < _tb.max.x + .2 && y > _tb.min.z - .2 && y < _tb.max.z + .2) return true; } }
+  return false; }
 function tryMove(d) {
   mv.diag = false; mv.yaw = null; S.dir = d; const [dx, dy] = DIRS[d], nx = S.x + dx, ny = S.y + dy, M = MAPS[S.map];
   if (!introDone() && S.map === 'vellum' && (ny < 0 || nx < 0 || ny >= M.h || nx >= M.w || wildAt(nx, ny))) { npcFace.wren = S.x < 17 ? 'left' : 'right'; runScript(() => say('Wren: Wait! Don\'t go out there empty-handed. Come and talk to me first.')); return; }
@@ -6051,7 +6059,7 @@ function worldExtras(id, M, V) {
       if (!c || SOLID.has(c) || c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 3) continue;
       const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], c:pickA(['#6a4a40', '#4a5a6a', '#5a6a4a', '#7a6a50']) }); o.scale.setScalar(.7); o.position.set(x, groundY(x, y), y); o.rotation.y = hsh(k, 23, 1) * 6.28; ruinSet(o, { k:'car', x, y }); g.add(o); }
     // the train, if it was out on the line, lies wrecked where it stopped
-    if (fl.restored) { const tid = S.trainAt || TRAIN_HOME.map; if (tid === id) { const sp = trainSpot(id); if (sp) g.add(wreckedTrain(sp.x, sp.y)); } }
+    if (fl.restored) { const tid = S.trainAt || TRAIN_HOME.map; if (tid === id) { const sp = trainSpot(id); if (sp) { const wt = wreckedTrain(sp.x, sp.y); g.add(wt); W.trainWreck = wt; } } }
   }
   fairExtras(id, M, g); bloomExtras(id, M, g);
   if (fl.restored && !fl.ruin && M.kind !== 'inside' && M.kind !== 'still') {
@@ -6561,7 +6569,12 @@ SET.lighthouse = p => { const g = new THREE.Group();                 // after th
   const lamp = glow('#fff2b0', 1.6, .9); lamp.position.set(0, 5.62, 0); g.add(lamp); sCyl(g, .52, .52, .62, '#d9e6ec', 0, 5.62, 0, null, { seg:16, ink:0 });
   part && g.add(part(new THREE.ConeGeometry(.66, .55, 16), '#2a2826', [0, 6.2, 0])); sBall(g, .09, '#2a2826', 0, 6.55, 0);
   sBox(g, .34, .6, .06, '#2a2826', 0, .3, .9, { ink:0 }); for (const y of [1.6, 3.0, 4.2]) sBox(g, .16, .26, .05, '#2a2826', 0, y, .78 - y * .06, { ink:0 });
-  g.userData.lamp = lamp; return g; };
+  // the beam: two long soft cones from the lamp, swung round slowly after dark (h14 turns it)
+  const beam = new THREE.Group(); beam.position.set(0, 5.62, 0); g.add(beam);
+  const bm = new THREE.MeshBasicMaterial({ color:'#fff2b0', transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide });
+  for (const s of [1, -1]) { const c = new THREE.Mesh(new THREE.ConeGeometry(1.1, 14, 20, 1, true), bm); c.rotation.z = s * Math.PI / 2; c.position.x = s * 7.2; beam.add(c); }
+  g.userData.lamp = lamp; g.userData.beam = beam; g.userData.beamMat = bm; LIGHTHOUSES.push(g); return g; };
+const LIGHTHOUSES = [];
 SET.parasol = p => { const g = new THREE.Group(), c = p.c || '#c0503a'; sCyl(g, .03, .03, 1.7, '#d9d0c0', 0, .85, 0, null, { ink:0 });
   for (let i = 0; i < 8; i++) g.add(part(new THREE.ConeGeometry(.9, .35, 8, 1, true, i / 8 * Math.PI * 2, Math.PI / 4), i % 2 ? c : '#f3e7c9', [0, 1.75, 0], { mo:{ side:THREE.DoubleSide } }));
   sBox(g, .5, .04, 1.1, p.t || '#4f8a8a', .6, .03, 0, { ink:0 }); return g; };
@@ -6772,6 +6785,17 @@ async function talkLightKeeper() {
   await sayAs('Keeper Ardis', 'Ninety-two steps. Kept the light forty years. Kept it through the grey years when there weren\'t any ships, because a light with nobody to see it is still a promise.');
   if (once('ardisLens')) { await sayAs('Keeper Ardis', 'Here. A bit of the old lens. It broke the winter everything stopped. Bring it somewhere dark sometime and see what it does.'); S.items.veil = (S.items.veil || 0) + 2; await say('(You get 2 Veils, cut from lighthouse glass.)'); }
 }
+// After the world is saved, Keeper Ardis is up in the lamp room, and he has something for you.
+async function ardisBeaconGift() {
+  if (S.flags.beaconGift) return; S.flags.beaconGift = 1;
+  await say('Someone is already up here, polishing the great lens with a soft cloth: Keeper Ardis. He doesn\'t turn round.');
+  await sayAs('Keeper Ardis', 'Forty years I kept this light. Through the grey years, when there were no ships at all. Every night: up the steps, light the lamp, watch the water. For nobody.');
+  await sayAs('Keeper Ardis', 'Last week, three boats came in at once. Then six. Then the ferry from up the coast, lit up like a birthday. Everyone came home. You did that. Don\'t argue, I was watching.');
+  await say('He takes something from the inside of the lens, very carefully, with both hands: a small warm light, turning slowly, as if it has been keeping watch in there all along.');
+  await sayAs('Keeper Ardis', 'This is what keeping the light does to a man. It builds up, all those nights. Hope that doesn\'t shout. It just stays lit. I don\'t need it now. The sea\'s got its own lights again.');
+  await giveSpecial('BEACON_X');
+  await sayAs('Keeper Ardis', 'Beacon. Part hope, part calm. There\'s only the one. Now, if you don\'t mind, I\'d like to watch the boats on my own for a bit. I\'ve earned it.');
+}
 async function climbLighthouse() {
   if (S.flags.lightOut) return say('The tower door has a new lock on it. A big one.');
   const dark = auraSide() === 'shadow';
@@ -6779,7 +6803,8 @@ async function climbLighthouse() {
   else if (!dark && !S.flags.ardisMet) { S.flags.ardisMet = 1; }
   await fadeTo(1, 400); await fadeTo(0, 400);
   await say('Ninety-two steps, around and around. At the top the lantern room is hot and bright and humming, and the whole city is under you: the boardwalk, the neon, the roofs, the coast road running back east toward everything you know.');
-  if (!dark) { await say('Out on the water, a fishing boat blinks its lamp at the tower, twice. You find yourself waving, even though they can\'t see you.'); if (once('lhTop')) { pay(80); await say('(You find a tin of coins on the gallery, marked "FOR WHOEVER CLIMBS". 80 Marks.)'); } return; }
+  if (!dark) { await say('Out on the water, a fishing boat blinks its lamp at the tower, twice. You find yourself waving, even though they can\'t see you.'); if (once('lhTop')) { pay(80); await say('(You find a tin of coins on the gallery, marked "FOR WHOEVER CLIMBS". 80 Marks.)'); }
+    if (S.flags.hushDone && !S.flags.doom) await ardisBeaconGift(); return; }
   const c = await ask('The great lamp turns slowly beside you. There\'s a breaker on the wall, marked in red.', ['Climb back down', 'Throw the breaker']);
   if (c !== 1) return; S.flags.lightOut = 1; sin(3); sfx('nerve');
   await say('The light goes out. The whole coast goes dark at once, like a held breath. Somewhere out on the water, a horn sounds, and keeps sounding, closer and closer to the rocks, and then the sound of a hull opening on stone carries all the way up to you.');
@@ -8389,6 +8414,12 @@ function tickDay(dt) {
   if (W.player) nightLamp.position.set(W.player.position.x, W.player.position.y + 1.6, W.player.position.z);
   // lamp glows and windows read brighter at night
   NIGHT_K = inside ? 0 : d.night;
+  // lighthouses: at night the lamp blazes and the beam sweeps round (unless someone threw the breaker)
+  for (let i = LIGHTHOUSES.length - 1; i >= 0; i--) { const g = LIGHTHOUSES[i]; let o = g, live = false; while (o) { if (o === world) { live = true; break; } o = o.parent; }
+    if (!live) { LIGHTHOUSES.splice(i, 1); continue; }
+    const on = !(S.flags && S.flags.lightOut) && !(S.flags && S.flags.ruin), k = on ? clamp((NIGHT_K - .15) / .5, 0, 1) : 0, u = g.userData;
+    u.beam.rotation.y += dt * .9; u.beamMat.opacity = .16 * k; u.beam.visible = k > 0;
+    u.lamp.material.opacity = on ? .45 + .5 * k + .15 * k * Math.abs(Math.sin(u.beam.rotation.y)) : .08; u.lamp.scale.setScalar(1.6 + 1.4 * k); }
 }
 let NIGHT_K = 0;
 // =============================================================================
@@ -8404,20 +8435,23 @@ let NIGHT_K = 0;
 // =============================================================================
 Object.assign(TYPES, {
   LOVE:    { name:'Love',      c:'#e8607a', val:2, ladder:['Fondness', 'Love', 'Devotion'],  shape:'special', prof:[54, 14, 13, 12], special:true },
+  BEACON:  { name:'Beacon', c:'#f2c45a', val:1, ladder:['Lamp', 'Beacon', 'Lighthouse'], shape:'special', prof:[52, 13, 15, 10], special:true },
   CURIOUS: { name:'Imaginative', c:'#7ac8b8', val:1, ladder:['Daydream', 'Imaginative', 'Imagination'], shape:'special', prof:[42, 14, 10, 16], special:true }
 });
 Object.assign(MOVES, {
   EMBRACE:{ name:'Embrace', type:'LOVE', pow:46, acc:100 }, CHERISH:{ name:'Cherish', fx:'healall', desc:'Heals the whole Chorus a little' }, DEVOTE:{ name:'Devote', type:'LOVE', pow:70, acc:95 }, ADORATION:{ name:'Adoration', type:'LOVE', pow:96, acc:90 },
   POKE:{ name:'Pretend Poke', type:'CURIOUS', pow:44, acc:100 }, ASK_WHY:{ name:'Pillow Fort', fx:'def+', desc:'Raises its Poise' }, INVESTIGATE:{ name:'Dragon Roar', type:'CURIOUS', pow:68, acc:95 }, DISCOVERY:{ name:'Happily Ever After', type:'CURIOUS', pow:94, acc:90 }
 });
-Object.assign(LEARN, { LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
-Object.assign(AROUSAL, { LOVE:0, CURIOUS:2 });
-Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead' });
-Object.assign(FAM_LEAN, { LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
+Object.assign(MOVES, { SWEEP:{ name:'Sweeping Beam', type:'BEACON', pow:46, acc:100 }, KEEPLIT:{ name:'Keep the Light On', fx:'healall', desc:'Heals the whole Chorus a little' }, FOGHORN:{ name:'Foghorn', type:'BEACON', pow:70, acc:95 }, GUIDEHOME:{ name:'Guide Them Home', type:'BEACON', pow:92, acc:90 } });
+Object.assign(LEARN, { BEACON:['SWEEP', 'KEEPLIT', 'FOGHORN', 'GUIDEHOME'], LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
+Object.assign(AROUSAL, { LOVE:0, CURIOUS:2, BEACON:0 });
+Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead', BEACON:'stay' });
+Object.assign(FAM_LEAN, { BEACON:{ warmth:2, fixers:1, unsettle:-2, kin:2 }, LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
 // strengths and weaknesses, outside the wheel's opposites
 // Love is every feeling at once: whatever it meets, part of it is strong and part of it is weak, so it all evens out.
 // Imaginative is Surprise, Hope and Joy together: it hits, and is hit, like the average of those three.
-const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'] };
+// Beacon is Hope and Calm together: a light kept burning, steadily, for someone still out there.
+const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'] };
 { const wheelEff = eff; eff = function (atk, def) {
     if (atk === 'LOVE' || def === 'LOVE') return atk === def ? .5 : 1;
     if (BLEND_OF[atk]) { const L = BLEND_OF[atk]; return L.reduce((a, t) => a + wheelEff(t, def), 0) / L.length; }
@@ -8425,18 +8459,22 @@ const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'] };
     return wheelEff(atk, def); }; }
 const SPECIAL_SP = {
   LOVE_X:  { name:'Love', type:'LOVE', k:1.42, desc:'Every feeling at once, held together: the joy and the grief and the fear of losing it. The one thing Orrin Vale never put in the well. Nothing is quite like it.' },
+  BEACON_X:{ name:'Beacon', type:'BEACON', k:1.3, desc:'Part Hope, part Calm: a light kept burning for someone still out on the water. Keeper Ardis kept it lit for forty years, and gave it to you when the ships came home.' },
   CURIO_X: { name:'Imaginative', type:'CURIOUS', k:1.22, desc:'Part Surprise, part Hope, part Joy: the feeling of a whole kingdom in a cardboard box. One of a kind. It hatched from Lio\'s egg, after a very long walk.' },
 };
 for (const [id, s] of Object.entries(SPECIAL_SP)) { const p = TYPES[s.type].prof, k = s.k;
   SPECIES[id] = { id, name:s.name, type:s.type, tier:2, line:0, heart:false, special:true, desc:s.desc, base:{ hp:Math.round(p[0] * k), atk:Math.round(p[1] * k), def:Math.round(p[2] * k), spd:Math.round(p[3] * k) } }; }
 ECHOES.LOVE_X = ['I held on to this the whole time. Two hundred years. It was the only thing I didn\'t give away.', 'I loved them. All of them. That\'s why I built the well.', 'It doesn\'t fix anything. It just stays.', 'Take care of them. Take care of yourself, too. That counts.', 'Even down here, it was warm.', 'Please don\'t put me away somewhere.', 'Still here. Still here.'];
+ECHOES.BEACON_X = ['Lamp lit at dusk. Sea calm. Someone out there. Kept the light on for them.', 'A light with nobody to see it is still a promise.', 'Ninety-two steps. Every night. Forty years.', 'They came home. Not all of them. But they came home.', 'Turn, and turn, and turn. Somebody\'s always looking for the shore.'];
 ECHOES.CURIO_X = ['I\'m a dragon. You\'re the knight. No, wait, you\'re a dragon too.', 'The floor is lava. It\'s ALWAYS lava.', 'This stick is a sword. This box is a castle. You\'re the queen of the castle.', 'Grown-ups can\'t see me unless they remember how.', 'Let\'s pretend everything is going to be okay. Pretending is how it starts.'];
 // The doc rows for how people take each one: kind | fixer | avoider | judge | opportunist | mirror
 Object.assign(MANIF_REACT, {
+  BEACON_X:['(They stand a little straighter in its light.)', '"Good. Steady. Someone needs that."', '(They settle down near you.)', '"Showing off, are we."', '(They follow its light round to see what it lands on.)', '(Their face goes calm too.)'],
   LOVE_X:['(They go soft around the eyes and stay right where they are.)', '"Whoever that\'s for, make sure they know. Today."', '(It\'s a lot. They smile, a bit embarrassed, and give you room.)', '"Bit much, isn\'t it?"', '(They look at you like you\'d give them anything. You might.)', '(They\'re smiling too, now, and can\'t say why.)'],
   CURIO_X:['(They kneel down and pretend right along with you.)', '"Here. A cardboard crown. Every knight needs one."', '(They don\'t know how to play anymore. They wander off.)', '"Grow up."', '"I\'ll sell you a real dragon. Well. A lizard."', '(They\'re a pirate now too, apparently.)'],
 });
 Object.assign(REACT6, {
+  BEACON:{ kind:['You\'re a light for someone, I can tell.', 'Keep it lit.', 'Oh, that\'s steadying.'], fixer:['Good. Steady\'s useful.', 'Point it at something.', 'Every coast needs one.'], avoider:['(They settle down, oddly calm.)', 'That\'s... nice.', '(They stay put.)'], judge:['Bit bright.', 'Mind where you point it.', 'Grandstanding.'], opportunist:['Someone that steady pays their debts.', 'Shine it on my shop, would you?', 'Nice light. Shame if it went out.'], mirror:['(They steady too.)', '(They breathe slower.)', '(Their face goes calm.)'] },
   LOVE:{ kind:['That\'s a lovely thing to be carrying.', 'Hold on to that one.', 'Oh. Whoever you love, they\'re lucky.'], fixer:['Love\'s good. Tell them, though. Don\'t just carry it.', 'Make it count.', 'Write them a letter. Tonight.'],
     avoider:['(They smile, a bit shy.)', 'That\'s... nice.', '(It\'s too much warmth. They step back.)'], judge:['Wear your heart on your sleeve, do you.', 'Sentimental.', 'Love\'s what gets people killed.'],
     opportunist:['Someone that warm will lend a friend a Mark or two.', 'Love\'s generous. Lucky me.', 'You\'d do anything for someone, wouldn\'t you? Good to know.'], mirror:['(They light up too.)', '(They catch it like a cold.)', '(They\'re tearing up and laughing.)'] },
@@ -8445,6 +8483,7 @@ Object.assign(REACT6, {
     opportunist:['Toys, cheap. Real magic ones.', 'A wand? Ten Marks. Definitely real.', 'Kids pay anything for a dragon. So do you, I bet.'], mirror:['(Now they\'re pretending too.)', '(They pick up a stick. It\'s a sword now.)', '(They\'re roaring like a dragon. Nobody knows why.)'] }
 });
 Object.assign(REACT, {
+  BEACON:{ kind:['Like a lamp in a window. Thank you.'], fair:['Steady sort, aren\'t you.'], cruel:['Turn that off.'] },
   LOVE:{ kind:['There\'s love all over you. It suits you.'], fair:['You look like someone who\'s in love. Good luck to you.'], cruel:['Love. Ugh. Easiest people in the world to fleece.'] },
   CURIOUS:{ kind:['Oh, you can still see it. Most of us can\'t anymore.'], fair:['Playing pretend at your age?'], cruel:['Grow up.'] }
 });
@@ -8453,7 +8492,21 @@ function buildSpecialManif(sp, o = {}) {
   const d = SPECIES[sp], c = new THREE.Color(TYPES[d.type].c), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const mat = toon(c, { emissive:c.clone(), emissiveIntensity:.35, wash:1 }), add = (geo, m, p, sc, rot) => { const x = new THREE.Mesh(geo, m); x.position.set(...p); if (sc) x.scale.set(...sc); if (rot) x.rotation.set(...rot); x.castShadow = true; body.add(x); return x; };
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
-  if (sp === 'LOVE_X') {
+  if (sp === 'BEACON_X') {
+    // a little lighthouse: a white tapered tower with a red band, a face, a glass lamp room and a beam that sweeps round
+    const tw = add(new THREE.CylinderGeometry(.17, .28, .55, 18), toon('#f4f1e8'), [0, -.12, 0]); inkScale(tw, 1.05);
+    add(new THREE.CylinderGeometry(.215, .235, .1, 18), toon('#c0503a'), [0, -.08, 0]);
+    add(new THREE.CylinderGeometry(.2, .2, .04, 18), toon('#2a2826'), [0, .17, 0]);
+    add(new THREE.CylinderGeometry(.13, .13, .16, 14), toon('#fff4c0', { emissive:new THREE.Color('#ffe08a'), emissiveIntensity:.9 }), [0, .27, 0]);
+    add(new THREE.ConeGeometry(.17, .14, 14), toon('#2a2826'), [0, .42, 0]);
+    for (const sx of [-1, 1]) { add(new THREE.SphereGeometry(.028, 8, 6), blk, [sx * .07, .04, .2], [1, 1.25, .5]); add(new THREE.SphereGeometry(.008, 6, 5), wht, [sx * .07 + .01, .055, .215]); }
+    add(new THREE.TorusGeometry(.035, .009, 6, 12, Math.PI), blk, [0, -.02, .2], null, [0, 0, Math.PI]);
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(.03, .04, .08, 8), toon('#2a2826'), [sx * .14, -.42, .02]);
+    const beam = new THREE.Group(); beam.position.y = .27; body.add(beam);
+    const bmat = new THREE.MeshBasicMaterial({ color:'#fff2b0', transparent:true, opacity:.28, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide });
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(.16, .9, 14, 1, true), bmat); cone.rotation.z = Math.PI / 2; cone.position.x = .52; beam.add(cone);
+    body.userData.beam = beam;
+  } else if (sp === 'LOVE_X') {
     // a heart that floats: two lobes and a point, a little gold halo, small wings, a calm face, tiny hearts circling
     for (const sx of [-1, 1]) { const l = add(new THREE.SphereGeometry(.24, 18, 14), mat, [sx * .15, .12, 0]); inkScale(l, 1.06); }
     const pt = add(new THREE.ConeGeometry(.35, .5, 18), mat, [0, -.2, 0], [1, 1, .75], [Math.PI, 0, 0]); inkScale(pt, 1.05);
@@ -8489,6 +8542,7 @@ function animSpecial(g, t) { const u = g.userData;
   for (const h of g.children) if (h.userData.orb != null) { const a = t * 1.3 + h.userData.orb * 2.09; h.position.set(Math.cos(a) * .55, .1 + Math.sin(t * 2 + h.userData.orb) * .12, Math.sin(a) * .55); h.rotation.y = -a; }
   u.body.traverse(m => { if (m.userData && m.userData.wing) m.rotation.z = m.userData.wing * (.5 + Math.sin(t * 6) * .25); });
   if (u.body.userData.ant) u.body.userData.ant.rotation.z = Math.sin(t * 2.4 + u.phase) * .25;
+  if (u.body.userData.beam) u.body.userData.beam.rotation.y = t * 1.6 + u.phase;
 }
 
 // ---------------------------------------------------------------- the gifts
@@ -8665,6 +8719,7 @@ RESENTMENT|the old grievance hanging off you|that tight jaw when anyone says tha
 HATE|a hatred I can feel on my skin|eyes like a shut door|is glaring a hole in the wall
 LOATHING|the loathing coming off you in waves|that cold, flat stare|has gone stiff and black and bristling
 LOVE_X|every feeling at once on your face|a glow that isn't any one colour|is holding everyone's eyes like a hug
+BEACON_X|a steadiness like a lamp in a window|the look of someone keeping watch for somebody|is sweeping its little beam over the rooftops
 CURIO_X|a paper crown, I swear, just for a second|the look of someone who knows the floor is lava|is knighting a cat with a cardboard sword
 `;
 const TELLS = {};
@@ -8728,7 +8783,7 @@ const V_HABITS = ['counting steps', 'naming the clouds', 'humming the same three
   'tidying when I\'m nervous', 'talking to plants', 're-reading the last page first', 'doing sums in my head', 'stopping for every cat'];
 
 const FEEL = { JOY:'that happy', HOPE:'that hopeful', CALM:'that calm', CONFIDENCE:'that sure of themselves', SURPRISE:'that wide-eyed', SADNESS:'that low', FEAR:'that frightened', ANGER:'that angry',
-  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe' };
+  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe', BEACON:'that steady' };
 
 // mixed-radix allocation: person n always gets combination n of a pool, scattered by a stride coprime to its size
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
