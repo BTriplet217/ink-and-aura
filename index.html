@@ -6588,6 +6588,25 @@ SET.lighthouse = p => { const g = new THREE.Group();                 // after th
     const c = new THREE.Mesh(new THREE.ConeGeometry(r, 14, 24, 1, true), m); c.rotation.z = s * Math.PI / 2; c.position.x = s * 7.15; c.renderOrder = 5; beam.add(c); }
   g.userData.lamp = lamp; g.userData.beam = beam; g.userData.glass = glass; g.userData.bulb = bulb; LIGHTHOUSES.push(g); return g; };
 const LIGHTHOUSES = [];
+// A stairwell going down through the floor: a dark opening, the first steps vanishing into it, a rail round three sides,
+// a lamp on a hook and a stencilled sign. (Holdfast Supply's stockroom, down to Holdfast Deep.)
+SET.stairdown = p => { const g = new THREE.Group();
+  const hole = new THREE.Mesh(new THREE.BoxGeometry(.86, .02, .86), new THREE.MeshBasicMaterial({ color:'#050404' })); hole.position.y = .015; g.add(hole);
+  for (let i = 0; i < 4; i++) sBox(g, .78, .03, .16, i ? '#4a4840' : '#6a675c', 0, .035 - i * .002, .34 - i * .2, { ink:0, mo:{ color:new THREE.Color(['#6a675c', '#3e3c36', '#2a2924', '#191815'][i]) } });
+  sBox(g, .96, .05, .06, '#8a8a80', 0, .03, .46, { ink:0 }); sBox(g, .96, .05, .06, '#8a8a80', 0, .03, -.46, { ink:0 }); sBox(g, .06, .05, .96, '#8a8a80', .46, .03, 0, { ink:0 }); sBox(g, .06, .05, .96, '#8a8a80', -.46, .03, 0, { ink:0 });
+  for (const [x, z] of [[-.46, -.46], [.46, -.46], [-.46, .46], [.46, .46]]) sCyl(g, .025, .025, .8, '#c8a03a', x, .4, z, null, { ink:0 });
+  sBox(g, .04, .04, .96, '#c8a03a', -.46, .78, 0, { ink:0 }); sBox(g, .04, .04, .96, '#c8a03a', .46, .78, 0, { ink:0 }); sBox(g, .96, .04, .04, '#c8a03a', 0, .78, -.46, { ink:0 });
+  sBox(g, .4, .22, .03, '#d8c040', 0, .62, -.47, { ink:0 }); sBox(g, .3, .05, .035, '#2a2826', 0, .62, -.47, { ink:0 });
+  const lg = glow('#ffd890', .5, .5); lg.position.set(.46, .95, -.46); g.add(lg); sBall(g, .05, '#ffe8a0', .46, .9, -.46, null, { ink:0 });
+  return g; };
+SET.deepsign = p => { const g = new THREE.Group(); sBox(g, .08, 1.1, .08, '#4a3a2c', 0, .55, 0); sBox(g, .9, .5, .06, '#d8c040', 0, 1.05, 0); sBox(g, .7, .06, .065, '#2a2826', 0, 1.12, 0, { ink:0 }); sBox(g, .5, .05, .065, '#2a2826', 0, .98, 0, { ink:0 }); return g; };
+// the top of the stairs, seen from Holdfast Deep: a cut doorway in the rock with steps climbing up into the dark
+SET.stairup = p => { const g = new THREE.Group();
+  sBox(g, 2.2, 2.4, .5, '#4a4640', 0, 1.2, -.4); const dark = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.9, .05), new THREE.MeshBasicMaterial({ color:'#070606' })); dark.position.set(0, .95, -.13); g.add(dark);
+  for (let i = 0; i < 5; i++) sBox(g, 1.2, .14, .22, ['#7a766c', '#6a665c', '#56534a', '#423f38', '#2e2c27'][i], 0, .07 + i * .14, .1 - i * .18, { ink:0 });
+  sBox(g, 1.5, .16, .1, '#2a2826', 0, 2.05, -.1, { ink:0 }); sBox(g, 1.1, .14, .03, '#d8c040', 0, 2.05, -.04, { ink:0 });
+  const lg = glow('#ffd890', .9, .6); lg.position.set(.85, 1.7, .1); g.add(lg); sBall(g, .08, '#ffe8a0', .85, 1.62, .05, null, { ink:0 });
+  return g; };
 SET.parasol = p => { const g = new THREE.Group(), c = p.c || '#c0503a'; sCyl(g, .03, .03, 1.7, '#d9d0c0', 0, .85, 0, null, { ink:0 });
   for (let i = 0; i < 8; i++) g.add(part(new THREE.ConeGeometry(.9, .35, 8, 1, true, i / 8 * Math.PI * 2, Math.PI / 4), i % 2 ? c : '#f3e7c9', [0, 1.75, 0], { mo:{ side:THREE.DoubleSide } }));
   sBox(g, .5, .04, 1.1, p.t || '#4f8a8a', .6, .03, 0, { ink:0 }); return g; };
@@ -6929,7 +6948,7 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
 (function buildHoldfast() {
   const B = regionBuilder('holdfast', 36, 30), m = B.m; border(m, 2);
   rect(m, 0, 15, 2, 2, '='); rect(m, 2, 15, 32, 2, '='); rect(m, 2, 9, 32, 2, '='); rect(m, 17, 9, 2, 16, '='); rect(m, 4, 23, 28, 2, '=');
-  B.house(5, 4, 7, '#5a5a4a', '#c8c0a8', { name:'Holdfast Supply', w:13, h:9, music:'prepper', floor:['#6a6250', '#5e5646'], wall:'#b8b098', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 5, 1], ['shelf', 9, 1], ['pallet', 2, 5], ['pallet', 3, 5], ['desk', 7, 4]] }, { role:'store' });
+  B.house(5, 4, 7, '#5a5a4a', '#c8c0a8', { name:'Holdfast Supply', w:13, h:9, music:'prepper', floor:['#6a6250', '#5e5646'], wall:'#b8b098', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 5, 1], ['shelf', 9, 1], ['pallet', 2, 5], ['pallet', 3, 5], ['desk', 7, 4], ['stairdown', 11, 2]] }, { role:'store' });
   B.house(14, 4, 5, '#4a4a3a', '#b8b098', { name:'Radio Hut', w:9, h:8, music:'prepper', floor:['#5a5244', '#4e483c'], wall:'#a8a088', furn:[['radio', 2, 2], ['radio', 6, 2], ['bed', 6, 5]] });
   B.house(23, 4, 8, '#6a3a2a', '#c8b898', { name:'Meeting Hall', w:13, h:9, music:'prepper', floor:['#7a6a58', '#6e5e4e'], wall:'#c0b090', furn:[['table', 4, 3], ['table', 6, 3], ['table', 8, 3], ['shelf', 1, 1], ['shelf', 11, 1], ['candle', 6, 6]] }, { role:'shrinehouse' });
   B.house(6, 18, 6, '#5a4a3a', '#b8a888', { name:'Workshop', w:11, h:8, music:'prepper', floor:['#5a5040', '#4e4636'], wall:'#a89878', furn:[['table', 2, 2], ['table', 4, 2], ['shelf', 8, 1], ['pallet', 2, 5], ['stove', 8, 5, { lit:true }]] });
@@ -6941,8 +6960,8 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
   const IN = i => MAPS['holdfast_in' + i].room;
   IN(0).npcs = [npc('earl_h', 8, 5, 'down', 'Earl', lk('#4a5a3a', '#8a7a5a', SK[2], '#8a8078', ['cap', 'beard', 'apron']), talkHoldSupply),
     npc('backdoor', 11, 2, 'up', 'Back room', null, async () => {
-      if (!S.flags.deepOk) { return sayAs('Earl', sideLine({ light:'That\'s just the stockroom. (He doesn\'t look at it. He very carefully doesn\'t look at it.)', even:'Staff only.', shadow:'Touch that door and you\'ll be eating through a straw.' })); }
-      await say('Behind the stockroom shelves, a steel door. Behind the steel door, stairs. They go down a long, long way.'); await changeMap({ map:'holdfast_deep', x:20, y:3, dir:'down' }); }, { invisible:true })];
+      if (!S.flags.deepOk) { await say('A stairwell in the stockroom floor, railed off in yellow. A stencilled sign on the rail: STAFF ONLY. The steps go down further than the lamp reaches.'); return sayAs('Earl', sideLine({ light:'That\'s just the cellar. (He doesn\'t look at it. He very carefully doesn\'t look at it.) Talk to Elder Vosk in the Meeting Hall if you want to know more. I didn\'t say that.', even:'Staff only.', shadow:'Touch that rail and you\'ll be eating through a straw.' })); }
+      await say('You unhook the chain across the rail and start down. The stairs turn, and turn, and keep turning. Three hundred steps, and the air gets cool and still and smells of earth.'); await changeMap({ map:'holdfast_deep', x:20, y:3, dir:'down' }); }, { invisible:true })];
   IN(1).npcs = [npc('fen_h', 4, 4, 'up', 'Fen', lk('#3a4a5a', '#8a8a6a', SK[0], '#e2c070', ['glasses']), () => sayAs('Fen', sideLine({ light:'I listen to the static for voices. Last week I heard one. Saltmere. A whole city on the coast, with a lighthouse. People are just... living there. In the open.', even:'Shh. I\'m listening.', shadow:'You\'re on the band, you know. People talk about you. Up and down the Welkin, people talk.' })))];
   IN(2).npcs = [npc('vosk_h', 6, 2, 'down', 'Elder Vosk', lk('#5a3a2a', '#c8b898', SK[4], '#d8d0c0', ['longcoat', 'beard', 'staff']), talkVosk)];
   IN(3).note = { x:3, y:2, text:'(A checklist, nailed to the bench.) "WHEN IT ENDS: 1. Doors. 2. Water. 3. Count everyone. 4. Count everyone again. 5. Don\'t open the doors for anyone who isn\'t counted."' };
@@ -6988,7 +7007,10 @@ async function talkVosk() {
     furn:[['cheese', 2, 2], ['cheese', 4, 2], ['cheese', 6, 2], ['cheese', 10, 2], ['cheese', 12, 2], ['cheese', 14, 2], ['cheese', 2, 5], ['cheese', 4, 5], ['cheese', 12, 5], ['cheese', 14, 5], ['cheese', 2, 8], ['cheese', 14, 8], ['table', 8, 5]] }, { role:'store' });
   B.house(23, 4, 7, '#3a3a34', '#a89878', { name:'Mess Hall', w:13, h:9, music:'bunker', floor:['#5a5040', '#4e4636'], wall:'#8a7a5a', furn:[['table', 3, 3], ['table', 5, 3], ['table', 8, 3], ['stove', 1, 1, { lit:true }], ['stove', 11, 1, { lit:true }], ['table', 3, 6], ['table', 8, 6]] }, { role:'tavern' });
   B.house(3, 13, 5, '#3a3a34', '#988868', { name:'Quartermaster', w:11, h:8, music:'bunker', floor:['#5a5040', '#4e4636'], wall:'#8a7a5a', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 7, 1], ['desk', 5, 4], ['pallet', 2, 5]] });
-  B.house(12, 13, 6, '#3a3a34', '#988868'); B.house(22, 13, 6, '#3a3a34', '#988868'); B.house(32, 13, 5, '#3a3a34', '#988868');
+  B.house(12, 13, 6, '#3a3a34', '#988868', { name:'Schoolroom', w:11, h:8, music:'bunker', floor:['#5a5040', '#4e4636'], wall:'#9a8a6a', furn:[['desk', 2, 2], ['desk', 4, 2], ['desk', 6, 2], ['desk', 2, 4], ['desk', 4, 4], ['desk', 6, 4], ['shelf', 9, 1]] });
+  B.house(22, 13, 6, '#3a3a34', '#c8c8b8', { name:'Infirmary', w:11, h:8, music:'bunker', floor:['#6a6a60', '#5e5e56'], wall:'#c8c8b8', light:{ sky:'#141414', hemi:'#f0f4ff', sun:.9 }, furn:[['bed', 2, 2], ['bed', 4, 2], ['bed', 6, 2], ['shelf', 9, 1], ['desk', 8, 4]] });
+  B.house(32, 13, 5, '#3a3a34', '#988868', { name:'Pump Room', w:9, h:8, music:'bunker', floor:['#4a4840', '#3e3c36'], wall:'#7a7060', furn:[['stove', 2, 2, { lit:true }], ['pallet', 5, 2], ['shelf', 7, 1], ['table', 4, 5]] });
+  B.piece('stairup', 19, 1, 2, 1); B.piece('deepsign', 22, 3);
   rect(m, 3, 22, 14, 3, 'f'); rect(m, 23, 22, 14, 3, 'f');
   for (const [x, y] of [[8, 8], [22, 8], [31, 8], [8, 18], [22, 18], [31, 18], [12, 24], [27, 24]]) B.lamp(x, y);
   regionMap('holdfast_deep', B, { name:'Holdfast Deep', sub:'Under the store', V:DEEP_V, music:'bunker', arrive:'Three hundred steps down, the stairwell opens into a town. Streets cut in the rock, houses built under a ceiling, grow-lamps over long beds of greens. Eighty people could live down here for ten years. The air smells of earth and, faintly, of cheese.',
@@ -6997,9 +7019,19 @@ async function talkVosk() {
   IN(0).npcs = [npc('gunnar', 8, 7, 'up', 'Gunnar', lk('#e8dcc0', '#c8a060', SK[0], '#e2c070', ['apron', 'beard', 'stout']), talkGunnar)];
   IN(1).npcs = [npc('cook_d', 6, 2, 'down', 'Cook', lk('#e8dcc0', '#8a7a5a', SK[3], '#141014', ['apron', 'bakerhat']), () => sayAs('Cook', sideLine({ light:'Soup\'s on. It\'s always on. That\'s the point of soup.', even:'Grab a bowl.', shadow:'Kitchen\'s closed. (It isn\'t.)' }))),
     npc('kids_d', 4, 5, 'up', 'Bunker kid', lk('#4f8a8a', '#f3e7c9', SK[2], '#141014', ['cap'], { small:true }), () => sayAs('Bunker kid', 'I was born down here. I\'ve been up top six times. The sky is TOO BIG.'))];
+  IN(3).npcs = [npc('teach_d', 8, 3, 'left', 'Miss Odile', lk('#7a5a8a', '#f3e7c9', SK[1], '#3a2414', ['glasses', 'bun']), () => sayAs('Miss Odile', sideLine({ light:'Sums in the morning, letters after lunch, and on Fridays we do Sky. I draw it on the board as big as I can. They never believe me about the size.', even:'Class is in. Quietly, please.', shadow:'Not in front of the children.' }))),
+    npc('pupil_d', 4, 5, 'up', 'Pupil', lk('#e8a83a', '#fff3d6', SK[2], '#141014', ['braids'], { small:true }), () => sayAs('Pupil', 'We counted the stairs once. It\'s three hundred and four, not three hundred. Nobody up top ever counts properly.'))];
+  IN(4).npcs = [npc('doc_d', 8, 5, 'left', 'Dr. Halvard', lk('#e8e8e0', '#5a6a7a', SK[3], '#8a8078', ['glasses', 'longcoat']), async () => {
+    await sayAs('Dr. Halvard', sideLine({ light:'Sit. Everyone who comes down those stairs gets checked over. House rules. Your lot too.', even:'Next. Sit down, then.', shadow:'I treat everyone. Even you. Sit.' }));
+    for (const m of S.party) m.hp = maxHp(m); sfx('heal'); return say('(Dr. Halvard looks your whole Chorus over, tuts, and patches everyone up. Your Chorus is fully rested.)'); })];
+  IN(5).npcs = [npc('pump_d', 4, 3, 'down', 'Engineer Tamsin', lk('#6a5a3a', '#4a5a6a', SK[2], '#7a3e1e', ['helmet', 'satchel']), () => sayAs('Engineer Tamsin', sideLine({ light:'Air in, water up, warm through. Three pumps and a lot of praying. If you hear them stop, come and get me, whatever time it is.', even:'Don\'t touch the valves.', shadow:'Get out of my pump room.' })))];
   IN(2).npcs = [npc('qm_d', 5, 3, 'down', 'Quartermaster Ivo', lk('#4a5a3a', '#8a7a5a', SK[4], '#3a2414', ['cap', 'glasses']), async () => { await sayAs('Quartermaster Ivo', 'Everything\'s logged. You buy it, I log it. You steal it, I log you.'); return openShop('quarter'); })];
   REGION_NPCS.holdfast_deep = () => [
-    npc('stairs_d', 19, 1, 'up', 'Stairs', null, () => changeMap({ map:'holdfast_in0', x:10, y:3, dir:'down' }), { invisible:true }),
+    npc('stairs_d', 19, 1, 'up', 'Stairs', null, async () => { await say('Three hundred and four steps back up to Holdfast Supply.'); return changeMap({ map:'holdfast_in0', x:10, y:2, dir:'left' }); }, { invisible:true }),
+    npc('stairs_d2', 20, 1, 'up', 'Stairs', null, async () => { await say('Three hundred and four steps back up to Holdfast Supply.'); return changeMap({ map:'holdfast_in0', x:10, y:2, dir:'left' }); }, { invisible:true }),
+    npc('sign_d', 22, 3, 'up', 'Sign', null, () => say('HOLDFAST DEEP. POPULATION 80 (COUNTED TWICE). CHEESE VAULT ↖  MESS HALL ↗  SCHOOLROOM · INFIRMARY · PUMP ROOM ↓  QUIET AFTER LAMPS-DOWN.'), { invisible:true }),
+    npc('d5', 14, 21, 'up', 'Mother of three', lk('#8a5a3a', '#f3e7c9', SK[4], '#141014', ['scarf']), () => sayAs('Mother of three', 'Up top they think we\'re hiding. We\'re not hiding. We\'re living. It\'s just quieter down here, that\'s all.')),
+    npc('d6', 33, 11, 'down', 'Lamp-lit couple', lk('#5a4a6a', '#e8dcc0', SK[1], '#3a2414', ['glasses']), () => sayAs('Lamp-lit couple', 'We got married in the Mess Hall. Forty-two grow-lamps for candles. Best wedding Holdfast ever had, and the only one, but still.')),
     npc('d1', 15, 11, 'down', 'Lamp tender', lk('#5a5a3a', '#f4cf5e', SK[1], '#8a8078', ['lantern']), () => sayAs('Lamp tender', 'Forty-two grow-lamps. If they go out, we have six weeks. I check them every hour. I don\'t sleep much.')),
     npc('d2', 25, 11, 'down', 'Driller', lk('#6a5a3a', '#e8a83a', SK[3], '#3a2414', ['helmet', 'hammer']), () => sayAs('Driller', 'We\'re cutting a new street east. Found an old pipe down there. It hums. We don\'t talk about the pipe.')),
     npc('d3', 34, 21, 'left', 'Gardener', lk('#5f8a3e', '#f3e7c9', SK[2], '#d8d0c0', ['apron']), () => sayAs('Gardener', 'Lettuce under lamps tastes like lettuce under lamps. But it tastes.')),
