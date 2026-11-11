@@ -4200,14 +4200,15 @@ function press(b) {
       else if (d.res && now >= (d.readyAt || 0)) { const r = d.res; d.res = null; UI.dlg = null; r(); } } return; }
   if (UI.list && UI.list.res) return navList(b);
   if (endingHandler) return endingHandler(b);
+  // B toggles running; it stays on until you go indoors or tap B again. It works mid-step too (you're usually holding a direction).
+  if (scene === 'world' && !busy && b === 'b') { setRun(!RUN); sfx('tick'); return; }
   if (scene === 'world' && !busy && !mv.active) {
     if (b === 'a') { mv.yaw = null; runScript(interact); }
-    else if (b === 'b') setRun(!RUN);          // B toggles running; it stays on until you go indoors or tap B again
     else if (b === 'menu') runScript(openMenu);
   }
 }
 const KEYS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', w:'up', s:'down', a:'left', d:'right', W:'up', S:'down', A:'left', D:'right',
-  z:'a', Z:'a', ' ':'a', Enter:'a', x:'b', X:'b', Escape:'esc', Backspace:'b', m:'menu', M:'menu', q:'rotl', Q:'rotl', e:'rotr', E:'rotr', c:'zoom', C:'zoom' };
+  z:'a', Z:'a', ' ':'a', Enter:'a', x:'b', X:'b', b:'b', B:'b', Escape:'esc', Backspace:'b', m:'menu', M:'menu', q:'rotl', Q:'rotl', e:'rotr', E:'rotr', c:'zoom', C:'zoom' };
 addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); press(e.key === 'Enter' ? 'menu' : 'b'); } return; } const k = KEYS[e.key]; if (!k) return; e.preventDefault(); if (k in held) { if (!held[k]) lastDir = k; held[k] = 1; } press(k); });
 addEventListener('keyup', e => { const k = KEYS[e.key]; if (k in held) held[k] = 0; });
 addEventListener('blur', () => { for (const k in held) held[k] = 0; });
@@ -4292,7 +4293,7 @@ function pollPad(dt) {
     const ax = st ? gp.axes[st[0]] || 0 : 0, ay = st ? gp.axes[st[1]] || 0 : 0; if (Math.hypot(ax, ay) > .4) { JOY.gx = ax; JOY.gy = -ay; } else JOY.gx = JOY.gy = 0; }
   const d = padDirFrom(gp);
   if (d !== padState.dir) { if (padState.dir) held[padState.dir] = 0; padState.dir = d; padState.dirT = 0; padState.rep = 0; if (d) { held[d] = 1; lastDir = d; press(d); } }
-  else if (d) { padState.dirT += dt; const roam = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list; if (!roam && padState.dirT > .38) { padState.rep += dt; if (padState.rep > .11) { padState.rep = 0; press(d); } } }
+  else if (d) { padState.dirT += dt; const roam = scene === 'world' && (!busy || PADDLING) && !UI.dlg && !UI.cho && !UI.list; if (!roam && padState.dirT > .38) { padState.rep += dt; if (padState.rep > .11) { padState.rep = 0; press(d); } } }
   // camera stick: free orbit (x) and zoom (y), world only
   if (scene === 'world' && PAD.cam !== 'none') {
     const [ax, ay] = PAD.cam === 'left' ? [0, 1] : [2, 3]; let x = gp.axes[ax] || 0, y = gp.axes[ay] || 0;
@@ -4359,7 +4360,7 @@ async function controllerMenu() {
 // =============================================================================
 //  WORLD LOGIC — entities, movement, NPCs, menus
 // =============================================================================
-let RUN = false;
+let RUN = false, PADDLING = false;   // PADDLING: out in a kayak (keeps the touch pad up)
 function setRun(on) { if (RUN === !!on) return; RUN = !!on; document.body.classList.toggle('running', RUN); }
 const mv = { active:false, fx:0, fy:0, t:0, diag:false, yaw:null };
 const npcFace = {};
@@ -7447,7 +7448,7 @@ async function kayakTrip(withAshlynn) {
   let mg = null; if (withAshlynn) { mg = ashlynnBoat(); mg.position.set(33.6, WATER_Y(), 2.0); mg.rotation.y = Math.PI; world.add(mg); }
   let px = 31, pz = 3.2, yaw = Math.PI, sp = 0, quit = false, said = 0, t0 = performance.now(), last = t0;
   RIDE_Y = WATER_Y(); u.sitP = true; S.x = px; S.y = pz; mv.yaw = yaw; S.dir = 'up';
-  const prevSel = selectHandler; const sel = b => { if (UI.dlg || UI.cho) { selectHandler = null; press(b); selectHandler = sel; return; } if (b === 'b' || b === 'menu') quit = true; }; selectHandler = sel;
+  PADDLING = true; const prevSel = selectHandler; const sel = b => { if (UI.dlg || UI.cho) { selectHandler = null; press(b); selectHandler = sel; return; } if (b === 'b' || b === 'menu') quit = true; }; selectHandler = sel;
   await fadeTo(0, 500); toast('Paddle anywhere', 'B: back to the beach');
   if (mg) await sayAs('Ashlynn', m.trips ? 'Lead the way. I\'ll keep up.' : 'You steer. Anywhere you like. I\'ll stay close.');
   while (!quit) {
@@ -7472,7 +7473,7 @@ async function kayakTrip(withAshlynn) {
         await say(`You fish a bottle out of the water. Inside: ${text} (Tucked in with it: ${marks} Marks.)`); const left = BOTTLES.length - Object.keys(S.flags.bottles).length;
         await say(left ? `(${left} more bottle${left > 1 ? 's' : ''} somewhere out on the water.)` : '(That was the last bottle in the bay.)'); last = performance.now(); } }
   }
-  selectHandler = prevSel;
+  selectHandler = prevSel; PADDLING = false;
   await fadeTo(1, 500);
   P.remove(myK); P.remove(oar); u.oar = null; u.sitP = false; u.arms.forEach((a, i) => a.rotation.copy(arms0[i])); u.inner.position.y = 0; RIDE_Y = null; mv.yaw = null;
   if (mg) world.remove(mg); showEnt(['ashlynn', 'ashlynn_kayak', 'my_kayak'], true); for (const g of W.minis) g.visible = true;
@@ -8997,7 +8998,8 @@ function loopBody(now) {
   if (UI.dlg) { const d = UI.dlg; if (d.shown < d.text.length) { d.shown = Math.min(d.text.length, d.shown + dt * 60); if (d.shown >= d.text.length && !d.readyAt) d.readyAt = performance.now() + 160; } const want = d.shown >= d.text.length ? d.text : d.text.slice(0, Math.floor(d.shown)); if (txtEl.textContent !== want) txtEl.textContent = want; nxtEl.style.visibility = d.shown >= d.text.length && d.res ? 'visible' : 'hidden'; }
   else if (!dlgEl.classList.contains('hidden')) dlgEl.classList.add('hidden');
   auraPulse = Math.max(0, auraPulse - dt);
-  document.body.classList.toggle('roam', scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic);
+  // the touch pad shows while you can move: walking, or paddling a kayak (a script, but you steer it)
+  document.body.classList.toggle('roam', scene === 'world' && (!busy || PADDLING) && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic);
   if (scene === 'world' || scene === 'battle') tickTime(dt);
   if ((scene === 'world' || scene === 'title' || scene === 'intro' || scene === 'tour') && world) updateWorld(dt, t);
   if (scene === 'battle' && B) updateBattle(dt, t);
