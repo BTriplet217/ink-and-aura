@@ -4585,7 +4585,7 @@ function townArrival(t) {
     FEAR:'Quailmoor is quiet in the way a held breath is quiet. Shutters close as you pass.', SHAME:'Every window in Veilham is curtained. The few people outside wear veils, and look at the ground when you pass.',
     DISGUST:'Spurnhold smells of something sour. People look you up and down, and don\'t like what they find.', ANGER:'Red fog hangs low over Emberwick. Somewhere a hammer is striking iron, again and again and again.' }[t];
 }
-function onStep() { S.steps++; const w = wildAt(S.x, S.y); if (w) startWild(w); }
+function onStep() { S.steps++; eggTick(); const w = wildAt(S.x, S.y); if (w) startWild(w); }
 async function interact() {
   const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
   const w = wildAt(fx, fy); if (w) return startWild(w);
@@ -7216,8 +7216,8 @@ async function dndTalk(k) {
   }
   if (k === 'morwen' && !S.flags.dndFossil) { S.flags.dndFossil = 1; await sayAs(n, 'Before you go: I use this as a mini for the ancient ammonite god. Long story. Campaign three. Here. It looks better on you.');
     await say('(Morwen gives you a spiral fossil, coiled like a staircase. It\'s warm from the table lamp.)'); S.items.hearth = (S.items.hearth || 0) + 1; return; }
-  if (k === 'lio' && !S.flags.dndEgg) { S.flags.dndEgg = 1; await sayAs(n, 'This is my egg. It\'s a dragon egg. It might be a dragon. It might be anything. You keep it warm and at the very end it hatches. I think it\'s a curious one. It keeps wiggling when I talk.');
-    await say('(Lio puts a speckled egg in your hands, very carefully, with both of his. It is the size of a fist and faintly humming.)'); return; }
+  if (k === 'lio' && !S.flags.dndEgg) { S.flags.dndEgg = 1; S.items.lioEgg = 1; S.flags.eggStart = S.steps; await sayAs(n, 'This is my egg. It\'s a dragon egg. It might be a dragon. It might be anything. There\'s only one. You have to keep it in your bag and take it on a really, REALLY long walk, and then it hatches. Like three thousand steps. I counted.');
+    await say('(Lio puts a speckled egg in your hands, very carefully, with both of his. It is the size of a fist and faintly humming. You tuck it into your Bag.)'); return; }
   const deck = DND_FUN[k], i = (S.flags['dndLine_' + k] || 0); S.flags['dndLine_' + k] = i + 1; return sayAs(n, deck[i % deck.length]);
 }
 async function dndGoodbye() { return sayAs('Morwen', 'Sorry, we\'re mid-session. Could you head out?'); }
@@ -7357,7 +7357,7 @@ function burnMarks(obj) {
     m.position.set(fx * .2, b.min.y + fy * h, fz * .22); inner.add(m); }
 }
 // Lio's egg hatches at the very end. It was always going to be Curiosity (h15_special.js).
-async function hatchEgg() { return hatchCuriosity(); }
+async function hatchEgg() { return hatchImaginative(); }
 SET.blank = () => new THREE.Group();
 // ---------------------------------------------------------------- the rest of the room
 // The golden d20 in the middle of the map is the table's own die: anyone welcome at the table can roll it, once a visit.
@@ -8376,14 +8376,17 @@ let NIGHT_K = 0;
 // =============================================================================
 //  TWO FEELINGS OUTSIDE THE WHEEL — they belong to no family, live in no town and
 //  are never found in the wild. Each has its own strengths and weaknesses.
-//    LOVE       a gift from Orrin Vale, at the bottom of the Stillwell, once the world is saved.
-//               Disarms Anger, Disgust, Shame and Fear; breaks under Sadness.
+//    LOVE         a gift from Orrin Vale, at the bottom of the Stillwell, once the world is saved.
+//                 A blend of every feeling at once, so nothing is especially good or bad against it,
+//                 and it is good or bad against nothing in particular. It is simply very strong.
+//    IMAGINATIVE  Lio's egg, carried in the Bag, hatches after 3000 steps. A cross of Surprise, Hope and Joy:
+//                 it hits and is hit like all three at once. One of a kind; only Lio has one to give.
 //    MAKE-BELIEVE  what Lio's egg hatches into: the feeling only children can hold. Dissolves Fear,
 //               shut down by Anger and Disgust.
 // =============================================================================
 Object.assign(TYPES, {
-  LOVE:    { name:'Love',      c:'#e8607a', val:3, ladder:['Fondness', 'Love', 'Devotion'],  shape:'special', prof:[54, 14, 13, 12], special:true },
-  CURIOUS: { name:'Make-Believe', c:'#4fb8a6', val:1, ladder:['Pretend', 'Make-Believe', 'Imagination'], shape:'special', prof:[42, 14, 10, 16], special:true }
+  LOVE:    { name:'Love',      c:'#e8607a', val:2, ladder:['Fondness', 'Love', 'Devotion'],  shape:'special', prof:[54, 14, 13, 12], special:true },
+  CURIOUS: { name:'Imaginative', c:'#7ac8b8', val:1, ladder:['Daydream', 'Imaginative', 'Imagination'], shape:'special', prof:[42, 14, 10, 16], special:true }
 });
 Object.assign(MOVES, {
   EMBRACE:{ name:'Embrace', type:'LOVE', pow:46, acc:100 }, CHERISH:{ name:'Cherish', fx:'healall', desc:'Heals the whole Chorus a little' }, DEVOTE:{ name:'Devote', type:'LOVE', pow:70, acc:95 }, ADORATION:{ name:'Adoration', type:'LOVE', pow:96, acc:90 },
@@ -8394,19 +8397,19 @@ Object.assign(AROUSAL, { LOVE:0, CURIOUS:2 });
 Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead' });
 Object.assign(FAM_LEAN, { LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
 // strengths and weaknesses, outside the wheel's opposites
-const SPECIAL_EFF = {
-  LOVE:    { atk:{ ANGER:2, DISGUST:2, SHAME:2, FEAR:2, LOVE:.5 },          def:{ SADNESS:2, JOY:.5, HOPE:.5, CALM:.5, ANGER:.5, LOVE:.5 } },
-  CURIOUS: { atk:{ FEAR:2, CALM:2, SHAME:2, SURPRISE:.5, CURIOUS:.5 },      def:{ ANGER:2, DISGUST:2, SURPRISE:.5, JOY:.5, HOPE:.5, CURIOUS:.5 } }
-};
+// Love is every feeling at once: whatever it meets, part of it is strong and part of it is weak, so it all evens out.
+// Imaginative is Surprise, Hope and Joy together: it hits, and is hit, like the average of those three.
+const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'] };
 { const wheelEff = eff; eff = function (atk, def) {
-    if (SPECIAL_EFF[atk]) return SPECIAL_EFF[atk].atk[def] || 1;
-    if (SPECIAL_EFF[def]) return SPECIAL_EFF[def].def[atk] || 1;
+    if (atk === 'LOVE' || def === 'LOVE') return atk === def ? .5 : 1;
+    if (BLEND_OF[atk]) { const L = BLEND_OF[atk]; return L.reduce((a, t) => a + wheelEff(t, def), 0) / L.length; }
+    if (BLEND_OF[def]) { const L = BLEND_OF[def]; return L.reduce((a, t) => a + wheelEff(atk, t), 0) / L.length; }
     return wheelEff(atk, def); }; }
 const SPECIAL_SP = {
-  LOVE_X:  { name:'Love', type:'LOVE', desc:'Warm, steady and unafraid. The one feeling Orrin Vale never put in the well.' },
-  CURIO_X: { name:'Make-Believe', type:'CURIOUS', desc:'The feeling only children can hold: a whole kingdom in a cardboard box, a dragon in the airing cupboard. Grown-ups lose the knack. It hatched from Lio\'s egg, and it has decided you still count.' }
+  LOVE_X:  { name:'Love', type:'LOVE', k:1.42, desc:'Every feeling at once, held together: the joy and the grief and the fear of losing it. The one thing Orrin Vale never put in the well. Nothing is quite like it.' },
+  CURIO_X: { name:'Imaginative', type:'CURIOUS', k:1.22, desc:'Part Surprise, part Hope, part Joy: the feeling of a whole kingdom in a cardboard box. One of a kind. It hatched from Lio\'s egg, after a very long walk.' },
 };
-for (const [id, s] of Object.entries(SPECIAL_SP)) { const p = TYPES[s.type].prof, k = 1.22;
+for (const [id, s] of Object.entries(SPECIAL_SP)) { const p = TYPES[s.type].prof, k = s.k;
   SPECIES[id] = { id, name:s.name, type:s.type, tier:2, line:0, heart:false, special:true, desc:s.desc, base:{ hp:Math.round(p[0] * k), atk:Math.round(p[1] * k), def:Math.round(p[2] * k), spd:Math.round(p[3] * k) } }; }
 ECHOES.LOVE_X = ['I held on to this the whole time. Two hundred years. It was the only thing I didn\'t give away.', 'I loved them. All of them. That\'s why I built the well.', 'It doesn\'t fix anything. It just stays.', 'Take care of them. Take care of yourself, too. That counts.', 'Even down here, it was warm.', 'Please don\'t put me away somewhere.', 'Still here. Still here.'];
 ECHOES.CURIO_X = ['I\'m a dragon. You\'re the knight. No, wait, you\'re a dragon too.', 'The floor is lava. It\'s ALWAYS lava.', 'This stick is a sword. This box is a castle. You\'re the queen of the castle.', 'Grown-ups can\'t see me unless they remember how.', 'Let\'s pretend everything is going to be okay. Pretending is how it starts.'];
@@ -8463,7 +8466,7 @@ function buildSpecialManif(sp, o = {}) {
   g.scale.setScalar((o.scale || 1) * 1.05);
   return g;
 }
-// little hearts circle Love; Make-Believe's crown wobbles as it looks around
+// little hearts circle Love; Imaginative's crown wobbles as it looks around
 function animSpecial(g, t) { const u = g.userData;
   for (const h of g.children) if (h.userData.orb != null) { const a = t * 1.3 + h.userData.orb * 2.09; h.position.set(Math.cos(a) * .55, .1 + Math.sin(t * 2 + h.userData.orb) * .12, Math.sin(a) * .55); h.rotation.y = -a; }
   u.body.traverse(m => { if (m.userData && m.userData.wing) m.rotation.z = m.userData.wing * (.5 + Math.sin(t * 6) * .25); });
@@ -8488,15 +8491,25 @@ async function orrinLoveGift() {
   await sayAs('Orrin Vale', 'Love. It belongs to no family. It was never on the wheel, because it isn\'t a weather. It\'s what you do in the weather. Take it up into the light for me.');
   return true;
 }
-// Lio's egg: it was always going to be Make-Believe, the feeling only children can hold
-async function hatchCuriosity() {
-  await say('The egg Lio gave you is moving. It rocks, it wobbles, it cracks down one side, and a single enormous eye peers out of the crack at you.');
-  await say('The shell falls away. Out climbs a small round creature in a paper crown, waving a cardboard sword it seems to have brought with it.');
-  await say('It is Make-Believe: the one feeling only children can hold. Grown-ups lose the knack of it. This one looks you up and down, and decides you still count.');
-  await giveSpecial('CURIO_X');
-  await say('It immediately declares your boots a castle. Somewhere in Larkhollow, a kid would be very, very proud.');
-  S.flags.eggHatched = 1;
+// Lio's egg rides in your Bag and hatches after 3000 steps.
+const EGG_STEPS = 3000;
+const eggLeft = () => Math.max(0, EGG_STEPS - (S.steps - (S.flags.eggStart || 0)));
+function eggTick() {
+  if (S.flags.eggHatched || !S.flags.dndEgg) return;
+  if (!S.items.lioEgg) { S.items.lioEgg = 1; if (S.flags.eggStart == null) S.flags.eggStart = S.steps; }   // older saves: the egg goes in the Bag now
+  if (eggLeft() === 0 && scene === 'world' && !busy) runScript(hatchImaginative);
+  else if ([2000, 1000, 250].includes(eggLeft())) toast(eggLeft() === 250 ? 'Lio\'s egg is rocking in your Bag.' : 'Lio\'s egg feels warmer.');
 }
+async function hatchImaginative() {
+  if (S.flags.eggHatched) return; S.flags.eggHatched = 1; delete S.items.lioEgg;
+  await say('Something in your Bag is moving. You take out Lio\'s egg: it rocks, it wobbles, it cracks down one side, and a single enormous eye peers out of the crack at you.');
+  await say('The shell falls away. Out climbs a small round creature in a crooked paper crown, waving a cardboard sword it seems to have brought with it.');
+  await giveSpecial('CURIO_X');
+  await say('It\'s Imaginative: a little Surprise, a little Hope, a little Joy. There is only one, and Lio gave it to you. It immediately declares your boots a castle.');
+}
+async function useLioEgg() { const n = eggLeft();
+  return say(n > 2000 ? `(The speckled egg is warm and faintly humming. Lio said it needs walking. About ${n} more steps.)` : n > 500 ? `(It wiggles when you hold it. Something in there is listening. About ${n} more steps.)` : `(It\'s rocking on its own now. Any minute. About ${n} more steps.)`); }
+Object.assign(ITEMS, { lioEgg:{ name:'Lio\'s Egg', key:true, fieldUse:useLioEgg, desc:'Warm and humming. It hatches after a long walk' } });
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -9642,7 +9655,6 @@ function computeEnding() {
 }
 async function ending(final, kind) {
   const doom = kind === 'doom', none = kind === 'none';
-  if (!none && S.flags && S.flags.dndEgg && !S.flags.eggHatched) await hatchEgg();
   const E = computeEnding();
   await fadeTo(1, 600);
   scene = 'ending'; document.body.classList.remove('roam'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
