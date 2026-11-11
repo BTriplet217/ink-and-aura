@@ -7322,11 +7322,27 @@ SET.corkboard = p => { const g = new THREE.Group(); sBox(g, .9, .7, .05, '#b88a5
   return g; };
 SET.trunk = p => { const g = new THREE.Group(); sBox(g, .8, .42, .5, '#7a4a2a', 0, .21, -.1); const lid = sBox(g, .82, .08, .52, '#5a3420', 0, .5, -.3); lid.rotation.x = -.9;
   for (const x of [-.32, .32]) sBox(g, .05, .43, .52, '#c9a24a', x, .22, -.1, { ink:0 }); sBox(g, .3, .12, .3, '#6a2a8a', -.1, .44, -.05, { rot:[0, .4, .3] }); sCyl(g, .12, .2, .3, '#2a2a6a', .18, .5, -.1, [.3, 0, -.4]); return g; };
-SET.fort = p => { const g = new THREE.Group(); for (const x of [-.45, 1.45]) { sBox(g, .4, .45, .4, '#8a5a3a', x, .23, 0); sBox(g, .4, .5, .06, '#8a5a3a', x, .7, -.18); }
-  const tent = part(new THREE.CylinderGeometry(.01, 1.1, .9, 4, 1, true), '#c86a8a', [.5, .5, 0], { mo:{ side:THREE.DoubleSide } }); tent.rotation.y = Math.PI / 4; tent.scale.z = .55; g.add(tent);
-  const flap = part(new THREE.PlaneGeometry(.45, .55), '#e8d8a8', [.5, .32, .42], { mo:{ side:THREE.DoubleSide } }); g.add(flap);
-  for (let i = 0; i < 7; i++) { const l = glow(['#ffd36b', '#ff9ab0', '#9ad8ff'][i % 3], .22, .9); l.position.set(-.3 + i * .27, .96 - Math.abs(i - 3) * .06, .3); g.add(l); }
-  sBox(g, .44, .22, .02, '#e8dcc0', .5, .95, .36, { rot:[-.2, 0, .08] }); return g; };
+SET.fort = p => { const g = new THREE.Group(), x0 = -.45, x1 = 1.45, L = x1 - x0, cx = (x0 + x1) / 2, H = 1.02, W = .62;   // spans this tile and the next one east
+  // two kitchen chairs back to back at either end, the blanket strung between their backs
+  for (const [x, s] of [[x0, 1], [x1, -1]]) { sBox(g, .42, .06, .42, '#8a5a3a', x + s * .08, .46, 0); for (const dz of [-.17, .17]) for (const dx of [-.17, .17]) sBox(g, .05, .44, .05, '#6a4228', x + s * .08 + dx, .22, dz, { ink:.01 });
+    sBox(g, .06, .62, .42, '#8a5a3a', x, .8, 0); }
+  // the blanket: an A-frame along the ridge, with a door cut in the front slope
+  const slope = Math.hypot(W, H), th = Math.atan2(W, H);
+  const sheet = (w, xc, front, c) => { const m = part(new THREE.PlaneGeometry(w, slope), c, [xc, H / 2, front ? W / 4 : -W / 4], { mo:{ side:THREE.DoubleSide } }); m.rotation.x = front ? -th : th; g.add(m); return m; };
+  sheet(L, cx, false, '#c86a8a');                                                   // back: one big pink blanket
+  sheet(.62, x0 + .31, true, '#d88a5a'); sheet(.62, x1 - .31, true, '#8a6ac8');      // front: two odd blankets, with a gap for the door
+  for (const [xc, c] of [[x0 + .31, '#f3d2a0'], [x1 - .31, '#f3d2a0']]) { const st = part(new THREE.PlaneGeometry(.62, .06), c, [xc, H * .45, W * .28 + .005], { mo:{ side:THREE.DoubleSide } }); st.rotation.x = -th; g.add(st); }
+  // the door: the middle of the front rolled up and tied, warm light spilling out
+  const roll = part(new THREE.CylinderGeometry(.06, .06, .66, 10), '#c86a8a', [cx, H * .62, W * .2 + .04], {}); roll.rotation.z = Math.PI / 2; g.add(roll);
+  sBox(g, .66, .5, .02, '#2a1a14', cx, .25, -.02, { ink:0 });                                      // the dark inside, so the door reads
+  const warm = glow('#ffb860', 1.2, .55); warm.position.set(cx, .35, .1); g.add(warm);
+  for (const [x, c] of [[cx - .18, '#e8d8a8'], [cx + .2, '#9ad0c8']]) sBall(g, .14, c, x, .12, .05, [1.2, .6, 1]);              // cushions
+  sBox(g, L + .1, .02, .04, '#6a4228', cx, H + .01, 0, { ink:0 });                                  // the broom handle holding the ridge up
+  for (let i = 0; i < 9; i++) { const l = glow(['#ffd36b', '#ff9ab0', '#9ad8ff'][i % 3], .2, .95); l.position.set(x0 + .05 + i * (L - .1) / 8, H - .03 - Math.sin(i / 8 * Math.PI) * .06, W * .08); g.add(l); }
+  // the sign on a stick: DRAGONS ONLY (and frends)
+  sCyl(g, .015, .015, .55, '#6a4228', cx + .55, .27, W / 2 + .2); sBox(g, .36, .2, .02, '#d8c4a0', cx + .55, .55, W / 2 + .21, { rot:[0, 0, .06] });
+  sBox(g, .26, .03, .005, '#c0503a', cx + .55, .59, W / 2 + .225, { ink:0 }); sBox(g, .18, .02, .005, '#3a5a8a', cx + .55, .52, W / 2 + .225, { ink:0 });
+  return g; };
 SET.gametable = p => { const g = new THREE.Group();                      // a square 3×3 gaming table: battle map, DM screen, minis, dice
   sBox(g, 2.5, .1, 2.5, '#5a3a24', 0, .72, 0); for (const [x, z] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) sBox(g, .12, .7, .12, '#4a2e1c', x, .35, z);
   sBox(g, 1.7, .01, 1.5, '#d8cca8', 0, .78, .1, { ink:0 }); for (let i = 0; i < 6; i++) sBox(g, 1.7, .005, .01, '#9a8a6a', 0, .79, -.6 + i * .28, { ink:0 });
