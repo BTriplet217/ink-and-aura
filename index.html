@@ -6588,7 +6588,7 @@ SET.lighthouse = p => { const g = new THREE.Group();                 // after th
     const c = new THREE.Mesh(new THREE.ConeGeometry(r, 14, 24, 1, true), m); c.rotation.z = s * Math.PI / 2; c.position.x = s * 7.15; c.renderOrder = 5; beam.add(c); }
   g.userData.lamp = lamp; g.userData.beam = beam; g.userData.glass = glass; g.userData.bulb = bulb; LIGHTHOUSES.push(g);
   g.scale.setScalar(LH_SCALE); return g; };
-const LH_SCALE = 1.35;                  // tall enough that you fit through the door and stand on the gallery
+const LH_SCALE = 1.2;                  // tall enough that you fit through the door and stand on the gallery
 const LIGHTHOUSES = [];
 // A stairwell going down through the floor: a dark opening, the first steps vanishing into it, a rail round three sides,
 // a lamp on a hook and a stencilled sign. (Holdfast Supply's stockroom, down to Holdfast Deep.)
@@ -6751,7 +6751,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   rect(m, 0, 0, 52, 5, '~'); rect(m, 12, 5, 38, 6, 'S'); rect(m, 2, 11, 48, 2, 'b'); rect(m, 2, 13, 48, 1, '.'); rect(m, 2, 14, 48, 2, '=');
   // the headland and the lighthouse
   rect(m, 0, 0, 12, 10, '~'); rect(m, 1, 1, 11, 9, 'R'); rect(m, 2, 2, 9, 7, '.'); rect(m, 2, 9, 10, 2, 'S'); rect(m, 9, 5, 3, 4, 'S');
-  B.piece('lighthouse', 3, 2, 2, 2); m[7][4] = 's'; B.house(6, 2, 5, '#a8352a', '#f4f1e8', { name:'Keeper\'s Cottage', w:11, h:9, music:'saltmere', floor:['#8a7458', '#7e6a50'], wall:'#f0ece0', furn:[['stove', 1, 2, { lit:true }], ['table', 5, 3], ['shelf', 8, 1], ['bed', 8, 5]] });
+  B.piece('lighthouse', 3, 2, 3, 2, { y:2.3 });   /* centred on column 4, so the door faces the path at (4,4) */ m[7][4] = 's'; B.house(6, 2, 5, '#a8352a', '#f4f1e8', { name:'Keeper\'s Cottage', w:11, h:9, music:'saltmere', floor:['#8a7458', '#7e6a50'], wall:'#f0ece0', furn:[['stove', 1, 2, { lit:true }], ['table', 5, 3], ['shelf', 8, 1], ['bed', 8, 5]] });
   // streets: Ocean Ave (14–15), three rows of blocks, four cross streets
   for (const y of [22, 23, 30, 31, 38, 39]) rect(m, 2, y, 48, 1, '=');
   for (const x of [2, 3, 17, 18, 33, 34, 48, 49]) rect(m, x, 14, 1, 26, '=');
@@ -6807,7 +6807,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   IN(7).npcs = [npc('teller', 6, 2, 'down', 'Teller', lk('#5a5a5a', '#f3e7c9', SK[1], '#3a2414', ['glasses']), bankTeller), npc('guard_b', 2, 6, 'right', 'Bank guard', lk('#2a3448', '#d8b85a', SK[4], '#141014', ['cap', 'baton', 'stout']), () => sayAs('Bank guard', sideLine({ light:'Morning.', even:'Keep it moving.', shadow:'Don\'t even think about it.' })))];
   REGION_NPCS.saltmere = () => [
     npc('lhdoor', 4, 3, 'up', 'Sharyn Lighthouse', null, climbLighthouse, { invisible:true }),
-    npc('lhsign', 4, 7, 'up', 'Sign', null, () => say('THE SHARYN LIGHTHOUSE. First lit 1791 by order of the harbour. Eighty feet of white stone on Gull Point. The keeper\'s house is open to callers. (Under it, scratched in: "She still turns. Wave at her.")'), { invisible:true }),
+    npc('lhsign', 4, 7, 'up', 'Sign', null, () => say('THE SHARYN LIGHTHOUSE. Named for Sharyn, strong and steady, who weathered a storm that lasted years and never once took her eyes off the light. First lit 1791. Eighty feet of white stone on Gull Point. The keeper\'s house is open to callers. (Under it, scratched in: "She still turns. Wave at her.")'), { invisible:true }),
     npc('fisher', 9, 7, 'down', 'Fisherman', lk('#5a6a3a', '#e8a83a', SK[2], '#8a8078', ['cap', 'beard']), () => sayAs('Fisherman', S.flags.lightOut ? 'A boat came onto the rocks last night. Light was out. Nobody knows who climbed up there and put it out. (He looks at you, and keeps looking.)' : 'Mackerel\'s running. First time in eleven years. I cried, a bit. Don\'t tell anyone.')),
     npc('sunbather', 19, 9, 'up', 'Sunbather', lk('#e8a83a', '#fff3d6', SK[1], '#7a3e1e', ['glasses']), () => sayAs('Sunbather', sideLine({ light:'Sit down, there\'s room. The sun\'s for everybody.', even:'You\'re in my light. A little bit.', shadow:'(She gathers up her towel and moves twenty feet away.)' }))),
     npc('surfer', 40, 10, 'up', 'Surfer', lk('#3a6a8a', '#f4cf5e', SK[4], '#141014', ['bandana']), () => sayAs('Surfer', 'Swells are clean today. Kai at the surf shack does lessons if you want to fall off a board in front of everyone.')),
@@ -6856,7 +6856,7 @@ async function climbToGallery() {
   await say('Ninety-two steps, around and around, the iron ringing under your feet.');
   await fadeTo(1, 500);
   await changeMap({ map:'saltmere', x:4, y:4, dir:'down' });
-  const R = .78 * LH_SCALE, top = 5.32 * LH_SCALE, cx = 4, cz = 3;               // the tower's centre (2x2 piece at 3,2) and the gallery floor
+  const R = .78 * LH_SCALE, top = 5.32 * LH_SCALE, cx = 4, cz = 2.3;             // the tower's centre (3x2 piece at 3,2, nudged back) and the gallery floor
   const P = W.player, sc0 = P.scale.x, z0 = camZoom, q0 = camQ; P.scale.setScalar(sc0 * .62);
   S.x = cx; S.y = cz + R * .9; RIDE_Y = top; S.dir = 'down'; mv.yaw = 0; camZoom = 0;
   let orbit = true, yaw = camYaw; const spin = () => { if (!orbit) return; yaw -= .0045; camFree = yaw; requestAnimationFrame(spin); }; spin();
@@ -6876,7 +6876,7 @@ async function galleryEvents(setKeeper) {
   const dark = auraSide() === 'shadow';
   if (!dark) { await say('Out on the water, a fishing boat blinks its lamp at the tower, twice. You find yourself waving, even though they can\'t see you.'); if (once('lhTop')) { pay(80); await say('(You find a tin of coins on the gallery, marked "FOR WHOEVER CLIMBS". 80 Marks.)'); }
     if (S.flags.hushDone && !S.flags.doom && !S.flags.beaconGift) {   // Keeper Ardis is up here with you, polishing the lens
-      const k = buildPerson(lk('#2a3448', '#f3e7c9', SK[2], '#d8d0c0', ['beard', 'cap', 'longcoat'])); k.scale.multiplyScalar(.62); k.position.set(4 - .78 * LH_SCALE * .8, 5.32 * LH_SCALE, 3 + .3); k.rotation.y = Math.PI / 2; world.add(k); setKeeper(k);
+      const k = buildPerson(lk('#2a3448', '#f3e7c9', SK[2], '#d8d0c0', ['beard', 'cap', 'longcoat'])); k.scale.multiplyScalar(.62); k.position.set(4 - .78 * LH_SCALE * .8, 5.32 * LH_SCALE, 2.3 + .3); k.rotation.y = Math.PI / 2; world.add(k); setKeeper(k);
       await ardisBeaconGift(); }
     return; }
   const c = await ask('The great lamp turns slowly beside you. There\'s a breaker on the wall, marked in red.', ['Leave it', 'Throw the breaker']);
