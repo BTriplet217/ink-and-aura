@@ -7469,8 +7469,12 @@ const CLOVER_ROOM = 'r_pinewind_in0';
 let CL_POS = null;          // [x, y, dir] while she's up off the couch
 const CL = () => (S.flags.clover = S.flags.clover || { met:0, sour:0, beat:0, line:0, eat:0 });
 function cloverModel() { const g = buildPerson(CLOVER_LOOK); if (!CL_POS) { g.userData.sit = true;
-    const bk = new THREE.Group(); for (const s of [-1, 1]) { const pg = part(new THREE.BoxGeometry(.12, .16, .015), '#f3eee2', [s * .06, 0, 0], { ink:0 }); pg.rotation.y = s * -.35; bk.add(pg); }
-    bk.add(part(new THREE.BoxGeometry(.25, .17, .01), '#7a2a2a', [0, 0, -.02], { ink:0 })); bk.position.set(0, .7, .3); bk.rotation.x = -.7; g.userData.inner.add(bk); g.userData.book = bk; }
+    // open book held up in her lap: red cover on the outside, the two pages in a shallow V facing her, text lines on them
+    const bk = new THREE.Group(); for (const s of [-1, 1]) { const pg = new THREE.Group(); pg.position.x = 0; pg.rotation.y = s * .32; bk.add(pg);
+      pg.add(part(new THREE.BoxGeometry(.12, .16, .015), '#f3eee2', [s * .062, 0, 0], { ink:0 }));
+      for (let i = 0; i < 5; i++) pg.add(part(new THREE.BoxGeometry(.08, .006, .002), '#8a8072', [s * .062, .05 - i * .024, -.009], { ink:0 }));
+      pg.add(part(new THREE.BoxGeometry(.13, .17, .008), '#7a2a2a', [s * .064, 0, .012], { ink:0 })); }
+    bk.position.set(0, .7, .3); bk.rotation.x = .7; g.userData.inner.add(bk); g.userData.book = bk; }
   return g; }
 const CLOVER_KIND = [
   'You again! My favourite nerd. Take a book. Bring it back. I will know if you don\'t.',
