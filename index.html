@@ -1927,7 +1927,8 @@ function manifDust(body, col, tier, mini, light) {
 // =============================================================================
 //  PAINTED LOOK — ink edges from depth, paper grain, watercolour, tilt-shift
 // =============================================================================
-const SETTINGS = { paint: (() => { try { return localStorage.getItem('ia_paint') !== '0'; } catch (e) { return true; } })() };
+// The full-screen finish pass (pixel grid, blur, grade) is retired: the game renders straight to the screen.
+const SETTINGS = { paint:false };
 const post = (() => {
   const size = new THREE.Vector2();
   renderer.getDrawingBufferSize(size);
@@ -4132,13 +4133,19 @@ addEventListener('pointermove', e => { const p = drag.pts.get(e.pointerId); if (
 const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag.pinch0 = 0; };
 addEventListener('pointerup', dragEnd); addEventListener('pointercancel', dragEnd);
 addEventListener('wheel', e => { if (scene !== 'world') return; const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
+const camFocus = new THREE.Vector3();
 function updateCamera(dt, snap) {
   const tgtYaw = camFree != null ? camFree : camQ * Math.PI / 2; let d = tgtYaw - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); const freeing = camFree != null; camYaw += d * (snap ? 1 : 1 - Math.exp(-dt * (freeing ? 30 : 9)));
   const portrait = innerWidth < innerHeight, z = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom], dist = (portrait ? 12 : 10.8) * z, ht = (portrait ? 9.6 : 6.6) * z;
-  const desired = V3(camTarget.x + Math.sin(camYaw) * dist, camTarget.y + ht, camTarget.z + Math.cos(camYaw) * dist);
+  // the camera follows a smoothed point, not the hero's exact feet: little height steps between tiles
+  // and the start/stop of each stride (sharpest when running) no longer jolt the view
+  if (snap || !camFocus.init) { camFocus.copy(camTarget); camFocus.init = true; }
+  else { const kxz = 1 - Math.exp(-dt * 10), ky = 1 - Math.exp(-dt * 3.5); camFocus.x += (camTarget.x - camFocus.x) * kxz; camFocus.z += (camTarget.z - camFocus.z) * kxz; camFocus.y += (camTarget.y - camFocus.y) * ky; }
+  const desired = V3(camFocus.x + Math.sin(camYaw) * dist, camFocus.y + ht, camFocus.z + Math.cos(camYaw) * dist);
   if (snap) camera.position.copy(desired); else camera.position.lerp(desired, 1 - Math.exp(-dt * (freeing ? 22 : 7)));
-  if (MOOD.shake > 0) { const k = MOOD.shake * MOOD.shake * .09, tt = performance.now() / 1000; camera.position.x += Math.sin(tt * 47) * k; camera.position.y += Math.sin(tt * 61 + 1) * k * .7; }
-  camera.lookAt(camTarget.x, camTarget.y + .5, camTarget.z);
+  // impacts still nudge the view, but as a short, slow sway, never a fast judder
+  if (MOOD.shake > 0) { const k = Math.min(.05, MOOD.shake * .035), tt = performance.now() / 1000; camera.position.x += Math.sin(tt * 9) * k; camera.position.y += Math.sin(tt * 7 + 1) * k * .5; }
+  camera.lookAt(camFocus.x, camFocus.y + .5, camFocus.z);
   if (W.fogBase) { const k = Math.max(1, z); worldScene.fog.near = W.fogBase[0] * k; worldScene.fog.far = W.fogBase[1] * k; }   // pull the haze back when zoomed out
   worldSky.position.copy(camera.position);
 }
@@ -4825,12 +4832,11 @@ async function blackout() {
 // ---------------------------------------------------------------- menu -------
 async function openMenu() {
   for (;;) {
-    const c = await choose(['Carried', 'Satchel', 'Codex', 'Aura', 'Journal', 'Save', { label:'Painted look', sub: SETTINGS.paint ? 'On' : 'Off' }, { label:'Controller', sub:padState.connected ? 'Connected' : 'Settings' }, { label:'Bag', sub:`${S.marks || 0} Marks` }, { label:'Map', sub:'The whole world' }, 'Close'], { start: openMenu.last || 0 });
-    if (c < 0 || c === 10) return;
-    if (c === 9) { openMenu.last = 9; showSheet(worldMapSheet()); await say(mapLine()); closeSheet(); continue; }
-    if (c === 6) { setPaint(!SETTINGS.paint); openMenu.last = 6; continue; }
-    if (c === 7) { openMenu.last = 7; await controllerMenu(); continue; }
-    if (c === 8) { openMenu.last = 8; await bagMenu(); continue; }
+    const c = await choose(['Carried', 'Satchel', 'Codex', 'Aura', 'Journal', 'Save', { label:'Controller', sub:padState.connected ? 'Connected' : 'Settings' }, { label:'Bag', sub:`${S.marks || 0} Marks` }, { label:'Map', sub:'The whole world' }, 'Close'], { start: openMenu.last || 0 });
+    if (c < 0 || c === 9) return;
+    if (c === 8) { openMenu.last = 8; showSheet(worldMapSheet()); await say(mapLine()); closeSheet(); continue; }
+    if (c === 6) { openMenu.last = 6; await controllerMenu(); continue; }
+    if (c === 7) { openMenu.last = 7; await bagMenu(); continue; }
     openMenu.last = c;
     if (c === 0) await partyMenu();
     if (c === 1) await satchelMenu();
@@ -5157,9 +5163,9 @@ function tickMood(dt, t) {
   const mood = mapMood(S.map), roam = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list;
   // tremors where something is wrong
   if ((mood === 'uneasy' || mood === 'dread') && roam) { MOOD.nextTremor -= dt;
-    if (MOOD.nextTremor <= 0) { MOOD.tremorT = mood === 'dread' ? 7 : 5.5; MOOD.shake = mood === 'dread' ? 1.4 : 1; MOOD.nextTremor = mood === 'dread' ? 14 + Math.random() * 10 : 24 + Math.random() * 18;
+    if (MOOD.nextTremor <= 0) { MOOD.tremorT = mood === 'dread' ? 7 : 5.5;   /* no camera shake for ambient tremors: sound, rumble and a note only */ MOOD.nextTremor = mood === 'dread' ? 14 + Math.random() * 10 : 24 + Math.random() * 18;
       sfx('nerve'); padRumble(600, mood === 'dread' ? .9 : .55); toast(mood === 'dread' ? 'The ground shudders. The floor of the Archive has split open; the way down is inside.' : `A tremor rolls out from the shrine. The Heart of ${TOWNS[MAPS[MAPS[S.map].kind === 'inside' ? MAPS[S.map].route : S.map].vibe].name} is restless.`); } }
-  MOOD.tremorT = Math.max(0, MOOD.tremorT - dt); MOOD.shake = Math.max(0, MOOD.shake - dt * .45);
+  MOOD.tremorT = Math.max(0, MOOD.tremorT - dt); MOOD.shake = Math.max(0, MOOD.shake - dt * 1.5);
   const list = ents(S.map), threat = playerThreat(), tp = threatPoint(S.map), fam = moodFamily(S.map);
   // who is frightened right now
   const scaredOf = e => { if (!isFolk(e)) return null; if (MOOD.tremorT > 0) return tp; if (threat && Math.hypot(e.x - S.x, e.y - S.y) <= 3.2) return [S.x, S.y]; return null; };
