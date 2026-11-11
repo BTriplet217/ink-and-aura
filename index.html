@@ -1593,12 +1593,12 @@ function buildPerson(L) {
   add(new THREE.CylinderGeometry(.05, .055, .07, 10), skin, [0, .84, 0]);
   // finer details, so people read like hand-drawn sprites up close: buckle, buttons, hem trim, a pouch, ears
   { const dk = new THREE.Color(coat).multiplyScalar(.6).getStyle(), lt = new THREE.Color(coat).lerp(new THREE.Color('#fff3d6'), .35).getStyle(), metal = (seed % 3) ? '#c9a24a' : '#a8a8b0';
-    add(new THREE.BoxGeometry(.06, .045, .02), metal, [0, .53, B.waist + .008]);
-    add(new THREE.BoxGeometry(.03, .022, .022), new THREE.Color(L.sash || coat).multiplyScalar(.45).getStyle(), [0, .53, B.waist + .012]);
+    if (!L.noBelt) { add(new THREE.BoxGeometry(.06, .045, .02), metal, [0, .53, B.waist + .008]);
+    add(new THREE.BoxGeometry(.03, .022, .022), new THREE.Color(L.sash || coat).multiplyScalar(.45).getStyle(), [0, .53, B.waist + .012]); }
     if (!L.pattern && !gear.includes('apron') && !gear.includes('armor')) for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.012, 6, 5), (seed >> 2) % 2 ? lt : metal, [0, .6 + i * .07, B.waist + (B.sh * .92 - B.waist) * (.1 + i * .33) + .012]);
     add(new THREE.BoxGeometry(.006, .26, .006), dk, [0, .67, B.waist + (B.sh * .92 - B.waist) * .5 + .006]);
     add(new THREE.CylinderGeometry(B.waist + .006, B.waist + .008, .02, 16), dk, [0, .565, 0]);
-    if (!gear.includes('satchel') && !gear.includes('toolbelt') && (seed >> 4) % 2) { add(new THREE.BoxGeometry(.08, .07, .05), '#6b4528', [B.waist * .75, .5, B.waist * .55], { rot:[0, -.7, 0] }); add(new THREE.BoxGeometry(.085, .025, .055), '#4a2e1a', [B.waist * .75, .54, B.waist * .55], { rot:[0, -.7, 0] }); }
+    if (!L.noBelt && !gear.includes('satchel') && !gear.includes('toolbelt') && (seed >> 4) % 2) { add(new THREE.BoxGeometry(.08, .07, .05), '#6b4528', [B.waist * .75, .5, B.waist * .55], { rot:[0, -.7, 0] }); add(new THREE.BoxGeometry(.085, .025, .055), '#4a2e1a', [B.waist * .75, .54, B.waist * .55], { rot:[0, -.7, 0] }); }
     if (!gear.includes('ears')) for (const sx of [-1, 1]) add(new THREE.SphereGeometry(.03, 8, 6), skin, [sx * .158, .955, -.005], { sc:[.5, 1, .8] });
   }
   // arms (shoulder pivots); pose: idle | open (palms out) | hold (right hand forward, holding something)
@@ -2803,7 +2803,7 @@ function buildHouseX0(hd, roofC, wallC) {
   if (style === 'gable') prism(1.25, 0, rd, top - .02, roofCol);
   if (style === 'steep') prism(2, 0, rd - .3, top - .02, roofCol);
   if (style === 'gambrel') { prism(.7, rd * .62, rd, top - .02, roofCol); prism(.55, 0, rd * .62, top + .66, roofCol); }
-  if (style === 'hip') { const h = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4, 1), toon(roofCol, { surf:'roof' })); h.rotation.y = Math.PI / 4; h.scale.set((hd.w + .5) * .72, 1.3, 4.5 * .72); h.position.set(cx, top + .64, cz); h.castShadow = true; const o = new THREE.Mesh(h.geometry, INK); o.scale.set(1.03, 1.03, 1.03); h.add(o); g.add(h); }
+  if (style === 'hip') { const h = new THREE.Mesh(new THREE.ConeGeometry(Math.SQRT2, 1, 4, 1).rotateY(Math.PI / 4), toon(roofCol, { surf:'roof' })); h.scale.set((hd.w + .5) / 2, 1.3, 4.5 / 2); /* turned first, then stretched, so the hip roof sits square on the walls */ h.position.set(cx, top + .64, cz); h.castShadow = true; const o = new THREE.Mesh(h.geometry, INK); o.scale.set(1.03, 1.03, 1.03); h.add(o); g.add(h); }
   if (style === 'flat') { g.add(at(inkBox(hd.w + .1, .16, 4.1, toon(roofCol, { surf:'roof' }), .03), cx, top + .08, cz)); g.add(at(inkBox(hd.w + .1, .3, .12, toon(trim), .02), cx, top + .3, fz + .02)); }
   // chimney, dormer
   if (hd.chimney || r(11) < .5) g.add(at(inkBox(.38, 1.1, .38, toon('#8a6b5a', { surf:'stone' }), .03), cx + (r(12) < .5 ? -1 : 1) * (hd.w / 2 - .8), top + .5, cz - .7));
@@ -7534,7 +7534,7 @@ MAPS[CLOVER_ROOM].room.npcsFn = cloverPeople; MAPS[CLOVER_ROOM].set.push({ k:'ru
 // Ashley: human ranger. Brown hair in two braids with ribbons, round glasses, freckles, a patchwork orange-and-gold poncho,
 // blue scarf, orange shirt and sash, belts of pouches, dark trousers, boots, and a long paddle with orange blades.
 const ASHLYNN_LOOK = { coat:'#d8862a', sleeve:'#e8a83a', accent:'#4a7aa0', sash:'#e0702a', legs:'#5a4a34', shorts:true, boot:'#6a4a2a', skin:'#f0c8a8',
-  hair:'#7a4a26', brow:'#5a3418', hairStyle:'short', build:'slim', gear:['braids', 'glasses', 'toolbelt', 'paddle'] };
+  hair:'#7a4a26', brow:'#5a3418', hairStyle:'short', build:'slim', noBelt:true, gear:['braids', 'glasses', 'paddle'] };
 const MR = () => (S.flags.ashlynn = S.flags.ashlynn || { met:0, own:0, trips:0, line:0 });
 const ASHLYNN_SPOT = [33, 5], ASHLYNN_KAYAK = [32, 5], MY_KAYAK = [30, 5];
 let ASHLYNN_AWAY = -1, ASHLYNN_N = { v:-1, n:0 };
