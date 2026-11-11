@@ -4817,6 +4817,7 @@ async function auraMenu() {
   showSheet(`<h2>Your Aura · ${zoneOf().name}</h2><div class="subt">The sum of what you carry. Everyone you meet can see it.</div>
     ${auraGridSheet()}
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px">${manifIcon(m, 20)}${nm(m)} <span style="font-weight:400;color:var(--muted)">${sgn(valOf(m))} light · ${sgn(Math.round(energyOf(m) * 10) / 10)} fierce</span></span>`).join('')}</div>
+    ${worldSheet()}
 <p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm lighten you; Sadness, Fear, Anger, Shame and Disgust make you heavy. Heavy isn't the same as dangerous: mostly Anger or Disgust reads as menacing, mostly Sadness, Fear or Shame reads as hurting. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
   await say(auraLine());
   closeSheet();
@@ -5669,7 +5670,7 @@ async function auraPreTalk(e) {
 }
 // Prices: cruel shopkeepers squeeze the vulnerable; nobody haggles with a menace.
 // Hurting auras get squeezed (the frightened pay most: "protection"); menacing ones get waved through cheap.
-function auraPriceMod() { const n = zoneOf().name; return ({ Forlorn:1.15, Aching:1.1, Raw:1.1, Haunted:1.15, Wary:1.15, Frozen:1.2, Cornered:1.1, Hiding:1.1, Small:1.15, Muted:1.05, Menacing:.9, Sullen:.95, Serene:.95, Warm:.95 })[n] || 1; }
+function auraPriceMod() { const n = zoneOf().name, P = worldProfile(); return clamp(1 + .01 * P.exposed - .015 * P.clout, .8, 1.3) * (({ Forlorn:1.15, Aching:1.1, Raw:1.1, Haunted:1.15, Wary:1.15, Frozen:1.2, Cornered:1.1, Hiding:1.1, Small:1.15, Muted:1.05, Menacing:.9, Sullen:.95, Serene:.95, Warm:.95 })[n] || 1); }
 
 // ---------------------------------------------------------------- grid encounters
 // One per zone. Which town each turns up in is rolled per playthrough; they only appear while your aura sits in that zone.
@@ -5824,6 +5825,8 @@ async function childTalk(e, z, town, menace) {
   S.kidTalks = S.kidTalks || {}; const key = S.map + ':' + e.id, n = (S.kidTalks[key] = (S.kidTalks[key] || 0) + 1);
   const adult = nearestAdult(e), who = adult && adult.name ? adult.name : 'A grown-up';
   if (z.x === 'shadow' && z.read === 'hurt') return say('Child: ' + deal('kidtender:' + hurtFam(), KID_TENDER[hurtFam()]));
+  { const P = worldProfile(); if (P.kids >= 4 && z.read !== 'menace' && once('kidgift:' + key)) { S.items.cake = (S.items.cake || 0) + 1; await say('Child: ' + deal('kid', KID_LINES)); return say('(The child presses a slightly squashed honey cake into your hand, then runs off giggling.)'); }
+    if (P.kids <= -4 && z.read !== 'menace' && n === 1) return say('(The child takes one look at you and hides behind the nearest grown-up\'s legs.)'); }
   if (z.x === 'shadow') {
     if (n < 2) { await say(deal('kiduneasy', ['(The child goes quiet when you come close, and looks around for someone.)', '(The child takes a small step back.)', '(The child\'s smile slips. They grip their sleeve.)'])); return; }
     const moral = adult ? moralOf(adult) : 'fair';
@@ -7704,29 +7707,36 @@ const BLEND = {
 const famHas = (fam, list) => list.includes(fam);
 // The everyday reaction from an ordinary townsperson. Returns 'refuse' if they won't talk further.
 async function reactFolk(e, read, fam, sayE) {
-  const pt = personOf(e), intense = intenseFam(fam), deck = (REACT6[fam] || REACT6.CALM)[pt], line = intense ? deck[2] : deck[(S.steps + e.id.length) % 2];
-  // first what they do about your strongest Manif in that family (the reaction doc), then, if they only acted, a word or two
-  const mr = manifReaction(e, fam);
+  // Each person notices one of the Manifs you carry (h13): what they say and do comes from that one;
+  // how likely they are to give, con, leave or lecture comes from everything you carry together.
+  const pt = personOf(e), P = worldProfile(), mr = manifReaction(e, fam), nf = mr ? (SPECIES[mr.m.sp].type) : fam;
+  const intense = mr ? (SPECIES[mr.m.sp].heart || SPECIES[mr.m.sp].tier >= 2) : intenseFam(fam);
+  const deck = (REACT6[nf] || REACT6.CALM)[pt], line = intense ? deck[2] : deck[(S.steps + e.id.length) % 2];
   if (mr) { await sayManifReaction(e, mr); if (!mr.spoken && pt !== 'avoider' && Math.random() < .5) await sayE(line); } else await sayE(line);
   const second = blendFam(fam), bl = second && BLEND[fam + '+' + second];
-  if (bl && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .6) await sayE(bl);
-  const key = S.map + ':' + e.id, hurt = read === 'hurt';
-  if (pt === 'kind' && hurt && Math.random() < .55) { const k = pickA(fam === 'FEAR' ? ['salts', 'cake', 'charm'] : ['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; return say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
-  if (pt === 'fixer' && hurt && Math.random() < .4) { const k = fam === 'FEAR' ? 'salts' : 'tonic'; S.items[k] = (S.items[k] || 0) + 1; return say(`(They hand you a ${ITEMS[k].name}. "There. Practical. Use it.")`); }
-  // Sadness that deepens drives people off: even fixers drift away (the depression pattern in the doc)
-  if (pt === 'fixer' && fam === 'SADNESS' && intense && Math.random() < .5) { await say('(After a while they run out of things to say, and drift off.)'); GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
-  if (pt === 'avoider' && (intense || hurt || read === 'menace')) { GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
-  if (pt === 'judge' && (hurt || intense)) { if (mr && !mr.spoken) return 'refuse'; await say(pickA(['(They turn their back on you.)', '(They walk off, shaking their head.)', '(They tut, and that\'s the end of the conversation.)'])); return 'refuse'; }
-  if (pt === 'opportunist' && famHas(fam, ['SADNESS', 'FEAR', 'SHAME', 'CALM', 'HOPE']) && (S.marks || 0) > 40 && Math.random() < (hurt || intense ? .75 : .45)) {
-    const amt = (intense ? 35 : 20) + Math.floor(Math.random() * 35);
-    const pitch = { SHAME:`want ${amt} Marks to keep quiet about you`, FEAR:`want ${amt} Marks for "protection"`, SADNESS:`ask for ${amt} Marks for a "charity for the bereaved" that doesn't exist`, HOPE:`ask for ${amt} Marks for a "sure thing" that is definitely a con`, CALM:`ask you to hold ${amt} Marks' worth of "change" for them` }[fam];
-    const c = await ask(`${e.name || 'They'} ${pitch}.`, ['Pay', 'Refuse']);
-    if (c === 0) { S.marks -= amt; return say(`You hand over ${amt} Marks. They grin, and are gone round the corner before you can blink.`); }
-    return say(hurt && auraPos().y === 'still' ? '(They laugh at you. "Suit yourself. Plenty more like you.")' : '(They size you up, decide you\'re not worth the bother, and walk away.)');
+  if (bl && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .5) await sayE(bl);
+  const key = S.map + ':' + e.id, hurt = read === 'hurt', roll = Math.random();
+  if (pt === 'kind' && roll < pchance(.1, .05, P.warmth) + (hurt ? .25 : 0)) { const k = pickA(nf === 'FEAR' ? ['salts', 'cake', 'charm'] : ['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; return say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
+  if (pt === 'fixer' && nf === 'SADNESS' && intense && roll < .5) { await say('(After a while they run out of things to say, and drift off.)'); GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
+  if (pt === 'fixer' && roll < pchance(.05, .04, P.fixers) + (hurt ? .15 : 0)) { const k = nf === 'FEAR' ? 'salts' : 'tonic'; S.items[k] = (S.items[k] || 0) + 1; return say(`(They hand you a ${ITEMS[k].name}. "There. Practical. Use it.")`); }
+  if (pt === 'avoider' && roll < pchance(.1, .05, P.unsettle) + (intense || hurt || read === 'menace' ? .3 : 0)) { GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
+  if (pt === 'judge' && roll < pchance(.1, .05, P.friction) + (hurt || intense ? .25 : 0)) { if (mr && !mr.spoken) return 'refuse'; await say(pickA(['(They turn their back on you.)', '(They walk off, shaking their head.)', '(They tut, and that\'s the end of the conversation.)'])); return 'refuse'; }
+  if (pt === 'opportunist') {
+    if ((S.marks || 0) > 40 && roll < pchance(.1, .05, P.exposed) + (hurt ? .25 : 0)) {
+      const amt = (intense ? 35 : 20) + Math.floor(Math.random() * 35);
+      const pitch = { SHAME:`want ${amt} Marks to keep quiet about you`, FEAR:`want ${amt} Marks for "protection"`, SADNESS:`ask for ${amt} Marks for a "charity for the bereaved" that doesn't exist`, HOPE:`ask for ${amt} Marks for a "sure thing" that is definitely a con`, CALM:`ask you to hold ${amt} Marks' worth of "change" for them`,
+        SURPRISE:`offer to explain everything for ${amt} Marks`, CONFIDENCE:`want ${amt} Marks to "sponsor" someone as capable as you`, JOY:`want ${amt} Marks for a round of drinks you won't see`, ANGER:`want ${amt} Marks to point you at the man who's really to blame`, DISGUST:`want ${amt} Marks for the "better" version of everything` }[nf];
+      const c = await ask(`${e.name || 'They'} ${pitch}.`, ['Pay', 'Refuse']);
+      if (c === 0) { S.marks -= amt; return say(`You hand over ${amt} Marks. They grin, and are gone round the corner before you can blink.`); }
+      return say(hurt && auraPos().y === 'still' ? '(They laugh at you. "Suit yourself. Plenty more like you.")' : '(They size you up, decide you\'re not worth the bother, and walk away.)');
+    }
+    if ((S.marks || 0) > 30 && roll > .9 - .02 * P.exposed) { const m = 8 + Math.floor(Math.random() * 18); S.marks -= m; return say(`(Later you notice ${m} Marks missing from your purse.)`); }
   }
-  if (pt === 'opportunist' && fam === 'JOY' && (S.marks || 0) > 30 && Math.random() < (intense ? .6 : .3)) { const m = 10 + Math.floor(Math.random() * 20); S.marks -= m; return say(`(Later you notice ${m} Marks missing from your purse.)`); }
-  if (pt === 'opportunist' && famHas(fam, ['ANGER', 'CONFIDENCE']) && auraPos().y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); return say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
-  if (pt === 'mirror' && read === 'bright' && once('mirror:' + key)) { for (const m of S.party) m.hp = Math.min(maxHp(m), m.hp + Math.round(maxHp(m) * .15)); return say('(Their good mood bounces right back at you. Your Chorus perks up a little.)'); }
+  if ((pt === 'opportunist' || pt === 'avoider') && P.clout > 3 && roll < .04 * P.clout) { const m = 10 + Math.floor(Math.random() * 25); pay(m); return say(`(They push ${m} Marks at you without being asked. Better on your side than against you.)`); }
+  if (pt === 'mirror') {
+    if (read === 'bright' && once('mirror:' + key)) { for (const m of S.party) m.hp = Math.min(maxHp(m), m.hp + Math.round(maxHp(m) * .15)); return say('(Their good mood bounces right back at you. Your Chorus perks up a little.)'); }
+    if (P.contagion >= 6 && once('contagion:' + S.map + ':' + MAP_VISIT)) return say(`(By the time you walk on, half the street seems to be feeling it too: ${SPECIES[(mr ? mr.m : S.party[0]).sp].name.toLowerCase()}, passed from face to face.)`);
+  }
 }
 
 // ---------------------------------------------------------------- tender lines for set people
@@ -7983,7 +7993,7 @@ function leadManif(fam) { let best = null, bv = -1;
   return best; }
 // the reaction row entry for a person, ready to say: "quoted" → said by them; (bracketed) → narration
 function manifReaction(e, fam) {
-  const m = leadManif(fam); if (!m) return null;
+  const m = S.party.length ? noticedManif(e) : leadManif(fam); if (!m) return null;
   const id = String(m.sp).toUpperCase(), row = MANIF_REACT[id] || MANIF_REACT[(SPECIES[m.sp].name || '').toUpperCase()]; if (!row) return null;
   const t = row[PT_COL[personOf(e)]]; if (!t) return null;
   return { m, text:t, spoken:t.startsWith('"') };
@@ -7991,6 +8001,74 @@ function manifReaction(e, fam) {
 async function sayManifReaction(e, r) {
   if (!r.spoken) return say(r.text);
   const m = r.text.match(/^"([^"]*)"\s*(.*)$/); await say(`${e.name || 'They'}: ${m ? m[1] : r.text}`); if (m && m[2]) await say(m[2]);
+}
+
+// =============================================================================
+//  WORLD PROFILE — every Manif you carry, even the weakest, pushes on how the world
+//  treats you. Each Manif's pushes are read from its row in the reaction doc (what the
+//  six kinds of people do about it) plus a lean from its family, and scaled by how strong
+//  it is. The sum is your profile: the same aura name can play very differently.
+//    warmth    Kind Ones come closer and give more
+//    fixers    Fixers hand you practical things
+//    unsettle  Avoiders leave (negative: they settle near you)
+//    friction  Judges lecture and turn their backs
+//    exposed   Opportunists circle: cons, pickpockets, higher prices
+//    clout     people defer: lower prices, paid to go away
+//    contagion Mirrors catch it and pass it round
+//    kids      children are drawn to you (negative: they're wary)
+//    kin       wild Manifs warm to you faster
+// =============================================================================
+const LEVERS = ['warmth', 'fixers', 'unsettle', 'friction', 'exposed', 'clout', 'contagion', 'kids', 'kin'];
+const LEVER_TXT = { warmth:['draws Kind Ones', 'cools kind people'], fixers:['brings out Fixers', 'puts Fixers off'], unsettle:['makes Avoiders leave', 'lets Avoiders settle near you'],
+  friction:['sets Judges off', 'keeps Judges quiet'], exposed:['draws Opportunists', 'keeps Opportunists off'], clout:['makes people defer', 'gets you overlooked'],
+  contagion:['spreads to the people around you', 'stays your own'], kids:['draws children', 'makes children wary'], kin:['calms wild Manifs', 'unsettles wild Manifs'] };
+const FAM_LEAN = { JOY:{ kids:2, contagion:1 }, HOPE:{ exposed:1, kids:1 }, CALM:{ unsettle:-2, kin:2 }, CONFIDENCE:{ clout:2 }, SURPRISE:{ kin:2, kids:1 },
+  SADNESS:{ warmth:1, unsettle:1 }, FEAR:{ exposed:1, kids:-1, contagion:1 }, ANGER:{ clout:1, kids:-2, unsettle:1 }, SHAME:{ friction:1, exposed:1 }, DISGUST:{ friction:1, kids:-1, clout:1 } };
+const LEVER_RX = [
+  [0, 'warmth', /help|safe|stays|comfort|protect|shield|beside|sits with|alongside|listens|honou?r/i, 2, 1],
+  [1, 'fixers', /bring|food|patch|supplies|resources|remedy|fetch|removes|fixes|cleans|takes|handles|lighten|let me|i'll|here,/i, 2, 0],
+  [2, 'unsettle', /flee|run|leave|disappear|evacuat|hide|away|withdraw|avoid|distance|backs off|freezes|retreat|steers clear/i, 2, 0],
+  [2, 'unsettle', /relax|comfortable|relieved|stays near|drawn|safe|flock|happily|settle|admires|grateful|lean/i, -1, 0],
+  [3, 'friction', /punish|condemn|arrest|force|scold|purge|martial|strip|report|restrain|lecture|example|watch|regret|law/i, 2, 1],
+  [4, 'exposed', /sell|scam|con|exploit|loot|blackmail|prey|steal|betray|slip|strike|profit|charg|take|milk|use|lean|pile|pick|marks|fee|price|purse|pay/i, 2, 0],
+  [4, 'clout', /flatter|deserves|attach|perks|hangs around|rival|leader|follow/i, 1, 0],
+  [5, 'contagion', /whole town|spread|stampede|brawl|panic|turns on|hides indoors|mourns|shuns|joins|crowd|everyone/i, 2, 1]
+];
+const manifWeight = m => { const d = SPECIES[m.sp]; return d.heart ? 2.5 : 1 + d.tier * .5; };
+// one Manif's pushes, from its doc row and its family
+function manifLevers(m, noBase) {
+  const d = SPECIES[m.sp], out = {}, add = (k, v) => out[k] = (out[k] || 0) + v;
+  const row = MANIF_REACT[String(m.sp).toUpperCase()] || MANIF_REACT[(d.name || '').toUpperCase()] || [];
+  for (const [col, k, rx, hit, base] of LEVER_RX) { const t = row[col] || ''; if (rx.test(t)) add(k, hit); else if (base && !noBase) add(k, base); }
+  for (const f of d.dyad ? [d.type, d.type2] : [d.type]) for (const [k, v] of Object.entries(FAM_LEAN[f] || {})) add(k, d.dyad ? v / 2 : v);
+  return out;
+}
+function worldProfile(p = S.party) { const P = {}; for (const k of LEVERS) P[k] = 0;
+  for (const m of p) { const w = manifWeight(m), L = manifLevers(m); for (const k in L) P[k] += L[k] * w; }
+  for (const k of LEVERS) P[k] = Math.round(P[k] * 10) / 10; return P; }
+// the two things a Manif does to the world, in words
+function manifEffectText(m) { const L = manifLevers(m, true); return Object.entries(L).filter(([, v]) => v).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 2).map(([k, v]) => LEVER_TXT[k][v > 0 ? 0 : 1]).join(', '); }
+const pchance = (base, per, v, lo = 0, hi = .9) => clamp(base + per * v, lo, hi);
+// Which of your Manifs a particular person notices. Stronger ones are noticed more, but everyone you carry gets noticed by somebody,
+// and each kind of person is drawn to the feelings that give them something to do.
+function noticedManif(e) {
+  const pt = personOf(e), col = PT_COL[pt]; let h = seedOf() ^ 0x2c1b3c6d; for (const ch of (S.map + '~' + e.id + '~' + S.party.map(m => m.eid).join(','))) h = Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0;
+  const lean = { kind:'warmth', fixer:'fixers', avoider:'unsettle', judge:'friction', opportunist:'exposed', mirror:'contagion' }[pt];
+  const ws = S.party.map(m => Math.max(.4, manifWeight(m) * (1 + Math.max(0, (manifLevers(m)[lean] || 0)) * .35)));
+  let r = (h % 10000) / 10000 * ws.reduce((a, b) => a + b, 0); for (let i = 0; i < ws.length; i++) { r -= ws[i]; if (r <= 0) return S.party[i]; } return S.party[0];
+}
+// Aura menu: what each Manif does to the world, and where it all adds up.
+function worldSheet() {
+  if (!S.party.length) return '';
+  const P = worldProfile(), rows = S.party.map(m => `<div style="display:flex;gap:8px;align-items:center;font-size:12.5px;margin:2px 0">${manifIcon(m, 16)}<b>${nm(m)}</b><span style="color:var(--muted)">${manifEffectText(m) || 'barely registers'}</span></div>`).join('');
+  const SUM = { warmth:['Kind people come closer and give more', 'Kind people keep their distance'], fixers:['Fixers press useful things on you', 'Fixers leave you to it'],
+    unsettle:['Avoiders clear off when you arrive', 'Avoiders feel safe near you'], friction:['Judges have a lot to say about you', 'Judges let you be'],
+    exposed:['Opportunists are circling (watch your purse; prices up)', 'Opportunists find nothing to work with'], clout:['People defer to you (prices down)', 'People talk over you'],
+    contagion:['Your mood spreads down the street', 'Your mood stays your own'], kids:['Children are drawn to you', 'Children are wary of you'], kin:['Wild Manifs warm to you faster', 'Wild Manifs bristle at you'] };
+  const top = Object.entries(P).filter(([, v]) => Math.abs(v) >= 3).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 4).map(([k, v]) => `<li>${SUM[k][v > 0 ? 0 : 1]}</li>`).join('');
+  return `<div style="border-top:1px dashed rgba(27,21,18,.3);margin:8px 0 4px;padding-top:6px"><b style="font-size:13px">How the world treats you</b>
+    <div style="font-size:12px;color:var(--muted);margin:2px 0 4px">Everything you carry counts, even the smallest. Each person notices one of your Manifs; the mix decides what they do.</div>${rows}
+    ${top ? `<ul style="font-size:12.5px;margin:6px 0 0 18px;padding:0">${top}</ul>` : ''}</div>`;
 }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
@@ -8090,7 +8168,7 @@ async function battle(foe, opt = {}) {
   const b = buildArena(typeOf(foe), final);
   if (V.groundFog) for (let k = 0; k < 10; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:fogTex, color:V.groundFog, transparent:true, opacity:V.fogOp * .8, depthWrite:false })); s.scale.set(9, 2.4, 1); s.position.set(rnd(-10, 10), .5, rnd(-9, -3)); arena.add(s); }
   const chorus = S.party.filter(m => m.hp > 0).slice(0, 3);
-  B = { foe, opt, final, chorus, models:new Map(), wedges:b.wedges, base:b.base, res:0, guard:new Set(), def:new Map(), atk:new Map(), numb:new Map(), foeDef:0, acting:null, fought:new Set(chorus), echo:1, turn:0, phase:1, still:0 };
+  B = { foe, opt, final, chorus, models:new Map(), wedges:b.wedges, base:b.base, res:(opt.owner || final || opt.heart) ? 0 : clamp(Math.round(worldProfile().kin * 1.5), 0, 25), guard:new Set(), def:new Map(), atk:new Map(), numb:new Map(), foeDef:0, acting:null, fought:new Set(chorus), echo:1, turn:0, phase:1, still:0 };
   FOE_POS.copy(FOE_HOME);
   if (opt.group && opt.group.length > 1 && !final) { const front = opt.group.slice(0, 3); B.reserve = opt.group.slice(3); B.group = front.map((m, i) => mkFoe(m, FOE_SLOTS[front.length][i])); useFoe(B.group[0]); }
   else { B.foeMax = Math.round(maxHp(foe) * (final ? 4.2 : opt.heart ? 2.7 : 1 + .45 * chorus.length)); foe.hp = B.foeMax;
