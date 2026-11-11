@@ -4590,7 +4590,7 @@ async function interact() {
   const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
   const w = wildAt(fx, fy); if (w) return startWild(w);
   const e = entAt(fx, fy);
-  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await e.talk(); return; }
+  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; VOICED = null; if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); await e.talk(); return; }
   const tl = tileAt(fx, fy);
   if (tl === 's') {
     if (S.map === 'vellum') { const g = Object.entries(GATES).find(([, g]) => g.sign[0] === fx && g.sign[1] === fy); if (g) { const t = GATE_TYPE[g[0]], T = TOWNS[t], Wt = WAYTOWNS[t]; await say(`This road: ${Wt.name} (Lv ${Wt.lv[0]}+), then ${ROUTES[t].name} (Lv ${ROUTES[t].lv[0]}+), then the city of ${T.name}, ruled by ${TYPES[t].name} (Lv ${T.lv[0]}+).${S.hearts[t] ? ' Its Heart has settled.' : ''}`); } }
@@ -5207,7 +5207,7 @@ async function moodPreTalk(e) {
     if (famT === 'SADNESS') { await sayE(pickA(['(They don\'t look up.) Oh. Hi. Sorry. I don\'t really... I don\'t have much to say today. Or most days.', '(A long breath.) Everything takes so long now. Getting up. Getting dressed. Talking. Sorry.', 'I keep thinking it\'ll lift. It doesn\'t lift.', '(They\'re crying, quietly, and don\'t seem to notice.) What did you need?', 'It\'s raining again. It\'s always raining. I stopped carrying an umbrella. What\'s the point.'])); return; }
     if (famT === 'ANGER') { await sayE(pickA(['WHAT. What do you want?', 'Make it quick. I\'ve had it up to here with everyone today.', '(They jab a finger at your chest.) You\'re not from here. I can tell. Nobody from here smiles like that.', 'Don\'t. Just don\'t. Whatever it is, the answer\'s no.', 'Everyone in this city is an idiot. Present company probably included.'])); return; } }
   if (!playerThreat() && isFolk(e) && !isChild(e) && fierceDark() && !(MOOD.eyed = MOOD.eyed || {})[key] && Math.random() < .45) { MOOD.eyed[key] = 1; const m = fierceDark();
-    await sayE(pickA([`(They glance at your ${nm(m)}, then at you, and relax.) Bit of a storm cloud, that one. You seem alright, though.`, `That ${nm(m)} of yours has a look about it. Good thing it's with someone kind.`, `(A wary look at your ${nm(m)}. Then a small smile for you.) You keep that one close, alright?`])); return; }
+    await sayVoice(e, m); return; }
   if (savedHere() && wouldSnub(e)) return;   // the ungrateful don't thank you first (auraPreTalk deals with them)
   if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
   if (mood === 'relieved') await sayE(pickA(['It feels like I can breathe again.', 'Did you hear? The Heart settled! The whole street\'s been crying and laughing all morning.', '{name}! People are saying it was you who settled the Heart.']));
@@ -5923,8 +5923,8 @@ function nearestAdult(e) { let best = null, bd = 1e9; for (const a of ents(S.map
 async function childTalk(e, z, town, menace) {
   S.kidTalks = S.kidTalks || {}; const key = S.map + ':' + e.id, n = (S.kidTalks[key] = (S.kidTalks[key] || 0) + 1);
   const adult = nearestAdult(e), who = adult && adult.name ? adult.name : 'A grown-up';
-  if (z.x === 'shadow' && z.read === 'hurt') return say('Child: ' + deal('kidtender:' + hurtFam(), KID_TENDER[hurtFam()]));
-  { const P = worldProfile(); if (P.kids >= 4 && z.read !== 'menace' && once('kidgift:' + key)) { S.items.cake = (S.items.cake || 0) + 1; await say('Child: ' + deal('kid', KID_LINES)); return say('(The child presses a slightly squashed honey cake into your hand, then runs off giggling.)'); }
+  if (z.x === 'shadow' && z.read === 'hurt') return S.party.length ? sayVoice(e) : say('Child: ' + deal('kidtender:' + hurtFam(), KID_TENDER[hurtFam()]));
+  { const P = worldProfile(); if (P.kids >= 4 && z.read !== 'menace' && once('kidgift:' + key)) { S.items.cake = (S.items.cake || 0) + 1; if (S.party.length) await sayVoice(e); else await say('Child: ' + deal('kid', KID_LINES)); return say('(The child presses a slightly squashed honey cake into your hand, then runs off giggling.)'); }
     if (P.kids <= -4 && z.read !== 'menace' && n === 1) return say('(The child takes one look at you and hides behind the nearest grown-up\'s legs.)'); }
   if (z.x === 'shadow') {
     if (n < 2) { await say(deal('kiduneasy', ['(The child goes quiet when you come close, and looks around for someone.)', '(The child takes a small step back.)', '(The child\'s smile slips. They grip their sleeve.)'])); return; }
@@ -7931,7 +7931,7 @@ async function reactFolk(e, read, fam, sayE) {
   const deck = (REACT6[nf] || REACT6.CALM)[pt], line = intense ? deck[2] : deck[(S.steps + e.id.length) % 2];
   if (mr) { await sayManifReaction(e, mr); if (!mr.spoken && pt !== 'avoider' && Math.random() < .5) await sayE(line); } else await sayE(line);
   const second = blendFam(fam), bl = second && BLEND[fam + '+' + second];
-  if (bl && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .5) await sayE(bl);
+  if (bl && !mr && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .5) await sayE(bl);
   const key = S.map + ':' + e.id, hurt = read === 'hurt', roll = Math.random();
   if (pt === 'kind' && roll < pchance(.1, .05, P.warmth) + (hurt ? .25 : 0)) { const k = pickA(nf === 'FEAR' ? ['salts', 'cake', 'charm'] : ['cake', 'cake', 'tonic', 'charm']); S.items[k] = (S.items[k] || 0) + 1; return say(`(They press a ${ITEMS[k].name} into your hand and won't take it back.)`); }
   if (pt === 'fixer' && nf === 'SADNESS' && intense && roll < .5) { await say('(After a while they run out of things to say, and drift off.)'); GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
@@ -8240,8 +8240,8 @@ function leadManif(fam) { let best = null, bv = -1;
 function manifReaction(e, fam) {
   const m = S.party.length ? noticedManif(e) : leadManif(fam); if (!m) return null;
   const id = String(m.sp).toUpperCase(), row = MANIF_REACT[id] || MANIF_REACT[(SPECIES[m.sp].name || '').toUpperCase()]; if (!row) return null;
-  const t = row[PT_COL[personOf(e)]]; if (!t) return null;
-  return { m, text:t, spoken:t.startsWith('"') };
+  // every person says their own line about it (h17): nobody shares one
+  return { m, text:'"' + voiceNext(e, m) + '"', spoken:true };
 }
 async function sayManifReaction(e, r) {
   if (!r.spoken) return say(r.text);
@@ -8510,6 +8510,310 @@ async function hatchImaginative() {
 async function useLioEgg() { const n = eggLeft();
   return say(n > 2000 ? `(The speckled egg is warm and faintly humming. Lio said it needs walking. About ${n} more steps.)` : n > 500 ? `(It wiggles when you hold it. Something in there is listening. About ${n} more steps.)` : `(It\'s rocking on its own now. Any minute. About ${n} more steps.)`); }
 Object.assign(ITEMS, { lioEgg:{ name:'Lio\'s Egg', key:true, fieldUse:useLioEgg, desc:'Warm and humming. It hatches after a long walk' } });
+// =============================================================================
+//  TELLS — what a person actually sees when one of your Manifs catches their eye.
+//  ID | something on you | something else on you | what the Manif itself is doing
+//  (the third reads after "your <Manif>": "your Amusement keeps winking at the pigeons")
+// =============================================================================
+const TELLS_SRC = `
+CONTENTMENT|the slow way you're breathing|that small easy smile|has curled up like a cat in a sunny window
+JOY|the bounce in your step|a grin you can't put away|keeps doing little hops on the spot
+EUPHORIA|the light coming off your shoulders|eyes far too bright for this hour|is floating a hand's width off the ground
+AMUSEMENT|the grin you keep swallowing|a laugh you haven't let out yet|keeps winking at the pigeons
+GLEE|the giggle hiding in your cheeks|that mischief all over your face|is trying very hard not to snort
+JUBILATION|the way you walk like there's a parade|your arms half up already|is humming a marching tune to itself
+WARMTH|a glow round you like a lit hearth|hands that look like they'd hold anything|is warming the cobbles where it stands
+GRATITUDE|that thank-you look in your eyes|the way you nod at everyone|keeps bowing to people for no reason
+RAPTURE|the faraway shine on you|a face like someone hearing music|is swaying with its eyes shut
+SATISFACTION|the set of a job well done in your shoulders|that quiet nod you keep giving yourself|is dusting off its hands
+PRIDE|the lift of your chin|how straight you're standing|is puffing its chest out at the lamp-post
+TRIUMPH|a winner's flush on your face|the swagger in your boots|is holding up an invisible trophy
+RADIANCE|a light that makes my shadow lean away|how bright your face has gone|is shining like a fresh-lit lamp
+WISHFULNESS|that dandelion look of yours|the way you keep glancing at the sky|is blowing on a wish it found somewhere
+OPTIMISM|the up-tilt of your mouth|a face that's already decided it'll be fine|keeps pointing at the brighter end of the street
+FAITH|that steady look in your eye|the way you hold your hands like a promise|is sitting very still and very sure
+INTEREST|your eyebrows halfway up|the way you lean in to everything|is sniffing at my shoes
+ANTICIPATION|that tapping foot of yours|the way you keep checking the road|is counting down on its fingers
+EAGERNESS|how you're nearly on your toes|a face that's already said yes|is straining like a dog on a lead
+COMFORT|the softness round your eyes|a look like a warm blanket|is tucking itself into your coat
+REASSURANCE|a calm that makes me want to sit down|the way you nod like it'll all be fine|keeps patting the air beside me
+TRUST|how open your hands are|that unguarded face|has walked right up to me without a flicker
+YEARNING|the way you keep looking past me|a reaching look, like there's a door you can't find|is stretching toward the horizon
+ASPIRATION|eyes fixed somewhere up high|the climb already in your shoulders|is standing on tiptoe at the top of the steps
+DEVOTION|the way you'd follow someone anywhere|a look that's given itself away|hasn't taken its eyes off you once
+ELEVATION|the lift in you, like you've just seen something good done|a face gone clear and kind|is hovering a little higher every minute
+EASE|how loose your shoulders are|that unhurried walk|is lounging like it owns the bench
+RELAXATION|your jaw finally unclenched|the long breath you just let out|has gone soft as dough
+TRANQUILITY|still water in your face|the hush that came in with you|is drifting like a leaf on a pond
+PATIENCE|that waiting-it-out look|how you let the world go first|is sitting with its paws folded, in no hurry
+COMPOSURE|not a hair out of place in you|that even, level voice|stands perfectly straight, like a good clerk
+EQUANIMITY|the way nothing seems to tip you|a balance in you like a full cup carried right|is balancing on one foot without a wobble
+STILLNESS|how still you've gone|a quiet like snowfall round you|hasn't moved since you got here
+CALMNESS|a calm I could set a clock by|that slow blink of yours|is breathing in time with the tide
+PEACEFULNESS|the peace sitting on your face|how gently you hold everything|has a little bird resting on it
+SURRENDER|hands open, let-go|the way you've stopped pushing|is floating on its back, eyes closed
+ACCEPTANCE|a face that's made its peace|that nod, like you've heard the worst and stayed|is sitting quietly with whatever comes
+CENTEREDNESS|feet planted like roots|a stillness right at the middle of you|is turning slowly round on one spot, perfectly level
+SERENITY|a face like a still lake at dawn|the deep quiet in your eyes|glows faintly, like moonlight on water
+POISE|the balance in how you stand|that measured way you move|has its head up like a dancer
+SELFASSURANCE|that easy, certain look|how you take up your space without asking|is strolling about like it lives here
+DIGNITY|the straight back on you|a quiet that doesn't need anyone's say-so|stands with its hands folded behind it
+BOLDNESS|that step-forward look|the dare in your eyes|is marching at a dog twice its size
+ASSERTIVENESS|your voice, clear as a bell|the way you hold the middle of the road|keeps raising its hand to speak
+DEFIANCE|the jut of your jaw|a no in your eyes before anyone's asked|is glaring at the Constable's notice
+RESOLVE|that set mouth of yours|the look of someone who's already decided|has dug its heels in
+GRIT|dust on you that you've earned|that teeth-gritted look|is pushing a stone twice its size up the lane
+ENDURANCE|the long-haul look on you|how you keep going without fuss|is plodding along like it could walk to the sea
+NERVE|steady hands in a shaky world|the way you don't flinch|is standing on the very edge of the well
+COURAGE|the brave set of your shoulders|that look like you'd step in front of something|is standing between you and the street
+VALOR|the shine on you, like a story about to happen|that knight-in-the-old-songs look|has a little banner, somehow
+CONVICTION|a certainty you could build a bridge on|the way you say things once and mean them|is nodding very firmly at nothing
+INTRIGUE|that sideways, interested look|the way your eyes keep catching on things|is peeking round the corner of the stall
+CURIOSITY|a head-tilt like a sparrow's|questions all over your face|is poking its nose into my basket
+FASCINATION|eyes that won't let go of anything|the way you've gone completely still to look|is staring at a spider web like it's a painting
+PUZZLEMENT|the frown of someone doing sums|that half-scratched head|is turning a pebble over and over
+CONFUSION|the which-way-is-up look on you|how you keep starting sentences|is walking in a small circle
+PERPLEXITY|that knot between your eyebrows|a face trying to fit a key in the wrong door|keeps opening its mouth and closing it again
+STARTLE|your shoulders still up round your ears|that just-jumped look|leaps every time a door bangs
+SHOCK|a face gone white as a sheet|how stiff you're standing|is frozen mid-step, eyes enormous
+ASTONISHMENT|your mouth still half open|eyes like saucers|keeps staring at its own hands
+WONDER|the starlight in your eyes|a face like the first snow|is gazing up at nothing, enchanted
+AMAZEMENT|that can-you-believe-it look|how you keep turning round to see|is clapping its hands at a puddle
+AWE|the hush on you, like you've seen a mountain|a look that's gone very small and very big at once|has gone silent, staring at the sky
+EPIPHANY|that lit-from-inside look|the face of someone who just understood something|has a little spark fizzing over its head
+WISTFULNESS|that faraway half-smile|the way you look at things like they're already memories|is gazing at an old window
+LONGING|a look that's reaching for someone not here|the way your hand keeps drifting to your pocket|keeps looking down the road someone left by
+HEARTBREAK|the crack running right through your voice|how carefully you're holding yourself together|is holding its chest like it might fall apart
+DISAPPOINTMENT|the drop in your shoulders|a face that hoped for more|keeps sighing at the ground
+DEJECTION|the way your head's gone down|how heavy your feet sound|is slumped against the wall
+DESPAIR|eyes that have stopped expecting anything|the weight you're carrying, right there in your back|has stopped moving at all
+MELANCHOLY|a grey-blue mood round you like weather|how slowly you're walking|is watching the rain that isn't falling
+SORROW|that wet, tired look|the sorrow sitting in your shoulders|keeps wiping its eyes
+GRIEF|the grief all over you, plain as a black armband|how far away you are right now|is holding something only it can see
+SOLITUDE|that keep-to-yourself look|the space you leave round you|has wandered off to sit alone by the wall
+LONELINESS|how lonely you look, even right here|the way you stand like there's nobody beside you|keeps looking for someone in the crowd
+DEPRESSION|how tired you are, all the way down|the grey that's settled on you|is lying flat and won't get up
+LAMENT|a sad song you're half humming|the mourning in your voice|is keening very softly, like wind in a chimney
+UNEASE|the way you keep glancing about|a crease of worry you haven't noticed|keeps looking over its shoulder
+WORRY|those chewed nails|the furrow in your brow|is wringing its little hands
+ANXIETY|your breathing, too quick|how tight you're holding your bag|is pacing up and down behind you
+NERVOUSNESS|the jitter in your knee|that tight little laugh|keeps hiding behind your leg
+ALARM|your eyes, wide and quick|the jump in you, like a bell's gone off|has its ears straight up
+PANIC|how fast your heart's going, I can almost hear it|the way you're ready to bolt|is running in circles
+SUSPICION|that narrow, sideways look|the way you check every face|is squinting at me very hard
+PARANOIA|how you keep checking behind you|the look of someone sure they're followed|is peering into every doorway
+HYSTERIA|that high, cracked laugh|hands that won't keep still|is shrieking at its own shadow
+APPREHENSION|that bracing-for-it look|how you hesitate at every step|keeps stopping before corners
+DREAD|the cold that came in with you|a face waiting for bad news|is staring at the dark end of the street
+TERROR|white knuckles and a white face|the way you've gone rigid|is trembling so hard it rattles
+HORROR|eyes that saw something they can't unsee|how your hands are shaking|has its hands clamped over its eyes
+ANNOYANCE|the tut you're holding in|that flicked-ear look|is stamping one foot
+IRRITATION|the twitch in your eye|how short your answers are getting|keeps scratching at itself
+EXASPERATION|that eyes-to-the-heavens look|the long, loud sigh|has thrown up its hands
+IMPATIENCE|your drumming fingers|the way you're leaning toward the door|is tapping the ground, tap tap tap
+FRUSTRATION|that clenched-fist look|how you nearly kicked that crate|is growling at a knot it can't undo
+HOSTILITY|the glare you're giving the whole street|that bristle down your back|is baring its teeth at the pigeons
+INDIGNATION|the how-dare-they look on you|cheeks gone red with it|is stamping off a list of wrongs
+BITTERNESS|that sour twist in your smile|the old grudge in your voice|is chewing on something that tastes awful
+SPITE|that narrow little smile|the look of someone keeping score|is kicking pebbles at the nearest door
+AGITATION|how you can't stand still|the snap in your voice|is fizzing like a pan about to spit
+ANGER|the heat coming off you|a jaw clenched like a vice|is smoking at the edges
+RAGE|the red in your face|fists you haven't noticed you've made|is shaking the air round it
+WRATH|a fury like a storm rolling in|the thunder in how you walk|has gone dark and huge and quiet
+SHYNESS|eyes that won't come up off the ground|how you half-hide behind your own hair|is peeking out from behind you
+SELFCONSCIOUSNESS|the way you keep checking your sleeves|that everyone-is-looking flinch|keeps tugging its own hem straight
+INSECURITY|that small, unsure voice|how you keep apologising|is making itself as little as it can
+AWKWARDNESS|the way you don't know where to put your hands|that stuck-halfway smile|has walked into the same post twice
+EMBARRASSMENT|the pink all up your neck|that oh-no look|is hiding its face in its hands
+MORTIFICATION|a face gone scarlet to the ears|the way you'd like the ground to swallow you|is trying to fold itself flat
+CONTRITION|the sorry written all over you|how you hold your hands, like asking pardon|keeps bowing its head
+GUILT|that look like you owe the whole street something|the weight on your back you won't name|keeps glancing at the Constable's door
+REMORSE|eyes that keep going back to something|the way you flinch at your own thoughts|is clutching something it wishes it hadn't done
+REGRET|a look that's living in last year|that if-only in your sigh|keeps looking back over its shoulder
+DISGRACE|how you won't lift your head|the way people's eyes slide off you|is standing apart, like it's been sent out of the room
+HUMILIATION|the burn still on your cheeks|how small you've made yourself|has pulled its hood right down
+SELFLOATHING|the way you flinch from your own reflection|a voice that's cruel only to you|keeps turning away from the shop glass
+DISTASTE|that wrinkled nose|the little lip-curl you think nobody sees|is holding its nose at the gutter
+AVERSION|how you step round things|that leaning-away look|keeps backing off from everything
+REPULSION|the shudder going right through you|a face that wants to scrub itself clean|is recoiling from the cobbles
+QUEASINESS|that green tinge round your mouth|the way you're swallowing hard|is wobbling, pale as tripe
+SQUEAMISHNESS|eyes squeezed half shut|how you won't look at the butcher's window|has its paws over its eyes
+ABHORRENCE|the revulsion stiff in your back|that look you'd give a rat in the bread bin|is turning its back on the whole street
+SCORN|that curled lip|the way you look down your nose|is sneering at the lamp-post
+DISDAIN|a cool look that goes right through people|that sniff of yours|has its nose stuck right up in the air
+CONTEMPT|eyes like you've already judged us|that half-laugh at everything|is looking at me like I'm something on its shoe
+DISLIKE|the thin smile you're making yourself do|how you keep your distance|keeps edging away from people
+RESENTMENT|the old grievance hanging off you|that tight jaw when anyone says thanks|is muttering under its breath
+HATE|a hatred I can feel on my skin|eyes like a shut door|is glaring a hole in the wall
+LOATHING|the loathing coming off you in waves|that cold, flat stare|has gone stiff and black and bristling
+LOVE_X|every feeling at once on your face|a glow that isn't any one colour|is holding everyone's eyes like a hug
+CURIO_X|a paper crown, I swear, just for a second|the look of someone who knows the floor is lava|is knighting a cat with a cardboard sword
+`;
+const TELLS = {};
+for (const ln of TELLS_SRC.trim().split('\n')) { const [id, a, b, c] = ln.split('|'); TELLS[id.trim()] = [a, b, c]; }
+// =============================================================================
+//  VOICES — every person in the Welkin has their own five things to say about each
+//  Manif you carry. Nobody shares a line.
+//  Each person is handed a life the first time you meet them: someone they love, a pet,
+//  a place they go, a day they remember, a thing someone once told them. Each of their five
+//  lines leans on a different piece of that life, so their lines are theirs alone, and the
+//  Manif they notice decides what they say. Talk to them again and they say the next one.
+//  Real people (real:true) and children get lives that suit them.
+// =============================================================================
+const V_NAMES = ['Halloran', 'Ottilie', 'Bertram', 'Wilhelmina', 'Corrin', 'Petra', 'Ansel', 'Maude', 'Lorcan', 'Ysolde', 'Tobiah', 'Gwenna', 'Rowan', 'Delphine', 'Barnaby', 'Isolde',
+  'Fenwick', 'Marigold', 'Osric', 'Clementine', 'Hollis', 'Rosalind', 'Jasper', 'Edda', 'Linus', 'Philippa', 'Cormac', 'Henrietta', 'Ambrose', 'Sorrel', 'Quentin', 'Imelda',
+  'Rafferty', 'Winifred', 'Leopold', 'Agatha', 'Emrys', 'Beatrix', 'Florian', 'Hester', 'Lucius', 'Nell', 'Caspian', 'Theodora', 'Wystan', 'Briony', 'Oswin', 'Millicent',
+  'Peregrine', 'Tamsin', 'Godfrey', 'Juniper', 'Alaric', 'Esme', 'Horatio', 'Primrose', 'Ignatius', 'Rosamund', 'Benedick', 'Lettice', 'Crispin', 'Ione', 'Ellery', 'Mathilde',
+  'Hamish', 'Cordelia', 'Ulric', 'Bryony', 'Lysander', 'Constance', 'Emmerich', 'Dorcas', 'Tristram', 'Elspeth', 'Gareth', 'Philomena', 'Hugo', 'Ottoline', 'Silas', 'Verity',
+  'Mordecai', 'Araminta', 'Wendel', 'Perpetua', 'Lambert', 'Cressida', 'Anselm', 'Iolanthe', 'Barnabas', 'Thomasina'];
+const V_KIN = ['brother', 'sister', 'grandmother', 'grandfather', 'aunt', 'uncle', 'cousin', 'oldest friend', 'neighbour', 'son', 'daughter', 'old teacher'];
+const V_ANIMALS = ['goat', 'tabby', 'lurcher', 'hen', 'donkey', 'tortoise', 'jackdaw', 'ferret', 'old hound', 'canary', 'pony', 'rabbit', 'carp', 'sheepdog', 'mule', 'barn owl', 'piglet', 'one-eyed cat'];
+const V_PETNAMES = ['Parsnip', 'Biscuit', 'Mustard', 'Duchess', 'Pudding', 'Bramble', 'Turnip', 'Captain', 'Nettle', 'Sixpence', 'Crumpet', 'Bishop', 'Marmalade', 'Wellington', 'Thimble', 'Gristle',
+  'Pepper', 'Admiral', 'Dumpling', 'Socks', 'Tuppence', 'Gherkin', 'Mabel', 'Sergeant', 'Kipper', 'Treacle', 'Noodle', 'Barley', 'Clove', 'Toffee', 'Wicket', 'Soot', 'Pickle', 'Buttons',
+  'Bodkin', 'Figgy', 'Rumble', 'Nutmeg', 'Hobnob', 'Pipkin', 'Dandelion', 'Sprout', 'Cobble', 'Scone', 'Mittens', 'Puddle', 'Wafer', 'Brisket', 'Cinder', 'Juniper', 'Ladle', 'Inkpot',
+  'Bonnet', 'Clatter', 'Smudge', 'Trumpet', 'Fidget', 'Lentil', 'Paddock', 'Saffron', 'Gravy', 'Bucket', 'Velvet', 'Teacup'];
+const V_SHOPS = ['blue-doored bakery', 'leaning chandler\'s', 'old rope-walk', 'tannery yard', 'cobbler\'s with the red boot sign', 'tea-room with the cracked bell', 'pawnshop', 'well-house',
+  'apothecary with the green jars', 'dye-works', 'bell foundry', 'net loft', 'bookbinder\'s', 'coaching inn', 'little chapel', 'clock-mender\'s', 'pie shop', 'cooperage', 'wash-house',
+  'lamplighter\'s shed', 'button shop', 'boarded-up theatre', 'hat shop', 'bathhouse', 'printing works', 'seed merchant\'s', 'smithy', 'candle factory', 'map shop', 'pigeon loft', 'glovemaker\'s', 'fishmonger\'s'];
+const V_STREETS = ['Tallow Lane', 'Gull Steps', 'Pennywhistle Row', 'Ash Yard', 'Lantern Street', 'Crook Alley', 'Mill Rise', 'Saltpan Walk', 'Thimble Court', 'Old Weir Road', 'Bellrope Lane',
+  'Hemlock Close', 'Cinder Row', 'Quill Street', 'Goose Green', 'Wicker Lane', 'Copper Hill', 'Mortar Steps', 'Rook Lane', 'Fennel Row', 'Slate Street', 'Herring Quay', 'Bramble Walk', 'Kiln Lane',
+  'Tinker\'s Cut', 'Marrow Street', 'Lark Rise', 'Button Lane', 'Gallows Hill', 'Orchard Row', 'Spindle Court', 'Weavers\' Yard', 'Cobweb Alley', 'Postern Lane'];
+const V_WHENS = ['the winter', 'the spring', 'the summer', 'the autumn', 'the year', 'the week', 'the night', 'the morning', 'the day', 'the month', 'the fortnight', 'the harvest', 'the evening', 'the Midsummer', 'the Twelfth Night', 'the wet season', 'the long dry', 'the feast week'];
+const V_EVENTS = ['the canal froze solid', 'the bell tower fell', 'the circus came through', 'my first boots wore out', 'the mill burned', 'the river flooded the square', 'the comet came',
+  'the bridge washed out', 'I learned to read', 'the Constable lost his hat in the well', 'the fair had an elephant', 'the bakery ran out of flour', 'the lamps all went out at once',
+  'the ferry sank with the mail', 'it snowed in June', 'the orchard gave twice', 'the whole street had the coughs', 'the old Heart flickered', 'I nearly married a sailor', 'the trains first came',
+  'the gulls stole the Mayor\'s pie', 'the fog didn\'t lift for nine days', 'the choir won the cup', 'the school roof blew off', 'the herring came in silver', 'the road to Vellum closed',
+  'the clocks all stopped', 'the pond turned pink', 'the travelling dentist came', 'the cows got into the chapel', 'the well ran sweet', 'the lighthouse keeper retired', 'the new bridge opened',
+  'a whale washed up at Saltmere', 'the brewery caught fire', 'the hospital got its new wing', 'we buried the time-box', 'the Archive opened its doors to everyone', 'the post came by balloon', 'the twins were born',
+  'the stationmaster grew his beard', 'the hailstones were big as eggs', 'my roof finally got mended', 'the bees swarmed the chapel', 'the market moved to the square', 'the Hush first came close',
+  'the swans nested on the mill race', 'the street had its first gas lamp', 'the tide went out and didn\'t come back for a day', 'the wedding with the runaway goat', 'the chimney sweep fell in love',
+  'the band played till sunrise', 'we found the old coins in the wall', 'the rain came through the ceiling', 'the strawberries were the size of fists', 'the hermit came down from the hill'];
+const V_WHO = ['my mother', 'my father', 'my nan', 'the old ferryman', 'my first master', 'a sailor I knew', 'the midwife', 'the schoolmistress', 'a priest up the coast', 'the woman at the well',
+  'my old landlord', 'the lamplighter', 'a bargeman', 'the bell-ringer', 'my godmother', 'the shepherd up the hill', 'a clockmaker', 'the old Mayor', 'a woman on the ferry', 'the glassblower', 'the coal man', 'a ship\'s cook', 'the doorkeeper at the Archive', 'my best friend\'s mother', 'a fortune-teller once', 'my granddad', 'the cook at the inn', 'a soldier I nursed', 'the knife-grinder', 'my first sweetheart', 'the night watchman',
+  'an old drover', 'the ragman', 'my aunt', 'a travelling tinker', 'the apothecary'];
+const V_SAYINGS = ['a full kettle never sulks', 'the tide doesn\'t ask permission', 'you can\'t hurry bread', 'every roof leaks somewhere', 'boots tell more than faces', 'a kind word costs no Marks',
+  'nobody drowns in a puddle they can see', 'weather passes, so do people', 'mend it before it\'s broken', 'the loudest gull eats last', 'keep one candle for the dark', 'a crooked fence still holds',
+  'you don\'t get to choose your rain', 'never trust a dry fisherman', 'the knot comes out if you stop pulling', 'the kettle\'s friend is patience', 'there\'s always room on a bench',
+  'what you feed grows', 'sing when you\'re lost', 'carry less and walk further', 'the moon doesn\'t argue with the dark', 'you can\'t steer a boat that isn\'t moving', 'everyone\'s somebody\'s', 'look after the small things',
+  'the sea keeps what it\'s given', 'go round, not through', 'the oldest roads are the kindest', 'nobody ever regretted a nap', 'there\'s no such thing as a spare hand', 'mud washes off, words don\'t'];
+// children
+const V_KIDKIN = ['big sister', 'little brother', 'gran', 'grandpa', 'best friend', 'cousin', 'baby sister', 'big brother', 'mum', 'dad', 'auntie', 'friend from school'];
+const V_KIDSPOTS = ['the den', 'the secret tree', 'the hole in the fence', 'the bit under the bridge', 'the top of the wall', 'the haunted shed', 'the old boat', 'the bramble fort', 'the rock pool',
+  'the hay loft', 'the cave', 'the step behind the chapel'];
+const V_KIDGAMES = ['knights and dragons', 'pirates', 'statues', 'hide and seek', 'shops', 'the floor is lava', 'tag', 'witches', 'kings and queens', 'ghosts', 'treasure hunters', 'sea monsters', 'marbles', 'conkers', 'hopscotch'];
+// real people: nothing invented about their families
+const V_THINGS = ['the chipped green mug', 'a pencil worn down to a stub', 'a pocket full of sea glass', 'a dog-eared notebook', 'the lucky button', 'a pressed flower in a book', 'a scarf with one stripe too many',
+  'a tin of travel sweets', 'the pebble with a hole in it', 'a key that opens nothing', 'a library card three years overdue', 'a spare sock, just in case'];
+const V_SKY = ['clouds like dumplings', 'a sky the colour of dishwater', 'that pink you get before rain', 'one star out early', 'gulls going home', 'a moon left over from last night', 'the wind turning round',
+  'sun through the drizzle', 'a sky like an old blue plate', 'the smell of a storm a long way off', 'swallows flying low', 'fog sitting in the dips'];
+const V_HABITS = ['counting steps', 'naming the clouds', 'humming the same three notes', 'collecting odd stones', 'drawing on my hand', 'keeping a list of good things', 'saying goodnight to the moon',
+  'tidying when I\'m nervous', 'talking to plants', 're-reading the last page first', 'doing sums in my head', 'stopping for every cat'];
+
+const FEEL = { JOY:'that happy', HOPE:'that hopeful', CALM:'that calm', CONFIDENCE:'that sure of themselves', SURPRISE:'that wide-eyed', SADNESS:'that low', FEAR:'that frightened', ANGER:'that angry',
+  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe' };
+
+// mixed-radix allocation: person n always gets combination n of a pool, scattered by a stride coprime to its size
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+function vPick(n, sizes, salt) { const tot = sizes.reduce((a, b) => a * b, 1); let st = 7919 + salt * 104729; while (gcd(st, tot) !== 1) st++; let i = (n * st + salt * 31) % tot; return sizes.map(s => { const v = i % s; i = Math.floor(i / s); return v; }); }
+
+function voiceKind(e) { return e.real || ['wren', 'maribel'].includes(e.id) ? 'real' : isChild(e) ? 'child' : (personOf(e) || 'kind'); }
+function voiceOf(e) {
+  S.voice = S.voice || { n:0, ids:{}, c:{} }; const key = S.map + ':' + e.id;
+  const n = S.voice.ids[key] != null ? S.voice.ids[key] : (S.voice.ids[key] = S.voice.n++);
+  const [ka, kb] = vPick(n, [V_KIN.length, V_NAMES.length], 1), [pa, pb] = vPick(n, [V_ANIMALS.length, V_PETNAMES.length], 2), [sa, sb] = vPick(n, [V_SHOPS.length, V_STREETS.length], 3);
+  const [wa, wb] = vPick(n, [V_WHENS.length, V_EVENTS.length], 4), [ya, yb] = vPick(n, [V_WHO.length, V_SAYINGS.length], 5);
+  const [ca, cb] = vPick(n, [V_KIDKIN.length, V_NAMES.length], 6), [da, db] = vPick(n, [V_KIDSPOTS.length, V_KIDGAMES.length], 7);
+  const [ta, tb] = vPick(n, [V_THINGS.length, V_SKY.length], 8), [ha] = vPick(n, [V_HABITS.length * 97], 9);
+  const kinN = V_NAMES[kb], petN = V_PETNAMES[pb];
+  return { n, key,
+    kin:`my ${V_KIN[ka]} ${kinN}`, kinN, kinW:V_KIN[ka],
+    pet:`my ${V_ANIMALS[pa]} ${petN}`, petN, petA:V_ANIMALS[pa],
+    place:`the ${V_SHOPS[sa]} on ${V_STREETS[sb]}`,
+    mem:`${V_WHENS[wa]} ${V_EVENTS[wb]}`,
+    who:V_WHO[ya], saying:V_SAYINGS[yb],
+    kkin:`my ${V_KIDKIN[ca]} ${V_NAMES[cb]}`, kkinN:V_NAMES[cb], kspot:V_KIDSPOTS[da], kgame:V_KIDGAMES[db],
+    thing:V_THINGS[ta], sky:V_SKY[tb], habit:V_HABITS[ha % V_HABITS.length], hn:Math.floor(ha / V_HABITS.length) + 2 };
+}
+
+// Five slots per kind of person; each slot has three frames. Which frame is used depends on the
+// person and the Manif, so the same person words things differently for different feelings.
+// {t1} {t2} what they see on you · {act} what the Manif's doing · {M} its name · {feel} "that happy" etc.
+const VT = {
+  kind:[
+    ['{T1}. {Kin} gets {feel} sometimes, and I always put the kettle on. Kettle\'s on, if you want it.', 'Oh, love. {T2}. Sit a minute. I\'ll tell you about {kin} while you get your breath.', 'Your {M} {act}. {Kin} would adore that. I\'ll tell them about you tonight.'],
+    ['{T1}, eh? Go to {place} and tell them I sent you. They\'ll feed you twice.', 'I was just at {place} thinking someone should have a good day. Looks like it\'s you, with {t2}.', 'If it all gets too much, {place} has a back step nobody uses. Lovely and quiet. Bring your {M}.'],
+    ['Your {M} {act}. {Pet} does exactly that when it\'s pleased with me.', '{T1}. You remind me of {pet}, the way it looks at me first thing. That\'s a compliment.', 'I\'ll bring {pet} to meet your {M} one day. {T2}: they\'d get on.'],
+    ['{Mem}, I had {t1} too. It came good in the end. It will for you.', 'I remember {mem}. Everyone was {feel}. We got each other through it. That\'s all you need: someone.', 'Seeing {t2} takes me back to {mem}. I hope yours ends as well as mine did.'],
+    ['{Who} used to say {saying}. Look at you, with {t1}. I think it\'s true of you.', '{T2}. {Who} always said {saying}. Don\'t forget it.', 'You know, {who} told me {saying}, and I didn\'t understand till just now, watching your {M}.'] ],
+  fixer:[
+    ['{T1}. Right: what you need is a list. {Kin} lives by lists. Write down three things and do one.', '{Kin} had {t2} last spring. Early nights and porridge, that\'s what sorted it. Try it.', 'Your {M} {act}. Practical solution: give it a job. {Kin} swears by that.'],
+    ['{T1}? Go to {place}. Ask for the strong tea. Don\'t argue. Thank me later.', 'I\'ll tell you what fixes {t2}: a walk to {place} and back. Twice if it\'s bad.', 'They sell a tonic at {place} for exactly this. Your {M} won\'t like it. Drink it anyway.'],
+    ['When {petN} gets {feel}, I take {pet} out for a long walk. Same rule for your {M}.', '{T1}. {Pet} gets like that. Routine, that\'s the answer. Same time every day.', 'If your {M} were {pet}, I\'d say: feed it, walk it, early to bed. Probably works on you too.'],
+    ['{Mem}, everyone got {feel}. You know what worked? Getting on with it. Start now.', 'I got through {mem} by making myself useful. {T2}: same medicine.', 'Look, I\'ve seen {t1} before, {mem}. There\'s a fix for it. Keep busy, keep fed, keep moving.'],
+    ['{Who} said {saying}. That\'s your answer, with {t1}. Off you go.', 'Here\'s some free advice from {who}: {saying}. Apply it to your {M}.', '{T2}. Remember: {saying}. {Who} taught me that and I\'ve never needed another rule.'] ],
+  avoider:[
+    ['Oh. {T1}. I, er, I promised {kin} I\'d be home by now. Sorry.', 'Your {M} {act}. That\'s... nice. {Kin}\'s expecting me. Bye.', 'Sorry, {kin} needs me. Right now. {T2}, though. Take care.'],
+    ['I\'m just on my way to {place}. Can\'t stop. {T1}. Good luck with that.', '{T2}. Right. I\'ll be at {place} if... no, I won\'t. Never mind.', 'Is that your {M}? It {act}. I think I left something at {place}.'],
+    ['{Pet} hasn\'t been fed. I should go. Your {M} {act}, by the way.', '{T1}... {pet} gets like that and I go and sit in the other room. No offence.', 'Sorry, I\'ve got to fetch {pet}. {T2}. Bye.'],
+    ['{T1}. Last time I saw that was {mem}. I don\'t like thinking about {mem}. Excuse me.', 'Ah. {Mem} had a lot of {t2} in it. I\'m going to go.', 'Your {M} {act}. Reminds me of {mem}. I\'ll be off.'],
+    ['{Who} always said {saying}. So I\'m going round you. Sorry.', '{T1}. Mm. {Who} said {saying}. I\'m going to take that advice.', 'Right. {Saying}, as {who} used to say. Bye now.'] ],
+  judge:[
+    ['{T1}. {Kin} would never carry on like that in the street.', 'If {kin} saw {t2}, they\'d have words with you. So will I. Pull yourself together.', 'Your {M} {act}. In public. {Kin} would be scandalised, and so am I.'],
+    ['They don\'t let people in at {place} looking like that. {T1}. Have some standards.', '{T2}? Don\'t bring that into {place}. Some of us go there for peace.', 'I saw your {M} at {place} yesterday. It {act}. Disgraceful.'],
+    ['Even {pet} has more self-control than your {M}.', '{T1}. I trained {pet} out of that in a week. You\'re older than {petN}.', 'Your {M} {act}. If {pet} did that, no supper.'],
+    ['We didn\'t carry on like that {mem}. {T1}. Honestly.', 'I lived through {mem} and never once showed {t2} in the street.', '{Mem}, people had real problems. Your {M} {act}. Get some perspective.'],
+    ['{Who} said {saying}. Clearly nobody told you. {T1}.', '{T2}. {Saying}, as {who} said. Think on.', '{Who} warned me about people like you. {Saying}. Your {M} proves it.'] ],
+  opportunist:[
+    ['{T1}. {Kin} sells exactly the thing for that. Very reasonable. For you.', 'You know who\'d love to meet your {M}? {Kin}. Small fee for the introduction.', '{T2}. People like you are good for business. {Kin} always says so.'],
+    ['{T1}? They do a cure at {place}. I get a cut, but you didn\'t hear that from me.', 'I\'ll walk you to {place} for a couple of Marks. Shortcut. Your {M} {act}, by the way: valuable, that.', 'Bring that {M} to {place} later. I know a fellow who\'d pay to see it.'],
+    ['{Pet} would fetch a price, but your {M}? That {act}. That\'s money.', '{T1}. Tell you what: {pet} for your {M}, straight swap. No? Worth asking.', 'I could teach your {M} the tricks I taught {pet}. Daily rate. Very fair.'],
+    ['Last time I saw {t1} was {mem}. Made a fortune that year. Just saying.', '{Mem}, everyone was {feel}. Best trade I ever had. You understand.', '{T2}. Ah, reminds me of {mem}. Good times. Profitable times.'],
+    ['{Who} said {saying}. I say: a person with {t1} is a person with an open purse.', '{Saying}, {who} said. True. Also true: your {M} {act}, and that\'s worth something.', '{T2}. {Who} taught me {saying}. They also taught me to spot an opening.'] ],
+  mirror:[
+    ['Oh, {t1}! Now I\'ve got it too. Wait till {kin} sees me.', 'Your {M} {act}, and now I want to as well. {Kin} won\'t know what\'s got into me.', '{T2}. It\'s catching. I\'m going to give it to {kin} at supper.'],
+    ['I\'m going to carry {t1} all the way to {place} now. Thanks for that.', 'Ha, look at me, {feel} as well. They\'ll notice at {place}.', 'Your {M} {act}. I\'ll be doing that at {place} all afternoon.'],
+    ['{T1}. Now I\'ve got it, and {pet} will catch it off me by teatime.', 'Your {M} {act}. Watch: {pet} will be at it next.', 'I feel {feel} now too. {Pet} won\'t know what\'s happening.'],
+    ['{T1}... that\'s just how I felt {mem}. All of it, coming right back.', 'Your {M} {act}. Like {mem}. I can feel it again.', 'Oh, {t2}. I\'ve gone {feel} too, like {mem}.'],
+    ['{Who} said {saying}. And now I\'ve got {t1} too. Funny how it goes round.', '{Saying}, {who} said. Your {M} {act}, and I\'m doing it too.', '{T2}. I\'ve caught it. {Who} would laugh: {saying}.'] ],
+  child:[
+    ['Your {M} {act}! I\'m going to tell {kkin}! They won\'t believe me!', '{T1}! {KKin} does that face. Exactly that face.', '{KKin} says a {M} that {act} is the best kind. Is it?'],
+    ['Your {M} {act}! {Pet} does that too!', '{T1}. Can your {M} meet {pet}? Please?', 'I\'m going to teach {pet} to do what your {M} does. It {act}.'],
+    ['I\'m going to show your {M} {kspot}. Only me and {kkin} know about {kspot}. Don\'t tell.', 'Can your {M} play {kgame} with me and {kkin} at {kspot}? It {act}, so it\'s probably good at {kgame}.', '{T2}. You can be on my side for {kgame} at {kspot}. {KKin} always cheats.'],
+    ['{Mem}, I was {feel} too. Your {M} {act}. I remember!', 'You\'ve got {t1}. I had that {mem}. Everybody did.', 'Your {M} {act}. That\'s the best thing since {mem}.'],
+    ['{Who} says {saying}. Your {M} {act}. Is that the same?', '{T2}. {Who} told me {saying}. I think it\'s about you.', 'I drew your {M} in the dirt. It {act}. {Who} says {saying}, so I drew it twice.'] ],
+  real:[
+    ['{T1}. Here, hold {thing} a minute. Helps, sometimes. Look at that: {sky}.', 'Your {M} {act}. I\'ve been carrying {thing} around all week, watching {sky}. Maybe it was for this.', '{T2}. I\'d give you {thing}, but you\'d have to give it back. Anyway. {Sky}.'],
+    ['Have you been to {place}? Go with your {M}. It {act}; they\'d love it.', '{T1}. I nearly went into {place} today. I\'ll take you.', '{T2}. Meet me at {place} sometime. Bring your {M}.'],
+    ['{T1}. I remember {mem}. It turned out all right. You will too.', 'Your {M} {act}. Like {mem}, a bit. Good days, those.', '{Mem}, I had {t2} too. I\'m glad you\'re here.'],
+    ['{Who} told me once that {saying}. Look at your {M}. It {act}.', '{T1}. You know what {who} said? {Saying}. Still you under there, though.', '{T2}. {Who} said {saying}. I\'m glad it\'s you carrying it.'],
+    ['I keep {thing} for days with {sky}. And for you, with {t1}.', 'Your {M} {act}, and there\'s {sky}, and I\'ve got {thing}. All\'s well.', '{T2}. Come find me later. I\'ll show you {thing}. {Sky}, too.'] ],
+};
+VT.fair = VT.kind;
+
+const VB = s => s.charAt(0).toUpperCase() + s.slice(1);
+// The person-specific line about one Manif. idx 0-4.
+function voiceLine(e, m, idx) {
+  const v = voiceOf(e), sp = m.sp, d = SPECIES[sp], t = TELLS[String(sp).toUpperCase()] || TELLS[(d.name || '').toUpperCase()] || ['that look on you', 'the feeling coming off you', 'is watching me'];
+  const kind = voiceKind(e), slots = VT[kind] || VT.kind; let h = 2166136261; for (const ch of v.key + '|' + sp) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const fr = slots[idx % 5][(h + idx) % 3], act2 = t[2].replace(/^is /, 'is ').replace(/^has /, 'has ');
+  const rep = { t1:t[0], t2:t[1], act:t[2], act2, M:nm(m), feel:FEEL[d.type] || 'like that', kin:v.kin, place:v.place, pet:v.pet, petN:v.petN, mem:v.mem, who:v.who, saying:v.saying,
+    kkin:v.kkin, kkinN:v.kkinN, kkinW:v.kkin.replace(/^my /, '').replace(/ \S+$/, ''), kspot:v.kspot, kgame:v.kgame, thing:v.thing, sky:v.sky, habit:v.habit, hn:v.hn };
+  return fr.replace(/\{(\w+)\}/g, (_, k) => { if (k === 'M') return rep.M; const lk = k.charAt(0).toLowerCase() + k.slice(1); let val = rep[k] != null ? rep[k] : rep[lk] != null ? rep[lk] : rep[k.toLowerCase()];
+    if (val == null) { console.warn('voice key', k); return ''; } val = String(val); return /^[A-Z]/.test(k) ? VB(val) : val; });
+}
+// Next of a person's five lines about the Manif they notice. Advances on each talk.
+let VOICED = null;
+function voiceNext(e, m) {
+  S.voice = S.voice || { n:0, ids:{}, c:{} }; const ck = S.map + ':' + e.id + ':' + m.sp; const i = S.voice.c[ck] || 0; S.voice.c[ck] = (i + 1) % 5;
+  VOICED = S.map + ':' + e.id; return voiceLine(e, m, i);
+}
+const isPerson = e => e && !e.item && !e.note && !e.invisible && !e.body && !e.numb && !e.manif && !e.sign && !e.door && (e.look || e.model && e.name || e.real) && (e.name || isFolk(e));
+async function sayVoice(e, m) { m = m || (S.party.length ? noticedManif(e) : null); if (!m) return; await say(`${e.name || 'They'}: ${voiceNext(e, m)}`); }
+// After the aura talk: anyone who hasn't yet said something about your Manifs this time does.
+async function voicePreTalk(e) {
+  if (!isPerson(e) || !S.party.length || S.flags.ruin || S.flags.doom && S.flags.hushDone) return;
+  if (VOICED === S.map + ':' + e.id) return; await sayVoice(e);
+}
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
