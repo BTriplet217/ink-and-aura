@@ -1687,16 +1687,16 @@ function animPerson(g, moving, t, dt) {
   if (u.kayak) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = -.4; const p = Math.sin(t * 3.2);
     u.arms[0].rotation.set(-1.25 - p * .3, 0, -.15); u.arms[1].rotation.set(-1.25 + p * .3, 0, .15); for (const a of u.arms) a.userData.el.rotation.x = -.5; return; }
   if ((u.ready || u.swing != null) && !u.sit) { u.legs[0].rotation.x = u.legs[1].rotation.x = 0; for (const h of u.legs) h.userData.knee.rotation.x = 0; u.inner.position.y = 0; u.inner.rotation.z = 0; }   // on her feet
-  if (u.ready && u.swing == null) { u.arms[1].rotation.set(-2.5, 0, .3); u.arms[1].userData.el.rotation.x = -.7; u.arms[0].rotation.set(-1.3, 0, -.25); u.arms[0].userData.el.rotation.x = -.5; return; }   // bat cocked over the shoulder
+  if (u.ready && u.swing == null) { u.arms[1].rotation.set(-.12, 0, .12); u.arms[1].userData.el.rotation.x = -.25; u.arms[0].rotation.set(0, 0, -.06); u.arms[0].userData.el.rotation.x = 0; return; }   // standing, bat down at her side
   else if (u.swing != null) { const k = u.swing; u.arms[1].rotation.set(-2.6 + k * 2.9, 0, .2); u.arms[1].userData.el.rotation.x = -.4; u.arms[0].rotation.set(-1.4 + k * 1.2, 0, -.2); return; }
-  if (u.inner.rotation.z) u.inner.rotation.z = 0; if (!u.kneel && u.inner.position.y) u.inner.position.y = 0;
+  if (u.inner.rotation.z) u.inner.rotation.z = 0; if (u.inner.rotation.x) u.inner.rotation.x = 0; if (!u.kneel && u.inner.position.y) u.inner.position.y = 0;
   if (u.kneel) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.3; for (const h of u.legs) h.userData.knee.rotation.x = 1.5; u.inner.position.y = -.2; for (const a of u.arms) a.rotation.x = -1.4; return; }
   u.wt = (u.wt || 0) + (moving ? dt * 9 : 0); const s = moving ? Math.sin(u.wt) : 0;
   u.legs[0].rotation.x += (s * .55 - u.legs[0].rotation.x) * .3; u.legs[1].rotation.x += (-s * .55 - u.legs[1].rotation.x) * .3;
   for (const [i, h] of u.legs.entries()) h.userData.knee.rotation.x = Math.max(0, (i ? -s : s)) * .5;
   if (u.grab && u.arms) { for (const a of u.arms) a.rotation.x += (-1.25 - a.rotation.x) * .3; return; }
   if (u.pose === 'idle' && u.arms) { const sway = Math.sin(t * 1.3 + u.ph) * .03; u.arms[0].rotation.x = moving ? -s * .45 : sway; u.arms[1].rotation.x = moving ? s * .45 : -sway; }
-  if (u.fists && u.arms && !moving) { const j = Math.sin(t * 7 + u.ph) * .08; for (const [i, a] of u.arms.entries()) { a.rotation.x = -.55 + (i ? j : -j); a.rotation.z = (i ? 1 : -1) * .25; a.userData.el.rotation.x = -1.5; } }   // fists up, bouncing
+  if (false && u.fists && u.arms && !moving) { const j = Math.sin(t * 7 + u.ph) * .08; for (const [i, a] of u.arms.entries()) { a.rotation.x = -.55 + (i ? j : -j); a.rotation.z = (i ? 1 : -1) * .25; a.userData.el.rotation.x = -1.5; } }   // fists up, bouncing
   else if (u.slump && u.arms) { for (const a of u.arms) { a.rotation.x = .05; a.userData.el.rotation.x = 0; } }                                         // arms just hanging
 }
 
@@ -5179,12 +5179,12 @@ function tickMood(dt, t) {
     MOOD.calmT[e.id] = (MOOD.calmT[e.id] || 0) + dt;
     if (step && MOOD.flee[S.map + ':' + e.id] && MOOD.calmT[e.id] > 2.2) tryStep(S.map, e, list, false);
     if (!isFolk(e)) { setEmote(g, null, false); continue; }
-    // Feelings show in bodies. In the Sadness lands people hang their heads or sit on the ground hugging their knees;
-    // in the Anger lands they stand chest-out with fists up, and some will shove you if you brush past.
+    // Feelings show in faces and bubbles. In the Sadness lands people's arms hang heavy;
+    // in the Anger lands they glower, and some will shove you if you brush past. Bodies stay upright: people stand, walk, lie down, or sit on something.
     if (fam === 'SADNESS' && !isChild(e)) { const u = g.userData;
-      if (u.sad == null) { u.sad = hsh(e.x * 3 + e.y, e.y, 7) < .3 && !MOOD.flee[S.map + ':' + e.id] ? 'sit' : 'slump'; if (u.sad === 'sit' && !e.walk) u.sit = true; u.slump = true; }
-      if (!u.sit) { inner.rotation.x += (.32 - inner.rotation.x) * .1; } setEmote(g, '…', ph < .45); continue; }
-    if (fam === 'ANGER' && !isChild(e)) { const u = g.userData; u.fists = true; inner.rotation.x += (-.1 - inner.rotation.x) * .1; setEmote(g, '!', ph < .3);
+      if (u.sad == null) { u.sad = 'slump'; u.slump = true; }   /* people stand, walk, lie down or sit on something: no leaning, no sitting on air */
+      setEmote(g, '…', ph < .45); continue; }
+    if (fam === 'ANGER' && !isChild(e)) { const u = g.userData; setEmote(g, '!', ph < .3);
       if (step && roam && canRun(e) && !(MOOD.shoved = MOOD.shoved || {})[e.id] && Math.abs(e.x - S.x) + Math.abs(e.y - S.y) === 1 && Math.random() < .25) { MOOD.shoved[e.id] = 1; runScript(() => angryShove(e)); }
       continue; }
     const happy = mood === 'relieved' || mood === 'joyful' || mood === 'hopeful', pop = ph < (happy ? .9 : .6);
@@ -7558,6 +7558,7 @@ async function cloverTalk() {
   if (v === 'hurt') return cloverTender();
   if (c.sour > 0) { c.sour--; await sayAs('Clover', CLOVER_SOUR[(CLOVER_SOUR.length - 1 - c.sour) % CLOVER_SOUR.length]);
     if (!c.sour) await sayAs('Clover', 'Fine. Okay. You can sit down. The bat stays where it is, though.'); return; }
+  if (c.met && S.flags.potatoHarvested && !c.potTold) { c.potTold = 1; return cloverPotatoNews(); }
   if (v === 'even') { c.line++; return sayAs('Clover', CLOVER_EVEN[c.line % CLOVER_EVEN.length]); }
   if (!c.met) { c.met = 1;
     await say('(A snug log room stacked to the ceiling with books. A fire. A long couch. On the couch, buried in a blanket with her knees up, a red-haired woman is reading. She holds up one finger: wait. She finishes the page.)');
@@ -7730,35 +7731,52 @@ function ashlynnPeople() {
 { const base = REGION_NPCS.saltmere; REGION_NPCS.saltmere = () => [...base(), ...ashlynnPeople()]; }
 
 // ---------------------------------------------------------------- CLOVER'S POTATO
-// A keepsake that never runs out. Plant it in soft ground anywhere outdoors (from the Bag); walk 250 steps; come back and dig:
-// you get the potato back plus three Roast Potatoes (each heals the whole Chorus by half). The more you grow it, the bigger the crop.
-const POTATO_STEPS = 250;
-Object.assign(ITEMS, { potato:{ name:'Clover\'s Potato', key:true, fieldUse:plantPotato, desc:'Plant it, walk, come back, dig' },
+// Plant Clover's potato in soft ground outdoors (from the Bag), walk 1000 steps, come back: a full potato plant,
+// and five potatoes to dig. A potato can be eaten (the whole Chorus gets back 30% of its Composure, in or out of battle)
+// or planted to grow five more. You can have as many plants going as you have potatoes.
+const POTATO_STEPS = 1000, POTATO_YIELD = 5;
+Object.assign(ITEMS, { potato:{ name:'Clover\'s Potato', key:true, fieldUse:() => plantPotato('potato'), desc:'Plant it, walk 1000 steps, come back, dig' },
+  spud:{ name:'Potato', healAll:.3, fieldUse:usePotato, desc:'Eat: whole Chorus +30%. Or plant it', price:0 },
   roastpot:{ name:'Roast Potato', healAll:.5, desc:'Heals the whole Chorus by half', price:0 } });
-Object.assign(ITEM_INFO, { potato:'From Clover. Lumpy and perfect. Plant it in soft ground anywhere outdoors, walk a while, and come back to dig. It always comes back to you.',
+Object.assign(ITEM_INFO, { potato:'From Clover. Lumpy and perfect. Plant it in soft ground anywhere outdoors, walk a thousand steps, and come back to dig.',
+  spud:'Grown from Clover\'s potato. Eat it and the whole Chorus gets back 30% of its Composure. Or plant it in soft ground and grow five more.',
   roastpot:'Crackly skin, a pinch of salt, Clover\'s rosemary. Shared round, it restores half of your whole Chorus\'s Composure.' });
-BATTLE_ITEMS.push('roastpot');
-const PT = () => S.flags.potato;
-async function plantPotato() {
-  const M = MAPS[S.map], [dx, dy] = DIRS[S.dir], x = S.x + dx, y = S.y + dy, c = (M.tiles[y] || [])[x];
-  if (M.kind === 'inside' || M.kind === 'still' || !(c === '.' || c === ',' || c === 'f') || entAt(x, y)) return say('You need soft ground right in front of you, outdoors. Not road, not floor. Proper dirt.');
-  S.items.potato = 0; S.flags.potato = { map:S.map, x, y, at:S.steps, crops:(PT() && PT().crops) || 0 }; ENTC.t = 0; sfx('settle');
-  await say('You kneel, dig a little hole with your hands, and tuck the potato in. You pat the dirt down. It feels like a promise.');
+BATTLE_ITEMS.push('spud', 'roastpot');
+// all your plants. Older saves had a single S.flags.potato: it becomes the first plot.
+function plots() { const F = S.flags; if (!F.plots) { F.plots = []; if (F.potato) { F.plots.push({ map:F.potato.map, x:F.potato.x, y:F.potato.y, at:F.potato.at, n:0 }); F.potato = null; } } return F.plots; }
+function soilAhead() { const M = MAPS[S.map], [dx, dy] = DIRS[S.dir], x = S.x + dx, y = S.y + dy, c = (M.tiles[y] || [])[x];
+  return M.kind === 'inside' || M.kind === 'still' || !(c === '.' || c === ',' || c === 'f') || entAt(x, y) ? null : [x, y]; }
+async function plantPotato(k) {
+  const at = soilAhead(); if (!at) return say('You need soft ground right in front of you, outdoors. Not road, not floor. Proper dirt.');
+  S.items[k] = (S.items[k] || 0) - 1; const L = plots(); L.push({ map:S.map, x:at[0], y:at[1], at:S.steps, n:(S.flags.plotN = (S.flags.plotN || 0) + 1), clover:k === 'potato' }); ENTC.t = 0; buildWorld(S.map); sfx('settle');
+  await say(k === 'potato' ? 'You kneel, dig a little hole with your hands, and tuck Clover\'s potato in. You pat the dirt down. It feels like a promise.' : 'You dig a little hole and tuck the potato in. Another promise to your future self.');
+  return say('(Walk a thousand steps, then come back and dig it up.)');
 }
-function potatoModel() { const p = PT(), k = Math.min(1, (S.steps - p.at) / POTATO_STEPS), g = new THREE.Group();
+function eatPotato() { for (const m of S.party) if (m.hp > 0) m.hp = Math.min(maxHp(m), m.hp + Math.ceil(maxHp(m) * .3)); }
+async function usePotato() {
+  const c = await ask('A potato. What do you want to do with it?', ['Eat it', 'Plant it', 'Keep it']);
+  if (c === 0) { S.items.spud--; eatPotato(); sfx('heal'); return say('You share it round. Everyone gets a bit. Your whole Chorus gets back 30% of its Composure.'); }
+  if (c === 1) return plantPotato('spud');
+}
+function potatoModel(p) { const k = Math.min(1, (S.steps - p.at) / POTATO_STEPS), g = new THREE.Group();
   sBall(g, .32, '#5a4028', 0, 0, 0).scale.set(1, .35, 1);
   if (k > .1) for (let i = 0; i < 3 + Math.floor(k * 5); i++) { const a = i * 2.4, r = .06 + k * .18, l = .1 + k * .28; const lf = sBall(g, l * .5, i % 2 ? '#4f8a3a' : '#5f9a44', Math.cos(a) * r, .08 + k * .25, Math.sin(a) * r); lf.scale.set(1, .5, .7); }
   if (k >= 1) for (const [x, z, c] of [[-.12, .1, '#f4f1e8'], [.1, -.08, '#c8a0e8'], [0, .14, '#f4f1e8']]) sBall(g, .05, c, x, .5, z);
   return g; }
-function potatoEnts(map) { const p = PT(); if (!p || p.map !== map) return [];
-  return [{ id:'potato_' + (S.steps - p.at >= POTATO_STEPS ? 'ripe' : Math.floor((S.steps - p.at) / 60)), x:p.x, y:p.y, dir:'down', model:potatoModel, folk:false, talk:digPotato }]; }
-async function digPotato() {
-  const p = PT(), left = POTATO_STEPS - (S.steps - p.at);
-  if (left > 0) return say(left > 160 ? 'A little mound of dirt where your potato is sleeping. Clover said: go have an adventure first.' : left > 60 ? 'A few green leaves have pushed up through the dirt. Not yet.' : 'The plant is big and leafy now. Almost. A little longer.');
-  const n = 3 + Math.min(3, p.crops); p.crops++;
-  S.items.roastpot = (S.items.roastpot || 0) + n; S.items.potato = 1; S.flags.potato = null; S.flags.potatoCrops = p.crops; ENTC.t = 0; sfx('heal');
-  await say(`The plant has little white flowers on it. You dig in with both hands and pull up a whole clutch of potatoes. You roast ${n} of them on the spot, Clover-style. The best one, the lumpiest, goes back in your pocket.`);
-  await say(`(Got ${n} Roast Potatoes, and your potato back. ${p.crops < 3 ? 'Plant it again. It seems to like you.' : 'It\'s the happiest potato in the Welkin.'})`);
+function potatoEnts(map) { return plots().filter(p => p.map === map).map(p => { const d = S.steps - p.at;
+  return { id:'potato' + p.n + '_' + (d >= POTATO_STEPS ? 'ripe' : Math.floor(d / 200)), x:p.x, y:p.y, dir:'down', model:() => potatoModel(p), folk:false, talk:() => digPotato(p) }; }); }
+async function digPotato(p) {
+  const left = POTATO_STEPS - (S.steps - p.at);
+  if (left > 0) return say((left > 650 ? 'A little mound of dirt where your potato is sleeping. Go have an adventure first.' : left > 250 ? 'A few green leaves have pushed up through the dirt. Not yet.' : 'The plant is big and leafy now. Almost. A little longer.') + ` (About ${left} more steps.)`);
+  const L = plots(); L.splice(L.indexOf(p), 1); S.items.spud = (S.items.spud || 0) + POTATO_YIELD; S.flags.potatoHarvested = (S.flags.potatoHarvested || 0) + 1; ENTC.t = 0; buildWorld(S.map); sfx('heal');
+  await say(`The plant has little white flowers on it. You dig in with both hands and pull up a whole clutch of potatoes: ${POTATO_YIELD} of them, lumpy and perfect.`);
+  return say(`(Got ${POTATO_YIELD} Potatoes. Eat one to give your whole Chorus back 30% of its Composure, or plant it to grow more.)`);
+}
+// Clover, once you've dug up your first crop
+async function cloverPotatoNews() {
+  await sayAs('Clover', 'Wait. Is that dirt on your hands? Did it grow? It grew! Show me. Oh, look at them. Look at them!');
+  await sayAs('Clover', 'Okay, so here\'s the thing about potatoes: you can do SO many things with them. Roast them. Mash them. Chips. Soup. Eat one cold out of your pocket on a long walk, which is what I do.');
+  await sayAs('Clover', 'Eat one when your lot are flagging and everybody perks up. Or plant one and you get five more. And then plant one of those. It never has to stop. That\'s the whole point of a potato, nerd.');
 }
 
 // ---------------------------------------------------------------- THE FAR LINE
@@ -9124,7 +9142,7 @@ async function useItem(m, k) {
   if (it.custom) return useForbidden(m, k, it);
   const pos = mm => modelOf(mm).position.clone().add(V3(0, .8, 0));
   if (it.heal) { const mx = maxHp(m), h = Math.min(mx - m.hp, Math.ceil(mx * it.heal)); m.hp += h; floatText(pos(m), '+' + h, 'heal'); sfx('heal'); renderBHUD(); return say(`You give ${nm(m)} a ${it.name}. It steadies.`); }
-  if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say('The Hearthstone glows. Warmth settles over the whole Chorus.'); }
+  if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Hearthstone glows. Warmth settles over the whole Chorus.'); }
   if (it.revive) {
     const down = S.party.filter(p => p.hp <= 0); if (!down.length) { S.items[k]++; return say('Nobody needs reviving.'); }
     const p = down[0]; p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
