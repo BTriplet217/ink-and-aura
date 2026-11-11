@@ -47,7 +47,8 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 .chip{background:rgba(27,21,18,.88);color:var(--gold);border-radius:20px;padding:6px 14px 6px 10px;font:800 13px 'Nunito Sans';display:flex;align-items:center;gap:8px;border:1.5px solid rgba(232,184,74,.4)}
 .chip .dot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 10px currentColor;background:currentColor}
 #place{color:#f3e7c9;font-weight:600}
-@media (max-width:560px){#place{display:none}}
+#clock{color:#f3e7c9;font-weight:600;font-variant-numeric:tabular-nums}
+@media (max-width:560px){#place{display:none}#hud{flex-direction:column;align-items:flex-start;gap:6px}}
 #toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);font:30px 'IM Fell English',serif;color:var(--ink);text-shadow:0 0 18px #f3e7c9,0 0 6px #f3e7c9;opacity:0;transition:opacity .6s;z-index:9;pointer-events:none;white-space:nowrap;text-align:center}
 #toast small{display:block;font:800 12px 'Nunito Sans';letter-spacing:3px;text-transform:uppercase;opacity:.75}
 #tools{position:fixed;top:12px;right:12px;z-index:10;display:flex;gap:8px}
@@ -157,7 +158,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
-<div id="hud" class="hidden"><div class="chip" id="aura"><span class="dot"></span><span class="lab">Aura</span></div><div class="chip" id="place"></div></div>
+<div id="hud" class="hidden"><div class="chip" id="aura"><span class="dot"></span><span class="lab">Aura</span></div><div class="chip" id="place"></div><div class="chip" id="clock"></div></div>
 <div id="tools" class="hidden"><div class="tb" data-k="mute" id="muteB">♪</div><div class="tb" data-k="zoom" title="Zoom (C)">⌕</div><div class="tb" data-k="rotl">⟲</div><div class="tb" data-k="rotr">⟳</div><div class="tb" data-k="menu">Menu</div></div>
 <div id="toast"></div>
 <div id="intro" class="hidden"></div>
@@ -1314,13 +1315,13 @@ function washPatch(m, kind, surf = 'auto') {
   const chars = kind >= 1, SF = SURF_ID[surf] || 0;
   m.onBeforeCompile = sh => {
     sh.uniforms.wTime = WASH.time;
-    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN; varying vec3 vOP;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
       { vec4 wp = vec4(transformed, 1.); vec3 wn = objectNormal;
         #ifdef USE_INSTANCING
         wp = instanceMatrix * wp; wn = mat3(instanceMatrix) * wn;
         #endif
-        vWP = (modelMatrix * wp).xyz; vWN = normalize(mat3(modelMatrix) * wn); }`);
-    sh.fragmentShader = 'uniform float wTime; varying vec3 vWP; varying vec3 vWN;\n' + WASH_GLSL + `
+        vOP = wp.xyz; vWP = (modelMatrix * wp).xyz; vWN = normalize(mat3(modelMatrix) * wn); }`);
+    sh.fragmentShader = 'uniform float wTime; varying vec3 vWP; varying vec3 vWN; varying vec3 vOP;\n' + WASH_GLSL + `
       // running-bond grid on whole texels, so mortar lines are always one texel wide
       float bond(vec2 c, float bw, float bh, out vec2 id){ float row = floor(c.y / bh); float x = c.x + mod(row, 2.) * floor(bw * .5); id = vec2(floor(x / bw), row);
         return (mod(x, bw) < 1. || mod(c.y, bh) < 1.) ? 1. : 0.; }
@@ -1356,8 +1357,9 @@ function washPatch(m, kind, surf = 'auto') {
           pat = mix(.86 + .16 * wsh(vec2(floor(pl / 4.), 2.)) + .08 * (wn3(vec3(pl * .3, vWP.y * 9., vWP.x * 9.)) - .5), .64, edge); }
         else if (SF == 5) { vec2 rc = vec2(ny > .9 ? gc.x : floor(hz * TX), floor((vWP.y + (ny > .9 ? vWP.z : 0.)) * TX));      // roof tiles: rows with a dark lip
           float row = floor(rc.y / 3.), x = rc.x + mod(row, 2.) * 2.; float lip = mod(rc.y, 3.) < 1. ? 1. : 0., seam = mod(x, 4.) < 1. ? 1. : 0.;
-          pat = mix(.86 + .2 * wsh(vec2(floor(x / 4.), row)), .58, max(lip, seam * .6)); }
-        else if (SF == 6) { float seam = mod(wc.y, 9.) < 1. ? 1. : 0., rivet = (mod(wc.y, 9.) == 2. && mod(wc.x, 4.) == 1.) ? 1. : 0.;   // riveted metal plates
+          pat = mix(.9 + .14 * wsh(vec2(floor(x / 4.), row)), .74, max(lip, seam * .35)); }
+        else if (SF == 6) { vec2 oc = floor(vec2(abs(N.x) > abs(N.z) ? vOP.z : vOP.x, vOP.y) * TX);   // riveted plates, fixed to the object so they ride along with it
+          float seam = mod(oc.y, 9.) < 1. ? 1. : 0., rivet = (mod(oc.y, 9.) == 2. && mod(oc.x, 4.) == 1.) ? 1. : 0.;
           float sheen = smoothstep(.55, .95, N.y) * .25 + smoothstep(.2, .9, 1. - ny) * .06;
           pat = (1. - seam * .3 + rivet * .35) * (1. + sheen);
           outgoingLight += (1. - seam) * vec3(.1, .09, .075) * (.25 + smoothstep(.4, .95, N.y) + rivet * 1.5) * near1; }   // dark iron still catches the light
@@ -1486,7 +1488,7 @@ function buildHero(kind) {
     inner.add(cape);
   }
   // head
-  const head = new THREE.Group(); head.position.set(0, 1.08, 0); inner.add(head);
+  const head = new THREE.Group(); head.position.set(0, 1.035, 0); head.scale.setScalar(.84); inner.add(head);   // a slightly smaller head: sprite proportions, not chibi
   head.add(part(new THREE.IcosahedronGeometry(.2, 2), C.skin, [0, 0, 0], { ink:1.07 }));
   const eyeW = new THREE.MeshBasicMaterial({ color:0xffffff }), eyeI = new THREE.MeshBasicMaterial({ color:C.eye }), blk = new THREE.MeshBasicMaterial({ color:0x1b1512 });
   for (const sx of [-1, 1]) {
@@ -1620,12 +1622,22 @@ function buildPerson(L) {
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
   const fm = (geo, mat, x, y, z, sc, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sc) m.scale.set(...sc); m.rotation.z = rz; inner.add(m); return m; };
   const eyeC = L.eyes ? new THREE.MeshBasicMaterial({ color:new THREE.Color(L.eyes) }) : blk, fs = seed % 5;
-  for (const sx of [-1, 1]) { fm(new THREE.SphereGeometry(.03, 12, 9), wht, sx * .06, .965, .145, [1, 1.1, .45]); fm(new THREE.SphereGeometry(.017, 10, 8), eyeC, sx * .059, .962, .158, [1, 1.1, .5]);
-    if (!L.eyes) fm(new THREE.SphereGeometry(.005, 6, 5), wht, sx * .059 + .006, .969, .165);
+  for (const sx of [-1, 1]) { fm(new THREE.SphereGeometry(.022, 10, 8), wht, sx * .058, .962, .148, [1.05, .8, .4]); fm(new THREE.SphereGeometry(.014, 10, 8), eyeC, sx * .057, .961, .158, [.9, 1.15, .5]);
+    if (!L.eyes) fm(new THREE.SphereGeometry(.004, 6, 5), wht, sx * .057 + .005, .967, .165);
+    fm(new THREE.BoxGeometry(.04, .006, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * .058, .946, .156);   // lower lid line
     fm(new THREE.BoxGeometry(.046, .01, .012), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || (hair === 'bald' ? (L.hair || '#2a1a10') : L.hair || '#2a1a10')).multiplyScalar(.7) }), sx * .062, 1.008 + (fs % 2) * .005, .15, null, sx * [.12, -.18, .05, .25, -.08][fs]);
-    fm(new THREE.SphereGeometry(.024, 8, 6), new THREE.MeshBasicMaterial({ color:0xe88a7a, transparent:true, opacity:.3 }), sx * .095, .915, .135, [1.3, .7, .3]); }
+    fm(new THREE.SphereGeometry(.02, 8, 6), new THREE.MeshBasicMaterial({ color:0xd88a7a, transparent:true, opacity:.14 }), sx * .092, .918, .14, [1.3, .7, .3]); }
   if (L.eyes) for (const sx of [-1, 1]) { const o = glow(L.eyes, .1, .85); o.position.set(sx * .059, .962, .17); inner.add(o); }
-  if (L.snout) { add(new THREE.BoxGeometry(.11, .07, .1), skin, [0, .915, .17], { ink:1.1 }); for (const sx of [-1, 1]) fm(new THREE.SphereGeometry(.008, 6, 5), blk, sx * .025, .93, .222); fm(new THREE.BoxGeometry(.09, .006, .01), blk, 0, .89, .22); }
+  if (L.snout) {          // a dragon's muzzle: long, tapering, flat on top, nostrils at the tip; a brow ridge and swept-back horns
+    const dk = new THREE.Color(skin).multiplyScalar(.72).getStyle(), hornC = L.hornC || '#e8d8b0';
+    const mz = add(new THREE.CylinderGeometry(.038, .07, .17, 6), skin, [0, .91, .2], { ink:1.08, rot:[Math.PI / 2, 0, 0], sc:[1.15, 1, .72] });
+    add(new THREE.CylinderGeometry(.03, .055, .15, 6), dk, [0, .878, .19], { rot:[Math.PI / 2 - .08, 0, 0], sc:[1, 1, .5] });                     // lower jaw
+    for (const sx of [-1, 1]) { fm(new THREE.SphereGeometry(.008, 6, 5), blk, sx * .018, .932, .282, [1.4, .7, 1]);
+      add(new THREE.BoxGeometry(.06, .018, .05), dk, [sx * .062, 1.0, .135], { rot:[.25, 0, sx * -.25] });                                         // brow ridge
+      add(new THREE.ConeGeometry(.026, .2, 6), hornC, [sx * .1, 1.07, -.08], { rot:[-1.15, 0, sx * -.35], ink:1.08 });                             // horns, swept back
+      add(new THREE.ConeGeometry(.016, .1, 5), hornC, [sx * .14, 1.0, -.06], { rot:[-1.3, 0, sx * -.9] }); }
+    for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(.018, .05, 4), dk, [0, 1.11 - i * .045, -.1 - i * .035], { rot:[-.6, 0, 0] });          // crest down the back of the head
+    fm(new THREE.BoxGeometry(.1, .005, .01), blk, 0, .895, .245); }
   else { fm(new THREE.SphereGeometry(.02, 8, 6), toon(new THREE.Color(skin).multiplyScalar(.85), { wash:2 }), 0, .93, .165, [.8, 1, .9]);
     fm(new THREE.TorusGeometry(.026, .006, 5, 12, Math.PI), blk, 0, .895 + (fs > 2 ? -.01 : .01), .152, null, fs > 2 ? 0 : Math.PI); }
   // hair
@@ -1652,6 +1664,16 @@ function buildPerson(L) {
       add(new THREE.CylinderGeometry(.018, .018, .1, 8), '#4a3424', [0, .02, 0], { to:sw }); add(new THREE.BoxGeometry(.15, .03, .04), '#8a7a5a', [0, -.04, 0], { to:sw });
       add(new THREE.BoxGeometry(.04, .58, .014), k === 'flamesword' ? '#c8b8a8' : '#d8dce4', [0, -.34, 0], { to:sw, ink:1.04 });
       if (k === 'flamesword') for (let i = 0; i < 7; i++) { const f = glow(i % 2 ? '#ff7a2a' : '#ffc04a', .16 + (i % 3) * .05, .8); f.position.set((i % 2 ? .025 : -.025), -.1 - i * .08, 0); sw.add(f); } } }
+  // Less cartoon, more sprite: a smaller head on the same body (everything from the chin up shrinks together),
+  // plus tailoring details: lapels, a shirt at the neck, shoulder seams, and mitten hands with a thumb.
+  { const HK = L.small ? .9 : .82, py = .86, box = new THREE.Box3();
+    for (const o of inner.children.slice()) { if (o.isGroup && (legs.includes(o) || arms.includes(o))) continue; box.setFromObject(o); if (box.max.y < .95) continue;
+      o.position.set(o.position.x * HK, py + (o.position.y - py) * HK, o.position.z * HK); o.scale.multiplyScalar(HK); }
+    const dk = new THREE.Color(coat).multiplyScalar(.7).getStyle(), shirt = L.accent2 || '#efe6d2';
+    if (!gear.includes('armor') && !gear.includes('apron') && !L.pattern) { add(new THREE.BoxGeometry(.07, .12, .012), shirt, [0, .76, B.sh * .62 + .02], { rot:[.25, 0, 0] });
+      for (const sx of [-1, 1]) add(new THREE.BoxGeometry(.05, .15, .012), dk, [sx * .04, .74, B.sh * .62 + .028], { rot:[.25, 0, sx * .35] }); }
+    for (const sh of arms) add(new THREE.TorusGeometry(B.arm * 1.18, .008, 4, 14), dk, [0, -.02, 0], { to:sh, rot:[Math.PI / 2, 0, 0] });
+    for (const [i, h] of hands.entries()) { const sx = i ? 1 : -1; add(new THREE.SphereGeometry(B.arm * .45, 8, 6), L.glove && sx > 0 ? L.glove : skin, [sx * -B.arm * .55, .01, B.arm * .35], { to:h, sc:[1, 1.3, 1] }); } }
   if (L.small) inner.scale.setScalar(.72); else inner.scale.y *= B.hy;
   g.userData = { inner, legs, arms, hands, pose, look:L, ph:(seed % 100) / 16 };
   return g;
@@ -1914,12 +1936,12 @@ const post = (() => {
   const mk = () => { const dt = new THREE.DepthTexture(lowW(), lowH()); dt.type = THREE.UnsignedIntType; const r = new THREE.WebGLRenderTarget(lowW(), lowH(), { depthTexture:dt, samples: LOWPOWER ? 0 : 2, type:THREE.HalfFloatType, minFilter:THREE.NearestFilter, magFilter:THREE.NearestFilter }); return r; };
   let rt = mk();
   const mat = new THREE.ShaderMaterial({
-    uniforms:{ tColor:{ value:rt.texture }, tDepth:{ value:rt.depthTexture }, res:{ value:size.clone() }, near:{ value:.1 }, far:{ value:140 }, time:{ value:0 }, paper:{ value:new THREE.Color('#f3e7c9') }, ink:{ value:new THREE.Color('#1b1512') }, tilt:{ value:1 }, focusY:{ value:.5 } },
+    uniforms:{ night:{ value:0 }, tColor:{ value:rt.texture }, tDepth:{ value:rt.depthTexture }, res:{ value:size.clone() }, near:{ value:.1 }, far:{ value:140 }, time:{ value:0 }, paper:{ value:new THREE.Color('#f3e7c9') }, ink:{ value:new THREE.Color('#1b1512') }, tilt:{ value:1 }, focusY:{ value:.5 } },
     vertexShader:'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
     fragmentShader:`
       // HD-2D finish: the scene is snapped to a chunky pixel grid, outlined where depth breaks,
       // graded warm with cool shadows, dithered, bloomed, and blurred top and bottom like a diorama.
-      uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 res; uniform float near, far, time, tilt, focusY; uniform vec3 paper, ink; varying vec2 vUv;
+      uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 res; uniform float near, far, time, tilt, focusY, night; uniform vec3 paper, ink; varying vec2 vUv;
       float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
       float luma(vec3 c){ return dot(c, vec3(.299, .587, .114)); }
       float bayer(vec2 p){ vec2 q = mod(p, 4.); int i = int(q.x) + int(q.y) * 4;
@@ -1941,8 +1963,8 @@ const post = (() => {
           col = mix(col, acc / n, clamp(ts * 1.3, 0., 1.)); }
         // bloom: lights and bright glows bleed into their neighbours
         vec3 bl = vec3(0.);
-        for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; vec2 o = vec2(cos(a), sin(a)) * (2. + float(i)) * lp; vec3 c = texture2D(tColor, uv + o).rgb; bl += max(c - .72, 0.); }
-        col += bl * .16;
+        for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; vec2 o = vec2(cos(a), sin(a)) * (2. + float(i)) * lp; vec3 c = texture2D(tColor, uv + o).rgb; bl += max(c - (.72 - .3 * night), 0.); }
+        col += bl * (.16 + .22 * night);   // lamps and windows bloom more after dark
         // grade: warm, slightly sepia highlights; cool violet shadows; a touch more contrast
         float L = luma(col);
         col = mix(col, vec3(L) * vec3(1.08, .98, .86), .14);
@@ -1964,7 +1986,7 @@ const post = (() => {
       WASH.time.value = t;
       if (!SETTINGS.paint) { renderer.setRenderTarget(null); renderer.render(scene, cam); return; }
       renderer.setRenderTarget(rt); renderer.render(scene, cam);
-      WASH.time.value = t; mat.uniforms.near.value = cam.near; mat.uniforms.far.value = cam.far; mat.uniforms.time.value = t;
+      WASH.time.value = t; mat.uniforms.night.value = cam === camera ? NIGHT_K : 0; mat.uniforms.near.value = cam.near; mat.uniforms.far.value = cam.far; mat.uniforms.time.value = t;
       mat.uniforms.tilt.value = cam === camera ? 1 : .55; mat.uniforms.focusY.value = cam === camera ? .45 : .5;
       renderer.setRenderTarget(null); renderer.render(qs, qc);
     },
@@ -3923,7 +3945,7 @@ function buildWorld(id) {
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
   const M = MAPS[id], V = worldVibe(id);
-  worldScene.background.set(V.sky); worldScene.fog.color.set(V.fog); worldScene.fog.near = V.fogNear + 2; worldScene.fog.far = V.fogFar + 8;
+  worldScene.background.set(V.sky); worldScene.fog.color.set(V.fog); worldScene.fog.near = V.fogNear + 2; worldScene.fog.far = V.fogFar + 8; W.fogBase = [V.fogNear + 2, V.fogFar + 8];
   worldLights.hemi.color.set(V.hemi); worldLights.sun.intensity = V.sun; tintSky(worldSky, V);
   W.baseSky = new THREE.Color(V.sky);
   W.hg = computeHeights(M);
@@ -4091,15 +4113,15 @@ function placePlayer(snap) {
   W.player.position.set(S.x, y, S.y); W.player.rotation.y = DIR_YAW[S.dir]; camTarget.set(S.x, y, S.y);
   if (snap) { camYaw = camQ * Math.PI / 2; updateCamera(1, true); }
 }
-const CAM_ZOOMS = [1, .74, .44]; let camZoom = 1;
-function cycleZoom(d = 1) { camZoomV = null; camZoom = (camZoom + d + CAM_ZOOMS.length) % CAM_ZOOMS.length; toast(['Wide view', 'Standard view', 'Close view'][camZoom]); }
+const CAM_ZOOMS = [1.85, 1, .74, .44]; let camZoom = 2;
+function cycleZoom(d = 1) { camZoomV = null; camZoom = (camZoom + d + CAM_ZOOMS.length) % CAM_ZOOMS.length; toast(['Far view', 'Wide view', 'Standard view', 'Close view'][camZoom]); }
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
 canvas.addEventListener('pointerdown', e => { if (scene !== 'world') return; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved = 0;
   if (drag.pts.size === 2) { const [a, b] = [...drag.pts.values()]; drag.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); drag.zoom0 = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom]; } });
 addEventListener('pointermove', e => { const p = drag.pts.get(e.pointerId); if (!p || scene !== 'world') return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved += Math.abs(dx) + Math.abs(dy);
-  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.15, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
+  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
   if (camFree == null) camFree = camYaw; camFree -= dx * .011; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; });
 const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag.pinch0 = 0; };
 addEventListener('pointerup', dragEnd); addEventListener('pointercancel', dragEnd);
@@ -4111,6 +4133,7 @@ function updateCamera(dt, snap) {
   if (snap) camera.position.copy(desired); else camera.position.lerp(desired, 1 - Math.exp(-dt * (freeing ? 22 : 7)));
   if (MOOD.shake > 0) { const k = MOOD.shake * MOOD.shake * .09, tt = performance.now() / 1000; camera.position.x += Math.sin(tt * 47) * k; camera.position.y += Math.sin(tt * 61 + 1) * k * .7; }
   camera.lookAt(camTarget.x, camTarget.y + .5, camTarget.z);
+  if (W.fogBase) { const k = Math.max(1, z); worldScene.fog.near = W.fogBase[0] * k; worldScene.fog.far = W.fogBase[1] * k; }   // pull the haze back when zoomed out
   worldSky.position.copy(camera.position);
 }
 
@@ -4360,7 +4383,7 @@ function pollPad(dt) {
     const moveUsesStick = (PAD.cam === 'left' && /left/.test(PAD.move)) || (PAD.cam === 'right' && /right/.test(PAD.move));
     if (!moveUsesStick && (x || y)) {
       if (x) { if (camFree == null) camFree = camYaw; camFree -= x * dt * (1.4 + PAD.sens * .8); camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; }
-      if (y) { if (camZoomV == null) camZoomV = CAM_ZOOMS[camZoom]; camZoomV = Math.max(.38, Math.min(1.15, camZoomV + y * dt * (.25 + PAD.sens * .12))); }
+      if (y) { if (camZoomV == null) camZoomV = CAM_ZOOMS[camZoom]; camZoomV = Math.max(.38, Math.min(1.9, camZoomV + y * dt * (.25 + PAD.sens * .12))); }
     }
   }
   padState.prev = pressed;
@@ -7075,9 +7098,9 @@ const DND_LOOK = {
   // Mary: drow sorcerer. Lavender-blue skin, long blonde hair, pointed ears, thin glasses, black layered robe, purple sash, arms open.
   morwen:{ coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#3a2a20', skin:'#8a8cc8', hair:'#e8d488', brow:'#c8b070',
     hairStyle:'long', build:'slim', pose:'open', gear:['ears', 'glasses', 'satchel'] },
-  // Shannon: brass dragonborn ranger. Gold scales, snout, curly brown hair up, glasses, teal scarf, tie-dye top and baggy trousers, bow, quiver, tail.
+  // Shannon: brass dragonborn ranger. Gold scales, snout, curly brown hair up, glasses, teal scarf, tie-dye top and baggy trousers, tail. A dragon's muzzle and swept horns (no bow).
   saffi:{ coat:'#7ab0a0', pattern:['#e8c860', '#7ab0d8', '#a0c060', '#e88a6a'], legs:'#6a9a9a', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
-    accent:'#3a8a7a', build:'heavy', gear:['glasses', 'bun', 'bow', 'quiver', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a' },
+    accent:'#3a8a7a', build:'heavy', gear:['glasses', 'bun', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a', hornC:'#f0dca0' },
   // Liam: dragonborn/human kid. Tousled brown hair, little horns, pointed ears, teal scarf, grey-green tunic, satchel.
   lio:{ coat:'#a8b8a8', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', hairStyle:'spiky', small:true, 
     gear:['horns', 'ears', 'satchel'], hornC:'#d8c8a0' },
@@ -8200,6 +8223,64 @@ function worldSheet() {
     ${top ? `<ul style="font-size:12.5px;margin:6px 0 0 18px;padding:0">${top}</ul>` : ''}</div>`;
 }
 // =============================================================================
+//  DAY AND NIGHT — the Welkin keeps its own clock. One full day is 24 real minutes
+//  (one in-game hour a minute): long enough that an errand or a town fits inside one
+//  part of the day, short enough that a sitting sees a sunset and a dawn.
+//    dawn 5–7 · day 7–17 · sunset 17–20 · night 20–5
+//  The clock only runs outdoors-and-on-roads time (it keeps going in rooms and battles
+//  too, so you can come out to a different sky). New games start at 9 in the morning.
+// =============================================================================
+const DAY_SECONDS = 24 * 60;
+// keyframes: hour, sky tint and strength, sun colour and strength, hemisphere colour and strength
+const DAY_KEYS = [
+  [0,    '#1c2240', .78, '#8ea6e0', .32, '#8c9cd0', .6],
+  [4.6,  '#1c2240', .78, '#8ea6e0', .32, '#8c9cd0', .6],
+  [5.6,  '#e8a0a8', .45, '#ffb898', .55, '#c8a8c8', .72],
+  [6.6,  '#f6d0a0', .22, '#ffd8a8', .85, '#f0dcc0', .92],
+  [8,    '#ffffff', 0,   '#fff0d0', 1,   '#fff4dc', 1],
+  [16.5, '#ffffff', 0,   '#fff0d0', 1,   '#fff4dc', 1],
+  [18,   '#f4a060', .32, '#ffb070', .78, '#f0c8a0', .88],
+  [19.2, '#c0607a', .5,  '#ff8a6a', .5,  '#b890b0', .7],
+  [20.3, '#1c2240', .78, '#8ea6e0', .32, '#8c9cd0', .6],
+  [24,   '#1c2240', .78, '#8ea6e0', .32, '#8c9cd0', .6]
+];
+const clockHour = () => { if (!S) return 12; if (S.clock == null) S.clock = 9 * 60; return (S.clock / 60) % 24; };
+const dayPhase = (h = clockHour()) => h < 5 || h >= 20.3 ? 'night' : h < 7 ? 'dawn' : h < 17 ? 'day' : 'sunset';
+function dayState(h = clockHour()) {
+  let i = 0; while (i < DAY_KEYS.length - 2 && h >= DAY_KEYS[i + 1][0]) i++;
+  const a = DAY_KEYS[i], b = DAY_KEYS[i + 1], k = (h - a[0]) / Math.max(.001, b[0] - a[0]), s = k * k * (3 - 2 * k);
+  const C = (x, y) => new THREE.Color(x).lerp(new THREE.Color(y), s), N = (x, y) => x + (y - x) * s;
+  return { tint:C(a[1], b[1]), tintK:N(a[2], b[2]), sunC:C(a[3], b[3]), sunK:N(a[4], b[4]), hemiC:C(a[5], b[5]), hemiK:N(a[6], b[6]), night:clamp(1 - N(a[4], b[4]), 0, .7) / .7 };
+}
+const clockText = () => { const h = clockHour(), hh = Math.floor(h), mm = Math.floor((h - hh) * 60 / 10) * 10, ap = hh < 12 ? 'AM' : 'PM';
+  return `${({ night:'☾', dawn:'◒', day:'☀', sunset:'◓' })[dayPhase(h)]} ${((hh + 11) % 12) + 1}:${String(mm).padStart(2, '0')} ${ap}`; };
+let nightLamp = null;
+// Called every frame from the main loop: advance the clock and light the world for the hour.
+function tickDay(dt) {
+  if (!S || !world) return;
+  if (S.clock == null) S.clock = 9 * 60;
+  S.clock = (S.clock + dt * 60 * 24 * 60 / DAY_SECONDS / 60) % (24 * 60);
+  const M = MAPS[S.map], V = M && worldVibe(S.map), inside = M && (M.kind === 'inside' || M.kind === 'still' || (V && V.cave));
+  const el = $('#clock'); if (el) el.textContent = clockText();
+  if (!V) return;
+  const d = inside ? dayState(12) : dayState();
+  // sky and fog: the town's own sky, washed toward the hour's colour (the aura tint is applied on top in the main loop)
+  W.skyNow = new THREE.Color(V.sky).lerp(d.tint, d.tintK);
+  const u = worldSky.material.uniforms; u.horizon.value.copy(W.skyNow); u.top.value.copy(W.skyNow).lerp(new THREE.Color(d.night > .5 ? '#2a3260' : '#fffaf0'), d.night > .5 ? .5 : .55 * (1 - d.tintK));
+  worldLights.sun.intensity = V.sun * d.sunK; worldLights.sun.color.copy(d.sunC);
+  worldLights.hemi.color.set(V.hemi).multiply(d.hemiC); worldLights.hemi.intensity = 1.2 * d.hemiK;
+  // the sun (or moon) crosses the sky, so shadows swing and stretch through the day
+  if (!inside && M) { const h = clockHour(), day = h >= 5 && h < 20.3, t = day ? (h - 5) / 15.3 : ((h + 24 - 20.3) % 24) / 8.7, a = Math.PI * (.12 + .76 * t), cx = (M.w - 1) / 2, cz = (M.h - 1) / 2;
+    worldLights.sun.position.set(cx - Math.cos(a) * 16, 4 + Math.sin(a) * 14, cz + 9); worldLights.sun.target.position.set(cx, 0, cz); }
+  // after dark you carry a little warm light, so the street around you is never black
+  if (!nightLamp) { nightLamp = new THREE.PointLight('#ffcf8a', 0, 7, 1.5); worldScene.add(nightLamp); }
+  nightLamp.intensity = inside ? 0 : d.night * 2.4;
+  if (W.player) nightLamp.position.set(W.player.position.x, W.player.position.y + 1.6, W.player.position.z);
+  // lamp glows and windows read brighter at night
+  NIGHT_K = inside ? 0 : d.night;
+}
+let NIGHT_K = 0;
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -9179,7 +9260,8 @@ function updateWorld(dt, t) {
   W.ring.position.set(px, py + .03, pz); W.ring.material.color.copy(dark ? new THREE.Color('#5a2a7a') : tc); W.ring.material.blending = dark ? THREE.NormalBlending : THREE.AdditiveBlending;
   W.ring.material.opacity = (.35 + .1 * Math.sin(t * 2)) * strength + auraPulse * .5; W.ring.scale.setScalar(1 + strength * .5 + auraPulse);
   const tint = dark ? new THREE.Color(tid === 'abyssal' ? '#5a4868' : '#8a7a90') : tid === 'radiant' ? new THREE.Color('#fff0c0') : tid === 'tender' ? new THREE.Color('#9aaac0') : null;
-  const bg = W.baseSky.clone(); if (tint) bg.lerp(tint, tid === 'abyssal' ? .45 : .25);
+  if (scene === 'world' || scene === 'title' || scene === 'intro' || scene === 'tour') tickDay(dt);
+  const bg = (W.skyNow || W.baseSky).clone(); if (tint) bg.lerp(tint, tid === 'abyssal' ? .45 : .25);
   worldScene.background.lerp(bg, Math.min(1, dt * 2)); worldScene.fog.color.copy(worldScene.background);
   W.motes.material.color.set(dark ? '#2e1840' : tid === 'tender' ? '#c8daf0' : '#ffe08f'); W.motes.material.opacity = dark ? .75 : .95;
   const arr = W.motes.geometry.attributes.position.array;
