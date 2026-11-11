@@ -1309,8 +1309,9 @@ float wsh(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
 // feel. Stone-coloured ground gets cobbles, stone walls get bricks, sloped roofs get tile rows,
 // and everything else (grass, painted walls) gets texel speckle. Characters and Manifs (kind 1/2)
 // get finer texels and banded, sprite-like shading with crisp silhouettes.
-function washPatch(m, kind) {
-  const chars = kind >= 1;
+const SURF_ID = { auto:0, ground:1, stone:2, plaster:3, wood:4, roof:5, metal:6 };
+function washPatch(m, kind, surf = 'auto') {
+  const chars = kind >= 1, SF = SURF_ID[surf] || 0;
   m.onBeforeCompile = sh => {
     sh.uniforms.wTime = WASH.time;
     sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
@@ -1319,44 +1320,59 @@ function washPatch(m, kind) {
         wp = instanceMatrix * wp; wn = mat3(instanceMatrix) * wn;
         #endif
         vWP = (modelMatrix * wp).xyz; vWN = normalize(mat3(modelMatrix) * wn); }`);
-    sh.fragmentShader = 'uniform float wTime; varying vec3 vWP; varying vec3 vWN;\n' + WASH_GLSL + sh.fragmentShader.replace('#include <opaque_fragment>', `{
-        float TX = ${chars ? '28.' : '12.'};
-        vec3 tp = (floor(vWP * TX) + .5) / TX;                       // texel-snapped world position
-        float fw = length(fwidth(vWP * TX)), near1 = 1. - smoothstep(.45, 1.1, fw);   // texels smaller than a screen pixel fade out (no shimmer)
+    sh.fragmentShader = 'uniform float wTime; varying vec3 vWP; varying vec3 vWN;\n' + WASH_GLSL + `
+      // running-bond grid on whole texels, so mortar lines are always one texel wide
+      float bond(vec2 c, float bw, float bh, out vec2 id){ float row = floor(c.y / bh); float x = c.x + mod(row, 2.) * floor(bw * .5); id = vec2(floor(x / bw), row);
+        return (mod(x, bw) < 1. || mod(c.y, bh) < 1.) ? 1. : 0.; }
+    ` + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+        float TX = ${chars ? '20.' : '12.'};
+        vec3 tp = (floor(vWP * TX) + .5) / TX;
+        float fw = length(fwidth(vWP * TX)), near1 = 1. - smoothstep(.55, 1.3, fw);
         float t1 = mix(.5, wh3(tp * 3.17 + 1.3), near1), t2 = mix(.5, wn3(tp * 1.7), near1), t3 = wn3(vWP * .35);
         vec3 dc = diffuseColor.rgb; float sat = max(dc.r, max(dc.g, dc.b)) - min(dc.r, min(dc.g, dc.b));
         vec3 N = normalize(vWN); float ny = abs(N.y);
-        float shade = .92 + .1 * t1 + .1 * (t2 - .5) + .06 * (t3 - .5);
+        float hz = abs(N.x) > abs(N.z) ? vWP.z : vWP.x;                 // the across-the-wall coordinate
+        vec2 wc = floor(vec2(hz, vWP.y) * TX), gc = floor(vWP.xz * TX), id;
+        float shade = .93 + .09 * t1 + .08 * (t2 - .5) + .06 * (t3 - .5);
         ${chars ? `
-        // sprite shading: light in a few clean bands, a cool tint in the shadow band
+        // sprite shading: three clean tones, violet-tinted shadows, a warm lit edge on top
         float L = dot(outgoingLight, vec3(.3, .59, .11)), base = max(dot(dc, vec3(.3, .59, .11)), .05);
-        float k = clamp(L / base, 0., 1.6); float band = k < .55 ? .62 : k < .95 ? .86 : k < 1.25 ? 1. : 1.12;
-        outgoingLight = mix(outgoingLight, outgoingLight / max(k, .05) * band * mix(vec3(.82, .8, .98), vec3(1.), step(.6, k)), .6) * (.96 + .08 * t1);
+        float k = clamp(L / base, 0., 1.6); float band = k < .5 ? .6 : k < .9 ? .82 : k < 1.2 ? 1. : 1.14;
+        vec3 tint = k < .5 ? vec3(.8, .76, 1.) : k < .9 ? vec3(.93, .9, 1.) : k < 1.2 ? vec3(1.) : vec3(1.06, 1.02, .92);
+        outgoingLight = mix(outgoingLight, dc * band * tint * (1. + .3 * (k - 1.) * step(1.2, k)) * 1.02, .85) * (.95 + .1 * t1);
         float rim = 1. - abs(dot(normalize(normal), normalize(vViewPosition)));
-        outgoingLight *= 1. - smoothstep(.55, .95, rim) * .35;` : `
-        float pat = 1.;
+        outgoingLight *= 1. - smoothstep(.6, .95, rim) * .3;
+        outgoingLight += dc * .12 * step(.6, N.y) * step(.9, k);` : `
+        float pat = 1.; int SF = ${SF};
         bool green = dc.g > dc.r * 1.04 && dc.g > dc.b;
-        if (sat < .2 && !green) {
-          if (ny > .8) {                                              // cobbles
-            vec2 u = tp.xz * 2.1; float row = floor(u.y); u.x += mod(row, 2.) * .5; vec2 f = fract(u), id = floor(u);
-            float g = max(step(f.x, .08), step(f.y, .1)); pat = mix(.86 + .2 * wsh(id), .6, g);
-          } else if (ny < .35) {                                      // bricks / blocks
-            float h = abs(N.x) > abs(N.z) ? tp.z : tp.x; vec2 u = vec2(h * 2.4, tp.y * 4.2); float row = floor(u.y); u.x += mod(row, 2.) * .5; vec2 f = fract(u), id = floor(u);
-            float g = max(step(f.x, .06), step(f.y, .1)); pat = mix(.86 + .18 * wsh(id + 3.), .66, g);
-            pat *= 1. - .18 * smoothstep(.55, .8, wn3(vec3(tp.x, tp.y * .4, tp.z) * 2.3));   // grime streaks
-          }
-        }
-        if (ny > .3 && ny < .8) { float f = fract(tp.y * 6.5 + wsh(floor(vec2(tp.x + tp.z, 0.) * 3.)) * .3); pat *= .78 + .26 * smoothstep(0., .7, f); }   // roof tile rows
-        if ((sat >= .2 || green) && ny > .8) pat *= .9 + .2 * step(.82, t1) - .12 * step(t1, .12);   // grass tufts and dark speckle
-        outgoingLight *= shade * mix(1. - (1. - pat) * .45, pat, near1);`}
+        if (SF == 1 || (SF == 0 && false)) {
+          if (green || sat >= .22) pat = .9 + .2 * step(.82, t1) - .14 * step(t1, .12);                      // grass: tufts and dark speckle
+          else { float g = bond(gc, 5., 4., id); pat = mix(.84 + .22 * wsh(id + 7.), .62, g); }             // paving and cobbles
+        } else if (SF == 2) { float g = bond(ny > .5 ? gc : wc, 5., 3., id); pat = mix(.82 + .24 * wsh(id + 3.), .6, g); }   // dressed stone
+        else if (SF == 3) {                                                                                   // plaster over stone: big faint blocks, grime rising from the ground
+          float g = bond(wc, 10., 6., id); pat = mix(.93 + .1 * wsh(id + 11.), .8, g) * (.95 + .08 * t1);
+          pat *= 1. - .16 * smoothstep(.55, .85, wn3(vec3(tp.x * 1.3, tp.y * .35, tp.z * 1.3) * 2.)); }
+        else if (SF == 4) { float pl = ny > .5 ? (abs(N.x) > .5 ? gc.y : gc.x) : wc.x; float edge = mod(pl, 4.) < 1. ? 1. : 0.;     // planks
+          pat = mix(.86 + .16 * wsh(vec2(floor(pl / 4.), 2.)) + .08 * (wn3(vec3(pl * .3, vWP.y * 9., vWP.x * 9.)) - .5), .64, edge); }
+        else if (SF == 5) { vec2 rc = vec2(ny > .9 ? gc.x : floor(hz * TX), floor((vWP.y + (ny > .9 ? vWP.z : 0.)) * TX));      // roof tiles: rows with a dark lip
+          float row = floor(rc.y / 3.), x = rc.x + mod(row, 2.) * 2.; float lip = mod(rc.y, 3.) < 1. ? 1. : 0., seam = mod(x, 4.) < 1. ? 1. : 0.;
+          pat = mix(.86 + .2 * wsh(vec2(floor(x / 4.), row)), .58, max(lip, seam * .6)); }
+        else if (SF == 6) { float seam = mod(wc.y, 9.) < 1. ? 1. : 0., rivet = (mod(wc.y, 9.) == 2. && mod(wc.x, 4.) == 1.) ? 1. : 0.;   // riveted metal plates
+          float sheen = smoothstep(.55, .95, N.y) * .25 + smoothstep(.2, .9, 1. - ny) * .06;
+          pat = (1. - seam * .3 + rivet * .35) * (1. + sheen);
+          outgoingLight += (1. - seam) * vec3(.1, .09, .075) * (.25 + smoothstep(.4, .95, N.y) + rivet * 1.5) * near1; }   // dark iron still catches the light
+        else pat = .95 + .1 * step(.8, t1) - .08 * step(t1, .15);
+        outgoingLight *= shade * mix(1. - (1. - pat) * .4, pat, near1);`}
       }
       #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'hd2d' + kind;
+  m.customProgramCacheKey = () => 'hd2d' + kind + ':' + SF;
   return m;
 }
 let WASH_DEFAULT = 0;
-const toon = (c, o = {}) => { const { wash, ...rest } = o; return washPatch(new THREE.MeshToonMaterial({ color:c, gradientMap:gradTex, ...rest }), wash != null ? wash : WASH_DEFAULT); };
+let SURF_DEFAULT = 'auto';   // what a surface is made of (ground, stone, plaster, wood, roof, metal), for its pixel-art texture
+const toon = (c, o = {}) => { const { wash, surf, ...rest } = o; return washPatch(new THREE.MeshToonMaterial({ color:c, gradientMap:gradTex, ...rest }), wash != null ? wash : WASH_DEFAULT, surf || SURF_DEFAULT); };
+const withSurf = (sf, f) => { const p = SURF_DEFAULT; SURF_DEFAULT = sf; try { return f(); } finally { SURF_DEFAULT = p; } };
 const withWash = (k, f) => function (...a) { const p = WASH_DEFAULT; WASH_DEFAULT = k; try { return f.apply(this, a); } finally { WASH_DEFAULT = p; } };
 // Ink hulls become broken charcoal lines rather than clean vector outlines.
 // Outlines: solid dark lines, like the edge of a pixel sprite.
@@ -1933,8 +1949,7 @@ const post = (() => {
         col = mix(col * vec3(.92, .9, 1.05), col * vec3(1.05, 1.0, .92), smoothstep(.15, .7, L));
         col = (col - .5) * 1.06 + .5;
         // ordered dither and a gentle colour step, so gradients band like pixel art
-        col += bayer(cell) * (1. / 72.);
-        col = floor(col * 56. + .5) / 56.;
+        { vec3 pc = sqrt(max(col, 0.)); pc += bayer(cell) * (1. / 96.); pc = floor(pc * 40. + .5) / 40.; col = pc * pc; }   // gentle steps, in perceptual space so darks don't speckle
         float v = smoothstep(1.1, .35, length((vUv - .5) * vec2(1.15, 1.)));
         col *= mix(.72, 1., v);
         gl_FragColor = vec4(clamp(col, 0., 1.), 1.);
@@ -2744,7 +2759,8 @@ function addGear(inner, L) {
   }
 }
 // ---------------------------------------------------------------- buildings
-function buildHouseX(hd, roofC, wallC) {
+function buildHouseX(hd, roofC, wallC) { return withSurf('plaster', () => buildHouseX0(hd, roofC, wallC)); }
+function buildHouseX0(hd, roofC, wallC) {
   const r = (k) => hsh(hd.x * 3 + k, hd.y * 7 + k * 13), role = hd.role || '';
   const g = new THREE.Group(), cx = hd.x + (hd.w - 1) / 2, cz = hd.y + 1.5, fz = hd.y + 3.5, dx = hd.x + Math.floor(hd.w / 2);
   const notable = !!role, two = notable || r(1) < .35, wh = two ? 2.35 : 1.45;
@@ -2753,7 +2769,7 @@ function buildHouseX(hd, roofC, wallC) {
   const trim = new THREE.Color(wallC).multiplyScalar(.62).getStyle(), wood = '#6b4528';
   // body + plinth + corner posts + timber bands
   g.add(at(inkBox(hd.w - .08, wh, 3.92, toon(wallCol), .04), cx, .3 + wh / 2, cz));
-  g.add(at(inkBox(hd.w + .06, .22, 4.06, toon('#8a7a62'), .03), cx, .4, cz));
+  g.add(at(inkBox(hd.w + .06, .22, 4.06, toon('#8a7a62', { surf:'stone' }), .03), cx, .4, cz));
   for (const sx of [-1, 1]) g.add(at(inkBox(.14, wh, .14, toon(trim), .02), cx + sx * (hd.w / 2 - .02), .3 + wh / 2, fz - .04));
   if (r(8) < .45 || two) g.add(at(inkBox(hd.w - .02, .1, .06, toon(trim), .02), cx, .3 + 1.5, fz - .02));
   if (r(9) < .35) for (let x = hd.x + .5; x < hd.x + hd.w - .5; x += 1) g.add(at(inkBox(.06, wh - .1, .05, toon(trim), .01), x, .3 + wh / 2, fz - .01));
@@ -2761,37 +2777,37 @@ function buildHouseX(hd, roofC, wallC) {
   const style = notable ? (role === 'archive' ? 'gable' : ['gable', 'hip', 'gambrel'][Math.floor(r(10) * 3)]) : ['gable', 'gable', 'hip', 'gambrel', 'flat', 'steep'][Math.floor(r(10) * 6)];
   const top = .3 + wh, rd = 4.6, rl = hd.w + .35;
   const prism = (h, w2, d, y, c) => { const shp = new THREE.Shape(); shp.moveTo(-d / 2, 0); shp.lineTo(d / 2, 0); shp.lineTo(w2 / 2, h); shp.lineTo(-w2 / 2, h); shp.closePath();
-    const rg = new THREE.ExtrudeGeometry(shp, { depth:rl, bevelEnabled:false }); rg.rotateY(Math.PI / 2); rg.translate(-rl / 2, 0, 0); const m = new THREE.Mesh(rg, toon(c)); m.castShadow = true; m.position.set(cx, y, cz); const o = new THREE.Mesh(rg, INK); o.scale.set(1.02, 1.04, 1.02); m.add(o); g.add(m); return m; };
+    const rg = new THREE.ExtrudeGeometry(shp, { depth:rl, bevelEnabled:false }); rg.rotateY(Math.PI / 2); rg.translate(-rl / 2, 0, 0); const m = new THREE.Mesh(rg, toon(c, { surf:'roof' })); m.castShadow = true; m.position.set(cx, y, cz); const o = new THREE.Mesh(rg, INK); o.scale.set(1.02, 1.04, 1.02); m.add(o); g.add(m); return m; };
   if (style === 'gable') prism(1.25, 0, rd, top - .02, roofCol);
   if (style === 'steep') prism(2, 0, rd - .3, top - .02, roofCol);
   if (style === 'gambrel') { prism(.7, rd * .62, rd, top - .02, roofCol); prism(.55, 0, rd * .62, top + .66, roofCol); }
-  if (style === 'hip') { const h = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4, 1), toon(roofCol)); h.rotation.y = Math.PI / 4; h.scale.set((hd.w + .5) * .72, 1.3, 4.5 * .72); h.position.set(cx, top + .64, cz); h.castShadow = true; const o = new THREE.Mesh(h.geometry, INK); o.scale.set(1.03, 1.03, 1.03); h.add(o); g.add(h); }
-  if (style === 'flat') { g.add(at(inkBox(hd.w + .1, .16, 4.1, toon(roofCol), .03), cx, top + .08, cz)); g.add(at(inkBox(hd.w + .1, .3, .12, toon(trim), .02), cx, top + .3, fz + .02)); }
+  if (style === 'hip') { const h = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4, 1), toon(roofCol, { surf:'roof' })); h.rotation.y = Math.PI / 4; h.scale.set((hd.w + .5) * .72, 1.3, 4.5 * .72); h.position.set(cx, top + .64, cz); h.castShadow = true; const o = new THREE.Mesh(h.geometry, INK); o.scale.set(1.03, 1.03, 1.03); h.add(o); g.add(h); }
+  if (style === 'flat') { g.add(at(inkBox(hd.w + .1, .16, 4.1, toon(roofCol, { surf:'roof' }), .03), cx, top + .08, cz)); g.add(at(inkBox(hd.w + .1, .3, .12, toon(trim), .02), cx, top + .3, fz + .02)); }
   // chimney, dormer
-  if (hd.chimney || r(11) < .5) g.add(at(inkBox(.38, 1.1, .38, toon('#8a6b5a'), .03), cx + (r(12) < .5 ? -1 : 1) * (hd.w / 2 - .8), top + .5, cz - .7));
-  if ((style === 'gable' || style === 'steep') && hd.w >= 4 && r(13) < .5) { g.add(at(inkBox(.8, .6, .9, toon(wallCol), .02), cx + (r(14) - .5) * (hd.w - 2), top + .35, cz + 1)); g.add(at(inkBox(.4, .3, .05, toon('#a8cfe0', { emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.3 }), .01), cx + (r(14) - .5) * (hd.w - 2), top + .38, cz + 1.46)); }
+  if (hd.chimney || r(11) < .5) g.add(at(inkBox(.38, 1.1, .38, toon('#8a6b5a', { surf:'stone' }), .03), cx + (r(12) < .5 ? -1 : 1) * (hd.w / 2 - .8), top + .5, cz - .7));
+  if ((style === 'gable' || style === 'steep') && hd.w >= 4 && r(13) < .5) { g.add(at(inkBox(.8, .6, .9, toon(wallCol), .02), cx + (r(14) - .5) * (hd.w - 2), top + .35, cz + 1)); g.add(at(inkBox(.4, .3, .05, toon('#a8cfe0', { surf:'auto', emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.3 }), .01), cx + (r(14) - .5) * (hd.w - 2), top + .38, cz + 1.46)); }
   // door, frame, step, porch or awning
-  g.add(at(inkBox(.6, .95, .1, toon(wood)), dx, .78, fz)); g.add(at(inkBox(.78, .1, .14, toon(trim)), dx, 1.3, fz + .02)); g.add(at(inkBox(.9, .1, .4, toon('#9a8a6e')), dx, .36, fz + .25));
+  g.add(at(inkBox(.6, .95, .1, toon(wood, { surf:'wood' })), dx, .78, fz)); g.add(at(inkBox(.78, .1, .14, toon(trim)), dx, 1.3, fz + .02)); g.add(at(inkBox(.9, .1, .4, toon('#9a8a6e', { surf:'stone' })), dx, .36, fz + .25));
   g.add(at(inkBox(.05, .05, .05, toon('#c9a24a')), dx + .2, .8, fz + .07));
-  if (notable || r(15) < .35) { const aw = notable ? 1.6 : 1.1; const a = at(inkBox(aw, .07, .7, toon(notable ? hd.accent || roofCol : roofCol), .02), dx, 1.62, fz + .35); a.rotation.x = .25; g.add(a); if (r(16) < .5 || notable) for (const sx of [-1, 1]) g.add(at(inkBox(.07, 1.3, .07, toon(wood), .01), dx + sx * aw * .45, .97, fz + .62)); }
+  if (notable || r(15) < .35) { const aw = notable ? 1.6 : 1.1; const a = at(inkBox(aw, .07, .7, toon(notable ? hd.accent || roofCol : roofCol), .02), dx, 1.62, fz + .35); a.rotation.x = .25; g.add(a); if (r(16) < .5 || notable) for (const sx of [-1, 1]) g.add(at(inkBox(.07, 1.3, .07, toon(wood, { surf:'wood' }), .01), dx + sx * aw * .45, .97, fz + .62)); }
   // windows with sills, shutters and flower boxes; upper row if two storeys
   const flowers = ['#e86a5a', '#ffd36b', '#f2a7c0', '#b8a0e8'];
   for (const row of two ? [1.15, 2.05] : [1.15]) for (let x = hd.x; x < hd.x + hd.w; x++) { if (row < 1.5 && Math.abs(x - dx) < 1) continue;
-    g.add(at(inkBox(.46, .46, .06, toon('#a8cfe0', { emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.28 })), x, row, fz + .01));
+    g.add(at(inkBox(.46, .46, .06, toon('#a8cfe0', { surf:'auto', emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.28 })), x, row, fz + .01));
     g.add(at(inkBox(.56, .06, .12, toon(trim)), x, row - .27, fz + .04)); g.add(at(inkBox(.04, .46, .03, toon(trim)), x, row, fz + .045));
     if (r(17 + x) < .4) for (const sx of [-1, 1]) g.add(at(inkBox(.14, .5, .04, toon(roofCol)), x + sx * .32, row, fz + .03));
-    if (r(30 + x) < .35) { g.add(at(inkBox(.5, .1, .14, toon(wood)), x, row - .33, fz + .1)); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.055, 6, 5), toon(flowers[(x + k) % 4])); b.position.set(x - .15 + k * .15, row - .25, fz + .12); g.add(b); } } }
+    if (r(30 + x) < .35) { g.add(at(inkBox(.5, .1, .14, toon(wood, { surf:'wood' })), x, row - .33, fz + .1)); for (let k = 0; k < 3; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.055, 6, 5), toon(flowers[(x + k) % 4])); b.position.set(x - .15 + k * .15, row - .25, fz + .12); g.add(b); } } }
   if (hd.lamp) { const l = glow('#ffd98a', 1.3, .6); l.position.set(dx - .6, 1.5, fz + .3); g.add(l); }
   // notable buildings
   const sign = (txt, y) => { const s = at(inkBox(Math.min(hd.w - .4, 2.2), .42, .06, toon('#3a2a1e'), .02), dx, y, fz + .08); g.add(s); };
   if (role === 'archive') { const tw = at(inkBox(1.2, 1.6, 1.2, toon(wallCol), .03), cx + hd.w / 2 - .6, top + .8, cz - .4); g.add(tw);
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(.95, 1.4, 4), toon(roofCol)); cone.rotation.y = Math.PI / 4; cone.position.set(cx + hd.w / 2 - .6, top + 2.3, cz - .4); g.add(cone);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(.95, 1.4, 4), toon(roofCol, { surf:'roof' })); cone.rotation.y = Math.PI / 4; cone.position.set(cx + hd.w / 2 - .6, top + 2.3, cz - .4); g.add(cone);
     const clock = new THREE.Mesh(new THREE.CircleGeometry(.36, 20), toon('#f6efe0')); clock.position.set(cx + hd.w / 2 - .6, top + 1, cz + .21); g.add(clock);
     for (const a of [0, 1.9]) { const h = at(inkBox(.04, .26, .02, toon('#1b1512')), 0, 0, 0); h.position.set(cx + hd.w / 2 - .6, top + 1 + .1, cz + .23); h.rotation.z = a; g.add(h); }
     for (const sx of [-1, 1]) g.add(at(inkBox(.22, 1.5, .22, toon('#e8dcc0'), .02), dx + sx * .75, 1.05, fz + .6)); g.add(at(inkBox(1.9, .2, .8, toon('#e8dcc0'), .02), dx, 1.85, fz + .45)); }
   if (role === 'store' || role === 'bakery') { sign('', 1.95); g.add(at(inkBox(hd.w - .2, .14, .9, toon('#e8dcc0'), .02), cx, 1.75, fz + .45)); for (let i = 0; i < hd.w; i++) { const st = at(inkBox(.5, .1, .92, toon(i % 2 ? '#f6efe0' : roofCol), .01), hd.x + i, 1.8, fz + .45); st.rotation.x = .3; g.add(st); } }
   if (role === 'tavern') { sign('', 1.95); const hang = at(inkBox(.5, .4, .04, toon('#7a4a1e'), .02), dx + 1, 1.5, fz + .5); g.add(hang); g.add(at(inkBox(.04, .3, .04, toon('#2a2a2a')), dx + 1, 1.8, fz + .5)); const bl = glow('#ffb060', 1.1, .5); bl.position.set(dx + 1, 1.5, fz + .6); g.add(bl); }
-  if (role === 'lodge') { for (const sx of [-1, 1]) g.add(at(inkBox(.2, 1.3, .2, toon(wood), .02), cx + sx * (hd.w / 2 - .3), .95, fz + .9)); g.add(at(inkBox(hd.w, .12, 1.1, toon(roofCol), .02), cx, 1.66, fz + .5)); g.add(at(inkBox(hd.w, .1, 1.1, toon('#8a6a48')), cx, .4, fz + .5)); }
+  if (role === 'lodge') { for (const sx of [-1, 1]) g.add(at(inkBox(.2, 1.3, .2, toon(wood, { surf:'wood' }), .02), cx + sx * (hd.w / 2 - .3), .95, fz + .9)); g.add(at(inkBox(hd.w, .12, 1.1, toon(roofCol), .02), cx, 1.66, fz + .5)); g.add(at(inkBox(hd.w, .1, 1.1, toon('#8a6a48')), cx, .4, fz + .5)); }
   if (role === 'shrinehouse') { const b = new THREE.Mesh(new THREE.ConeGeometry(.4, .9, 6), toon(roofCol)); b.position.set(cx, top + 1.8, cz); g.add(b); g.add(at(inkBox(.7, .7, .7, toon(wallCol), .02), cx, top + 1.05, cz)); const bl = glow(hd.accent || '#ffe08f', .9, .6); bl.position.set(cx, top + 1.1, cz + .4); g.add(bl); }
   return g;
 }
@@ -3634,6 +3650,7 @@ for (const k in MAPS) { MAPS[k].h = MAPS[k].tiles.length; MAPS[k].w = MAPS[k].ti
 
 // Using furniture: rest on a bed, buy at a counter, browse the Codex shelves, read something.
 async function useFurniture(pc) {
+  if (typeof pc.use === 'function') { await pc.use(pc); return true; }
   if (pc.use === 'rest') { healAll(); sfx('heal'); await say('You lie down for a while. When you get up, everything you carry is composed again.'); return true; }
   if (pc.use === 'shop') { await openShop(pc.shop); return true; }
   if (pc.use === 'read') { await say(pc.text); return true; }
@@ -3864,7 +3881,7 @@ function buildTerrain(M, V) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(colr, 3)); g.setIndex(idx); g.computeVertexNormals();
   const nrm = g.attributes.normal.array;
   for (let v = 0; v < cols * rows; v++) { const ny = nrm[v * 3 + 1]; if (ny < .82) { const kk = clamp((.82 - ny) * 3, 0, .7); c.setRGB(colr[v * 3], colr[v * 3 + 1], colr[v * 3 + 2]).lerp(earth, kk); colr[v * 3] = c.r; colr[v * 3 + 1] = c.g; colr[v * 3 + 2] = c.b; } }
-  const mesh = new THREE.Mesh(g, toon('#ffffff', { vertexColors:true })); mesh.receiveShadow = true; mesh.castShadow = true;
+  const mesh = new THREE.Mesh(g, toon('#ffffff', { vertexColors:true, surf:M && M.kind === 'inside' ? 'wood' : 'ground' })); mesh.receiveShadow = true; mesh.castShadow = true;
   return mesh;
 }
 
@@ -6129,7 +6146,7 @@ SET.coach = p => { const g = new THREE.Group(), c = '#3f5a3a', trim = '#c9a24a';
   sBox(g, 3.0, .08, 1.3, '#7a2a2a', 0, 1.92, 0); return g; };
 function buildTrain() {
   SET_CLEAN = true; const g = new THREE.Group();
-  const L = buildSet({ k:'loco', x:0, y:0 }), T = buildSet({ k:'tender', x:0, y:0 }), C = buildSet({ k:'coach', x:0, y:0 });
+  const [L, T, C] = withSurf('metal', () => [buildSet({ k:'loco', x:0, y:0 }), buildSet({ k:'tender', x:0, y:0 }), buildSet({ k:'coach', x:0, y:0 })]);
   SET_CLEAN = false;
   L.position.x = 0; T.position.x = -3.55; C.position.x = -6.7; g.add(L, T, C);     // front of the engine is +x; tender and coach trail behind
   const seat = new THREE.Object3D(); seat.position.set(-6.7, .72, 0); g.add(seat);
@@ -7259,17 +7276,71 @@ async function hatchEgg() {
   await say(`The shell falls away. A ${SPECIES[sp] ? SPECIES[sp].name : sp} unfolds in your hands, blinks at you, and decides you're home. Somewhere in Larkhollow, a kid would be very proud.`);
 }
 SET.blank = () => new THREE.Group();
+// ---------------------------------------------------------------- the rest of the room
+// The golden d20 in the middle of the map is the table's own die: anyone welcome at the table can roll it, once a visit.
+const dndWelcome = () => { const s = auraSide(); return s === 'light' || s === 'hurt'; };
+async function dndBoard() {
+  await say('(The campaign map: a cave mouth drawn in brown ink, five painted minis crowded round it, and a sixth mini off to one side that looks a lot like you. In the middle sits a big golden d20.)');
+  if (!dndWelcome()) return say('(Nobody offers you the die.)');
+  if (S.flags.dndRolled === MAP_VISIT) return sayAs('Morwen', 'One roll per visit. Them\'s the rules. I made them up just now, but they\'re the rules.');
+  const c = await ask('Morwen: Go on. Roll the gold one. See what the cave thinks of you.', ['Roll the d20', 'Not yet']); if (c !== 0) return;
+  S.flags.dndRolled = MAP_VISIT; sfx('tick'); await say('(The golden die clatters across the map, bounces off the cave, and settles.)');
+  const r = 1 + Math.floor(Math.random() * 20); await say(`(It lands on ${r}.)`);
+  if (r === 20) { await sayAs('Brand', 'NAT TWENTY! NAT TWENTY!'); await say('(The whole table is on its feet. Lio is jumping. Tam is filming it on a little brass contraption.)');
+    await sayAs('Morwen', 'Okay, okay. A natural twenty gets loot. Real loot. From the real loot box.'); const k = pickA(['charm', 'tonic', 'hearth', 'salts']); S.items[k] = (S.items[k] || 0) + 1; pay(50); return say(`(Morwen hands you a ${ITEMS[k].name} and 50 Marks from a box labelled LOOT (REAL).)`); }
+  if (r === 1) { await sayAs('Brand', 'Oh no. Oh no no no. A one.'); await sayAs('Tam', 'Statistically, that die hates you specifically.'); await sayAs('Lio', 'It\'s okay! Ones are for practising.'); return sayAs('Morwen', 'You trip over the cave. The cave is fine. You are less fine. Moving on.'); }
+  return sayAs('Morwen', r >= 15 ? pickA(['You stride into the cave like you own it. The cave, honestly, is a little intimidated.', 'The ancient door recognises you. It opens. It might even be impressed.']) : r >= 8 ? pickA(['You spot a tripwire. You also spot a second tripwire. You do not spot the third. It\'s a small one, though.', 'You make it halfway across the rope bridge. The rope bridge has opinions about the other half.'])
+    : pickA(['A goblin steals your boots. Just the boots. He seems very happy about it.', 'You open the chest. The chest opens you back. Roll for embarrassment.']));
+}
+// the Wall of Fallen Characters: every character this group has ever lost, with epitaphs
+const DND_CORK = ['(A corkboard between the shelves, labelled THE WALL OF FALLEN CHARACTERS in Morwen\'s handwriting. Index cards are pinned all over it.)',
+  '"SIR REGINALD BOLT, paladin. Smote a dragon. Was not a dragon. Was his landlord." (In Brand\'s writing.)',
+  '"GRIMBLE, bard. Talked a lich into retirement. Then talked it back out." (Saffi drew a little skull wearing sunglasses.)',
+  '"OFFICER PRATT, city watch. Tried to read a mimic its rights. The mimic did not have the right to remain silent." (Tam has underlined "procedure" three times.)',
+  '"MR. SPARKLES, dragon. Was a horse with a hat." (In crayon. Very large. Lio\'s.)'];
+async function dndCork() { S.flags.dndCork = ((S.flags.dndCork || 0) % (DND_CORK.length - 1)) + 1; await say(DND_CORK[0]); await say(DND_CORK[S.flags.dndCork]); }
+async function dndPiano() { sfx('settle'); await say('(You press a key. It is badly out of tune in a way that sounds deliberate.)');
+  if (dndWelcome()) await sayAs(pickA(['Morwen', 'Saffi', 'Brand']), pickA(['That\'s the tavern piano. It only plays sea shanties and one very sad song about a cheese.', 'Play the boss music! Dun dun DUN.', 'Lio\'s been learning. He knows half of one song. The loud half.'])); }
+async function dndSnacks() { await say('(A side table with a bowl of crisps, a plate of cookies, and a hand-written sign: SNACK BOWL. GUARDED BY LIO.)');
+  if (!dndWelcome()) return; if (S.flags.dndSnack === MAP_VISIT) return sayAs('Lio', 'One snack per adventure. I\'m very strict.');
+  S.flags.dndSnack = MAP_VISIT; S.items.cake = (S.items.cake || 0) + 1; await sayAs('Lio', 'You can have one. Because you\'re on our team.'); await say('(You take a cookie. It counts as a Honey Cake.)'); }
+// Lio's pillow fort: blankets over two chairs, a string of little lights, a sign that says DRAGONS ONLY
+async function dndFort() { await say('(Blankets draped over two chairs, a string of tiny lights inside, and a cardboard sign: DRAGONS ONLY. Underneath, smaller: and frends.)');
+  if (!dndWelcome()) return say('(The fort\'s door flap is firmly shut.)');
+  const c = await ask('Lio: You can come in. You have to say the password. The password is "please".', ['"Please."', 'Maybe later']); if (c !== 0) return sayAs('Lio', 'The fort will wait.');
+  healAll(); sfx('heal'); await say('(You crawl in. It is ridiculously cosy. Lio hands you a cushion and tells you a long story about a dragon who was scared of the dark, so the other dragons made him a lamp.)');
+  await say('(When you crawl back out, everything you carry is composed again.)'); }
+// the costume trunk: hats for every occasion, none of them for this one
+const DND_HATS = [['a wizard hat with a moon on it', 'Morwen', 'Ooh. Very arcane. You get advantage on looking mysterious.'], ['a paladin helmet three sizes too big', 'Brand', 'That\'s mine! It fits me fine. My head is very big. With courage.'],
+  ['a fake dragon tail on a belt', 'Saffi', 'Oh, I love that. Now we match. Swish it. No, more swish.'], ['a cardboard police badge', 'Tam', 'That\'s an unofficial badge, but I\'ll allow it. You\'re deputised. Don\'t arrest any doors.'],
+  ['a crown made of paper and glitter', 'Lio', 'That\'s my crown! ...You can borrow it. You have to give it back though. That\'s the law.']];
+async function dndTrunk() { await say('(A battered trunk with DRESS-UP stencilled on the lid. Inside: capes, hats, a lot of glitter.)');
+  const h = DND_HATS[(S.flags.dndHat = ((S.flags.dndHat || 0) + 1) % DND_HATS.length)]; await say(`(You try on ${h[0]}.)`);
+  if (dndWelcome()) await sayAs(h[1], h[2]); else await say('(Nobody comments. Somehow that\'s worse.)'); }
+SET.corkboard = p => { const g = new THREE.Group(); sBox(g, .9, .7, .05, '#b88a5a', 0, 1.25, -.42); sBox(g, .96, .76, .03, '#5a3a24', 0, 1.25, -.45);
+  const cols = ['#f6efe0', '#f4e3a0', '#e0f0f6', '#f6dce0']; for (let i = 0; i < 7; i++) { const c = sBox(g, .18, .13, .01, cols[i % 4], -.3 + (i % 4) * .2, 1.4 - Math.floor(i / 4) * .26, -.39, { ink:0, rot:[0, 0, (hsh(i, 3) - .5) * .4] }); sBall(g, .015, '#c0503a', c.position.x, c.position.y + .05, -.37, null, { ink:0 }); }
+  return g; };
+SET.trunk = p => { const g = new THREE.Group(); sBox(g, .8, .42, .5, '#7a4a2a', 0, .21, -.1); const lid = sBox(g, .82, .08, .52, '#5a3420', 0, .5, -.3); lid.rotation.x = -.9;
+  for (const x of [-.32, .32]) sBox(g, .05, .43, .52, '#c9a24a', x, .22, -.1, { ink:0 }); sBox(g, .3, .12, .3, '#6a2a8a', -.1, .44, -.05, { rot:[0, .4, .3] }); sCyl(g, .12, .2, .3, '#2a2a6a', .18, .5, -.1, [.3, 0, -.4]); return g; };
+SET.fort = p => { const g = new THREE.Group(); for (const x of [-.45, 1.45]) { sBox(g, .4, .45, .4, '#8a5a3a', x, .23, 0); sBox(g, .4, .5, .06, '#8a5a3a', x, .7, -.18); }
+  const tent = part(new THREE.CylinderGeometry(.01, 1.1, .9, 4, 1, true), '#c86a8a', [.5, .5, 0], { mo:{ side:THREE.DoubleSide } }); tent.rotation.y = Math.PI / 4; tent.scale.z = .55; g.add(tent);
+  const flap = part(new THREE.PlaneGeometry(.45, .55), '#e8d8a8', [.5, .32, .42], { mo:{ side:THREE.DoubleSide } }); g.add(flap);
+  for (let i = 0; i < 7; i++) { const l = glow(['#ffd36b', '#ff9ab0', '#9ad8ff'][i % 3], .22, .9); l.position.set(-.3 + i * .27, .96 - Math.abs(i - 3) * .06, .3); g.add(l); }
+  sBox(g, .44, .22, .02, '#e8dcc0', .5, .95, .36, { rot:[-.2, 0, .08] }); return g; };
 SET.gametable = p => { const g = new THREE.Group();                      // a square 3×3 gaming table: battle map, DM screen, minis, dice
   sBox(g, 2.5, .1, 2.5, '#5a3a24', 0, .72, 0); for (const [x, z] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) sBox(g, .12, .7, .12, '#4a2e1c', x, .35, z);
   sBox(g, 1.7, .01, 1.5, '#d8cca8', 0, .78, .1, { ink:0 }); for (let i = 0; i < 6; i++) sBox(g, 1.7, .005, .01, '#9a8a6a', 0, .79, -.6 + i * .28, { ink:0 });
   for (let i = 0; i < 3; i++) { const s2 = sBox(g, .4, .32, .03, ['#6a2a8a', '#2a4a6a', '#6a2a2a'][i], -.45 + i * .45, .94, -1.0, { ink:0 }); s2.rotation.x = -.15; }
   for (const [x, z, c] of [[-.3, .2, '#c0503a'], [.25, -.1, '#4f8a8a'], [.1, .4, '#f4cf5e'], [-.5, -.3, '#3a3a3a'], [.5, .3, '#e8a83a']]) { sCyl(g, .05, .06, .03, '#2a2826', x, .8, z); sBall(g, .05, c, x, .87, z); }
   for (const [x, z, c] of [[.9, .9, '#c0503a'], [-.95, .85, '#6ab8ff'], [.85, -.7, '#a0c060'], [-.8, -.5, '#b88aff'], [.3, 1.0, '#f4cf5e']]) { const d = part(new THREE.IcosahedronGeometry(.055, 0), c, [x, .82, z]); d.rotation.set(x, z, 0); g.add(d); }
+  { const d20 = part(new THREE.IcosahedronGeometry(.12, 0), '#f4cf5e', [.05, .9, .15], { mo:{ emissive:new THREE.Color('#c99a2a'), emissiveIntensity:.5 } }); d20.rotation.set(.4, .7, 0); g.add(d20); const dg = glow('#ffd36b', .55, .7); dg.position.set(.05, .92, .15); g.add(dg); }
   const lamp = glow('#ffd98a', .9, .35); lamp.position.set(0, 1.6, 0); g.add(lamp); g.position.x = 0; return g; };
 // put the room in the house, and the people outside on the street when they've thrown you out
 (function () {
   const P = MAPS[TOWNS.JOY.id], old = MAPS[DND_ID], d = { ...old.room, name:'The Dragon\'s Table', w:13, h:10, floor:['#6a4a3a', '#5e4232'], wall:'#c8a888',
-    furn:[['gametable', 3, 4], ...[[2, 3], [3, 3], [4, 3], [2, 4], [4, 4], [2, 5], [3, 5], [4, 5]].map(([x, y]) => ['blank', x, y]), ['shelf', 7, 1], ['shelf', 8, 1], ['shelf', 10, 1], ['shelf', 11, 1], ['candle', 11, 7], ['piano', 11, 4], ['table', 9, 4]], npcs:null, npcsFn:dndPeople };
+    furn:[['gametable', 3, 4, { use:dndBoard }], ...[[2, 3], [3, 3], [4, 3], [2, 4], [4, 4], [2, 5], [3, 5], [4, 5]].map(([x, y]) => ['blank', x, y, { use:dndBoard }]),
+      ['shelf', 7, 1], ['shelf', 8, 1], ['corkboard', 9, 1, { use:dndCork }], ['shelf', 10, 1], ['shelf', 11, 1], ['candle', 11, 7], ['piano', 11, 4, { use:dndPiano }], ['table', 9, 4, { use:dndSnacks }],
+      ['fort', 9, 7, { use:dndFort }], ['blank', 10, 7, { use:dndFort }], ['trunk', 6, 1, { use:dndTrunk }]], npcs:null, npcsFn:dndPeople };
   MAPS[DND_ID] = roomMap(TOWNS.JOY.id, 'JOY', d); MAPS[DND_ID].room.npcsFn = dndPeople; MAPS[DND_ID].music = 'dnd_chaotic';
 })();
 // =============================================================================
@@ -8179,7 +8250,7 @@ function renderBHUD() {
 }
 function screenPos(v3) { const v = v3.clone().project(bcam); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; }
 function floatText(v3, txt, cls = '') { const [x, y] = screenPos(v3); const d = document.createElement('div'); d.className = 'dmg ' + cls; d.textContent = txt; d.style.left = x + 'px'; d.style.top = y + 'px'; document.body.appendChild(d); setTimeout(() => d.remove(), 950); }
-async function banner(big, small) { const b = $('#banner'); b.innerHTML = `<small>${small}</small>${big}`; b.classList.add('on'); await wait(1100); b.classList.remove('on'); await wait(250); }
+async function banner(big, small) { const b = $('#banner'); b.innerHTML = `${small ? `<small>${small}</small>` : ''}${big}`; b.classList.add('on'); await wait(1100); b.classList.remove('on'); await wait(250); }
 const modelOf = m => m === B.foe ? B.foeModel : B.models.get(m);
 async function tween(ms, fn) { const t0 = performance.now(); for (;;) { const k = Math.min(1, (performance.now() - t0) / ms); fn(k); if (k >= 1) break; await frame(); } }
 async function orb(from, to, color, size = .2, arc = 1.2, ms = 380) {
@@ -8385,7 +8456,7 @@ async function doDyad(q) {
   const mid = ga.position.clone().add(gb.position).multiplyScalar(.5).add(V3(0, 1.2, -.6));
   sfx('dyad', ta);
   await Promise.all([orb(ga.position.clone(), mid, TYPES[ta].c, .2, .5, 420), orb(gb.position.clone(), mid, TYPES[tb].c, .2, .5, 420)]);
-  banner(q.name, 'Dyad');
+  banner(q.name, '');
   await orb(mid, FOE_POS, new THREE.Color(TYPES[ta].c).lerp(new THREE.Color(TYPES[tb].c), .5), .38, .3, 520);
   const pow = (MOVES[q.a.mv].pow + MOVES[q.b.mv].pow) * .8, atk = (stat(q.a.m, 'atk') + stat(q.b.m, 'atk')) / 2;
   const e = (effOn(ta, B.foe) + effOn(tb, B.foe)) / 2;
