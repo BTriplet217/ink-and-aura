@@ -4337,6 +4337,7 @@ function worldStep(v) {        // eight directions, turned to match the camera
     const d = Math.hypot(x, y) < .55 ? null : Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'up' : 'down');
     if (d === last) return; last = d; clearInterval(repT); if (d) { press(d); repT = setInterval(() => { if (last === d && (UI.cho || UI.list || selectHandler)) press(d); }, 260); } };
   const set = e => { const r = base.getBoundingClientRect(), R = r.width / 2 - 16; let x = (e.clientX - r.left - r.width / 2) / R, y = (r.top + r.height / 2 - e.clientY) / R; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+    if (Math.abs(x) > Math.abs(y)) y = 0; else x = 0;   // on touch, four directions only: the knob snaps to the nearest one
     JOY.tx = x; JOY.ty = y; knob.style.transform = `translate(${x * R}px, ${-y * R}px)`; nudge(x, y); };
   base.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); id = e.pointerId; try { base.setPointerCapture(id); } catch (_) {} knob.style.transition = 'none'; base.classList.add('on'); set(e); });
   base.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
@@ -6566,14 +6567,26 @@ const REGION_VIBE = o => ({ ...HUB_VIBE, ...o });
 SET.lighthouse = p => { const g = new THREE.Group();                 // after the Portland Head Light: white conical tower, black lantern room
   sCyl(g, .62, .95, 5.2, '#f4f1e8', 0, 2.6, 0, null, { seg:20 }); sCyl(g, .78, .78, .14, '#2a2826', 0, 5.25, 0, null, { seg:20 });
   for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; sCyl(g, .03, .03, .7, '#2a2826', Math.cos(a) * .7, 5.6, Math.sin(a) * .7, null, { ink:0 }); }
-  const lamp = glow('#fff2b0', 1.6, .9); lamp.position.set(0, 5.62, 0); g.add(lamp); sCyl(g, .52, .52, .62, '#d9e6ec', 0, 5.62, 0, null, { seg:16, ink:0 });
+  const lamp = glow('#fff2b0', 1.6, .9); lamp.position.set(0, 5.62, 0); g.add(lamp);
+  const glass = sCyl(g, .52, .52, .62, '#d9e6ec', 0, 5.62, 0, null, { seg:16, ink:0, mo:{ emissive:new THREE.Color('#ffd870'), emissiveIntensity:0 } });   // the lamp room glows after dark (h14)
+  const bulb = sBall(g, .2, '#fff6d0', 0, 5.62, 0, null, { ink:0 }); bulb.material = new THREE.MeshBasicMaterial({ color:'#fff6d0' });
   part && g.add(part(new THREE.ConeGeometry(.66, .55, 16), '#2a2826', [0, 6.2, 0])); sBall(g, .09, '#2a2826', 0, 6.55, 0);
-  sBox(g, .34, .6, .06, '#2a2826', 0, .3, .9, { ink:0 }); for (const y of [1.6, 3.0, 4.2]) sBox(g, .16, .26, .05, '#2a2826', 0, y, .78 - y * .06, { ink:0 });
+  // the door and windows sit on the tapering wall (radius .95 at the base, .62 at the top), tilted to match it
+  const rAt = y => .95 - .0635 * y, tilt = -Math.atan(.0635);
+  sBox(g, .48, .78, .06, '#e2ddd0', 0, .39, rAt(.39) + .02, { ink:0, rot:[tilt, 0, 0] });                       // stone surround
+  sBox(g, .36, .66, .05, '#5a3a24', 0, .35, rAt(.35) + .055, { ink:0, rot:[tilt, 0, 0] });                       // wooden door
+  sBox(g, .02, .6, .02, '#3e2818', 0, .35, rAt(.35) + .085, { ink:0, rot:[tilt, 0, 0] }); sBall(g, .025, '#b08a3a', .11, .36, rAt(.36) + .09);
+  sBox(g, .6, .08, .3, '#bdb6a8', 0, .04, 1.06);                                                                  // a stone step
+  for (const y of [1.6, 3.0, 4.2]) sBox(g, .16, .26, .05, '#2a2826', 0, y, rAt(y) + .01, { ink:0, rot:[tilt, 0, 0] });
   // the beam: two long soft cones from the lamp, swung round slowly after dark (h14 turns it)
   const beam = new THREE.Group(); beam.position.set(0, 5.62, 0); g.add(beam);
-  const bm = new THREE.MeshBasicMaterial({ color:'#fff2b0', transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide });
-  for (const s of [1, -1]) { const c = new THREE.Mesh(new THREE.ConeGeometry(1.1, 14, 20, 1, true), bm); c.rotation.z = s * Math.PI / 2; c.position.x = s * 7.2; beam.add(c); }
-  g.userData.lamp = lamp; g.userData.beam = beam; g.userData.beamMat = bm; LIGHTHOUSES.push(g); return g; };
+  // soft beams: brightest along the middle and near the lamp, fading out at the edges and toward the end. Three nested cones blur it.
+  const bm = new THREE.ShaderMaterial({ uniforms:{ op:{ value:0 }, col:{ value:new THREE.Color('#fff2b0') } }, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
+    vertexShader:'varying float vT; varying float vF; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vec3 n = normalize(normalMatrix * normal); vF = abs(dot(n, normalize(-mv.xyz))); vT = clamp(.5 - position.y / 14.0, 0.0, 1.0); gl_Position = projectionMatrix * mv; }',
+    fragmentShader:'varying float vT; varying float vF; uniform float op; uniform vec3 col; void main(){ float edge = pow(vF, 2.2); float along = smoothstep(0.0, .06, vT) * pow(1.0 - vT, 1.6); gl_FragColor = vec4(col * edge * along * op, 1.0); }' });
+  for (const s of [1, -1]) for (const [r, k] of [[.55, 1], [.95, .6], [1.45, .35]]) { const m = bm.clone(); m.uniforms = { op:{ value:0 }, col:{ value:new THREE.Color('#fff2b0').multiplyScalar(k) } };
+    const c = new THREE.Mesh(new THREE.ConeGeometry(r, 14, 24, 1, true), m); c.rotation.z = s * Math.PI / 2; c.position.x = s * 7.15; c.renderOrder = 5; beam.add(c); }
+  g.userData.lamp = lamp; g.userData.beam = beam; g.userData.glass = glass; g.userData.bulb = bulb; LIGHTHOUSES.push(g); return g; };
 const LIGHTHOUSES = [];
 SET.parasol = p => { const g = new THREE.Group(), c = p.c || '#c0503a'; sCyl(g, .03, .03, 1.7, '#d9d0c0', 0, .85, 0, null, { ink:0 });
   for (let i = 0; i < 8; i++) g.add(part(new THREE.ConeGeometry(.9, .35, 8, 1, true, i / 8 * Math.PI * 2, Math.PI / 4), i % 2 ? c : '#f3e7c9', [0, 1.75, 0], { mo:{ side:THREE.DoubleSide } }));
@@ -6738,7 +6751,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   for (const x of [10, 28, 44]) B.lamp(x, 21); for (const x of [26, 40]) B.lamp(x, 37);
   B.piece('car', 40, 40, 2, 1, { c:'#e8dcc0', r:0 }); B.piece('car', 9, 37, 2, 1, { c:'#4f8a8a', r:0 });
   rect(m, 2, 40, 48, 2, '.'); B.piece('gatepost', 50, 30, 1, 2, { keep:1 });
-  regionMap('saltmere', B, { name:'Saltmere', sub:'City on the sea', V:SALT_V, music:'saltmere', arrive:'The whole city leans toward the water. Boardwalk, neon, gulls, a white lighthouse on a black rock, and the sea, huge and blue and not grey at all.',
+  regionMap('saltmere', B, { name:'Saltmere', sub:'City on the sea', V:SALT_V, music:'saltmere', arrive:'The whole city leans toward the water. Boardwalk, neon, gulls, the Sharyn Lighthouse white on its black rock, and the sea, huge and blue and not grey at all.',
     exit:(nx, ny) => nx >= 52 ? { map:'r_coast', x:1, y:9, dir:'right' } : null });
   const IN = i => MAPS['saltmere_in' + i].room;
   IN(0).npcs = [npc('keeper_lh', 5, 5, 'down', 'Keeper Ardis', lk('#2a3448', '#f3e7c9', SK[2], '#d8d0c0', ['beard', 'cap', 'longcoat']), talkLightKeeper)];
@@ -6759,7 +6772,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   IN(6).npcs = [npc('surf', 7, 5, 'down', 'Kai', lk('#3a6a8a', '#f4cf5e', SK[3], '#e2c070', ['bandana']), surfShack)];
   IN(7).npcs = [npc('teller', 6, 2, 'down', 'Teller', lk('#5a5a5a', '#f3e7c9', SK[1], '#3a2414', ['glasses']), bankTeller), npc('guard_b', 2, 6, 'right', 'Bank guard', lk('#2a3448', '#d8b85a', SK[4], '#141014', ['cap', 'baton', 'stout']), () => sayAs('Bank guard', sideLine({ light:'Morning.', even:'Keep it moving.', shadow:'Don\'t even think about it.' })))];
   REGION_NPCS.saltmere = () => [
-    npc('lhdoor', 4, 3, 'up', 'Lighthouse', null, climbLighthouse, { invisible:true }),
+    npc('lhdoor', 4, 3, 'up', 'Sharyn Lighthouse', null, climbLighthouse, { invisible:true }),
     npc('lhsign', 4, 7, 'up', 'Sign', null, () => say('SALTMERE HEAD LIGHT. First lit 1791 by order of the harbour. Eighty feet of white stone on Gull Point. The keeper\'s house is open to callers. (Under it, scratched in: "She still turns. Wave at her.")'), { invisible:true }),
     npc('fisher', 9, 7, 'down', 'Fisherman', lk('#5a6a3a', '#e8a83a', SK[2], '#8a8078', ['cap', 'beard']), () => sayAs('Fisherman', S.flags.lightOut ? 'A boat came onto the rocks last night. Light was out. Nobody knows who climbed up there and put it out. (He looks at you, and keeps looking.)' : 'Mackerel\'s running. First time in eleven years. I cried, a bit. Don\'t tell anyone.')),
     npc('sunbather', 19, 9, 'up', 'Sunbather', lk('#e8a83a', '#fff3d6', SK[1], '#7a3e1e', ['glasses']), () => sayAs('Sunbather', sideLine({ light:'Sit down, there\'s room. The sun\'s for everybody.', even:'You\'re in my light. A little bit.', shadow:'(She gathers up her towel and moves twenty feet away.)' }))),
@@ -6782,7 +6795,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
 async function talkLightKeeper() {
   if (S.flags.lightOut) return sayAs('Keeper Ardis', 'Get out of my house. I know it was you. I can\'t prove it, and you\'re not worth the rope.');
   if (auraSide() === 'shadow') return sayAs('Keeper Ardis', 'The tower\'s closed. To you. (He puts the big iron key in his coat pocket and keeps his hand on it.)');
-  await sayAs('Keeper Ardis', 'Ninety-two steps. Kept the light forty years. Kept it through the grey years when there weren\'t any ships, because a light with nobody to see it is still a promise.');
+  await sayAs('Keeper Ardis', 'The Sharyn Light. Ninety-two steps. Kept her forty years. Kept it through the grey years when there weren\'t any ships, because a light with nobody to see it is still a promise.');
   if (once('ardisLens')) { await sayAs('Keeper Ardis', 'Here. A bit of the old lens. It broke the winter everything stopped. Bring it somewhere dark sometime and see what it does.'); S.items.veil = (S.items.veil || 0) + 2; await say('(You get 2 Veils, cut from lighthouse glass.)'); }
 }
 // After the world is saved, Keeper Ardis is up in the lamp room, and he has something for you.
@@ -6802,7 +6815,7 @@ async function climbLighthouse() {
   if (dark && !S.flags.lhForced) { const c = await ask('The tower door is locked. The keeper took the key.', ['Leave it', 'Kick it in']); if (c !== 1) return; S.flags.lhForced = 1; sin(1); sfx('hurt'); await say('Three kicks. The old wood gives, and the whole headland hears it.'); }
   else if (!dark && !S.flags.ardisMet) { S.flags.ardisMet = 1; }
   await fadeTo(1, 400); await fadeTo(0, 400);
-  await say('Ninety-two steps, around and around. At the top the lantern room is hot and bright and humming, and the whole city is under you: the boardwalk, the neon, the roofs, the coast road running back east toward everything you know.');
+  await say('The Sharyn Lighthouse. Ninety-two steps, around and around. At the top the lantern room is hot and bright and humming, and the whole city is under you: the boardwalk, the neon, the roofs, the coast road running back east toward everything you know.');
   if (!dark) { await say('Out on the water, a fishing boat blinks its lamp at the tower, twice. You find yourself waving, even though they can\'t see you.'); if (once('lhTop')) { pay(80); await say('(You find a tin of coins on the gallery, marked "FOR WHOEVER CLIMBS". 80 Marks.)'); }
     if (S.flags.hushDone && !S.flags.doom) await ardisBeaconGift(); return; }
   const c = await ask('The great lamp turns slowly beside you. There\'s a breaker on the wall, marked in red.', ['Climb back down', 'Throw the breaker']);
@@ -8359,14 +8372,14 @@ function worldSheet() {
     ${top ? `<ul style="font-size:12.5px;margin:6px 0 0 18px;padding:0">${top}</ul>` : ''}</div>`;
 }
 // =============================================================================
-//  DAY AND NIGHT — the Welkin keeps its own clock. One full day is 24 real minutes
-//  (one in-game hour a minute): long enough that an errand or a town fits inside one
+//  DAY AND NIGHT — the Welkin keeps its own clock. One full day is 18 real minutes
+//  (one in-game hour every 45 seconds): long enough that an errand or a town fits inside one
 //  part of the day, short enough that a sitting sees a sunset and a dawn.
 //    dawn 5–7 · day 7–17 · sunset 17–20 · night 20–5
 //  The clock only runs outdoors-and-on-roads time (it keeps going in rooms and battles
 //  too, so you can come out to a different sky). New games start at 9 in the morning.
 // =============================================================================
-const DAY_SECONDS = 24 * 60;
+const DAY_SECONDS = 18 * 60;
 // keyframes: hour, sky tint and strength, sun colour and strength, hemisphere colour and strength
 const DAY_KEYS = [
   [0,    '#1c2240', .78, '#8ea6e0', .32, '#8c9cd0', .6],
@@ -8418,7 +8431,8 @@ function tickDay(dt) {
   for (let i = LIGHTHOUSES.length - 1; i >= 0; i--) { const g = LIGHTHOUSES[i]; let o = g, live = false; while (o) { if (o === world) { live = true; break; } o = o.parent; }
     if (!live) { LIGHTHOUSES.splice(i, 1); continue; }
     const on = !(S.flags && S.flags.lightOut) && !(S.flags && S.flags.ruin), k = on ? clamp((NIGHT_K - .15) / .5, 0, 1) : 0, u = g.userData;
-    u.beam.rotation.y += dt * .9; u.beamMat.opacity = .16 * k; u.beam.visible = k > 0;
+    u.beam.rotation.y += dt * .9; for (const c of u.beam.children) c.material.uniforms.op.value = .55 * k; u.beam.visible = k > 0;
+    u.glass.material.emissiveIntensity = 1.6 * k; u.bulb.visible = on;
     u.lamp.material.opacity = on ? .45 + .5 * k + .15 * k * Math.abs(Math.sin(u.beam.rotation.y)) : .08; u.lamp.scale.setScalar(1.6 + 1.4 * k); }
 }
 let NIGHT_K = 0;
