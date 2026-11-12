@@ -5645,7 +5645,7 @@ function questEnts(map, base) {
     if (t && map === TOWNS[t].id + '_room' + MISSING[t].room && boardState(t).miss === 1) out.push(at2(map, all(), { id:'missing', look:roomLook(t, 9, { dark:true }), name:MISSING[t].who, talk:() => findMissing(t) }, 3, 3));
   }
   if (M.kind === 'still' && postgame() && S.flags.gift) out.push(at2(map, all(), { id:'superboss', look:S.flags.doom ? LOOKS.wren : ORRIN_LOOK, name:S.flags.doom ? 'Wren' : 'Orrin Vale', talk:talkSuperboss }, 10, 9));
-  out.push(...evilEnts(map, all()));
+  out.push(...evilEnts(map, all())); out.push(...wardenEnts(map, all()));
   return out.filter(Boolean);
 }
 function at2(map, taken, e, x, y) { const [a, b] = spotNear(map, x, y, taken); return { dir:'down', ...e, x:a, y:b }; }
@@ -9339,6 +9339,66 @@ function evilEnts(map, base) {
 }
 { const _hesk = talkHesk; talkHesk = async function () { return S.flags.doom ? recruitHesk() : _hesk(); }; }
 // =============================================================================
+//  WARDEN ANSEL REYNE: the last Warden of the Welkin's roads. There were forty Wardens once, one for every
+//  crossroads; the Choir Numbed thirty-nine of them. He turns up in Vellum once you've settled three Hearts.
+//   · Each time you report back with more Hearts settled, he pays the old road bounty (150 Marks a Heart)
+//     and tells you something true about the road ahead.
+//   · When the Archive floor splits open, he's standing at the edge of it. He decides whether you go down:
+//       light or hurting aura: he swears you the Warden's Oath. In the fight with the Hush, the first time it tries
+//         to Numb one of your Manifs, the Oath holds and it doesn't take.
+//       shadow aura: he won't let you pass. Beat him and he steps aside, and you go down without the Oath.
+//   · After the good ending he has one last thing to say. Under the Chord he's Numbed at his post,
+//     until every city wakes again.
+// =============================================================================
+const WARDEN_LOOK = { coat:'#3a4a3a', accent:'#b8a070', skin:'#c79a78', hair:'#9a9288', legs:'#2a2622', hat:'#2e3a2e', gear:['longcoat', 'beard', 'staff'], build:'broad' };
+Object.assign(ITEMS, { oath:{ name:'Warden\'s Oath', key:true, fieldUse:() => say('A worn brass badge with a crossroads cut into it. Warden Reyne\'s own. It\'s warm, as if somebody is still holding it.'), desc:'Holds one Manif steady against the Hush' } });
+Object.assign(ITEM_INFO, { oath:'Warden Reyne swore it to you at the edge of the Stillwell. The first time the Hush tries to Numb one of your Manifs, the Oath holds instead.' });
+const WARDEN_NEWS = {
+  1:'The Choir doesn\'t take people, you know. It takes the reason they had for doing anything. The bodies walk home on their own.',
+  3:'Every Heart you settle, the roads get a little louder at night. People singing. Arguing. I\'d forgotten how loud people are. I like it.',
+  5:'Halfway. The Choir have noticed you. Grey coats on the Long Siding, asking after a traveller with a full Codex. Keep your Manifs close.',
+  7:'Three left. The Stillwell\'s been humming under the Archive since your sixth Heart. Wren hasn\'t slept. Don\'t tell her I told you.',
+  9:'One more. When the last one settles, the floor will open. I\'ll be there. That\'s the only promise I\'ve got left to keep.' };
+async function talkWarden() {
+  const F = S.flags, n = Object.keys(S.hearts).length;
+  if (F.doom && !F.atoned) return say('Warden Reyne stands at attention outside the Archive, grey to the eyes, with his staff held perfectly upright. He doesn\'t blink when you pass. He has been told to guard the door, and he will guard it forever.');
+  if (F.doom && F.atoned) return sayAs('Warden Reyne', 'I remember standing here. I remember you walking past me, a hundred times, and me not able to say a word. (He looks at you for a long moment.) You came back and put it right. That\'s more than most. It isn\'t everything. Go on.');
+  if (F.hushDone) { if (!F.wardenAfter) { F.wardenAfter = 1; await sayAs('Warden Reyne', 'Forty Wardens, once. Thirty-nine of them Numbed by the Choir, and me too stubborn to go grey. I kept walking the roads because somebody had to.'); }
+    return sayAs('Warden Reyne', 'The roads are loud again. I\'m retiring. I\'m going to sit in Maribel\'s window with a cake and watch people argue in the street. You go and see what\'s past the edges. That\'s a Warden\'s job, now.'); }
+  if (!F.wardenMet) { F.wardenMet = 1;
+    await sayAs('Warden Reyne', 'You\'re the one with the Codex. Ansel Reyne. Warden of the roads. There were forty of us, one at every crossroads in the Welkin. The Choir Numbed thirty-nine. I\'m what\'s left.');
+    await sayAs('Warden Reyne', 'I can\'t settle a Heart. I can\'t carry what you carry. But the old road bounty still stands, and I still pay it: come and tell me every time another Heart goes quiet.'); }
+  const paid = F.wardenPaid || 0;
+  if (n > paid) { const m = (n - paid) * 150; F.wardenPaid = n; pay(m); await sayAs('Warden Reyne', `${n - paid === 1 ? 'Another one' : (n - paid) + ' more'} settled. The road bounty: ${m} Marks. Don't argue, it's the law.`);
+    const k = Object.keys(WARDEN_NEWS).map(Number).filter(x => x <= n).pop(); if (k && F.wardenNews !== k) { F.wardenNews = k; return sayAs('Warden Reyne', WARDEN_NEWS[k]); } return; }
+  return sayAs('Warden Reyne', n >= WN ? 'It\'s open. I\'ll meet you at the edge of it, in the Archive.' : `${n} of ${WN}. Keep walking. The roads are watching you, and they\'re hopeful. I can tell, they\'re louder.`);
+}
+// At the edge of the Stillwell. Returns true if you may go down.
+async function wardenGate() {
+  const F = S.flags; if (F.wardenGate) return true;
+  await say('Warden Reyne is standing at the edge of the split floor, staff planted, looking down into the still water.');
+  if (auraSide() === 'shadow') {
+    await sayAs('Warden Reyne', 'No. I\'ve watched the roads go grey for thirty years and I know what it looks like when it walks up to me. You\'re carrying it. You go down there like that and you won\'t come back up as you.');
+    const c = await ask('Warden Reyne lifts his staff across the stairs.', ['Make him move', 'Step back']); if (c !== 0) return false;
+    const ok = await trainerFight('Warden Reyne', [[spAt('CONFIDENCE', 2, 2), 47], [spAt('CALM', 2, 2), 48], [spAt('HOPE', 2, 2), 49]]); if (!ok) return false;
+    F.wardenGate = 'forced'; await sayAs('Warden Reyne', '(He sits down hard on the Archive floor.) Then go. Somebody has to watch the door. I\'ll still be here when it\'s over, whichever way it goes.'); return true; }
+  await sayAs('Warden Reyne', 'Ten Hearts. I\'ve waited thirty years to see someone stand here. A Warden swears an oath at every crossroads: that whoever passes, passes as themselves. I\'ve got one left.');
+  await say('He takes the brass badge off his coat, a crossroads cut into it, and presses it into your hand. It\'s warm.');
+  S.items.oath = 1; F.wardenGate = 'oath'; sfx('keep');
+  await say('(You received the Warden\'s Oath. The first time the Hush tries to Numb one of your Manifs, the Oath holds.)');
+  await sayAs('Warden Reyne', 'Go on. I\'ll hold the door.');
+  return true;
+}
+function wardenEnts(map, base) {
+  const out = [], n = Object.keys(S.hearts || {}).length, all = () => base.concat(out);
+  if (map === 'vellum' && (n >= 3 || S.flags.doom || S.flags.hushDone) && !(n >= WN && !S.flags.hushDone && !S.flags.doom))
+    out.push(at2(map, all(), { id:'warden', name:'Warden Reyne', look:S.flags.doom && !S.flags.atoned ? { ...WARDEN_LOOK, ...NUMBED_LOOK, gear:WARDEN_LOOK.gear } : WARDEN_LOOK, folk:false, talk:talkWarden }, 19, 15));
+  if (map === 'vellum_room0' && n >= WN && !S.flags.hushDone) out.push(at2(map, all(), { id:'warden_rift', name:'Warden Reyne', look:WARDEN_LOOK, dir:'down', folk:false, talk:async () => {
+    if (!S.flags.wardenGate) { if (await wardenGate()) return say('(The way down is open. Step into the split floor when you\'re ready.)'); return; }
+    return sayAs('Warden Reyne', S.flags.wardenGate === 'oath' ? 'I\'ll hold the door. Go and come back.' : 'I said I\'d watch the door. I didn\'t say I\'d like it.'); } }, 7, 3));
+  return out;
+}
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -9700,7 +9760,8 @@ async function foeAct() {
   }
   if (B.final && B.phase >= 2 && B.turn % 2 === 0 && B.still <= 0) {
     const pool = chorusActive().filter(m => !B.numb.has(m) && !B.guard.has(m));
-    if (pool.length) { const v = pickA(pool); B.numb.set(v, 2); hitFlash(v); sfx('debuff'); renderBHUD(); await say(`The Hush whispers to ${nm(v)}: "Shh. Why bother?" ${nm(v)} goes numb. (Guarding protects against this. Reaching Out breaks it.)`); }
+    if (pool.length && S.items.oath && !B.oathUsed) { B.oathUsed = 1; const v = pickA(pool); hitFlash(v); sfx('settle'); await say(`The Hush whispers to ${nm(v)}: "Shh. Why bother?" The Warden's Oath flares warm in your pocket, and ${nm(v)} holds steady.`); }
+    else if (pool.length) { const v = pickA(pool); B.numb.set(v, 2); hitFlash(v); sfx('debuff'); renderBHUD(); await say(`The Hush whispers to ${nm(v)}: "Shh. Why bother?" ${nm(v)} goes numb. (Guarding protects against this. Reaching Out breaks it.)`); }
   }
 }
 async function overwhelmed(m) {
@@ -9798,6 +9859,7 @@ async function maybeIntensify(m) {
 
 // ---------------------------------------------------------------- the Stillwell
 async function enterStillwell(fromRift, begged) {
+  if (fromRift && Object.keys(S.hearts).length >= WN && !S.flags.hushDone && !S.flags.wardenGate && !(await wardenGate())) return;   // Warden Reyne at the edge (h19)
   if (!begged && Object.keys(S.hearts).length >= WN && !S.flags.hushDone && !S.flags.begDone) { if (!(await wrenBeg())) return; fromRift = true; }
   if (fromRift) { await say('(The floor of the Archive has split open. Stone steps lead down into dark, perfectly still water. Cold air rises out of it, and it smells of nothing at all.)'); }
   else { await say('Wren: The water beneath the Archive has gone perfectly still. Everything the Welkin ever refused to feel drained down there.');
@@ -9905,8 +9967,8 @@ const BATTLE_FLAVOR = {
 const SPEC_CACHE = {};
 // Every place, battle and boss plays a pre-rendered loop (real instruments; music2 render pipeline).
 const MUS = id => ({ id, track:'music/' + id + '.mp3', gapless:true });
-const BLAINE_CITY = { JOY:'music/joy.mp3', HOPE:'city_HOPE_gotus', FEAR:'music/fear.mp3', SHAME:'music/shame.mp3', SADNESS:'city_SADNESS_hearme' };   // I've Got Us · Hear Me
-const BLAINE_WAY = { CALM:'blaine_trust', CONFIDENCE:'blaine_confidence', DISGUST:'blaine_disgust', SHAME:'blaine_anger' };
+const BLAINE_CITY = { HOPE:'city_HOPE_gotus', FEAR:'music/fear.mp3', SHAME:'music/shame.mp3', SADNESS:'city_SADNESS_hearme' };   // I've Got Us · Hear Me
+const BLAINE_WAY = { CALM:'blaine_trust', CONFIDENCE:'blaine_confidence_v2', DISGUST:'blaine_disgust', SHAME:'blaine_anger' };
 const routeFamily = id => WHEEL.find(t => ROUTES[t].id === id);
 const themeFor = id => { const M = MAPS[id], k = '';
   const pick = key => SPEC_CACHE[key] || (SPEC_CACHE[key] = key.startsWith('music/') ? { id:key, track:key } : MUS(key));
