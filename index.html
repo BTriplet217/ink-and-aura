@@ -49,7 +49,8 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 #place{color:#f3e7c9;font-weight:600}
 #clock{color:#f3e7c9;font-weight:600;font-variant-numeric:tabular-nums}
 @media (max-width:560px){#place{display:none}#hud{flex-direction:column;align-items:flex-start;gap:6px}}
-#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);font:30px 'IM Fell English',serif;color:var(--ink);text-shadow:0 0 18px #f3e7c9,0 0 6px #f3e7c9;opacity:0;transition:opacity .6s;z-index:9;pointer-events:none;white-space:nowrap;text-align:center}
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);font:clamp(17px,4.6vw,30px)/1.25 'IM Fell English',serif;color:var(--ink);text-shadow:0 0 18px #f3e7c9,0 0 6px #f3e7c9,0 0 3px #f3e7c9;opacity:0;transition:opacity .6s;z-index:9;pointer-events:none;white-space:normal;width:max-content;max-width:min(92vw,760px);text-align:center}
+@media (max-width:620px){#toast{top:132px}}
 #toast small{display:block;font:800 12px 'Nunito Sans';letter-spacing:3px;text-transform:uppercase;opacity:.75}
 #tools{position:fixed;top:12px;right:12px;z-index:10;display:flex;gap:8px}
 .tb{background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.4);border-radius:20px;height:34px;min-width:40px;padding:0 12px;font:800 13px 'Nunito Sans';display:flex;align-items:center;justify-content:center;cursor:pointer}
@@ -3996,7 +3997,7 @@ function buildWorld(id) {
   MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld()) applyRestoredFair();
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
-  const M = MAPS[id], V = worldVibe(id); fitLamps(M);
+  const M = MAPS[id], V = worldVibe(id); fitLamps(M); applyOrders(id, M);
   worldScene.background.set(V.sky); worldScene.fog.color.set(V.fog); worldScene.fog.near = V.fogNear + 2; worldScene.fog.far = V.fogFar + 8; W.fogBase = [V.fogNear + 2, V.fogFar + 8];
   worldLights.hemi.color.set(V.hemi); worldLights.sun.intensity = V.sun; tintSky(worldSky, V);
   W.baseSky = new THREE.Color(V.sky);
@@ -4294,7 +4295,7 @@ function pickList(cancel) { const L = UI.list, r = L.res; L.res = null; sfx(canc
 function closeSheet() { UI.list = null; UI.sheetStatic = false; sheetEl.classList.add('hidden'); sheetEl.innerHTML = ''; }
 function showSheet(html) { UI.list = null; UI.sheetStatic = true; sheetEl.innerHTML = html; sheetEl.classList.remove('hidden'); sheetEl.scrollTop = 0; }
 async function fadeTo(v, ms = 300) { const f = $('#fade'); f.style.transitionDuration = ms + 'ms'; f.style.opacity = v; await wait(ms + 20); }
-function toast(s, sub) { const t = $('#toast'); t.innerHTML = (sub ? `<small>${sub}</small>` : '') + s; t.style.opacity = 1; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 2200); }
+function toast(s, sub) { const t = $('#toast'); t.innerHTML = (sub ? `<small>${sub}</small>` : '') + s; t.style.opacity = 1; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 2200 + Math.max(0, String(s).length - 30) * 45); }   /* long notes (a Heart's tremor) stay up long enough to read, and wrap instead of running off the screen */
 function runScript(fn) { busy = true; Promise.resolve().then(fn).catch(e => console.error(e)).finally(() => { busy = false; if (typeof ENTC !== "undefined") ENTC.t = 0; }); }
 function manifIcon(m, size) { const sp = m.sp || m, d = SPECIES[sp], c = TYPES[d.type].c, bg = d.dyad ? `linear-gradient(135deg,${c} 50%,${TYPES[d.type2].c} 50%)` : c; return `<span class="mi t${d.tier}" style="background:${bg}${size ? `;width:${size}px;height:${size}px` : ''}"></span>`; }
 const tierWord = sp => SPECIES[sp].dyad ? 'dyad' : SPECIES[sp].heart ? 'Heart' : ['mild', 'core', 'intense'][SPECIES[sp].tier];
@@ -4862,6 +4863,7 @@ async function talkWayLocal(t) {
   else await say(T.not);
 }
 async function talkHeart(t) {
+  if (S.flags.doom && S.flags.wayBack && bound()[t]) return unbindHeart(t);   // A Way Back (h18)
   if (S.hearts[t] && postgame()) return heartRematch(t);
   if (S.hearts[t] && choir().bell && !bound()[t]) return bindSettled(t);
   if (S.hearts[t]) return say(bound()[t] ? `The shrine is grey and silent. All around it, ${TOWNS[t].name} kneels.` : `The shrine is quiet now. ${TOWNS[t].name} breathes a little easier.`);
@@ -5629,6 +5631,7 @@ async function talkSuperboss() {
   S.flags.superDone = 1;
   await say(doom ? 'Wren sinks to her knees in the water. "Thank you," she says, and for a moment she sounds like herself. Then she lies back, and the still water closes over her face, and does not move again.' : 'Orrin lowers his arms at last. The white ink of him runs into the water like milk. "Carry them home," he says. Then there is nobody holding anything shut, and nothing left to hold.');
   await gainFrag(18, 'Something surfaces where they stood: a single page, dry, in your own handwriting.');
+  if (doom) await startWayBack();
 }
 async function heartRematch(t) {
   const lv = 46 + WHEEL.indexOf(t);
@@ -5661,6 +5664,7 @@ function questEnts(map, base) {
     if (t && map === TOWNS[t].id + '_room' + MISSING[t].room && boardState(t).miss === 1) out.push(at2(map, all(), { id:'missing', look:roomLook(t, 9, { dark:true }), name:MISSING[t].who, talk:() => findMissing(t) }, 3, 3));
   }
   if (M.kind === 'still' && postgame() && S.flags.gift) out.push(at2(map, all(), { id:'superboss', look:S.flags.doom ? LOOKS.wren : ORRIN_LOOK, name:S.flags.doom ? 'Wren' : 'Orrin Vale', talk:talkSuperboss }, 10, 9));
+  out.push(...evilEnts(map, all()));
   return out.filter(Boolean);
 }
 function at2(map, taken, e, x, y) { const [a, b] = spotNear(map, x, y, taken); return { dir:'down', ...e, x:a, y:b }; }
@@ -8627,6 +8631,7 @@ let NIGHT_K = 0;
 // =============================================================================
 Object.assign(TYPES, {
   LOVE:    { name:'Love',      c:'#e8607a', val:2, ladder:['Fondness', 'Love', 'Devotion'],  shape:'special', prof:[54, 14, 13, 12], special:true },
+  HOLLOW:  { name:'Hollow', c:'#7a7684', val:-1, ladder:['Quiet', 'Hollow', 'Void'], shape:'special', prof:[48, 16, 13, 11], special:true },
   BELONG:  { name:'Belonging', c:'#d8946a', val:1, ladder:['Counted', 'Belonging', 'Kinship'], shape:'special', prof:[50, 14, 14, 11], special:true },
   BEACON:  { name:'Beacon', c:'#f2c45a', val:1, ladder:['Lamp', 'Beacon', 'Lighthouse'], shape:'special', prof:[52, 13, 15, 10], special:true },
   CURIOUS: { name:'Imaginative', c:'#7ac8b8', val:1, ladder:['Daydream', 'Imaginative', 'Imagination'], shape:'special', prof:[42, 14, 10, 16], special:true }
@@ -8637,16 +8642,17 @@ Object.assign(MOVES, {
 });
 Object.assign(MOVES, { SWEEP:{ name:'Sweeping Beam', type:'BEACON', pow:46, acc:100 }, KEEPLIT:{ name:'Keep the Light On', fx:'healall', desc:'Heals the whole Chorus a little' }, FOGHORN:{ name:'Foghorn', type:'BEACON', pow:70, acc:95 }, GUIDEHOME:{ name:'Guide Them Home', type:'BEACON', pow:92, acc:90 } });
 Object.assign(MOVES, { HEADCOUNT:{ name:'Headcount', type:'BELONG', pow:48, acc:100 }, HUDDLE:{ name:'Huddle Up', fx:'healall', desc:'Heals the whole Chorus a little' }, COUNTEDTWICE:{ name:'Counted Twice', type:'BELONG', pow:72, acc:95 }, HOMECOMING:{ name:'Homecoming', type:'BELONG', pow:92, acc:90 } });
-Object.assign(LEARN, { BELONG:['HEADCOUNT', 'HUDDLE', 'COUNTEDTWICE', 'HOMECOMING'], BEACON:['SWEEP', 'KEEPLIT', 'FOGHORN', 'GUIDEHOME'], LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
-Object.assign(AROUSAL, { LOVE:0, CURIOUS:2, BEACON:0, BELONG:1 });
-Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead', BEACON:'stay', BELONG:'stay' });
-Object.assign(FAM_LEAN, { BELONG:{ warmth:3, kin:3, unsettle:-1, kids:1 }, BEACON:{ warmth:2, fixers:1, unsettle:-2, kin:2 }, LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
+Object.assign(MOVES, { GREYNOTE:{ name:'Grey Note', type:'HOLLOW', pow:50, acc:100 }, OBEY:{ name:'Obey', fx:'foedef-', desc:'The foe lowers its guard because it was told to' }, HOLLOWCHORD:{ name:'Hollow Chord', type:'HOLLOW', pow:76, acc:95 }, LASTNOTE:{ name:'The Last Note', type:'HOLLOW', pow:94, acc:88 } });
+Object.assign(LEARN, { HOLLOW:['GREYNOTE', 'OBEY', 'HOLLOWCHORD', 'LASTNOTE'], BELONG:['HEADCOUNT', 'HUDDLE', 'COUNTEDTWICE', 'HOMECOMING'], BEACON:['SWEEP', 'KEEPLIT', 'FOGHORN', 'GUIDEHOME'], LOVE:['EMBRACE', 'CHERISH', 'DEVOTE', 'ADORATION'], CURIOUS:['POKE', 'ASK_WHY', 'INVESTIGATE', 'DISCOVERY'] });
+Object.assign(AROUSAL, { LOVE:0, CURIOUS:2, BEACON:0, BELONG:1, HOLLOW:-1 });
+Object.assign(NEEDS, { LOVE:'stay', CURIOUS:'ahead', BEACON:'stay', BELONG:'stay', HOLLOW:'stay' });
+Object.assign(FAM_LEAN, { HOLLOW:{ unsettle:3, menace:1, contagion:-2 }, BELONG:{ warmth:3, kin:3, unsettle:-1, kids:1 }, BEACON:{ warmth:2, fixers:1, unsettle:-2, kin:2 }, LOVE:{ warmth:3, kids:2, contagion:1 }, CURIOUS:{ kin:2, kids:2, fixers:1 } });
 // strengths and weaknesses, outside the wheel's opposites
 // Love is every feeling at once: whatever it meets, part of it is strong and part of it is weak, so it all evens out.
 // Imaginative is Surprise, Hope and Joy together: it hits, and is hit, like the average of those three.
 // Beacon is Hope and Calm together: a light kept burning, steadily, for someone still out there.
 // Belonging is Joy, Calm and Confidence: glad, settled, and sure of your place among people.
-const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'], BELONG:['JOY', 'CALM', 'CONFIDENCE'] };
+const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'], BELONG:['JOY', 'CALM', 'CONFIDENCE'], HOLLOW:['FEAR', 'SHAME', 'CALM'] };   // Hollow: fear, shame, and a calm nobody earned
 { const wheelEff = eff; eff = function (atk, def) {
     if (atk === 'LOVE' || def === 'LOVE') return atk === def ? .5 : 1;
     if (BLEND_OF[atk]) { const L = BLEND_OF[atk]; return L.reduce((a, t) => a + wheelEff(t, def), 0) / L.length; }
@@ -8654,6 +8660,7 @@ const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'],
     return wheelEff(atk, def); }; }
 const SPECIAL_SP = {
   LOVE_X:  { name:'Love', type:'LOVE', k:1.42, desc:'Every feeling at once, held together: the joy and the grief and the fear of losing it. The one thing Orrin Vale never put in the well. Nothing is quite like it.' },
+  HOLLOW_X:{ name:'Hollow', type:'HOLLOW', k:1.3, desc:'Part Fear, part Shame, and a calm you didn\'t earn: the shape left behind where the Welkin\'s feelings used to be. The Hollow Choir gave it to their Conductor.' },
   BELONG_X:{ name:'Belonging', type:'BELONG', k:1.28, desc:'Part Joy, part Calm, part Confidence: the feeling of being counted. It lived in the old pipe under Holdfast, humming, waiting for someone to notice it was there. Wick noticed.' },
   BEACON_X:{ name:'Beacon', type:'BEACON', k:1.3, desc:'Part Hope, part Calm: a light kept burning for someone still out on the water. Keeper Ardis kept it lit for forty years, and gave it to you when the ships came home.' },
   CURIO_X: { name:'Imaginative', type:'CURIOUS', k:1.22, desc:'Part Surprise, part Hope, part Joy: the feeling of a whole kingdom in a cardboard box. One of a kind. It hatched from Lio\'s egg, after a very long walk.' },
@@ -8661,17 +8668,20 @@ const SPECIAL_SP = {
 for (const [id, s] of Object.entries(SPECIAL_SP)) { const p = TYPES[s.type].prof, k = s.k;
   SPECIES[id] = { id, name:s.name, type:s.type, tier:2, line:0, heart:false, special:true, desc:s.desc, base:{ hp:Math.round(p[0] * k), atk:Math.round(p[1] * k), def:Math.round(p[2] * k), spd:Math.round(p[3] * k) } }; }
 ECHOES.LOVE_X = ['I held on to this the whole time. Two hundred years. It was the only thing I didn\'t give away.', 'I loved them. All of them. That\'s why I built the well.', 'It doesn\'t fix anything. It just stays.', 'Take care of them. Take care of yourself, too. That counts.', 'Even down here, it was warm.', 'Please don\'t put me away somewhere.', 'Still here. Still here.'];
+ECHOES.HOLLOW_X = ['...whatever you say.', 'I was told to stand here.', 'The Chord was so loud, and then it was so quiet.', 'Nothing behind the mask. That\'s the point.', 'Obey. Obey. Obey.'];
 ECHOES.BELONG_X = ['Seventy-nine. Seventy-nine. Someone\'s missing. Count again.', 'Eighty. Counted twice.', 'Eighty-one. It counts too.', 'You\'re one of us now, a little.', 'Nobody gets left in the pipe.'];
 ECHOES.BEACON_X = ['Lamp lit at dusk. Sea calm. Someone out there. Kept the light on for them.', 'A light with nobody to see it is still a promise.', 'Ninety-two steps. Every night. Forty years.', 'They came home. Not all of them. But they came home.', 'Turn, and turn, and turn. Somebody\'s always looking for the shore.'];
 ECHOES.CURIO_X = ['I\'m a dragon. You\'re the knight. No, wait, you\'re a dragon too.', 'The floor is lava. It\'s ALWAYS lava.', 'This stick is a sword. This box is a castle. You\'re the queen of the castle.', 'Grown-ups can\'t see me unless they remember how.', 'Let\'s pretend everything is going to be okay. Pretending is how it starts.'];
 // The doc rows for how people take each one: kind | fixer | avoider | judge | opportunist | mirror
 Object.assign(MANIF_REACT, {
+  HOLLOW_X:['(They take a step back, and then another.)', '"Put that away. Please."', '(They go very quiet.)', '"Your little grey mask doesn\'t scare me."', '(They stare at the empty place where its face should be.)', '(Their own face goes blank, for a moment.)'],
   BELONG_X:['(They shuffle up to make room for you.)', '"Pull up a chair. Go on."', '(They stay, and seem glad to.)', '"Don\'t get comfortable."', '(They look round, counting heads without meaning to.)', '(They step closer, as if they\'d always been standing there.)'],
   BEACON_X:['(They stand a little straighter in its light.)', '"Good. Steady. Someone needs that."', '(They settle down near you.)', '"Showing off, are we."', '(They follow its light round to see what it lands on.)', '(Their face goes calm too.)'],
   LOVE_X:['(They go soft around the eyes and stay right where they are.)', '"Whoever that\'s for, make sure they know. Today."', '(It\'s a lot. They smile, a bit embarrassed, and give you room.)', '"Bit much, isn\'t it?"', '(They look at you like you\'d give them anything. You might.)', '(They\'re smiling too, now, and can\'t say why.)'],
   CURIO_X:['(They kneel down and pretend right along with you.)', '"Here. A cardboard crown. Every knight needs one."', '(They don\'t know how to play anymore. They wander off.)', '"Grow up."', '"I\'ll sell you a real dragon. Well. A lizard."', '(They\'re a pirate now too, apparently.)'],
 });
 Object.assign(REACT6, {
+  HOLLOW:{ kind:['Oh. Oh, that\'s sad. Is it all right?', 'Can I help it somehow?', 'It looks so empty.'], fixer:['Put something in it. Anything.', 'That needs filling.', 'That\'s not healthy, you know.'], avoider:['(They hurry away.)', 'I need to go.', '(They won\'t look at it.)'], judge:['Choir filth.', 'I know what that is.', 'You should be ashamed. You aren\'t, are you.'], opportunist:['The Choir paid well. Do you?', 'Grey work\'s good work.', 'What do you need doing?'], mirror:['(Their face goes slack.)', '(They go quiet.)', '(They stand very still.)'] },
   BELONG:{ kind:['Oh, you\'re one of us.', 'There\'s room. There\'s always room.', 'Welcome home, whoever you are.'], fixer:['Good. Everyone accounted for.', 'Keep your people close.', 'Count them twice.'], avoider:['(They hover, then stay.)', 'I suppose I could stop a minute.', '(They find they don\'t want to leave.)'], judge:['Clique.', 'Don\'t crowd me.', 'Tight little group, aren\'t you.'], opportunist:['Friends of yours need anything? I do group rates.', 'Big family. Big orders.', 'Belonging\'s good for business.'], mirror:['(They step into your circle.)', '(They smile like they\'re in on it.)', '(They stand a little closer.)'] },
   BEACON:{ kind:['You\'re a light for someone, I can tell.', 'Keep it lit.', 'Oh, that\'s steadying.'], fixer:['Good. Steady\'s useful.', 'Point it at something.', 'Every coast needs one.'], avoider:['(They settle down, oddly calm.)', 'That\'s... nice.', '(They stay put.)'], judge:['Bit bright.', 'Mind where you point it.', 'Grandstanding.'], opportunist:['Someone that steady pays their debts.', 'Shine it on my shop, would you?', 'Nice light. Shame if it went out.'], mirror:['(They steady too.)', '(They breathe slower.)', '(Their face goes calm.)'] },
   LOVE:{ kind:['That\'s a lovely thing to be carrying.', 'Hold on to that one.', 'Oh. Whoever you love, they\'re lucky.'], fixer:['Love\'s good. Tell them, though. Don\'t just carry it.', 'Make it count.', 'Write them a letter. Tonight.'],
@@ -8682,6 +8692,7 @@ Object.assign(REACT6, {
     opportunist:['Toys, cheap. Real magic ones.', 'A wand? Ten Marks. Definitely real.', 'Kids pay anything for a dragon. So do you, I bet.'], mirror:['(Now they\'re pretending too.)', '(They pick up a stick. It\'s a sword now.)', '(They\'re roaring like a dragon. Nobody knows why.)'] }
 });
 Object.assign(REACT, {
+  HOLLOW:{ kind:['I\'ll... I\'ll just go.'], fair:['Keep that thing on a lead.'], cruel:['A Choir pet. Of course.'] },
   BELONG:{ kind:['You make people feel counted.'], fair:['Good to have you about.'], cruel:['Nobody asked you to join.'] },
   BEACON:{ kind:['Like a lamp in a window. Thank you.'], fair:['Steady sort, aren\'t you.'], cruel:['Turn that off.'] },
   LOVE:{ kind:['There\'s love all over you. It suits you.'], fair:['You look like someone who\'s in love. Good luck to you.'], cruel:['Love. Ugh. Easiest people in the world to fleece.'] },
@@ -8692,7 +8703,15 @@ function buildSpecialManif(sp, o = {}) {
   const d = SPECIES[sp], c = new THREE.Color(TYPES[d.type].c), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const mat = toon(c, { emissive:c.clone(), emissiveIntensity:.35, wash:1 }), add = (geo, m, p, sc, rot) => { const x = new THREE.Mesh(geo, m); x.position.set(...p); if (sc) x.scale.set(...sc); if (rot) x.rotation.set(...rot); x.castShadow = true; body.add(x); return x; };
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
-  if (sp === 'BELONG_X') {
+  if (sp === 'HOLLOW_X') {
+    // a pale grey mask with nothing behind it: two dark eye holes, a thin line of mouth, and a faint grey glow where a face would be
+    const mk = add(new THREE.SphereGeometry(.3, 22, 16, 0, Math.PI * 2, 0, Math.PI * .62), toon('#cfcbd4', { side:THREE.DoubleSide }), [0, .02, 0], [1, 1.15, .65], [-Math.PI / 2 + .25, 0, 0]); inkScale(mk, 1.04);
+    for (const sx of [-1, 1]) add(new THREE.SphereGeometry(.05, 10, 8), blk, [sx * .1, .06, .16], [1.1, .7, .5]);
+    add(new THREE.BoxGeometry(.12, .012, .02), blk, [0, -.1, .17]);
+    const gl = glow('#a8a2b8', .7, .4); gl.position.set(0, 0, -.05); body.add(gl);
+    for (const sx of [-1, 1]) add(new THREE.BoxGeometry(.03, .22, .01), toon('#7a7684'), [sx * .08, -.32, .05], null, [0, 0, sx * .2]);
+    body.userData.hollow = mk;
+  } else if (sp === 'BELONG_X') {
     // a warm round little body with a paper luggage tag, and a ring of tiny bright friends circling it, holding hands
     const bd = add(new THREE.SphereGeometry(.3, 22, 16), toon('#d8946a'), [0, -.05, 0], [1, .92, 1]); inkScale(bd, 1.05);
     add(new THREE.SphereGeometry(.18, 14, 10), toon('#f2c09a'), [0, -.12, .17], [1, .8, .5]);
@@ -8753,6 +8772,7 @@ function animSpecial(g, t) { const u = g.userData;
   u.body.traverse(m => { if (m.userData && m.userData.wing) m.rotation.z = m.userData.wing * (.5 + Math.sin(t * 6) * .25); });
   if (u.body.userData.ant) u.body.userData.ant.rotation.z = Math.sin(t * 2.4 + u.phase) * .25;
   if (u.body.userData.beam) u.body.userData.beam.rotation.y = t * 1.6 + u.phase;
+  if (u.body.userData.hollow) u.body.userData.hollow.rotation.z = Math.sin(t * .7 + u.phase) * .12;
   if (u.body.userData.ring) { u.body.userData.ring.rotation.y = t * .8 + u.phase; u.body.userData.ring.position.y = .02 + Math.sin(t * 2) * .02; }
 }
 
@@ -8930,6 +8950,7 @@ RESENTMENT|the old grievance hanging off you|that tight jaw when anyone says tha
 HATE|a hatred I can feel on my skin|eyes like a shut door|is glaring a hole in the wall
 LOATHING|the loathing coming off you in waves|that cold, flat stare|has gone stiff and black and bristling
 LOVE_X|every feeling at once on your face|a glow that isn't any one colour|is holding everyone's eyes like a hug
+HOLLOW_X|a stillness that isn't peace|the blank look of someone who's been told what to feel|is staring at me with nothing behind its eyes
 BELONG_X|the look of someone who's just been counted|a warmth like a seat kept for you|has a ring of tiny friends circling it, holding hands
 BEACON_X|a steadiness like a lamp in a window|the look of someone keeping watch for somebody|is sweeping its little beam over the rooftops
 CURIO_X|a paper crown, I swear, just for a second|the look of someone who knows the floor is lava|is knighting a cat with a cardboard sword
@@ -8995,7 +9016,7 @@ const V_HABITS = ['counting steps', 'naming the clouds', 'humming the same three
   'tidying when I\'m nervous', 'talking to plants', 're-reading the last page first', 'doing sums in my head', 'stopping for every cat'];
 
 const FEEL = { JOY:'that happy', HOPE:'that hopeful', CALM:'that calm', CONFIDENCE:'that sure of themselves', SURPRISE:'that wide-eyed', SADNESS:'that low', FEAR:'that frightened', ANGER:'that angry',
-  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe', BEACON:'that steady', BELONG:'that at home' };
+  SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe', BEACON:'that steady', BELONG:'that at home', HOLLOW:'that empty' };
 
 // mixed-radix allocation: person n always gets combination n of a pool, scattered by a stride coprime to its size
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
@@ -9142,6 +9163,187 @@ async function voicePreTalk(e) {
   if (!isPerson(e) || !S.party.length || S.flags.ruin || S.flags.doom && S.flags.hushDone) return;
   if (VOICED === S.map + ':' + e.id) return; await sayVoice(e);
 }
+// =============================================================================
+//  AFTER THE GRAND CHORD (the evil ending). Three things to do in the grey world:
+//   1. THE CONDUCTOR'S LEDGER: the Conductor's book floats in the Stillwell. Every bound city has a Choir lectern by its
+//      shrine; write an order in the Ledger (a statue of you, grey banners, or every lamp put out) and the city's bound
+//      Heart pushes back. Beat it and the order stands, for everyone to see.
+//   2. A WAY BACK: beat Wren in the Stillwell and a page surfaces in your own handwriting. From then on, any bound
+//      Heart can be faced and UNBOUND; its city wakes up. Free all ten and the grey lifts.
+//   3. THE HOLLOW CHOIR: five Choir survivors are out on the routes. Win each one over (each wants something different);
+//      Cantor Hesk shows you the Hollow Chancel under Vellum, and when all five stand there, Choirmistress Ilka holds the
+//      rite and gives you Hollow, a feeling outside the wheel.
+// =============================================================================
+const ORD = () => (S.orders = S.orders || {});
+const FREED = () => (S.freed = S.freed || {});
+const HCH = () => (S.hollow = S.hollow || {});
+const ORDERS = {
+  statue: { label:'Raise a statue of me in the square', done:t => `By morning there is a grey statue of you in ${TOWNS[t].name}'s square. Nobody remembers carving it.` },
+  banners:{ label:'Hang the grey banners', done:t => `Grey banners go up around the shrine in ${TOWNS[t].name}, one for every street. They don't move in the wind.` },
+  dark:   { label:'Put out every lamp', done:t => `Every lamp in ${TOWNS[t].name} goes out at once, and nobody lights them again.` } };
+
+Object.assign(ITEMS, {
+  ledger:{ name:'The Conductor\'s Ledger', key:true, fieldUse:() => ledgerSheet(), desc:'Orders for the bound cities' },
+  wrenflower:{ name:'Wren\'s Pressed Flower', key:true, fieldUse:() => say('A small flower, pressed flat and dried, the colour of a bruise healing. It smells, very faintly, of the Archive.'), desc:'From the Stillwell' },
+  baton:{ name:'Conductor\'s Baton', key:true, fieldUse:() => say('A baton of grey wood. When you hold it, the Numbed turn to face you, all at once, everywhere.'), desc:'Every city wrote in your hand' } });
+Object.assign(ITEM_INFO, { ledger:'The Conductor\'s book of orders. At a Choir lectern in a bound city, you can write one order for that city. Its Heart will fight you for it.',
+  wrenflower:'All ten cities woke up. This is what was left floating on the still water.', baton:'Every bound city carries out an order in your hand.' });
+
+// ---- the Ledger
+async function ledgerSheet() {
+  const rows = TOWN_ORDER.map(t => { const o = ORD()[t], f = FREED()[t];
+    return `<div style="display:flex;justify-content:space-between;gap:8px;margin:4px 0;font-weight:700"><span>${TOWNS[t].name}</span><span style="color:var(--muted)">${f ? 'Woken' : o ? ORDERS[o].label.replace(/^./, c => c.toUpperCase()) : bound()[t] ? 'No order yet' : '—'}</span></div>`; }).join('');
+  showSheet(`<h2>The Conductor's Ledger</h2><div class="subt">${Object.keys(ORD()).length} orders written · ${Object.keys(FREED()).length} cities woken</div>${rows}
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin:10px 0 2px">A or B to close</p>`);
+  await new Promise(res => { selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) { selectHandler = null; res(); } }; });
+  closeSheet();
+}
+async function takeLedger() {
+  S.items.ledger = 1; sfx('keep');
+  await say('Floating face-down in the still water, where the Conductor went under: a ledger bound in grey cloth. The pages are dry. They were always going to be dry.');
+  await say('Inside, in the Conductor\'s small careful hand, ten headings: one for every city. Under each, a blank line. At the bottom: "An order, once written, is carried out."');
+  return say('(You took the Conductor\'s Ledger. Each bound city has a Choir lectern by its shrine.)');
+}
+async function useLectern(t) {
+  if (FREED()[t]) return say(`The lectern is cracked down the middle. ${TOWNS[t].name} is awake, and nobody here takes orders any more.`);
+  if (!S.items.ledger) return say('A grey Choir lectern with an empty space on top, the exact size of a book. (The Conductor kept a ledger. It went into the Stillwell with him.)');
+  if (ORD()[t]) return say(`The Ledger is open at ${TOWNS[t].name}. Your order is written there, in your hand: "${ORDERS[ORD()[t]].label}." It is being carried out.`);
+  const keys = Object.keys(ORDERS), c = await ask(`You open the Ledger at ${TOWNS[t].name}. The Numbed in the square turn, all together, to watch you write.`, keys.map(k => ORDERS[k].label).concat(['Close the Ledger']));
+  if (c < 0 || c >= keys.length) return;
+  await say('You write it. The ink is grey. For a moment nothing happens. Then the shrine behind you begins to hum, low and furious: the bound Heart of the city is pushing back.');
+  const i = WHEEL.indexOf(t), r = await battle(newManif(heartOf(t), 50 + i), { owner:TOWNS[t].name });
+  if (r === 'blackout') return blackout();
+  if (r !== 'won') return say('You step back. The ink on the page fades to nothing. The order didn\'t take.');
+  ORD()[t] = keys[c]; S.sins = (S.sins || 0) + 1; pay(300); applyOrders(S.map, MAPS[S.map]);
+  await fadeTo(1, 400); ENTC.t = 0; buildWorld(S.map); await fadeTo(0, 400);
+  await say(ORDERS[keys[c]].done(t)); await say('(The Choir\'s tithe comes in: 300 Marks.)');
+  if (WHEEL.every(k => ORD()[k]) && !S.items.baton) { S.items.baton = 1; sfx('keep'); await banner('The Ledger is full', 'Every city');
+    await say('The last line fills. Somewhere in every city at once, the Numbed turn to face the direction you\'re standing in. (You received the Conductor\'s Baton.)'); }
+}
+// lamps in an ordered-dark city go out; they come back if the city wakes
+function applyOrders(id, M) {
+  if (!M || M.kind !== 'city' || !M.set) return; const t = M.vibe, dark = ORD()[t] === 'dark' && !FREED()[t];
+  for (const p of M.set) if (p.k === 'lamp') { if (p._lit0 === undefined) p._lit0 = !!p.lit; p.lit = dark ? false : p._lit0; }
+}
+// the visible orders: a grey statue of you, grey banners round the shrine
+function statueModel() { const g = new THREE.Group(); sBox(g, 1.1, .5, 1.1, '#8a8680', 0, .25, 0); sBox(g, 1.2, .08, 1.2, '#9a968e', 0, .52, 0);
+  const h = buildHero(S.hero); h.traverse(o => { if (o.isMesh && o.material && !o.material.isMeshBasicMaterial) { o.material = o.material.clone(); if (o.material.color) o.material.color.set('#9c978e'); if (o.material.map) o.material.map = null; } });
+  h.scale.setScalar(1.3); h.position.y = .56; g.add(h); return g; }
+function bannerModel() { const g = new THREE.Group(); sCyl(g, .04, .05, 2.6, '#2a2826', 0, 1.3, 0); sBox(g, .6, .04, .04, '#2a2826', 0, 2.55, 0);
+  sBox(g, .52, 1.3, .02, '#7c7a80', 0, 1.85, .02, { ink:0 }); sBox(g, .14, .14, .025, '#3b3a3f', 0, 2.0, .035, { ink:0 }); return g; }
+function lecternModel() { const g = new THREE.Group(); sBox(g, .14, .9, .14, '#3b3a3f', 0, .45, 0); sBox(g, .5, .06, .38, '#3b3a3f', 0, .92, 0, { rot:[-.35, 0, 0] });
+  if (S.items.ledger) sBox(g, .4, .05, .3, '#d8d0c0', 0, .97, 0, { rot:[-.35, 0, 0], ink:0 }); return g; }
+
+// ---- A WAY BACK
+async function startWayBack() {
+  if (S.flags.wayBack) return; S.flags.wayBack = 1;
+  await say('You unfold the page. It is in your handwriting. You don\'t remember writing it.');
+  await say('"If you\'re reading this, it isn\'t too late. It\'s only late. A bound Heart can be unbound. Face it, and don\'t win it for yourself this time. One city at a time. They will wake up, and they will remember. Let them."');
+  return say('(A Way Back: any bound Heart can now be faced and unbound at its shrine.)');
+}
+async function unbindHeart(t) {
+  const c = await ask(`The bound Heart of ${TOWNS[t].name} hums under the grey, like something holding its breath.`, ['Unbind it', 'Leave it']); if (c !== 0) return;
+  await say('You put your hand on the shrine and you say, out loud, that you were wrong. The Heart comes up out of the grey to see if you mean it.');
+  const i = WHEEL.indexOf(t), r = await battle(newManif(heartOf(t), 48 + i), { owner:TOWNS[t].name });
+  if (r === 'blackout') return blackout();
+  if (r !== 'won') return say('The Heart sinks back into the grey. Not yet, then.');
+  bound()[t] = 0; FREED()[t] = 1; const had = ORD()[t]; delete ORD()[t]; applyOrders(S.map, MAPS[S.map]); sfx('settle');
+  await fadeTo(1, 500); ENTC.t = 0; buildWorld(S.map); await fadeTo(0, 700);
+  await banner(TOWNS[t].name, 'Wakes up');
+  if (had) await say(had === 'statue' ? 'Behind you, the grey statue of you cracks from the plinth up, and comes apart like old plaster.' : had === 'banners' ? 'The grey banners come down, one by one, as people pull them down with their own hands.' : 'Somebody lights a lamp. Then somebody else does.');
+  await say(`All around the square, people blink, and look at their hands, and at each other. Someone is crying. Someone is laughing. Someone says, "${REMEMBER[t]}"`);
+  await say('Nobody thanks you. A few of them look at you for a long time. That\'s fair. That\'s what remembering is.');
+  if (WHEEL.every(k => FREED()[k]) && !S.flags.atoned) { S.flags.atoned = 1; S.items.wrenflower = 1; sfx('keep');
+    await banner('A Way Back', 'All ten cities');
+    await say('Far away, in the Stillwell, the water moves for the first time in two hundred years. A small pressed flower drifts to the edge, and someone sets it in your hand on your way past. (You received Wren\'s Pressed Flower.)');
+    await say('The Welkin is not forgiven. It isn\'t that kind of story. But it is awake, and it is loud, and it is its own again.'); }
+}
+
+// ---- THE HOLLOW CHOIR
+const HOLLOW_LOOK = (hair, skin, coat) => ({ ...CHOIR_LOOK, hair, skin, coat:coat || CHOIR_LOOK.coat });
+const HOLLOW = {
+  hesk: { name:'Cantor Hesk', look:CHOIR_LOOK },
+  mott: { name:'Sister Mott', look:HOLLOW_LOOK('#c8c0b8', '#e0c8b0', '#34333a'), map:() => ROUTES.FEAR.id },
+  quell:{ name:'Brother Quell', look:HOLLOW_LOOK('#3a2414', '#8a5a3a'), map:() => ROUTES.SHAME.id },
+  wyst: { name:'Deacon Wyst', look:HOLLOW_LOOK('#7a6a5a', '#cbb9a8', '#2a292e'), map:() => ROUTES.DISGUST.id },
+  ilka: { name:'Choirmistress Ilka', look:HOLLOW_LOOK('#18151a', '#d8b8a0', '#232127'), map:() => ROUTES.ANGER.id } };
+const recruited = () => Object.keys(HOLLOW).filter(k => HCH()[k]);
+async function recruitHesk() {
+  if (HCH().hesk) return say('Cantor Hesk: The Chancel is under the east end of Vellum. Take the steps down. We keep the candles grey.');
+  await sayAs('Cantor Hesk', 'You did it. The Grand Chord. I heard it from here and I sat down in the cinders and I wept, and I don\'t know which kind of weeping it was.');
+  await sayAs('Cantor Hesk', 'There are five of us left. Scattered. Ashamed or proud, I can\'t tell any more. If you want a Choir, you\'ll have to earn us. Me first.');
+  const ok = await trainerFight('Cantor Hesk', [[spAt('FEAR', 2, 1), 50], [spAt('SHAME', 2, 2), 52]]); if (!ok) return;
+  HCH().hesk = 1; ENTC.t = 0;
+  await sayAs('Cantor Hesk', 'Good. There\'s an old chancel under Vellum, at the east end of the city: steps going down. The Choir sang there before it sang anywhere else. I\'ll light the candles.');
+  return say('(Cantor Hesk joins the Hollow Choir. The Hollow Chancel is open, under the east end of Vellum.)');
+}
+async function recruitTalk(k) {
+  const H = HCH(), nm2 = HOLLOW[k].name;
+  if (H[k]) return sayAs(nm2, 'I\'ll be at the Chancel. Under Vellum. Don\'t keep us waiting.');
+  if (k === 'mott') {
+    await sayAs(nm2, 'The Conductor kept a ledger. He wrote orders and cities obeyed. If you want me, show me you\'ve used it. One order, carried out. Then I\'ll believe you mean it.');
+    if (!Object.keys(ORD()).length) return say('(Sister Mott wants to see at least one order from the Conductor\'s Ledger carried out.)');
+    await sayAs(nm2, 'There. Written and done. Very well. I\'ll go down to the Chancel.'); }
+  else if (k === 'quell') {
+    await sayAs(nm2, 'Everything costs. The Choir always took a tithe. Five hundred Marks, and I\'ll know you understand how this works.');
+    const c = await ask(`Pay Brother Quell 500 Marks? (You have ${S.marks || 0}.)`, ['Pay the tithe', 'Not now']); if (c !== 0) return;
+    if ((S.marks || 0) < 500) return sayAs(nm2, 'You\'re short. Come back when you\'re not.');
+    S.marks -= 500; await sayAs(nm2, 'Thank you. That\'s the last thing I\'ll ever thank you for. I\'ll see you below Vellum.'); }
+  else if (k === 'wyst') {
+    if (Object.keys(FREED()).length) return sayAs(nm2, 'You\'ve been waking cities up. I can smell it on you: remorse. The Choir doesn\'t take penitents. Go away.');
+    await sayAs(nm2, 'No regrets, then. Not one city woken. Good. The rest of them pretend they\'re sorry. You don\'t. I respect that. I\'ll come.'); }
+  else if (k === 'ilka') {
+    if (recruited().filter(x => x !== 'ilka').length < 4) return sayAs(nm2, `I lead a choir, not a rabble. Bring me the other four. You have ${recruited().length}. Then come back and sing for me.`);
+    await sayAs(nm2, 'All four. Hesk, Mott, Quell, Wyst. You\'ve been busy. Then sing for me, and if you\'re worth it I\'ll hold the rite.');
+    const ok = await trainerFight(nm2, [[spAt('ANGER', 2, 2), 55], [spAt('DISGUST', 2, 2), 56], [spAt('FEAR', 2, 2), 58]]); if (!ok) return;
+    await sayAs(nm2, 'Yes. That\'s the voice. Meet me at the Chancel. Bring nothing. Feel nothing. We\'ll take care of the rest.'); }
+  H[k] = 1; ENTC.t = 0; await say(`(${nm2} joins the Hollow Choir. ${recruited().length}/5.)`);
+}
+async function hollowRite() {
+  if (S.flags.hollowGift) return sayAs('Choirmistress Ilka', 'It suits you. Hollow always suits the ones who sang the Chord.');
+  if (recruited().length < 5) return sayAs('Choirmistress Ilka', 'Not everyone is here.');
+  S.flags.hollowGift = 1;
+  await say('The five of them stand in a ring round the grey candles. Nobody sings. That\'s the rite: five people, in a room, making no sound at all, for a very long time.');
+  await sayAs('Choirmistress Ilka', 'Every feeling the Chord took had to go somewhere. Most of it went into Wren. A little of it went into the space where the feelings used to be. That space has a shape. Hold out your hands.');
+  await say('Something settles into your hands that weighs nothing at all: a mask with nothing behind it, and a faint grey glow where a face would be.');
+  await giveSpecial('HOLLOW_X');
+  await sayAs('Choirmistress Ilka', 'Hollow. Part fear, part shame, and a calm you didn\'t earn. It will do exactly as you say. The Choir is yours, Conductor.');
+}
+const CH_DOOR = [0, 0];
+function chancelPeople() {
+  if (!CH_DOOR[0] && S.flags.chancelAt) { CH_DOOR[0] = S.flags.chancelAt[0]; CH_DOOR[1] = S.flags.chancelAt[1]; }
+  const spots = { hesk:[2, 3, 'right'], mott:[2, 5, 'right'], quell:[8, 3, 'left'], wyst:[8, 5, 'left'], ilka:[5, 2, 'down'] };
+  return Object.keys(HOLLOW).filter(k => HCH()[k]).map(k => { const [x, y, d] = spots[k];
+    return { id:'hc_' + k, x, y, dir:d, name:HOLLOW[k].name, look:HOLLOW[k].look, folk:false, talk: k === 'ilka' ? hollowRite : () => sayAs(HOLLOW[k].name, {
+      hesk:'Grey candles. Grey robes. Grey ink. It\'s restful, isn\'t it? Not choosing.', mott:'The Ledger is the only honest book in the Welkin. It says what will happen, and then it happens.',
+      quell:'I count the tithes. It keeps my hands busy. When my hands are busy I don\'t remember my sister.', wyst:'Up there they\'re all so loud. Down here we get to be quiet. That\'s all we ever wanted, really.' }[k]) }; });
+}
+regionRoom('vellum', 'chancel', CH_DOOR, { name:'The Hollow Chancel', sub:'Under Vellum', w:11, h:9, music:'bunker', floor:['#3a3840', '#34323a'], wall:'#5a5862', light:{ sky:'#0a0a0e', hemi:'#b8b0c8', sun:.55 },
+  furn:[['candle', 3, 1], ['candle', 7, 1], ['bench', 3, 6], ['bench', 7, 6], ['bookcase', 9, 1], ['rug', 5, 4]] });
+MAPS.vellum_inchancel.room.npcsFn = chancelPeople;
+
+// an open spot for something big (the statue): a free tile with clear ground all round it, nearest to (x, y)
+function openSpot(map, x, y, taken) { const M = MAPS[map], T = M.tiles, ok = (a, b) => T[b] && T[b][a] && !SOLID.has(T[b][a]) && T[b][a] !== 'D' && !taken.some(e => e.x === a && e.y === b);
+  for (let r = 0; r <= 7; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; const a = x + dx, b = y + dy;
+    let clear = true; for (let j = -1; j <= 1 && clear; j++) for (let i = -1; i <= 1; i++) if (!ok(a + i, b + j)) { clear = false; break; } if (clear) return [a, b]; }
+  return spotNear(map, x, y, taken); }
+// ---- entities in the grey world
+function evilEnts(map, base) {
+  const out = []; if (!S.flags.doom) return out; const M = MAPS[map], all = () => base.concat(out);
+  if (M.kind === 'still' && !S.items.ledger) out.push(at2(map, all(), { id:'ledgerbook', note:true, talk:takeLedger }, 6, 9));
+  if (M.kind === 'city' && !FREED()[M.vibe] && bound()[M.vibe]) { const t = M.vibe, cx = M.entryS.x;
+    out.push(at2(map, all(), { id:'lectern', name:'Choir lectern', model:lecternModel, folk:false, talk:() => useLectern(t) }, cx - 2, 10));
+    if (ORD()[t] === 'statue') { const [sx, sy] = openSpot(map, cx + 3, 11, all()); out.push({ id:'statue', x:sx, y:sy, dir:'down', name:'Statue', model:statueModel, folk:false, talk:() => say('A grey statue of you, a head taller than you are, looking out over the square. Somebody has left flowers at the foot of it. They are grey too.') }); }
+    if (ORD()[t] === 'banners') [[cx - 4, 8], [cx + 5, 8], [cx - 4, 12], [cx + 5, 12]].forEach(([x, y], i) => out.push(at2(map, all(), { id:'gban' + i, name:'Grey banner', model:bannerModel, folk:false, talk:() => say('A grey banner with the Choir\'s mark on it. It doesn\'t move, even when the wind does.') }, x, y))); }
+  if (M.kind === 'route') {
+    for (const k of ['mott', 'quell', 'wyst', 'ilka']) if (HOLLOW[k].map() === map && !HCH()[k]) out.push(at2(map, all(), { id:'hollow_' + k, name:HOLLOW[k].name, look:HOLLOW[k].look, folk:false, talk:() => recruitTalk(k) }, 10, 12)); }
+  if (map === 'vellum' && HCH().hesk) {
+    if (!CH_DOOR[0]) { const [x, y] = S.flags.chancelAt || (S.flags.chancelAt = spotNear(map, M.w - 6, Math.floor(M.h / 2) + 4, all())); CH_DOOR[0] = x; CH_DOOR[1] = y; }
+    out.push({ id:'chancel_door', x:CH_DOOR[0], y:CH_DOOR[1], dir:'down', name:'Steps down', model:() => SET.stairdown({}), folk:false, walkIn:true,
+      talk:async () => { await say('Old stone steps going down under Vellum, lit grey from below.'); return changeMap({ map:'vellum_inchancel', x:5, y:7, dir:'up' }); } }); }
+  return out;
+}
+{ const _hesk = talkHesk; talkHesk = async function () { return S.flags.doom ? recruitHesk() : _hesk(); }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -9716,7 +9918,7 @@ const themeFor = id => { const M = MAPS[id], k = '';
   const pick = key => SPEC_CACHE[key] || (SPEC_CACHE[key] = key.startsWith('music/') ? { id:key, track:key } : MUS(key));
   if (M.music) return pick(M.music);
   if (M.kind === 'inside') return themeFor(M.route);
-  if (S && S.flags && S.flags.doom && M.kind !== 'still') return pick('doom_world');
+  if (S && S.flags && S.flags.doom && !S.flags.atoned && M.kind !== 'still' && !(M.kind === 'city' && (S.freed || {})[M.vibe])) return pick('doom_world');
   if (M.kind === 'hub') return pick(S && S.flags && S.flags.hushDone ? 'vellum_restored' : S && Object.keys(S.hearts || {}).length >= WN ? 'vellum_dread' : 'vellum');
   if (M.kind === 'route') return pick('route_' + routeFamily(id));
   if (M.kind === 'still') return pick('stillwell');
