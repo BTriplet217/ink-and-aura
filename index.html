@@ -7654,7 +7654,7 @@ SET.gametable = p => { const g = new THREE.Group();                      // a sq
   const lamp = glow('#ffd98a', .9, .35); lamp.position.set(0, 1.6, 0); g.add(lamp); g.position.x = 0; return g; };
 // put the room in the house, and the people outside on the street when they've thrown you out
 (function () {
-  const P = MAPS[TOWNS.JOY.id], old = MAPS[DND_ID], d = { ...old.room, name:'The Dragon\'s Table', w:13, h:10, floor:['#6a4a3a', '#5e4232'], wall:'#c8a888',
+  const P = MAPS[TOWNS.JOY.id], old = MAPS[DND_ID], d = { ...old.room, name:'The Dragon\'s Table', w:13, h:10, floor:['#6a4a3a', '#5e4232'], wall:'#4e6a5c',
     furn:[['gametable', 3, 4, { use:dndBoard }], ...[[2, 3], [3, 3], [4, 3], [2, 4], [4, 4], [2, 5], [3, 5], [4, 5]].map(([x, y]) => ['blank', x, y, { use:dndBoard }]),
       ['shelf', 7, 1], ['shelf', 8, 1], ['corkboard', 9, 1, { use:dndCork }], ['shelf', 10, 1], ['shelf', 11, 1], ['candle', 11, 7], ['piano', 11, 4, { use:dndPiano }], ['table', 9, 4, { use:dndSnacks }],
       ['fort', 9, 7, { use:dndFort }], ['blank', 10, 7, { use:dndFort }], ['trunk', 6, 1, { use:dndTrunk }]], npcs:null, npcsFn:dndPeople };
