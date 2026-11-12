@@ -451,7 +451,7 @@ const TOWNS = {
   SADNESS: { id:'sorrowmere', name:'Sorrowmere', lv:[14,18], heart:20, gate:'SADNESS',
     sky:'#9eafc2', fog:'#93a6bc', fogNear:9, fogFar:24, hemi:'#ccd8e6', sun:.9, ground:['#6d8a8a','#668282','#759292'], tall:['#4d6e76','#56787e','#46666e'],
     trees:'willow', treeC:['#5a7a9a','#4f6e8c','#6888a8'], roof:'#3f5878', wall:'#d6dce2', prop:'puddle', parts:'rain', partC:['#b8cce8','#9ab4d8'], groundFog:'#c2d2e4', fogOp:.24,
-    keeper:{ name:'Ilse', look:'sad', lines:['Ilse: Stay as long as you need. Nobody here will ask you to cheer up.'] },
+    keeper:{ name:'Odessa', look:'sad', lines:['Odessa: Stay as long as you need. Nobody here will ask you to cheer up.'] },
     local:{ name:'Corwin', look:'sad2', kin:'Corwin: You carry Sadness. Then you understand why we don\'t rush. Here.', not:'Corwin: You don\'t have to pretend you\'re fine here. Most people find that harder than it sounds.' },
     heartIntro:'Lament rests at the shrine like still water, humming something slow. The rain in Sorrowmere never stops, and nobody here has tried to make it.' },
   DISGUST: { id:'spurnhold', name:'Spurnhold', lv:[22,26], heart:28, gate:'DISGUST',
@@ -547,15 +547,15 @@ const WAYTOWNS = {
   SURPRISE:     { id:'wickerturn',   name:'Wickerturn',   lv:[6,9],  keeper:'Tansy',  local:'Bram',
     arrive:'Wickerturn\'s weathervanes all point different ways. The locals say the wind can\'t make up its mind.',
     kin:'Bram: Oh! You surprised me. In a good way. Here!', not:'Bram: Caprice is that way. Probably. It moves.' },
-  FEAR:         { id:'hushwood',     name:'Hushwood',     lv:[6,10], keeper:'Greer',  local:'Lark',
+  FEAR:         { id:'hushwood',     name:'Hushwood',     lv:[6,10], keeper:'Greer',  local:'Brin',
     arrive:'Hushwood sits under old trees that creak when nobody\'s looking. People here speak softly, just in case.',
-    kin:'Lark: You carry Fear. Good. You\'ll be careful, then. Take these.', not:'Lark: Quailmoor\'s past the trees. Don\'t go at night. Don\'t go at all, really.' },
+    kin:'Brin: You carry Fear. Good. You\'ll be careful, then. Take these.', not:'Brin: Quailmoor\'s past the trees. Don\'t go at night. Don\'t go at all, really.' },
   SADNESS:      { id:'lowmere',      name:'Lowmere',      lv:[7,10], keeper:'Agnes',  local:'Tobiah',
     arrive:'Lowmere is quiet and grey-green, with a pond that\'s always a little too still. The first drops of Sorrowmere\'s rain reach here.',
     kin:'Tobiah: You carry Sadness. Sit, if you like. Here, for the walk.', not:'Tobiah: Sorrowmere\'s down the road. Bring something warm.' },
-  DISGUST:      { id:'sourbrook',    name:'Sourbrook',    lv:[8,11], keeper:'Mercer', local:'Hester',
+  DISGUST:      { id:'sourbrook',    name:'Sourbrook',    lv:[8,11], keeper:'Mabry', local:'Nettie',
     arrive:'Sourbrook smells faintly of vinegar. A sign at the well reads: NO LOITERING, NO SINGING, NO.',
-    kin:'Hester: You carry Disgust. Finally, someone with taste. Have these.', not:'Hester: Spurnhold is up the road. They won\'t like you. They don\'t like anyone.' },
+    kin:'Nettie: You carry Disgust. Finally, someone with taste. Have these.', not:'Nettie: Spurnhold is up the road. They won\'t like you. They don\'t like anyone.' },
   ANGER:        { id:'cinderford',   name:'Cinderford',   lv:[8,12], keeper:'Doyle',  local:'Sorcha',
     arrive:'Cinderford is a forge-town on a hot stream. Soot on everything, and an argument on every corner.',
     kin:'Sorcha: You carry Anger. You\'ll do fine in Emberwick. Here, you\'ll need these.', not:'Sorcha: Emberwick\'s up the road. Keep your head down and your temper up.' }
@@ -591,30 +591,11 @@ Object.assign(END.letGo, {
 // =============================================================================
 // Echoes: what the person who felt this said or felt. [0] on meeting · [1],[2] on Reach Out · [3] when it settles.
 const ECHOES = {
-  LILT:    ['Sunday. Coffee\'s still warm. Nobody needs anything from me for one whole hour.', 'I used to hum while I folded laundry. My daughter says she still hears it.', 'It wasn\'t a big day. That\'s what I liked about it.', 'If you keep me, don\'t rush me. I\'m the kind of good that goes slow.'],
   WONDER:  ['First time I saw the sea I laughed so hard I fell in the damn water.', 'Look up. No, really look. When did you last do that?', 'He held the baby out to me and I forgot every word I knew.', 'I was terrified it would wear off. It always wore off.'],
-  GLEAM:   ['We won. WE WON. Everyone\'s screaming, someone\'s crying, I can\'t feel my face!', 'I said yes before he finished asking. The whole bar cheered.', 'I was so happy I stopped sleeping. Stopped eating. Who needs it? I was flying.', 'Everybody loved me at the top. Nobody was there when I came down.'],
-  LEAN:    ['She said she\'d catch me, so I let go. That\'s all trust is. Letting go.', 'I never locked my door. Nobody in Handfast did. Until the winter they did.', 'I let people decide for me. It was easier. Was that wrong?', 'Lean on me. Everyone else does.'],
-  TETHER:  ['Forty years married. We finish each other\'s sentences and argue about the endings.', 'He kept my secret through the war. Took it to his grave, too.', 'I tied myself to him so tight I forgot where I ended.', 'When the rope\'s cut, you find out which end you were holding.'],
-  VOW:     ['I swore an oath to the Warden. I\'d have followed him into fire. I did.', 'I gave my word, and a man died keeping it for me. I still owe him.', 'Admiration is a kind of blindness. I knew that. I looked anyway.', 'Promise me you\'ll come back. Promise me. Fucking promise me.'],
-  SKITTER: ['Did you hear that? No? You\'re sure? Check again.', 'I rehearse every conversation before I have it. Every one. Every day.', 'I knew the bridge would hold. My legs didn\'t.', 'Tell me what happens next. Please. I just need to know what happens next.'],
-  QUAIL:   ['If I\'m small enough, the shouting goes over my head.', 'I hid under the stairs while they took my father. All I could see were his boots.', 'I stopped going outside in spring. Then summer. Then it was just easier not to.', 'Don\'t make me go back out there.'],
   DREAD:   ['I woke up before the fire did. I could have screamed. Why didn\'t I scream?', 'The doctor\'s letter sat on the table for nine days. I never opened it. I knew.', 'Every knock at the door is the soldiers. Every single one. Even now.', 'You think I\'m the monster? I\'m what kept them alive. I\'m what watched the dark.'],
-  JOLT:    ['Wait, what was I... oh, look, a bird.', 'Did I leave the stove on? Where was I going again?', 'Life kept changing the subject on me, so I learned to change it first.', 'Don\'t keep me. I won\'t stay. I never stay.'],
   STARTLE: ['SURPRISE! Ha! Your face! Your FACE!', 'They threw me a party. Nobody had ever thrown me a party.', 'Found out I had a brother at forty-three. He has my laugh.', 'Sometimes the surprise is a gift. Sometimes it\'s a knock at three in the morning.'],
-  GASP:    ['The cathedral ceiling went up and up and I just... oh.', 'She opened her eyes. They said she wouldn\'t, and she opened her eyes.', 'I watched the whole valley burn from the ridge. The most beautiful, horrible thing I ever saw.', 'The world is so much bigger than I was ready for.'],
-  MIRE:    ['Rain on the window. I used to like that sound. I think I still do.', 'Her coat\'s still on the hook. I keep meaning to move it.', 'I\'m not sad, exactly. I\'m just somewhere behind glass.', 'Sit with me. You don\'t have to fix anything.'],
-  PALL:    ['Funerals are strange. Everyone brings food. Nobody can eat.', 'I said goodbye at the hospital door because I couldn\'t watch. I\'ve regretted it every day since.', 'Some mornings the grey just sits on my chest like a cat.', 'They keep telling me it gets easier. When?'],
   GRIEF:   ['I set two plates for dinner. Six years and I still set two plates.', 'There was so much blood. They told me not to look. I looked. I\'d look again.', 'Grief is just love with nowhere to go. So I carry it. Where else would it go?', 'If you take me, don\'t you dare put me down because I\'m heavy.'],
-  RECOIL:  ['Ugh. Boring. Next.', 'I walked out of my own wedding reception. Couldn\'t stand the speeches.', 'If nothing\'s worth caring about, nothing can let you down.', 'Don\'t look at me like that. Like you\'re interested.'],
-  SNEER:   ['They let anyone in these days. Anyone.', 'My father drank himself stupid and called it character. I swore I\'d never be him.', 'I know exactly what I won\'t stand for. Do you?', 'Fine. Touch me. See if I care. I care. Don\'t.'],
-  LOATHE:  ['He smiled at the trial. Smiled. I hope it rots in him.', 'I hated what they did to her so much I stopped being able to feel anything else.', 'I built these walls out of every bastard who ever lied to me.', 'The worst part is, I loathe myself most of all.'],
   SPITE:   ['Oh, sure, take the last one. Don\'t mind me. I\'ll remember, though.', 'I keyed his cart. Petty? Absolutely. Satisfying? Also absolutely.', 'Annoyance is just anger that hasn\'t found its reason yet.', 'Keep score. Somebody has to.'],
-  GRUDGE:  ['He took the farm, the well and my brother\'s name. I\'m still waiting.', 'Seventeen years. I could tell you every word he said that night.', 'Forgive? Forgiveness is for people who weren\'t there.', 'Every stone I carry has a name on it.'],
-  SMOULDER:['They burned the mill with the men still inside. I could hear them. I can STILL hear them.', 'I broke his jaw. I\'d do it again. I\'d do it every damn day.', 'Rage is clean. Rage doesn\'t ask questions. That\'s why I loved it.', 'Put me out and something worse moves into the space I leave.'],
-  KINDLE:  ['Tomorrow! Something\'s happening tomorrow, I can feel it.', 'I packed my bag three weeks before the trip. Unpacked it. Packed it again.', 'The letter\'s coming. It has to be coming.', 'Take me somewhere. Anywhere. Just not here.'],
-  CUSP:    ['Any second now. Any second. Any... no. Any second now.', 'I spent my whole twenties getting ready to live.', 'The moment before is always better than the moment. Isn\'t it?', 'Is this it? Is this the part where it starts?'],
-  YEARN:   ['I watched the harbour every night for the ship that brought him back. It never came.', 'I stood at that window so long the frame wore a groove for my hands.', 'Vigilance looks like love from the outside. From the inside it looks like fear.', 'Don\'t tell me to stop waiting. Waiting is all I have left of him.']
 };
 // What each feeling needs when you Reach Out: stay (be present), release (let it be expressed), ahead (safety, sense, a way forward)
 const NEEDS = { JOY:'stay', CALM:'stay', SADNESS:'stay', SHAME:'stay', CONFIDENCE:'release', ANGER:'release', DISGUST:'release', HOPE:'ahead', FEAR:'ahead', SURPRISE:'ahead' };
@@ -728,7 +709,7 @@ const JOBS = {
   ],
   HOPE: [
     { tier:'bright', kind:'give', type:'FEAR', giver:'Widow Hale', ask:'Widow Hale: A man conned us out of our savings and I thanked him for it. I keep hoping he\'ll come back and make it right. Bring me some Fear. I need to be afraid of being fooled again.', done:'Hale turns the Fear over in her hands. "No," she says, testing it. "No more." She laughs until she cries.' },
-    { tier:'plain',  kind:'deliver', to:'handfast', giver:'Courier Pell', ask:'Courier Pell: Letter for the keeper at Handfast. Nobody here thinks to check the post. Would you?', done:'The keeper reads the letter twice and pays you from a tin.' },
+    { tier:'plain',  kind:'deliver', to:'handfast', giver:'Courier Tibb', ask:'Courier Tibb: Letter for the keeper at Handfast. Nobody here thinks to check the post. Would you?', done:'The keeper reads the letter twice and pays you from a tin.' },
     { tier:'dark',   kind:'settle', n:3, giver:'Choir collector', ask:'Choir collector: Trothaven owes us. They\'ll pay if their pets get roughed up. Go put three of the wild ones down.', done:'Choir collector: They\'ll pay now. They always believe it\'ll be the last time.' }
   ],
   CALM: [
@@ -3230,8 +3211,8 @@ function routeLayout(t) {
           intro:'Ondine: Mine don\'t fight to win. They fight so the other one gets tired and goes home. It takes longer. It\'s kinder.', ask:'Ondine: Would you sit a while with mine? That\'s what a match is, here.', decline:'Ondine: The water will still be here.',
           win:'Ondine: You didn\'t rush. Thank you. Take this; it\'s warm.', lose:'Ondine: You wore out first. That\'s all right. Rest.', after:'Ondine: Moss is asleep. Don\'t step on the loud plank.', distrust:'' },
         { id:'moss', x:21, y:19, dir:'up', role:'favor', name:'Moss', look:rLook('#7a9a98', '#d9e0c8', '#f0caa6', '#3a2a20', { small:true }), trust:trustIs.any },
-        { id:'ferry', x:7, y:34, dir:'right', role:'talk', name:'Old Pell', look:rLook('#4a5048', '#9aa898', '#c79a78', '#e2ddd4', { hat:'#3a4038' }), trust:trustIs.any,
-          lines:{ bright:'Old Pell: I used to row people across before they laid the planks. Now I sit. Sitting is underrated.', plain:'Old Pell: Moonmoss folk don\'t fight back. You can hit them and they\'ll just look at you. Does something to a person, that.', dark:'Old Pell: You carry a storm in with you. The frogs noticed. So did I. Sit down. Breathe till it passes.' } },
+        { id:'ferry', x:7, y:34, dir:'right', role:'talk', name:'Old Ruddock', look:rLook('#4a5048', '#9aa898', '#c79a78', '#e2ddd4', { hat:'#3a4038' }), trust:trustIs.any,
+          lines:{ bright:'Old Ruddock: I used to row people across before they laid the planks. Now I sit. Sitting is underrated.', plain:'Old Ruddock: Moonmoss folk don\'t fight back. You can hit them and they\'ll just look at you. Does something to a person, that.', dark:'Old Ruddock: You carry a storm in with you. The frogs noticed. So did I. Sit down. Breathe till it passes.' } },
         { id:'grebe', x:20, y:7, dir:'down', role:'war', name:'Grebe', look:rLook('#3a4a4a', '#6a8a8a', '#c79a78', '#141014'), team:[['CALM', 1, 1], ['SADNESS', 1, 1], ['CALM', 2, 1]], reward:['tonic', 2], trust:trustIs.notBright,
           intro:['Grebe: Calm makes the best soldiers. A calm soldier doesn\'t hesitate, doesn\'t panic, doesn\'t feel much of anything when they do the job.', 'Grebe: I train them to switch off. Emberwick pays well for people who switch off.'], ask:'Grebe: Shall we?', decline:'Grebe: Of course.',
           win:'Grebe: …You made mine feel something. That\'s not supposed to happen. Take these and go.', lose:'Grebe: You panicked. Everybody does, the first time.', after:'Grebe: (He doesn\'t look up.)',
@@ -3307,10 +3288,10 @@ function routeLayout(t) {
       rect(m, 2, 8, 5, 3, ','); rect(m, 2, 24, 5, 3, ','); rect(m, 19, 18, 5, 3, ','); rect(m, 19, 34, 5, 3, ','); rect(m, 10, 27, 4, 3, ','); rect(m, 19, 2, 5, 3, ',');
       R.npcs = [
         { id:'hale', x:5, y:17, dir:'right', role:'favor', name:'Mrs Hale', look:rLook('#4a4a5a', '#b8b0c0', '#d7a985', '#c8c0b8', { hat:'#2a2a38' }), trust:trustIs.any },
-        { id:'mercer', x:7, y:33, dir:'right', role:'guard', name:'Constable Mercer', look:rLook('#2a3448', '#c8c0b0', '#c79a78', '#3a2a20', { hat:'#1a2030' }), team:[['SADNESS', 1], ['CALM', 1]], reward:['hearth', 1], trust:trustIs.notDark,
-          intro:'Constable Mercer: There\'s no crime on Gutterlight Lane. There\'s no anything. I still walk the beat. Somebody should.', ask:'Mercer: My Manifs protect the folk who wander in here and sit in the cars. Spar?', decline:'Mercer: Mind the puddles. Some are deeper than they look.',
-          win:'Mercer: Well done. Here. For when the rain gets into you.', lose:'Mercer: Go and dry off.', after:'Mercer: Quiet night. They\'re all quiet nights.',
-          distrust:'Constable Mercer: (He puts himself between you and the parked cars.) There are people asleep in those. Move along.' },
+        { id:'mercer', x:7, y:33, dir:'right', role:'guard', name:'Constable Holloway', look:rLook('#2a3448', '#c8c0b0', '#c79a78', '#3a2a20', { hat:'#1a2030' }), team:[['SADNESS', 1], ['CALM', 1]], reward:['hearth', 1], trust:trustIs.notDark,
+          intro:'Constable Holloway: There\'s no crime on Gutterlight Lane. There\'s no anything. I still walk the beat. Somebody should.', ask:'Holloway: My Manifs protect the folk who wander in here and sit in the cars. Spar?', decline:'Holloway: Mind the puddles. Some are deeper than they look.',
+          win:'Holloway: Well done. Here. For when the rain gets into you.', lose:'Holloway: Go and dry off.', after:'Holloway: Quiet night. They\'re all quiet nights.',
+          distrust:'Constable Holloway: (He puts himself between you and the parked cars.) There are people asleep in those. Move along.' },
         { id:'pell', x:18, y:27, dir:'left', role:'war', name:'Deacon Pell', look:rLook('#1e1620', '#5a4a6a', '#b8b0a8', '#0e0a10', { hat:'#141014' }), team:[['SADNESS', 1, 1], ['SHAME', 1, 1], ['SADNESS', 2, 1]], reward:['veil', 1], trust:trustIs.dark,
           intro:['Deacon Pell: The Hollow Choir collects grief here. It\'s the richest seam in the Welkin. Everyone on this street left a little behind.', 'Pell: We train it. Sorrow that knows how to march. You\'d be amazed what an army of the bereaved will do.'], ask:'Pell: You carry dark things well. Shall we test them?', decline:'Pell: The Choir is patient.',
           win:'Pell: You\'d be wasted on anything but the Choir. Take this veil. Think about it.', lose:'Pell: Grief wins. It usually does.', after:'Pell: The Choir remembers you kindly.',
@@ -3330,9 +3311,9 @@ function routeLayout(t) {
       piece('mtent', 16, 20, 2, 1, { c:'#6a5a4a', look:'A collapsed bedroll and a lantern with no oil. Somebody camped here, and left in a hurry, or did not leave.' }); piece('rubble', 14, 18); piece('pallet', 20, 19);
       R.npcs = [
         { id:'teodor', x:6, y:28, dir:'right', role:'favor', name:'Teodor', look:rLook('#5a5048', '#8a7a5a', '#c8b8a8', '#3a3030', { hat:'#3a3a2a' }), trust:trustIs.any },
-        { id:'wick', x:13, y:39, dir:'down', role:'guard', name:'Wick', look:rLook('#3a3540', '#e8c060', '#c79a78', '#e2ddd4', { hat:'#2a2420' }), team:[['FEAR', 1], ['HOPE', 1]], reward:['salts', 2], trust:trustIs.any,
-          intro:'Wick: I keep the lamps in the Throat. My Manifs keep the things in the Throat away from the lamps. Fear\'s a fine guard if you point it outward.', ask:'Wick: Let\'s see if yours flinch in the dark.', decline:'Wick: Stay in the light, then.',
-          win:'Wick: Steady. Take these; somebody always faints down here.', lose:'Wick: You ran. It\'s fine. Everybody runs.', after:'Wick: Lamps are lit. Don\'t count them; it never comes out the same.', distrust:'' },
+        { id:'wick', x:13, y:39, dir:'down', role:'guard', name:'Brisco', look:rLook('#3a3540', '#e8c060', '#c79a78', '#e2ddd4', { hat:'#2a2420' }), team:[['FEAR', 1], ['HOPE', 1]], reward:['salts', 2], trust:trustIs.any,
+          intro:'Brisco: I keep the lamps in the Throat. My Manifs keep the things in the Throat away from the lamps. Fear\'s a fine guard if you point it outward.', ask:'Brisco: Let\'s see if yours flinch in the dark.', decline:'Brisco: Stay in the light, then.',
+          win:'Brisco: Steady. Take these; somebody always faints down here.', lose:'Brisco: You ran. It\'s fine. Everybody runs.', after:'Brisco: Lamps are lit. Don\'t count them; it never comes out the same.', distrust:'' },
         { id:'nell', x:20, y:10, dir:'left', role:'war', name:'Scavenger Nell', look:rLook('#2a2420', '#6e2c50', '#b88468', '#141014'), team:[['FEAR', 1, 1], ['DISGUST', 1, 1], ['FEAR', 2, 2]], reward:['tonic', 2], trust:trustIs.notBright,
           intro:['Scavenger Nell: Quailmoor\'s militia pays for Panic. Frighten a column of soldiers badly enough and they shoot each other.', 'Nell: I breed it down here. It\'s very calm work, oddly.'], ask:'Nell: Fight me in the dark?', decline:'Nell: Mind your back on the way out.',
           win:'Nell: Didn\'t scare you at all. That\'s… actually frightening. Take these.', lose:'Nell: Screaming\'s normal. Breathe.', after:'Nell: Did you hear that? No? Good.',
@@ -3538,7 +3519,7 @@ const FAVORS = {
   async teodor(R) { const f = S.flags;
     if (carriesType('HOPE') || carriesType('CALM')) { const m = S.party.find(x => typeOf(x) === 'HOPE' || typeOf(x) === 'CALM');
       await say(`Teodor: Is that… is that light? (${nm(m)} hovers near him, and his hands stop shaking.)`); await say('Teodor: Three days. I\'ve been sitting in the dark three days, too scared to move in case I moved the wrong way.');
-      await say('Teodor: Thank you, {name}. I\'ll tell Wick it was you. The way out is north, then east round the big chamber, then north again. I can see it now. Thank you. Take these, and the note I made; it might help you further on.'); await giveItem('salts', 2);
+      await say('Teodor: Thank you, {name}. I\'ll tell Brisco it was you. The way out is north, then east round the big chamber, then north again. I can see it now. Thank you. Take these, and the note I made; it might help you further on.'); await giveItem('salts', 2);
       await say('(Teodor\'s note:) "Quailmoor fears everything, so bring what it fears least: Hope. Opposites hit twice as hard."'); f.teodorOut = 1; return buildWorld(S.map); }
     await say('Teodor: Don\'t come closer. Don\'t. Every time something comes closer it\'s worse.'); await say('Teodor: If you had something bright… something that could see further than I can… I might be able to stand up.'); },
   async vesper(R) { const f = S.flags;
@@ -3686,7 +3667,7 @@ for (const t of WHEEL) { const T = TOWNS[t], X = ROOM_TXT[t], wc = new THREE.Col
       npcs:[{ id:'res_fam', x:4, y:4, dir:'down', look:roomLook(t, i + 1), name:'Resident', talk:resLine(X.res) }] },
     { name:'The shrine-keeper\'s house', wall:tint(2), furn:[['desk', 2, 1], ['shelf', 6, 1], ['shelf', 7, 1], ['table', 4, 4], ['bed', 7, 5]],
       note:{ x:3, y:2, text:`(Notes on the Heart of ${T.name}.) ${X.heart}` }, item:{ x:2, y:5, id:'ch_' + t, key:it(3)[0], n:it(3)[1] } },
-    { name:`The ${['Copper', 'Lantern', 'Willow', 'Anvil', 'Riddle', 'Raincloud', 'Bolted Door', 'Drawn Curtain', 'Clean Step', 'Broken Mug'][i]}`, w:11, wall:tint(3),
+    { name:`The ${['Copper', 'Lantern', 'Willow', 'Anvil', 'Riddle', 'Raincloud', 'Bolted Door', 'Drawn Curtain', 'Clean Step', 'Broken Mug'][TOWN_ORDER.indexOf(t)]}`   /* names follow the road order: Veilham's Drawn Curtain, Spurnhold's Clean Step, Emberwick's Broken Mug */, w:11, wall:tint(3),
       furn:[['table', 2, 2], ['table', 2, 5], ['table', 8, 2], ['table', 8, 5], ['desk', 5, 1], ['shelf', 9, 1]],
       item:{ x:5, y:5, id:'ct_' + t, key:'cake', n:2 },
       npcs:[{ id:'res_bar', x:5, y:2, dir:'down', look:roomLook(t, i + 2, { dark:true }), name:'Barkeep', talk:async () => { await say(S.hearts[t] ? `Barkeep: First round's on the house for you, {name}. Whole town's drinking to the Heart settling.` : `Barkeep: Quiet night. Every night's quiet since the Heart got restless. People drink to it, not with each other.`); } },
@@ -3994,7 +3975,7 @@ function fitLamps(M) {
     const nb = pathNb(x, y); if (nb.length) { const [dx, dy] = nb[0]; p.rotY = Math.atan2(-dy, dx); p.onPath = 1; p.x = x - dx * .32; p.y = y - dy * .32; } }   // pole at the far side of its tile, arm out over the path
 }
 function buildWorld(id) {
-  MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld()) applyRestoredFair();
+  MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld() && !S.flags.doom) applyRestoredFair();
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
   const M = MAPS[id], V = worldVibe(id); fitLamps(M); applyOrders(id, M);
@@ -6459,7 +6440,7 @@ function applyRestoredFair() {
   for (const [x, y] of [[29, 14], [32, 14], [29, 28], [32, 28], [23, 19], [23, 22]]) { set(x, y, 'o'); M.set.push({ k:'lamp', x, y, lit:true, tiles:[x, y, 1, 1] }); }
 }
 function fairEnts(map, base) {
-  if (map !== 'r_tumbledown' || !postWorld()) return [];
+  if (map !== 'r_tumbledown' || !postWorld() || S.flags.doom) return [];   // the fair only reopens in a saved world; under the Chord it stays shut
   applyRestoredFair(); const M = MAPS[map], sp = fairSpots(map, base), out = [];
   const find = k => (M.set || []).find(p => p.k === k), at = (p, dx, dy) => sp(Math.round(p.x) + dx, Math.round(p.y) + dy);
   const L = (coat, accent, skin, hair, gear, x = {}) => ({ coat, accent, skin, hair, legs:'#2a2a2a', gear, ...x });
@@ -6519,7 +6500,7 @@ async function rideSlide(sl) {
   await say('You shoot off the end and land in a heap at the bottom, laughing.');
 }
 function fairExtras(id, M, g) {
-  if (id !== 'r_tumbledown' || !postWorld()) return;
+  if (id !== 'r_tumbledown' || !postWorld() || S.flags.doom) return;
   for (const so of SETOBJS) { if (so.p.k === 'carousel') SPIN.push({ o:so.o, axis:'y', speed:.35 }); if (so.p.k === 'ferris') SPIN.push({ o:so.o.children[0], axis:'z', speed:.12 });
     if (so.o.userData.spin) SPIN.push({ o:so.o.userData.spin, axis:'y', speed:.6 }); }
 }
@@ -6775,7 +6756,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   // houses thicken as you go west toward the sea
   B.house(3, 4, 5, '#3a6a8a', '#f0ece0'); B.house(9, 4, 5, '#4f8a8a', '#f4f0e4', { name:'Tidewrack Motel', w:11, h:9, music:'coast_road', floor:['#6a7a8a', '#5e6e7e'], wall:'#e8e4d8', furn:[['bed', 2, 2], ['bed', 2, 5], ['desk', 8, 2], ['shelf', 8, 5]] }, { role:'lodge' });
   B.house(15, 4, 6, '#c0503a', '#f3e7c9'); B.house(22, 4, 5, '#b07a3a', '#e8dcc0', { name:'Fuel & Bait', w:11, h:9, music:'coast_road', floor:['#7a6a58', '#6e5e4e'], wall:'#d8ccb0', furn:[['shelf', 2, 1], ['shelf', 4, 1], ['shelf', 6, 1], ['desk', 7, 4], ['pallet', 2, 5]] }, { role:'store' });
-  B.house(29, 4, 5, '#6a7a8a', '#ece4d4'); B.house(40, 4, 5, '#4f8a8a', '#f0e8d8'); B.house(50, 4, 6, '#8a3a2a', '#e8dcc0', { name:'Pell Farmstand', w:11, h:9, music:'coast_road', floor:['#8a7458', '#7e6a50'], wall:'#e0d0b0', furn:[['table', 3, 3], ['table', 7, 3], ['pallet', 2, 6], ['pallet', 8, 6]] });
+  B.house(29, 4, 5, '#6a7a8a', '#ece4d4'); B.house(40, 4, 5, '#4f8a8a', '#f0e8d8'); B.house(50, 4, 6, '#8a3a2a', '#e8dcc0', { name:'Hobb Farmstand', w:11, h:9, music:'coast_road', floor:['#8a7458', '#7e6a50'], wall:'#e0d0b0', furn:[['table', 3, 3], ['table', 7, 3], ['pallet', 2, 6], ['pallet', 8, 6]] });
   for (const x of [5, 11, 18, 24, 31, 42, 53]) B.m[8][x] = '=';
   rect(B.m, 2, 12, 12, 5, 'S'); rect(B.m, 3, 13, 4, 2, ','); rect(B.m, 38, 13, 18, 4, ','); rect(B.m, 38, 12, 18, 1, 'h'); B.m[12][47] = '.';
   rect(B.m, 16, 13, 18, 4, '.'); B.piece('car', 20, 13, 2, 1, { c:'#e8dcc0', r:0 }); B.piece('pallet', 27, 13); B.piece('hay', 44, 14); B.piece('hay', 50, 15); B.piece('windmill', 36, 14);
@@ -6789,9 +6770,9 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
     if ((S.marks || 0) < 30) return say('Night clerk: Thirty. Not twenty-nine.'); S.marks -= 30; await fadeTo(1, 500); healAll(); await fadeTo(0, 500); await say('You sleep to the sound of the sea, far off and patient. Your Chorus is rested.'); })];
   MAPS.r_coast_in1.room.npcs = [npc('baitman', 7, 5, 'down', 'Gus', lk('#6a5a3a', '#e8a83a', SK[3], '#8a8078', ['cap', 'beard']), async () => {
     await sayAs('Gus', sideLine({ light:'Bait, fuel, snacks. You look like you\'re headed to the sea. Everybody who looks like that is.', even:'Help yourself. Worms are in the fridge. Don\'t confuse the fridges.', shadow:'(He keeps one hand under the counter the whole time.) What do you want.' })); return openShop('fuelbait'); })];
-  MAPS.r_coast_in2.room.npcs = [npc('pell', 5, 5, 'down', 'Nan Pell', lk('#5f8a3e', '#f3e7c9', SK[1], '#d8d0c0', ['apron', 'bun']), async () => {
-    if (auraSide() === 'shadow') return sayAs('Nan Pell', 'Farmstand\'s closed. (The sign says OPEN. She turns it round while looking at you.)');
-    await sayAs('Nan Pell', 'Strawberries, early. First ones since the grey years. Take a punnet, love, on the house. People ought to taste things again.');
+  MAPS.r_coast_in2.room.npcs = [npc('pell', 5, 5, 'down', 'Nan Hobb', lk('#5f8a3e', '#f3e7c9', SK[1], '#d8d0c0', ['apron', 'bun']), async () => {
+    if (auraSide() === 'shadow') return sayAs('Nan Hobb', 'Farmstand\'s closed. (The sign says OPEN. She turns it round while looking at you.)');
+    await sayAs('Nan Hobb', 'Strawberries, early. First ones since the grey years. Take a punnet, love, on the house. People ought to taste things again.');
     if (once('pellBerries')) { S.items.cake = (S.items.cake || 0) + 2; await say('(You get 2 Honey Cakes\' worth of strawberries. They are better than Honey Cakes.)'); } })];
   REGION_NPCS.r_coast = () => [
     npc('hiker', 41, 11, 'left', 'Hitchhiker', lk('#8a5a3a', '#e8a83a', SK[1], '#7a3e1e', ['satchel', 'bandana']), async () => {
@@ -6799,7 +6780,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
         const c = await ask('The hitchhiker is alone on a long road, with a full pack.', ['Leave them be', 'Take the pack']); if (c === 1) { sin(2); pay(60); await say('You take the pack. They don\'t fight. They just stand there in the road while you go, and they\'re still standing there when you look back.'); } return; }
       await sayAs('Hitchhiker', 'Walking to Saltmere. The whole way. My mum said if the sea came back she\'d see it before she died, and she didn\'t, so I\'m seeing it for her.'); }),
     npc('cyclist', 27, 11, 'right', 'Cyclist', lk('#c0503a', '#f3e7c9', SK[0], '#e2c070', ['cap', 'glasses']), () => sayAs('Cyclist', 'Saltmere\'s that way. Big city. Casino, boardwalk, the lighthouse. Don\'t play cards with anyone called Dex.')),
-    npc('gulls', 14, 12, 'down', 'Old Wick', lk('#4a4a5a', '#c8c0b8', SK[2], '#d8d0c0', ['tophat', 'stout']), () => sayAs('Old Wick', sideLine({ light:'Gulls came back before the people did. I feed them. They hate me. It\'s a good arrangement.', even:'Watch your sandwich round here.', shadow:'Even the gulls won\'t come near you. Smart birds.' }))),
+    npc('gulls', 14, 12, 'down', 'Old Gannet', lk('#4a4a5a', '#c8c0b8', SK[2], '#d8d0c0', ['tophat', 'stout']), () => sayAs('Old Gannet', sideLine({ light:'Gulls came back before the people did. I feed them. They hate me. It\'s a good arrangement.', even:'Watch your sandwich round here.', shadow:'Even the gulls won\'t come near you. Smart birds.' }))),
     npc('tourist', 54, 7, 'down', 'Lost tourist', lk('#e8a83a', '#fff3d6', SK[0], '#3a2414', ['satchel', 'glasses']), () => sayAs('Lost tourist', 'Is Moonmoss behind me? I came out of a gate in a wall and I\'ve been walking for an hour and nobody here talks slowly enough.')),
     npc('bikekid', 31, 12, 'left', 'Kid on a bike', lk('#4f8a8a', '#f3e7c9', SK[3], '#141014', ['cap'], { small:true }), () => sayAs('Kid on a bike', 'I\'m racing the gulls. I\'m losing.')),
     npc('bikedad', 33, 12, 'left', 'Kid\'s dad', lk('#3a5a7a', '#e8dcc0', SK[3], '#141014', ['beard']), () => sayAs('Kid\'s dad', 'He\'s been on that bike since breakfast. I can\'t feel my legs and I\'m only watching.')),
@@ -7094,7 +7075,7 @@ async function talkHoldSupply() {
   const s = auraSide();
   await sayAs('Earl', sideLine({ light:'Rations, tonic, salts, the essentials. You\'ve got a trustworthy face. I\'ll knock a bit off.', even:'Cash only. No credit. No credit after the end of the world, either.', shadow:'I\'ll sell to you. I\'ll sell to anyone. Doesn\'t mean I like it.' }));
   await openShop('holdfast');
-  if (!S.flags.deepOk && s === 'light' && S.flags.voskOk) { await sayAs('Earl', 'Vosk says you\'re all right. Then I\'ll show you something. Through the back. Mind the stairs, there\'s three hundred of them.'); S.flags.deepOk = 1; }
+  if (!S.flags.deepOk && (s === 'light' || s === 'hurt') && S.flags.voskOk) { await sayAs('Earl', 'Vosk says you\'re all right. Then I\'ll show you something. Through the back. Mind the stairs, there\'s three hundred of them.'); S.flags.deepOk = 1; }
 }
 async function talkVosk() {
   const s = auraSide();
@@ -7125,12 +7106,12 @@ async function talkVosk() {
   IN(0).npcs = [npc('gunnar', 8, 7, 'up', 'Gunnar', lk('#e8dcc0', '#c8a060', SK[0], '#e2c070', ['apron', 'beard', 'stout']), talkGunnar)];
   IN(1).npcs = [npc('cook_d', 6, 2, 'down', 'Cook', lk('#e8dcc0', '#8a7a5a', SK[3], '#141014', ['apron', 'bakerhat']), () => sayAs('Cook', sideLine({ light:'Soup\'s on. It\'s always on. That\'s the point of soup.', even:'Grab a bowl.', shadow:'Kitchen\'s closed. (It isn\'t.)' }))),
     npc('kids_d', 4, 5, 'up', 'Bunker kid', lk('#4f8a8a', '#f3e7c9', SK[2], '#141014', ['cap'], { small:true }), () => sayAs('Bunker kid', 'I was born down here. I\'ve been up top six times. The sky is TOO BIG.'))];
-  IN(3).npcs = [npc('teach_d', 8, 3, 'left', 'Miss Odile', lk('#7a5a8a', '#f3e7c9', SK[1], '#3a2414', ['glasses', 'bun']), () => wickClue('school') || sayAs('Miss Odile', sideLine({ light:'Sums in the morning, letters after lunch, and on Fridays we do Sky. I draw it on the board as big as I can. They never believe me about the size.', even:'Class is in. Quietly, please.', shadow:'Not in front of the children.' }))),
+  IN(3).npcs = [npc('teach_d', 8, 3, 'left', 'Miss Ferrow', lk('#7a5a8a', '#f3e7c9', SK[1], '#3a2414', ['glasses', 'bun']), () => wickClue('school') || sayAs('Miss Ferrow', sideLine({ light:'Sums in the morning, letters after lunch, and on Fridays we do Sky. I draw it on the board as big as I can. They never believe me about the size.', even:'Class is in. Quietly, please.', shadow:'Not in front of the children.' }))),
     npc('pupil_d', 4, 5, 'up', 'Pupil', lk('#e8a83a', '#fff3d6', SK[2], '#141014', ['braids'], { small:true }), () => sayAs('Pupil', 'We counted the stairs once. It\'s three hundred and four, not three hundred. Nobody up top ever counts properly.'))];
   IN(4).npcs = [npc('doc_d', 8, 5, 'left', 'Dr. Halvard', lk('#e8e8e0', '#5a6a7a', SK[3], '#8a8078', ['glasses', 'longcoat']), async () => {
     await sayAs('Dr. Halvard', sideLine({ light:'Sit. Everyone who comes down those stairs gets checked over. House rules. Your lot too.', even:'Next. Sit down, then.', shadow:'I treat everyone. Even you. Sit.' }));
     for (const m of S.party) m.hp = maxHp(m); sfx('heal'); return say('(Dr. Halvard looks your whole Chorus over, tuts, and patches everyone up. Your Chorus is fully rested.)'); })];
-  IN(5).npcs = [npc('pump_d', 4, 3, 'down', 'Engineer Tamsin', lk('#6a5a3a', '#4a5a6a', SK[2], '#7a3e1e', ['helmet', 'satchel']), () => sayAs('Engineer Tamsin', sideLine({ light:'Air in, water up, warm through. Three pumps and a lot of praying. If you hear them stop, come and get me, whatever time it is.', even:'Don\'t touch the valves.', shadow:'Get out of my pump room.' })))];
+  IN(5).npcs = [npc('pump_d', 4, 3, 'down', 'Engineer Corla', lk('#6a5a3a', '#4a5a6a', SK[2], '#7a3e1e', ['helmet', 'satchel']), () => sayAs('Engineer Corla', sideLine({ light:'Air in, water up, warm through. Three pumps and a lot of praying. If you hear them stop, come and get me, whatever time it is.', even:'Don\'t touch the valves.', shadow:'Get out of my pump room.' })))];
   IN(2).npcs = [npc('qm_d', 5, 3, 'down', 'Quartermaster Ivo', lk('#4a5a3a', '#8a7a5a', SK[4], '#3a2414', ['cap', 'glasses']), async () => { await sayAs('Quartermaster Ivo', 'Everything\'s logged. You buy it, I log it. You steal it, I log you.'); return openShop('quarter'); })];
   REGION_NPCS.holdfast_deep = () => [
     npc('stairs_d', 19, 1, 'up', 'Stairs', null, async () => { await say('Three hundred and four steps back up to Holdfast Supply.'); return changeMap({ map:'holdfast_in0', x:10, y:2, dir:'left' }); }, { invisible:true }),
@@ -7139,7 +7120,7 @@ async function talkVosk() {
     npc('d5', 14, 21, 'up', 'Mother of three', lk('#8a5a3a', '#f3e7c9', SK[4], '#141014', ['scarf']), () => sayAs('Mother of three', 'Up top they think we\'re hiding. We\'re not hiding. We\'re living. It\'s just quieter down here, that\'s all.')),
     npc('d6', 33, 11, 'down', 'Lamp-lit couple', lk('#5a4a6a', '#e8dcc0', SK[1], '#3a2414', ['glasses']), () => sayAs('Lamp-lit couple', 'We got married in the Mess Hall. Forty-two grow-lamps for candles. Best wedding Holdfast ever had, and the only one, but still.')),
     npc('d1', 15, 11, 'down', 'Lamp tender', lk('#5a5a3a', '#f4cf5e', SK[1], '#8a8078', ['lantern']), () => wickClue('lamp') || sayAs('Lamp tender', 'Forty-two grow-lamps. If they go out, we have six weeks. I check them every hour. I don\'t sleep much.')),
-    npc('wick', 36, 10, 'left', 'Wick', lk('#5a7aa8', '#f3e7c9', SK[2], '#7a3e1e', ['cap'], { small:true }), findWick, { gone:() => S.flags.wickQ !== 1 }),
+    npc('wick', 36, 10, 'left', 'Fennick', lk('#5a7aa8', '#f3e7c9', SK[2], '#7a3e1e', ['cap'], { small:true }), findWick, { gone:() => S.flags.wickQ !== 1 }),
     npc('pipe_d', 37, 10, 'right', 'Old pipe', null, () => S.flags.wickQ === 1 ? say('The pipe comes out of the rock here and goes back into it. It is humming, low and steady, like someone keeping a tune under their breath.') : say('An old pipe running into the rock. ' + (S.flags.wickQ >= 3 ? 'It\'s quiet now.' : 'It hums.')), { invisible:true }),
     npc('d2', 25, 11, 'down', 'Driller', lk('#6a5a3a', '#e8a83a', SK[3], '#3a2414', ['helmet', 'hammer']), () => wickClue('drill') || sayAs('Driller', 'We\'re cutting a new street east. Found an old pipe down there. It hums. We don\'t talk about the pipe.')),
     npc('d3', 34, 21, 'left', 'Gardener', lk('#5f8a3e', '#f3e7c9', SK[2], '#d8d0c0', ['apron']), () => sayAs('Gardener', 'Lettuce under lamps tastes like lettuce under lamps. But it tastes.')),
@@ -7147,7 +7128,7 @@ async function talkVosk() {
   ];
 })();
 // ---- THE COUNT: Holdfast Deep counts everyone twice. One morning the count comes up one short.
-// Old Saul asks you to find who's missing; the town has clues; Wick is at the end of the new east street with the old
+// Old Saul asks you to find who's missing; the town has clues; Fennick is at the end of the new east street with the old
 // humming pipe, and something that's been living in it. Bring him home and the count comes up eighty, then eighty-one.
 async function countQuest() {
   const F = S.flags;
@@ -7158,12 +7139,12 @@ async function countQuest() {
     F.wickQ = 1; await sayAs('Old Saul', 'Good. Ask around. Somebody always saw something. They just don\'t know it was important.'); return true; }
   if (F.wickQ === 1) { await sayAs('Old Saul', 'Still seventy-nine. Ask around. The schoolroom, the lamps, the diggers. Somebody saw something.'); return true; }
   if (F.wickQ === 2) {
-    await say('Wick is standing beside Old Saul, holding his cap in both hands. Something small and warm is peeking out from behind his legs.');
+    await say('Fennick is standing beside Old Saul, holding his cap in both hands. Something small and warm is peeking out from behind his legs.');
     await sayAs('Old Saul', 'Seventy-nine... eighty. (He counts again, with his finger, like a schoolboy.) Eighty. Counted twice.');
-    await sayAs('Wick', 'You have to count it too. It lived in the pipe. It was humming because nobody ever counted it. It was waiting.');
+    await sayAs('Fennick', 'You have to count it too. It lived in the pipe. It was humming because nobody ever counted it. It was waiting.');
     await say('Old Saul looks down at the little creature for a long time. Then he points at it with one finger, very seriously.');
     await sayAs('Old Saul', 'Eighty-one. (The pipe, far off down the east street, goes quiet.) Counted twice.');
-    await sayAs('Wick', 'It wants to go up top. It\'s never seen the sky. I told it you know the way. You\'ll bring it back to visit, won\'t you?');
+    await sayAs('Fennick', 'It wants to go up top. It\'s never seen the sky. I told it you know the way. You\'ll bring it back to visit, won\'t you?');
     await giveSpecial('BELONG_X'); F.wickQ = 3;
     await sayAs('Old Saul', 'Belonging, that one. Funny little thing. Wherever you go with it, you\'ll be counted. Go on. You\'re one of us now. More than a little.');
     return true; }
@@ -7171,20 +7152,20 @@ async function countQuest() {
 }
 async function wickClue(who) {
   if (S.flags.wickQ !== 1) return false;
-  const L = { school:['Miss Odile', 'Wick\'s desk is empty this morning. He never misses Sky. Lately he\'s been drawing the same thing over and over: a pipe with a little face in it. Smiling.'],
+  const L = { school:['Miss Ferrow', 'Fennick\'s desk is empty this morning. He never misses Sky. Lately he\'s been drawing the same thing over and over: a pipe with a little face in it. Smiling.'],
     lamp:['Lamp tender', 'A small one? With a cap? I saw a lad go by with a candle stub last night, heading east down the new street. Toward the humming. I thought he was on an errand.'],
     drill:['Driller', 'The pipe\'s been humming louder all week. Like something\'s singing back to it. We stopped work at the east end, it was giving everyone the shivers. Nobody\'s down there now. Shouldn\'t be.'] }[who];
   await sayAs(L[0], L[1]); return true;
 }
 async function findWick() {
   await say('At the very end of the new street, where the rock still has drill marks, a boy is sitting cross-legged beside the old pipe. Curled against his knee is something small and round and warm, with a ring of tiny lights circling it.');
-  await sayAs('Wick', 'Shh. You\'ll scare it. It lives in here. It hums when it\'s lonely, and it\'s been lonely for ages. Nobody ever counts it, so it doesn\'t think it counts.');
-  await sayAs('Wick', 'I\'m not coming back unless it can come too. That\'s the rule. Everyone gets counted.');
+  await sayAs('Fennick', 'Shh. You\'ll scare it. It lives in here. It hums when it\'s lonely, and it\'s been lonely for ages. Nobody ever counts it, so it doesn\'t think it counts.');
+  await sayAs('Fennick', 'I\'m not coming back unless it can come too. That\'s the rule. Everyone gets counted.');
   const c = await ask('The little thing looks up at you. The pipe hums.', ['It can come. Let\'s go back together', 'Your mum must be worried']);
-  if (c === 1) await sayAs('Wick', 'She\'s always worried. That\'s what mums are for. (He doesn\'t move.) Can it come?');
-  await sayAs('Wick', 'Okay. Okay! Come on, you. Stay close.'); S.flags.wickQ = 2;
+  if (c === 1) await sayAs('Fennick', 'She\'s always worried. That\'s what mums are for. (He doesn\'t move.) Can it come?');
+  await sayAs('Fennick', 'Okay. Okay! Come on, you. Stay close.'); S.flags.wickQ = 2;
   await fadeTo(1, 400); ENTC.t = 0; buildWorld(S.map); await fadeTo(0, 400);
-  return say('(Wick and the little creature head back toward Old Saul. Go and see him.)');
+  return say('(Fennick and the little creature head back toward Old Saul. Go and see him.)');
 }
 async function talkGunnar() {
   await sayAs('Gunnar', 'Three thousand wheels. Nine years old, the oldest. When the end comes, nobody in Holdfast goes hungry and nobody goes without something to look forward to.');
@@ -8612,7 +8593,7 @@ function tickDay(dt) {
   // lighthouses: at night the lamp blazes and the beam sweeps round (unless someone threw the breaker)
   for (let i = LIGHTHOUSES.length - 1; i >= 0; i--) { const g = LIGHTHOUSES[i]; let o = g, live = false; while (o) { if (o === world) { live = true; break; } o = o.parent; }
     if (!live) { LIGHTHOUSES.splice(i, 1); continue; }
-    const on = !(S.flags && S.flags.lightOut) && !(S.flags && S.flags.ruin), k = on ? clamp((NIGHT_K - .15) / .5, 0, 1) : 0, u = g.userData;
+    const on = !(S.flags && S.flags.lightOut) && !(S.flags && S.flags.ruin) && !(S.flags && S.flags.doom && !S.flags.atoned), k = on ? clamp((NIGHT_K - .15) / .5, 0, 1) : 0, u = g.userData;
     u.beam.rotation.y += dt * .9; for (const c of u.beam.children) c.material.uniforms.op.value = .55 * k; u.beam.visible = k > 0;
     u.glass.material.emissiveIntensity = 1.6 * k; u.bulb.visible = on;
     u.lamp.material.opacity = on ? .45 + .5 * k + .15 * k * Math.abs(Math.sin(u.beam.rotation.y)) : .08; u.lamp.scale.setScalar(1.6 + 1.4 * k); }
@@ -8661,7 +8642,7 @@ const BLEND_OF = { CURIOUS:['SURPRISE', 'HOPE', 'JOY'], BEACON:['HOPE', 'CALM'],
 const SPECIAL_SP = {
   LOVE_X:  { name:'Love', type:'LOVE', k:1.42, desc:'Every feeling at once, held together: the joy and the grief and the fear of losing it. The one thing Orrin Vale never put in the well. Nothing is quite like it.' },
   HOLLOW_X:{ name:'Hollow', type:'HOLLOW', k:1.3, desc:'Part Fear, part Shame, and a calm you didn\'t earn: the shape left behind where the Welkin\'s feelings used to be. The Hollow Choir gave it to their Conductor.' },
-  BELONG_X:{ name:'Belonging', type:'BELONG', k:1.28, desc:'Part Joy, part Calm, part Confidence: the feeling of being counted. It lived in the old pipe under Holdfast, humming, waiting for someone to notice it was there. Wick noticed.' },
+  BELONG_X:{ name:'Belonging', type:'BELONG', k:1.28, desc:'Part Joy, part Calm, part Confidence: the feeling of being counted. It lived in the old pipe under Holdfast, humming, waiting for someone to notice it was there. Fennick noticed.' },
   BEACON_X:{ name:'Beacon', type:'BEACON', k:1.3, desc:'Part Hope, part Calm: a light kept burning for someone still out on the water. Keeper Ardis kept it lit for forty years, and gave it to you when the ships came home.' },
   CURIO_X: { name:'Imaginative', type:'CURIOUS', k:1.22, desc:'Part Surprise, part Hope, part Joy: the feeling of a whole kingdom in a cardboard box. One of a kind. It hatched from Lio\'s egg, after a very long walk.' },
 };
@@ -9160,8 +9141,10 @@ const isPerson = e => e && !e.item && !e.note && !e.invisible && !e.body && !e.n
 async function sayVoice(e, m) { m = m || (S.party.length ? noticedManif(e) : null); if (!m) return; await say(`${e.name || 'They'}: ${voiceNext(e, m)}`); }
 // After the aura talk: anyone who hasn't yet said something about your Manifs this time does.
 async function voicePreTalk(e) {
-  if (!isPerson(e) || !S.party.length || S.flags.ruin || S.flags.doom && S.flags.hushDone) return;
-  if (VOICED === S.map + ':' + e.id) return; await sayVoice(e);
+  if (!isPerson(e) || VOICED === S.map + ':' + e.id) return;
+  if (S.flags.doom && !S.flags.atoned && !e.real && farRoot(S.map) && !(S.flags.cfHeard || {})[S.map + e.id]) { (S.flags.cfHeard = S.flags.cfHeard || {})[S.map + e.id] = 1; VOICED = S.map + ':' + e.id; if (await chordFarLine(e)) return; }   // the far places heard the Chord (h18): once per person
+  if (!S.party.length || S.flags.ruin || S.flags.doom && S.flags.hushDone) return;
+  await sayVoice(e);
 }
 // =============================================================================
 //  AFTER THE GRAND CHORD (the evil ending). Three things to do in the grey world:
@@ -9327,6 +9310,17 @@ function openSpot(map, x, y, taken) { const M = MAPS[map], T = M.tiles, ok = (a,
   for (let r = 0; r <= 7; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; const a = x + dx, b = y + dy;
     let clear = true; for (let j = -1; j <= 1 && clear; j++) for (let i = -1; i <= 1; i++) if (!ok(a + i, b + j)) { clear = false; break; } if (clear) return [a, b]; }
   return spotNear(map, x, y, taken); }
+// ---- the far places heard the Chord too. Out past the edges nobody was Numbed, but everyone felt it go by,
+// and they know whose voice it was. Talk to anyone out there and that's the first thing on their mind.
+const CHORD_FAR = {
+  saltmere:['The whole boardwalk stopped. Every radio, every gull, every kid. For about a minute. Then the sea came back. Was that you?', 'We\'ve got boats out past the point with families on them, waiting to see if it\'s safe to come in. Is it? Don\'t answer that.', 'Ardis put the lighthouse out the night the Chord went over. Said he wasn\'t going to light the way for anything coming from inland.', 'My sister lives in Moonmoss. She hasn\'t written. She always writes.', 'The casino\'s still open. Of course it is. Dex says the end of the world is good for business.', 'I felt it in my teeth. Like a note held too long. I keep humming it without meaning to. Make it stop.'],
+  holdfast:['We built this town for exactly this, and it still wasn\'t enough. The gate stays shut. You\'re only in because Vosk can\'t decide what you are.', 'The radio picked it up from every city at once. One note. Then nothing. Not static. Nothing.', 'Marsh hasn\'t put the rifle down since. Don\'t give him a reason.', 'We\'ve sealed the Deep. Eighty people under our feet and we\'re not letting the grey anywhere near them.', 'You carry it on you. The quiet. The dogs won\'t go near you.', 'Prepared for the end of the world, they called us. Nobody prepared for it being polite.'],
+  holdfast_deep:['We felt it come down through three hundred feet of rock. Every child in the Deep started crying at once.', 'Saul counted everyone four times that night. Still eighty. He sat down and didn\'t speak till morning.', 'The pumps skipped a beat. Corla says pumps don\'t do that.', 'Up top it\'s gone grey, they say. Down here we kept the lamps on. Out of spite.', 'Don\'t sing down here. Not even humming. Please.', 'Miss Ferrow is teaching Sky again. She says somebody has to remember what it looked like.'],
+  cobb_hollow:['Church bell rang on its own, one long note, right when it happened. Pastor took the rope down after.', 'Sheriff\'s got everyone staying in after dark. Not that the dark\'s the problem. You are.', 'Folk from Veilham came through on foot. Didn\'t speak. Just walked till they couldn\'t, and sat down on the road.', 'Mae says Walter would\'ve known what to do. Walter\'s been dead six years. Nobody knows what to do.', 'The diner\'s still serving. Coffee\'s the only thing that tastes like anything.', 'I\'ve got a shotgun and a long memory, friend. Keep walking.'],
+  road:['Everyone on this road\'s going one way: away from the cities. You\'re the only one walking toward them.', 'I heard it go by over the trees like a wind with a voice in it. Then the birds stopped.', 'Is it true? Are they all just standing there?', 'Don\'t come any closer. Please. I\'ve got children in the cart.', 'I used to think the Choir were the worst thing in the Welkin.', 'Whatever you did back there, it\'s quiet now. Too quiet. Even the wind sounds careful.'] };
+function farRoot(map) { const M = MAPS[map]; if (!M) return null; const id = M.region && M.kind !== 'inside' ? map : (M.kind === 'inside' && MAPS[M.route] && MAPS[M.route].region ? M.route : null);
+  return id ? (CHORD_FAR[id] ? id : /^r_/.test(id) ? 'road' : null) : null; }
+async function chordFarLine(e) { const k = farRoot(S.map); if (!k) return false; await say(`${e.name || 'They'}: ${deal('chordfar_' + k, CHORD_FAR[k])}`); return true; }
 // ---- entities in the grey world
 function evilEnts(map, base) {
   const out = []; if (!S.flags.doom) return out; const M = MAPS[map], all = () => base.concat(out);
