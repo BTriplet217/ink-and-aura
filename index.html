@@ -4977,7 +4977,9 @@ async function auraMenu() {
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px">${manifIcon(m, 20)}${nm(m)} <span style="font-weight:400;color:var(--muted)">${sgn(valOf(m))} light · ${sgn(Math.round(energyOf(m) * 10) / 10)} fierce</span></span>`).join('')}</div>
     ${worldSheet()}
 <p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0">Across: Joy, Hope and Calm lighten you; Sadness, Fear, Anger, Shame and Disgust make you heavy. Heavy isn't the same as dangerous: mostly Anger or Disgust reads as menacing, mostly Sadness, Fear or Shame reads as hurting. Up and down: Anger, Surprise, Joy, Confidence and Fear make you fierce; Calm, Sadness and Shame make you still. Stronger forms push further.</p>`);
-  await say(auraLine());
+  // no dialogue box over it: the sheet says everything. A or B (or Esc) closes it; up/down scrolls.
+  sheetEl.insertAdjacentHTML('beforeend', '<p style="text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin:10px 0 2px">A or B to close</p>');
+  await new Promise(res => { selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) { selectHandler = null; res(); } }; });
   closeSheet();
 }
 async function journal() {
