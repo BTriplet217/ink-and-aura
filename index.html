@@ -9275,6 +9275,15 @@ async function battle(foe, opt = {}) {
   await fadeTo(0, 320);
   return result;
 }
+// The five move slots for a Manif: four attacks, then one support move, each fixed by its place in everything that
+// Manif can ever learn. (If a Manif has more of one kind than fits, the extras take any empty slots of the other kind.)
+function battleSlots(m) {
+  const all = [...new Set([...movesForSp(m.sp, 999), ...m.moves])], atk = all.filter(k => MOVES[k] && MOVES[k].pow), sup = all.filter(k => MOVES[k] && !MOVES[k].pow);
+  const A = [0, 1, 2, 3].map(i => atk[i] || null), Sp = [sup[0] || null];
+  for (const k of atk.slice(4)) { const j = Sp.indexOf(null); if (j >= 0) Sp[j] = k; }
+  for (const k of sup.slice(1)) { const j = A.indexOf(null); if (j >= 0) A[j] = k; }
+  return [...A, ...Sp];
+}
 function moveOption(m, k, prev) {
   const mvv = MOVES[k]; let hint = null;
   if (mvv.type) for (const p of prev) if (p.kind === 'move' && MOVES[p.mv].pow && p.m !== m) { const dy = dyadOf(MOVES[p.mv].type, mvv.type); if (dy) { hint = '✦ ' + dy; break; } }
@@ -9310,14 +9319,17 @@ async function battleTurn() {
   for (const m of chorusActive()) if (B.numb.has(m)) { await say(`${nm(m)} is numb. It can't find a reason to act.`); B.numb.set(m, B.numb.get(m) - 1); }
   for (let i = 0; i < active.length;) {
     const m = active[i]; B.acting = m; renderBHUD();
-    const opts = m.moves.map(k => moveOption(m, k, acts));
+    // Fixed slots, so nothing shifts when a Manif learns something new:
+    //   rows 1-2: four attack slots · row 3: support move, Reach Out · row 4: Guard, Item · row 5: Step away
+    // Each move has its own slot from the whole list it will ever learn; a move not learned yet is a blank, inert slot.
+    const SL = battleSlots(m), opts = SL.map(k => k && m.moves.includes(k) ? moveOption(m, k, acts) : { label:'—', sub:'', disabled:true });
     opts.push({ label:'Reach Out', sub: B.final ? 'reach the person inside' : '+Resonance' }, { label:'Guard', sub:'halve damage' });
     const its = BATTLE_ITEMS.filter(k => (S.items[k] || 0) > 0);
     opts.push({ label:'Item', sub: its.length ? `${its.length} kinds` : 'none', disabled:!its.length });
     opts.push(i > 0 ? { label:'← Back' } : { label:'Step away', sub: B.final ? 'no way back' : 'leave', disabled:B.final });
-    const c = await choose(opts, { layout:'grid', cancel: i > 0 }), nmv = m.moves.length;
+    const c = await choose(opts, { layout:'grid', cancel: i > 0 }), nmv = SL.length;
     if (c === -1 || (c === nmv + 3 && i > 0)) { i--; acts.pop(); continue; }
-    if (c < nmv) { const mv = MOVES[m.moves[c]]; let tgt = null; if (B.group && (mv.pow || mv.fx === 'foedef-')) { tgt = await chooseTarget(mv.name); if (!tgt) continue; } acts.push({ m, kind:'move', mv:m.moves[c], tgt }); }
+    if (c < nmv) { const key = SL[c]; if (!key || !m.moves.includes(key)) continue; const mv = MOVES[key]; let tgt = null; if (B.group && (mv.pow || mv.fx === 'foedef-')) { tgt = await chooseTarget(mv.name); if (!tgt) continue; } acts.push({ m, kind:'move', mv:key, tgt }); }
     else if (c === nmv) { let tgt = null; if (B.group) { tgt = await chooseTarget('Reach Out'); if (!tgt) continue; } acts.push({ m, kind:'reach', tgt }); }
     else if (c === nmv + 1) acts.push({ m, kind:'guard' });
     else if (c === nmv + 2) {
@@ -9415,7 +9427,6 @@ async function doDyad(q) {
   const mid = ga.position.clone().add(gb.position).multiplyScalar(.5).add(V3(0, 1.2, -.6));
   sfx('dyad', ta);
   await Promise.all([orb(ga.position.clone(), mid, TYPES[ta].c, .2, .5, 420), orb(gb.position.clone(), mid, TYPES[tb].c, .2, .5, 420)]);
-  banner(q.name, '');
   await orb(mid, FOE_POS, new THREE.Color(TYPES[ta].c).lerp(new THREE.Color(TYPES[tb].c), .5), .38, .3, 520);
   const pow = (MOVES[q.a.mv].pow + MOVES[q.b.mv].pow) * .8, atk = (stat(q.a.m, 'atk') + stat(q.b.m, 'atk')) / 2;
   const e = (effOn(ta, B.foe) + effOn(tb, B.foe)) / 2;
