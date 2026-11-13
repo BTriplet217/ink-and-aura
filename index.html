@@ -6368,7 +6368,10 @@ async function indifferentEnding() {
   await say('Somewhere below, an old man\'s arms finally give out. The floor of the Archive lifts, settles, and goes perfectly still.');
   await fadeTo(1, 500); S.map = 'vellum'; S.x = 16; S.y = 16; S.dir = 'down'; S.flags.ruin = 1; buildWorld('vellum'); playMusic(THEMES.endingFor('none')); await fadeTo(0, 700);
   const party = S.party.slice(0, 6);
-  for (const m of party) { MOOD.shake = 1; sfx('debuff');
+  for (const [i, m] of party.entries()) { MOOD.shake = 1; sfx('debuff');
+    // its little figure stops circling you and leaves: up, away from you, and gone
+    const mini = W.minis && W.minis[0]; if (mini) { W.minis.shift(); const p0 = mini.position.clone(), a = Math.atan2(p0.z - S.y, p0.x - S.x) || i;
+      const t0 = performance.now(), fly = () => { const k = Math.min(1, (performance.now() - t0) / 1600); mini.position.set(p0.x + Math.cos(a) * k * 6, p0.y + k * 2.2 + Math.sin(k * 9) * .15, p0.z + Math.sin(a) * k * 6); mini.scale.setScalar(.36 * (1 + k * .6)); if (k < 1) requestAnimationFrame(fly); else world.remove(mini); }; fly(); }
     await say(deal('rogue', [`{m} tears itself out of you. It doesn't look back.`, `{m} rips loose with a sound like cloth tearing, and turns on you.`, `{m} stops listening to you. Then it stops being yours.`, `{m} swells, splits, and pulls free, dripping ink.`, `{m} breaks away and goes looking for someone to feel at.`, `{m} slips its leash all at once.`]).replace('{m}', nm(m))); }
   await say('Everything you carried comes down on you at once. Every echo, every stranger\'s grief and rage and joy, all of it, all at the same time. You stand in the middle of the plaza and can\'t move.');
   await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it to the bakery door. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
