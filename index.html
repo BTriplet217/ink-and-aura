@@ -55,7 +55,11 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 #tools{position:fixed;top:12px;right:12px;z-index:10;display:flex;gap:8px}
 .tb{background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.4);border-radius:20px;height:34px;min-width:40px;padding:0 12px;font:800 13px 'Nunito Sans';display:flex;align-items:center;justify-content:center;cursor:pointer}
 #pad{position:fixed;inset:auto 0 18px 0;display:none;justify-content:space-between;align-items:flex-end;padding:0 18px;z-index:15;pointer-events:none}
-.coarse body.roam #pad{display:flex}
+.coarse body.roam #pad,.coarse body.touring #pad{display:flex}
+body.touring #hint{display:none!important}
+body.touring #joy,body.touring #pad .k[data-k=b]{visibility:hidden}
+#tourhint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:14;background:rgba(20,18,16,.72);color:#f3e7c9;font:13px/1.3 Georgia,serif;padding:7px 14px;border-radius:14px;pointer-events:none;max-width:70vw;text-align:center}
+.coarse #tourhint{bottom:auto;top:16px}
 body.padmode #pad{display:none!important}
 body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #pad>*{pointer-events:auto}
@@ -4647,7 +4651,8 @@ function press(b) {
   audioInit();
   if (b === 'esc') b = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list && !selectHandler ? 'menu' : 'b';   // Esc: menu while walking, back inside menus
   if (b === 'mute') { toggleMute(); return; }
-  if (b === 'zoom') { if (scene === 'world') cycleZoom(1); return; }
+  if (b === 'zoom') { if (scene === 'world') cycleZoom(1); else if (scene === 'tour' && TOUR.on) tourKey('zoom'); return; }
+  if ((b === 'rotl' || b === 'rotr') && scene === 'tour' && TOUR.on) { TOUR.auto = false; TOUR.yaw += b === 'rotl' ? -Math.PI / 4 : Math.PI / 4; return; }
   if (b === 'rotl' || b === 'rotr') { if (scene === 'world') { if (camFree != null) { camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; camYaw = camFree; camFree = null; } camQ = (camQ + (b === 'rotl' ? 1 : 3)) % 4; } return; }
   if (UI.sheetStatic && (b === 'up' || b === 'down')) { sheetEl.scrollTop += (b === 'up' ? -1 : 1) * 90; return; }
   if (selectHandler) return selectHandler(b);
@@ -6359,7 +6364,7 @@ async function wrenBeg() {
 }
 
 // ---------------------------------------------------------------- the indifferent ending
-const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id];
+const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id, 'holdfast'];
 let BEG_MEM = null;   // the test build keeps the 'Wren begs' checkpoint in memory only
 async function indifferentEnding() {
   S.flags.ruinEnd = 1;
@@ -6378,7 +6383,9 @@ async function indifferentEnding() {
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
-  await say('The far places never felt it. Saltmere, the Pinewind, Holdfast and Cobb Hollow were too far off for the grey to reach, and they were left untouched.');
+  await say('The far places never felt it. Saltmere, the Pinewind and Cobb Hollow were too far off for the grey to reach, and they were left untouched.');
+  await say('Holdfast was too far off as well, but Holdfast knows the grey doesn\'t need to travel. Somebody can carry it. Fen heard the radio go quiet one town at a time, and by morning there were people on the Pinewind road, walking slowly and saying nothing, the way Silas Vosk walked home twenty years ago.');
+  await say('Marsh rang the bell. Ninety people went down the three hundred and four steps, and Earl barred the hatch behind them. Down below, Old Saul counts ninety. He counts again. Up top, a man in grey sleeves knocks on the door of the store and calls for his father.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
   // you go the way they went: standing, grey from the feet up, the stone climbing until there's nothing left that minds
@@ -6392,13 +6399,45 @@ async function indifferentEnding() {
   await ending(true, 'none');
   await ruinTour();
 }
+// The tour is yours to look around: drag to pan, pinch or scroll to zoom, Q / E to turn. A (or Z / Space) moves on to the next place.
+const TOUR = { on:false, x:0, z:0, dist:16, yaw:0, auto:true, w:1, h:1, pts:new Map(), pinch0:0, dist0:16 };
+function tourCam(dt) {
+  if (TOUR.auto) TOUR.yaw += dt * .08;
+  const ht = TOUR.dist * .62, cx = TOUR.x + Math.sin(TOUR.yaw) * TOUR.dist, cz = TOUR.z + Math.cos(TOUR.yaw) * TOUR.dist;
+  camera.position.lerp(V3(cx, ht, cz), 1 - Math.exp(-dt * 12)); camera.lookAt(TOUR.x, 0, TOUR.z); worldSky.position.copy(camera.position);
+  if (W.fogBase) { const k = Math.max(1, TOUR.dist / 9); worldScene.fog.near = W.fogBase[0] * k; worldScene.fog.far = W.fogBase[1] * k; }
+}
+function tourPan(dx, dy) {   // screen-space drag, in pixels: the ground follows your finger
+  const k = TOUR.dist * .0028, s = Math.sin(TOUR.yaw), c = Math.cos(TOUR.yaw); TOUR.auto = false;
+  TOUR.x = Math.max(0, Math.min(TOUR.w - 1, TOUR.x - c * dx * k - s * dy * k)); TOUR.z = Math.max(0, Math.min(TOUR.h - 1, TOUR.z + s * dx * k - c * dy * k));
+}
+const tourZoom = f => { TOUR.auto = false; TOUR.dist = Math.max(5, Math.min(34, TOUR.dist * f)); };
+function tourKey(b) {
+  if (b === 'up') tourPan(0, 60); else if (b === 'down') tourPan(0, -60); else if (b === 'left') tourPan(60, 0); else if (b === 'right') tourPan(-60, 0);
+  else if (b === 'zoom') tourZoom(TOUR.dist > 20 ? .45 : 1.6);
+}
+canvas.addEventListener('pointerdown', e => { if (!TOUR.on) return; TOUR.pts.set(e.pointerId, [e.clientX, e.clientY]);
+  if (TOUR.pts.size === 2) { const [a, b] = [...TOUR.pts.values()]; TOUR.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); TOUR.dist0 = TOUR.dist; } });
+addEventListener('pointermove', e => { const p = TOUR.pts.get(e.pointerId); if (!p || !TOUR.on) return; const dx = e.clientX - p[0], dy = e.clientY - p[1]; TOUR.pts.set(e.pointerId, [e.clientX, e.clientY]);
+  if (TOUR.pts.size >= 2) { const [a, b] = [...TOUR.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (TOUR.pinch0 > 0) { TOUR.auto = false; TOUR.dist = Math.max(5, Math.min(34, TOUR.dist0 * TOUR.pinch0 / Math.max(20, d))); } return; }
+  tourPan(dx, dy); });
+const tourEnd = e => { TOUR.pts.delete(e.pointerId); if (TOUR.pts.size < 2) TOUR.pinch0 = 0; };
+addEventListener('pointerup', tourEnd); addEventListener('pointercancel', tourEnd);
+addEventListener('wheel', e => { if (TOUR.on) tourZoom(e.deltaY < 0 ? 1 / 1.15 : 1.15); }, { passive:true });
+function tourHint(on) { let h = $('#tourhint'); if (!on) { if (h) h.remove(); return; }
+  if (!h) { h = document.createElement('div'); h.id = 'tourhint'; document.body.appendChild(h); }
+  h.textContent = matchMedia('(pointer: coarse)').matches ? 'Drag to look around · Pinch to zoom · A for the next place' : 'Drag to look around · Scroll to zoom · Q / E to turn · Z or Space for the next place'; }
+
 async function ruinTour() {
+  document.body.classList.add('touring'); tourHint(true);
   scene = 'tour'; $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden'); playMusic(THEMES.endingFor('none'));
   for (const id of RUIN_TOUR()) {
-    await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; for (const m of W.minis || []) m.visible = false; await fadeTo(0, 700);   // you aren't here: you're still standing in the plaza, numb
-    toast(MAPS[id].name, deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
-    await wait(4200);
+    await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; for (const m of W.minis || []) m.visible = false;   // you aren't here: you're still standing in the plaza, numb
+    const M = MAPS[id]; Object.assign(TOUR, { on:true, x:(M.w - 1) / 2, z:(M.h - 1) / 2, dist:16, yaw:0, auto:true, w:M.w, h:M.h }); await fadeTo(0, 700);
+    toast(MAPS[id].name, id === 'holdfast' ? 'Everyone went below. The hatch is barred.' : deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
+    await new Promise(r => { endingHandler = b => { if (b === 'a') { endingHandler = null; sfx('ok'); r(); } else tourKey(b); }; });
   }
+  TOUR.on = false; document.body.classList.remove('touring'); tourHint(false);
   await fadeTo(1, 800);
   const c = await ask('The Welkin is quiet. There is nothing left to do here.', ['Go back to the moment Wren begged you', 'Start over completely']);
   try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
@@ -6461,6 +6500,7 @@ function worldExtras(id, M, V) {
 // People in the ruin are Numbed or dead; in the restored world they carry their own Manifs again.
 function endingFilter(map, list) {
   const fl = S.flags || {};
+  if (fl.ruin && map === 'holdfast') return [{ ...npc('silas', 3, 15, 'right', 'Silas Vosk', lk('#8a8884', '#5a5856', SK[3], '#6a6460', ['longcoat']), () => say('(A man in grey sleeves stands at the gate, very gently, calling for his father. Nobody in Holdfast answers.)')), keepRuin:true }];
   if (fl.ruin && !offMainland(map)) { const out = []; let n = 0;
     for (const e of list) { if (e.keepRuin) { out.push(e); continue; } if (e.real) continue;   // characters based on real people always leave the region unharmed
       if (map === 'vellum' && (e.id === 'maribel' || e.id === 'sable')) { out.push({ ...e, ...(e.id === 'maribel' ? { x:19, y:18 } : {}), body:true, talk:() => say(e.id === 'maribel' ? '(Maribel. She almost made it to the door.)' : '(What\'s left of Sable. She fought longest.)') }); continue; }
@@ -7431,15 +7471,17 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
       await say('You unhook the chain across the rail and start down. The stairs turn, and turn, and keep turning. Three hundred steps, and the air gets cool and still and smells of earth.'); await changeMap({ map:'holdfast_deep', x:20, y:3, dir:'down' }); }, { invisible:true })];
   IN(1).npcs = [npc('fen_h', 4, 4, 'up', 'Fen', lk('#3a4a5a', '#8a8a6a', SK[0], '#e2c070', ['glasses']), () => sayAs('Fen', sideLine({ light:'I listen to the static for voices. Last week I heard one. Saltmere. A whole city on the coast, with a lighthouse. People are just... living there. In the open.', even:'Shh. I\'m listening.', shadow:'You\'re on the band, you know. People talk about you. Up and down the Welkin, people talk.' })))];
   IN(2).npcs = [npc('vosk_h', 6, 2, 'down', 'Elder Vosk', lk('#5a3a2a', '#c8b898', SK[4], '#d8d0c0', ['longcoat', 'beard', 'staff']), talkVosk)];
+  IN(2).note = { x:9, y:1, text:'(A board on the wall with thirty-one names burned into it, under the words GONE GREY · THE WINTER OF THE CASKS. Beneath them, a thirty-second name was burned in and then scraped out with a knife, until only the S is left.)' };
   IN(3).note = { x:3, y:2, text:'(A checklist, nailed to the bench.) "WHEN IT ENDS: 1. Doors. 2. Water. 3. Count everyone. 4. Count everyone again. 5. Don\'t open the doors for anyone who isn\'t counted."' };
   const DOREEN = [npc('doreen_in', 27, 19, 'down', 'Doreen', lk('#5f8a3e', '#f3e7c9', SK[1], '#d8d0c0', ['apron', 'bun']), talkDoreen)];
   REGION_NPCS.holdfast = () => [ ...DOREEN,
+    npc('tower_h', 31, 13, 'up', 'Water tower', null, () => say('(The water tower. The ladder is chained, and the chain has rusted shut. Someone painted across the tank a long time ago: WE DON\'T DRINK FROM HERE.)'), { invisible:true }),
     npc('marsh_h', 4, 14, 'right', 'Marsh', lk('#3a4a2a', '#8a7a5a', SK[3], '#3a2414', ['cap', 'stout']), talkMarsh),
     npc('mags_h', 28, 11, 'down', 'Mags', lk('#5a5a3a', '#e8a83a', SK[0], '#7a3e1e', ['bandana']), () => sayAs('Mags', sideLine({ light:'Sandbags. Four hundred so far. You can help if you like, but you\'ll be doing it wrong.', even:'Bags won\'t fill themselves.', shadow:'(She keeps filling sandbags and does not take her eyes off you once.)' }))),
     npc('cole_h', 12, 13, 'right', 'Cole', lk('#6a3a2a', '#8a7a5a', SK[2], '#141014', ['beard', 'hammer']), () => sayAs('Cole', sideLine({ light:'Firewood for two winters. You can\'t have too much firewood. You can, actually. I have.', even:'Stand back from the axe.', shadow:'(He stops chopping. He holds the axe the other way now.) Help you?' }))),
     npc('ruth_h', 22, 13, 'left', 'Ruth', lk('#5a4a6a', '#f3e7c9', SK[1], '#3a2414', ['scarf']), () => sayAs('Ruth', sideLine({ light:'Pip\'s been dying to meet someone new. Say hi, she\'ll talk your ear off about canned peaches.', even:'We don\'t get many visitors.', shadow:'Pip. Inside. Now.' }))),
     npc('pip_h', 20, 12, 'down', 'Pip', lk('#e8a83a', '#fff3d6', SK[1], '#3a2414', ['bun'], { small:true }), () => sayAs('Pip', 'We have four hundred cans of peaches. Four hundred and two. I counted twice like the list says.')),
-    npc('abe_h', 30, 16, 'left', 'Abe', lk('#4a4a3a', '#8a7a5a', SK[5], '#d8d0c0', ['cap', 'glasses', 'lantern']), () => sayAs('Abe', 'They said it was the end of the world. Then it was the grey years. Then it wasn\'t. I\'m not unpacking. Next one\'s coming. Always is.')),
+    npc('abe_h', 30, 16, 'left', 'Abe', lk('#4a4a3a', '#8a7a5a', SK[5], '#d8d0c0', ['cap', 'glasses', 'lantern']), () => sayAs('Abe', 'They said it was the end of the world. Then it was the grey years. Then it wasn\'t. I\'m not unpacking. Next one\'s coming. It\'ll walk up the road on two legs, same as last time.')),
     npc('doreen_h', 26, 25, 'up', 'Doreen\'s husband', lk('#5a6a3a', '#f3e7c9', SK[2], '#8a8078', ['cap']), () => sayAs('Wendel', 'Beans. Potatoes. More beans. You can live a long time on beans. You can\'t enjoy it, but you can live.'))
   ];
 })();
@@ -7448,8 +7490,10 @@ async function talkMarsh() {
   if (s === 'shadow') { await sayAs('Marsh', 'Stop. Right there. (He has a rifle, and it\'s pointed at the ground near your feet, which is the polite version.)');
     return sayAs('Marsh', 'You can walk around. You can buy what Earl sells you. You go near our kids and I will put you in the ground and plant tomatoes on you.'); }
   if (s === 'even') return sayAs('Marsh', 'Visitor. Fine. Stay where people can see you and we\'ll get along.');
-  if (s === 'hurt') return sayAs('Marsh', 'You look like the grey years. (He lowers the rifle all the way.) Go and see Lottie at the diner. Tell her Marsh said you need feeding.');
+  if (s === 'hurt') { await sayAs('Marsh', 'You look like the grey years. (He lowers the rifle all the way.) Go and see Lottie at the diner. Tell her Marsh said you need feeding.');
+    if (!S.flags.silasMarsh) { S.flags.silasMarsh = 1; await sayAs('Marsh', 'Don\'t mind the rifle. The last man who walked in here quiet was one of ours, and we let him in. Ask the Elder. I won\'t tell it.'); } return; }
   await sayAs('Marsh', 'You said hello loud. Good. People who say hello loud aren\'t sneaking. Welcome to Holdfast.');
+  if (!S.flags.silasMarsh) { S.flags.silasMarsh = 1; await sayAs('Marsh', 'The last man who walked in here quiet was one of ours. Silas Vosk. Ask the Elder about him if you\'ve got the stomach for it. I haven\'t.'); }
 }
 async function talkHoldSupply() {
   const s = auraSide();
@@ -7468,6 +7512,15 @@ async function talkDoreen() {
   if (F.doreenSpud) return sayAs('Doreen', s === 'shadow' ? 'You brought the potato. I remember. That buys you one visit. Look, don\'t touch.' : pickA(['Look at them come up. Holdfast\'s going to have chips. Chips!', 'The potatoes are doing grand. I talk to them. Don\'t tell Wendel.', 'Every one of those plants came from yours. I tell everybody.']));
   return sayAs('Doreen', sideLine({ light:'Tomatoes, beans, squash. No potatoes. The seed potatoes rotted in the grey years, and nobody\'s found one since. Take a tomato. Go on.', even:'Don\'t touch the seedlings.', shadow:'Out of my greenhouse.' }));
 }
+// Holdfast's grey years didn't blow in from the Welkin. One of their own carried them home: Vosk's son Silas, in Choir grey, with copper casks of bottled Numb.
+async function voskSilas() {
+  if (S.flags.silasTold) return; S.flags.silasTold = 1;
+  await sayAs('Elder Vosk', 'You\'ll have heard the grey never reached this far. That\'s true. It never reached us. It was carried here.');
+  await sayAs('Elder Vosk', 'My son Silas walked to Vellum at nineteen to sell our grain. He came home eleven years later in grey sleeves, with copper casks on a handcart. He was so gentle. He said he\'d brought us mercy.');
+  await sayAs('Elder Vosk', 'That night he tipped the casks into the water tower. Thirty-one people drank it with their breakfast and sat down where they stood. Some of them never got up again.');
+  await sayAs('Elder Vosk', 'The rest of us drank rainwater and started digging. That\'s what\'s under this town. It isn\'t a shelter from the Hush. It\'s a shelter from whoever comes home carrying it next.');
+  await sayAs('Elder Vosk', 'He\'s still out there, singing for the Choir. If he ever comes back up the Pinewind road, we don\'t open the door. Not even if I\'m the one asking.');
+}
 async function talkVosk() {
   const s = auraSide();
   // the potato: thanks and a gift, whoever you are. It doesn't vouch for you below; that still takes the right kind of aura.
@@ -7476,10 +7529,11 @@ async function talkVosk() {
     S.items.hearth = (S.items.hearth || 0) + 2; S.items.charm = (S.items.charm || 0) + 1;
     await say(`(Elder Vosk gives you 2 ${ITEMS.hearth.name}s and a ${ITEMS.charm.name}.)`);
     await sayAs('Elder Vosk', 'That\'s thanks. It isn\'t a key. What\'s under this town, I show to people for what they carry, not for what they bring.'); }
-  if (s === 'hurt') { await sayAs('Elder Vosk', 'Everyone here lost someone in the grey years. You\'re carrying that same weight. I can see it.');
+  if (s === 'hurt') { await sayAs('Elder Vosk', 'Everyone here lost someone in the grey years. You\'re carrying that same weight. I can see it.'); await voskSilas();
     if (!S.flags.voskOk) { S.flags.voskOk = 1; return sayAs('Elder Vosk', 'Grief that keeps walking is the reason this town is still here. Tell Earl I said to show you the stockroom.'); } return; }
-  if (s === 'shadow') return sayAs('Elder Vosk', 'I have buried two worlds already. I know what walks at the end of them. You may stay until dark, and then you will go back the way you came.');
+  if (s === 'shadow') return sayAs('Elder Vosk', 'I have buried two worlds already. I know what walks at the end of them. The last one who came up that road with a shadow like yours was my own son. You may stay until dark, and then you will go back the way you came.');
   await sayAs('Elder Vosk', 'Everyone here lost someone in the grey years. We dug down, so it would never take us by surprise again. What\'s under this town is the reason this town is still here.');
+  if (s === 'light') await voskSilas();
   if (s === 'light' && !S.flags.voskOk) { S.flags.voskOk = 1; await sayAs('Elder Vosk', 'You carry light. We could use some, down below. Tell Earl I said to show you the stockroom.'); }
   else if (s === 'even') await sayAs('Elder Vosk', 'Come back when you know what you are. We only take people down who do.');
 }
@@ -11417,6 +11471,7 @@ function updateWorld(dt, t) {
   });
   W.motes.geometry.attributes.position.needsUpdate = true;
   if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : auraTitleCached()); if (!RIDE.on) { camTarget.set(px, py, pz); updateCamera(dt); } }   // while riding, rideTick alone moves the camera (two targets fought and shook the screen)
+  else if (scene === 'tour' && TOUR.on) tourCam(dt);
   else { const a = t * .1, cx = (M.w - 1) / 2, cz = (M.h - 1) / 2; camera.position.set(cx + Math.sin(a) * 16, 9, cz + Math.cos(a) * 16); camera.lookAt(cx, 0, cz); worldSky.position.copy(camera.position); }
 }
 function updateBattle(dt, t) {
