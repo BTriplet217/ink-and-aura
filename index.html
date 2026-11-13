@@ -6926,7 +6926,7 @@ function ownerEnts(map, base) {
   return out;
 }
 // Not everyone is still looking. Some got over it with time; some have taken in a newer, stronger feeling.
-function ownerState(m) { const h = (m.eid * 2654435761) >>> 0, r = (h % 100) / 100; return r < .5 ? 'waiting' : r < .75 ? 'healed' : 'replaced'; }
+function ownerState(m) { const h = (m.eid * 2654435761) >>> 0, r = (h % 100) / 100; return r < .05 ? 'waiting' : r < .55 ? 'healed' : 'replaced'; }   // only a few are still looking
 function ownerNewManif(m) { const d = SPECIES[m.sp] || {}, h = (m.eid * 40503) >>> 0, fams = WHEEL.filter(t => t !== d.type);
   const fam = fams[h % fams.length], pool = ROSTER.filter(r => r[1] === fam && r[2] >= 1 && r[3] !== 4).map(r => r[0]); return pool[(h >>> 4) % pool.length] || pool[0]; }
 async function movedOn(m, st) {
