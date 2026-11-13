@@ -6370,17 +6370,17 @@ async function indifferentEnding() {
   const party = S.party.slice(0, 6);
   for (const m of party) { MOOD.shake = 1; sfx('debuff');
     await say(deal('rogue', [`{m} tears itself out of you. It doesn't look back.`, `{m} rips loose with a sound like cloth tearing, and turns on you.`, `{m} stops listening to you. Then it stops being yours.`, `{m} swells, splits, and pulls free, dripping ink.`, `{m} breaks away and goes looking for someone to feel at.`, `{m} slips its leash all at once.`]).replace('{m}', nm(m))); }
-  if (W.player) W.player.userData.kneelP = true;   // down on your knees in the plaza, and you stay there
-  await say('Everything you carried comes down on you at once. Every echo, every stranger\'s grief and rage and joy, all of it, all at the same time. You go to your knees in the plaza.');
+  await say('Everything you carried comes down on you at once. Every echo, every stranger\'s grief and rage and joy, all of it, all at the same time. You stand in the middle of the plaza and can\'t move.');
   await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it to the bakery door. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
+  await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
   await say('Clover left her cabin in the pines grumbling every step, with a cart of good books and her bat, and she is safe. Ashlynn paddled out past the mainland to the islands, where the grey can\'t follow across the water. She is safe too.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
-  // you go the way they went: grey from the knees up, the stone climbing until there's nothing left that minds
+  // you go the way they went: standing, grey from the feet up, the stone climbing until there's nothing left that minds
   const stoneT = W.player ? petrify(W.player, 3600) : null;
-  await say('The grey starts at your knees, where they touch the cobbles. It climbs. You watch it reach your hands.');
+  await say('The grey starts at your feet, where they stand on the cobbles. It climbs. You watch it reach your hands.');
   if (stoneT) await stoneT;
   $('#c') && ($('#c').style.transition = 'filter 3s'); document.querySelector('canvas').style.transition = 'filter 3s'; document.querySelector('canvas').style.filter = 'grayscale(1) brightness(.75)';
   await say('And then you stop minding. That\'s all it is, in the end. You simply stop minding.');
@@ -6392,7 +6392,7 @@ async function indifferentEnding() {
 async function ruinTour() {
   scene = 'tour'; $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden'); playMusic(THEMES.endingFor('none'));
   for (const id of RUIN_TOUR()) {
-    await fadeTo(1, 500); S.map = id; buildWorld(id); await fadeTo(0, 700);
+    await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; await fadeTo(0, 700);   // you aren't here: you're still standing in the plaza, numb
     toast(MAPS[id].name, deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
     await wait(4200);
   }
@@ -6459,6 +6459,8 @@ function endingFilter(map, list) {
   const fl = S.flags || {};
   if (fl.ruin && !offMainland(map)) { const out = []; let n = 0;
     for (const e of list) { if (e.real) continue;   // characters based on real people always leave the region unharmed
+      if (map === 'vellum' && (e.id === 'maribel' || e.id === 'sable')) { out.push({ ...e, body:true, talk:() => say(e.id === 'maribel' ? '(Maribel. She almost made it to the door.)' : '(What\'s left of Sable. She fought longest.)') }); continue; }
+      if (map === 'vellum' && e.id === 'tobin') { out.push({ ...e, x:25, y:27, dir:'right', numb:true, talk:() => say('(Tobin stands over Maribel, waiting for her to get up. He doesn\'t look at you.)') }); continue; }
       if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
       if (e.invisible) { out.push(e); continue; }
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
