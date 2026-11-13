@@ -4521,7 +4521,7 @@ function renderEnt(e) {
     if (e.manif) { const g = buildManif(e.manif, { scale:e.big ? 1 : .7 }); g.position.set(e.x, groundY(e.x, e.y) + .2, e.y); const gl = glow(e.big ? '#ff4a3a' : '#c43a4a', 2.2, .5); gl.position.y = .6; g.add(gl); world.add(g); W.npcs[e.id] = g; return; }
     if (e.model) { const g = e.model(); g.position.set(e.x + (e.dx || 0), groundY(e.x, e.y) + (e.dy || 0), e.y + (e.dz || 0)); world.add(g); W.npcs[e.id] = g; return; }
     if (e.item) { const sp = glow('#fff1b0', .7, .9); sp.position.set(e.x, groundY(e.x, e.y) + .4, e.y); world.add(sp); W.npcs[e.id] = sp; return; }
-    if (e.body) { const p = buildPerson(e.look ? { ...e.look, coat:new THREE.Color(e.look.coat || '#777').lerp(new THREE.Color('#5a5650'), .6).getStyle() } : NUMBED_LOOK); p.rotation.z = Math.PI / 2; p.position.set(e.x, groundY(e.x, e.y) + .22, e.y); world.add(p); const pool = new THREE.Mesh(new THREE.CircleGeometry(.75, 14), new THREE.MeshBasicMaterial({ color:'#4a080c', transparent:true, opacity:.8, depthWrite:false })); pool.rotation.x = -Math.PI / 2; pool.position.set(e.x + .2, groundY(e.x, e.y) + .03, e.y + .1); world.add(pool); W.npcs[e.id] = p; return; }
+    if (e.body) { const p = buildPerson(e.look ? { ...e.look, coat:new THREE.Color(e.look.coat || '#777').lerp(new THREE.Color('#5a5650'), .6).getStyle() } : NUMBED_LOOK); p.rotation.z = Math.PI / 2; p.position.set(e.x, groundY(e.x, e.y) + .22, e.y); world.add(p); const pool = splatMesh(2.2, '#5a080e', .85, e.x * 3 + e.y); pool.position.set(e.x + .2, groundY(e.x, e.y) + .03, e.y + .1); world.add(pool); W.npcs[e.id] = p; return; }
     const p = e.numb ? stonePerson(e.look || NUMBED_LOOK) : buildPerson(e.look); p.position.set(e.x, groundY(e.x, e.y), e.y); world.add(p); W.npcs[e.id] = p;
     if (e.pet) { const pm = buildManif(petFor(e), { scale:.42 }); pm.position.set(.6, .55, .1); p.add(pm); }
   }
@@ -6378,7 +6378,7 @@ async function indifferentEnding() {
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
-  await say('Clover left her cabin in the pines grumbling every step, with a cart of good books and her bat, and she is safe. Ashlynn paddled out past the mainland to the islands, where the grey can\'t follow across the water. She is safe too.');
+  await say('The far places never felt it. Saltmere, the Pinewind, Holdfast and Cobb Hollow are too far off for the grey to reach. Clover is in her cabin in the pines with her books and her bat, grumbling. Ashlynn was out on the water off Saltmere when the floor split, and she is safe there.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
   // you go the way they went: standing, grey from the feet up, the stone climbing until there's nothing left that minds
@@ -6412,7 +6412,8 @@ async function ruinTour() {
 
 // ---------------------------------------------------------------- world states
 // Saltmere is off the mainland: when the Hush comes up, it never reaches the coast.
-const offMainland = id => { const M = MAPS[id]; return !!M && (id === 'saltmere' || M.route === 'saltmere'); };
+const FAR_PLACES = new Set(['saltmere', 'r_coast', 'r_pinewind', 'holdfast', 'holdfast_deep', 'r_dustline', 'cobb_hollow']);   // too far off for the grey to reach
+const offMainland = id => { const M = MAPS[id]; return !!M && (FAR_PLACES.has(id) || FAR_PLACES.has(M.route)); };
 const ruinHere = id => !!(S && S.flags && S.flags.ruin) && !offMainland(id);
 function worldVibe(id) {
   const V = vibeOf(id);
@@ -6438,7 +6439,7 @@ function worldExtras(id, M, V) {
     // rubble, wrecked carts and dark stains everywhere; smoke from the roofs
     for (let k = 0; k < (M.kind === 'route' ? 10 : 22); k++) { const x = 1 + Math.floor(hsh(k, 3, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 7, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c)) continue;
       const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); }
-    for (let k = 0; k < 14; k++) { const x = 1 + hsh(k, 11, M.w) * (M.w - 2), y = 1 + hsh(k, 13, M.h) * (M.h - 2); const s = new THREE.Mesh(new THREE.CircleGeometry(.4 + hsh(k, 2, 1) * .6, 12), new THREE.MeshBasicMaterial({ color:'#3a0a0e', transparent:true, opacity:.7, depthWrite:false })); s.rotation.x = -Math.PI / 2; s.position.set(x, groundY(Math.round(x), Math.round(y)) + .03, y); g.add(s); }
+    for (let k = 0; k < 14; k++) { const x = 1 + hsh(k, 11, M.w) * (M.w - 2), y = 1 + hsh(k, 13, M.h) * (M.h - 2); const s = splatMesh(1.4 + hsh(k, 2, 1) * 1.6, '#4a0a10', .75, k); s.position.set(x, groundY(Math.round(x), Math.round(y)) + .03, y); g.add(s); }
     for (const h of M.houses || []) if (hsh(h.x, h.y) < .6) { const sm = glow('#4a4642', 3.5, .55); sm.position.set(h.x + h.w / 2, 3.6, h.y + 1); g.add(sm); }
     // abandoned cars, flipped on their roofs or rolled onto their sides, in the streets
     for (let k = 0; k < (M.kind === 'route' ? 3 : 6); k++) { const x = 1 + Math.floor(hsh(k, 17, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 19, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x];
@@ -8182,7 +8183,7 @@ async function cloverBat() {
   await say('You wake up on the floor of the Archive with a lump on your head exactly the shape of a bat. Somebody carried you here. You get the feeling it wasn\'t Clover.');
 }
 function cloverPeople() {
-  if (S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But the grey got into the woods, so: west, with the good books and the bat. We\'re safe. Annoyed, but safe. The kettle\'s yours. Shoes off. — C."') }];
+  if (false && S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But the grey got into the woods, so: west, with the good books and the bat. We\'re safe. Annoyed, but safe. The kettle\'s yours. Shoes off. — C."') }];
   const [x, y, dir] = CL_POS || [3, 5, 'down'];
   return [{ id:'clover', x, y, dir, name:'Clover', model:cloverModel, folk:false, real:true, talk:cloverTalk }];
 }
@@ -8989,7 +8990,7 @@ function tickDay(dt) {
   // lighthouses: at night the lamp blazes and the beam sweeps round (unless someone threw the breaker)
   for (let i = LIGHTHOUSES.length - 1; i >= 0; i--) { const g = LIGHTHOUSES[i]; let o = g, live = false; while (o) { if (o === world) { live = true; break; } o = o.parent; }
     if (!live) { LIGHTHOUSES.splice(i, 1); continue; }
-    const on = !(S.flags && S.flags.lightOut) && !(S.flags && S.flags.ruin) && !(S.flags && S.flags.doom && !S.flags.atoned), k = on ? clamp((NIGHT_K - .15) / .5, 0, 1) : 0, u = g.userData;
+    const on = !(S.flags && S.flags.lightOut) && !(S.flags && S.flags.ruin && ruinHere(S.map)) && !(S.flags && S.flags.doom && !S.flags.atoned), k = on ? clamp((NIGHT_K - .15) / .5, 0, 1) : 0, u = g.userData;
     u.beam.rotation.y += dt * .9; for (const c of u.beam.children) c.material.uniforms.op.value = .55 * k; u.beam.visible = k > 0;
     u.glass.material.emissiveIntensity = 1.6 * k; u.bulb.visible = on;
     u.lamp.material.opacity = on ? .45 + .5 * k + .15 * k * Math.abs(Math.sin(u.beam.rotation.y)) : .08; u.lamp.scale.setScalar(1.6 + 1.4 * k); }
@@ -10020,10 +10021,12 @@ function stonePerson(L) { const g = withSurf('stone', () => buildPerson(stoneLoo
 // Turn a built figure to stone in place, bottom to top, over `ms` milliseconds.
 async function petrify(g, ms = 2600) {
   g.updateMatrixWorld(true); const parts = [], v = new THREE.Vector3();
-  g.traverse(o => { if (!o.isMesh || !o.material || !o.material.isMeshToonMaterial) return; o.getWorldPosition(v); parts.push([v.y, o]); });
+  g.traverse(o => { if (!o.isMesh || !o.material || o.material === INK || !o.material.color || (o.material.side === THREE.BackSide && o.material.color.getHex() === 0x1e1712)) return; o.getWorldPosition(v); parts.push([v.y, o]); });   // every coloured part, not just the shaded ones
   parts.sort((a, b) => a[0] - b[0]);
-  const step = ms / Math.max(1, parts.length);
-  for (const [, o] of parts) { const m = o.material; o.material = withSurf('stone', () => toon('#' + stoneColor(m.color).getHexString())); if (Math.random() < .2) sfx('crack'); await wait(step); }
+  // by the clock, not per piece: however slow the frames, it's all stone by the end
+  const t0 = performance.now(); let done = 0;
+  const stoneIt = o => { const m = o.material; o.material = withSurf('stone', () => toon('#' + stoneColor(m.color).getHexString(), { transparent:!!m.transparent, opacity:m.opacity == null ? 1 : m.opacity })); if (Math.random() < .2) sfx('crack'); };
+  while (done < parts.length) { const k = Math.min(1, (performance.now() - t0) / ms), upTo = Math.ceil(k * parts.length); while (done < upTo) stoneIt(parts[done++][1]); if (done < parts.length) await wait(30); }
   g.userData.stone = 1;
 }
 
@@ -10867,7 +10870,7 @@ async function talkHush() {
 //  BLOOD-INK — battles spill. Hits spray dark ink that stains the arena floor,
 //  heavy blows freeze the frame and shake the camera, and wounds can open deep.
 // =============================================================================
-const INK_GEO = new THREE.IcosahedronGeometry(.05, 0), INK_POOL = new THREE.CircleGeometry(.5, 14);
+const INK_GEO = new THREE.SphereGeometry(.035, 8, 6), INK_POOL = new THREE.CircleGeometry(.5, 14);
 const INK_FLOOR = .3;
 function inkColor(type) { return new THREE.Color('#8a0a14').lerp(new THREE.Color(TYPES[type] ? TYPES[type].c : '#8a0a14'), .12); }
 async function inkSpray(at, type, n = 14, force = 1) {
@@ -10877,13 +10880,30 @@ async function inkSpray(at, type, n = 14, force = 1) {
     d.userData.v = V3(rnd(-2.6, 2.6) * force, rnd(1.2, 4.2) * force, rnd(-1, 2.4) * force); battleScene.add(d); drops.push(d); }
   let last = performance.now();
   await tween(1300, () => { const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now;
-    for (const d of drops) { if (d.position.y <= INK_FLOOR) continue; d.userData.v.y -= 11 * dt; d.position.addScaledVector(d.userData.v, dt); if (d.position.y <= INK_FLOOR) { d.position.y = INK_FLOOR; inkStain(d.position, col, d.scale.x * .26); } } });
+    for (const d of drops) { if (d.position.y <= INK_FLOOR) continue; d.userData.v.y -= 11 * dt; d.position.addScaledVector(d.userData.v, dt); d.quaternion.setFromUnitVectors(_UP, d.userData.v.clone().normalize()); d.scale.y = d.scale.x * 2.6; if (d.position.y <= INK_FLOOR) { d.position.y = INK_FLOOR; inkStain(d.position, col, d.scale.x * .26); } } });
   for (const d of drops) { if (d.position.y > INK_FLOOR) inkStain(V3(d.position.x, INK_FLOOR, d.position.z), col, d.scale.x * .26); battleScene.remove(d); } mat.dispose();
 }
+// Splatters, not discs: a ragged pool with droplets flung out round it, streaks, and fine spray.
+// Eight are drawn once onto canvases (white, so any colour tints them) and reused.
+let SPLATS = null;
+function splatTex(i) {
+  if (!SPLATS) { SPLATS = []; for (let v = 0; v < 8; v++) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), r = rng32(v * 977 + 13); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineCap = 'round';
+      const blob = (x, y, R) => { g.beginPath(); for (let k = 0; k <= 18; k++) { const a = k / 18 * Math.PI * 2, rr = R * (.7 + r() * .5); g[k ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); };
+      const big = 14 + r() * 10; for (let k = 0; k < 5; k++) blob(64 + (r() - .5) * 18, 64 + (r() - .5) * 18, big * (.5 + r() * .5));   // the main pool, lumpy
+      for (let k = 0; k < 9 + v; k++) { const a = r() * Math.PI * 2, d0 = big * .8, d1 = big + 10 + r() * 34, w = 1.5 + r() * 3.5;   // streaks flung outward, each ending in a drop
+        g.lineWidth = w; g.beginPath(); g.moveTo(64 + Math.cos(a) * d0, 64 + Math.sin(a) * d0); g.lineTo(64 + Math.cos(a) * d1, 64 + Math.sin(a) * d1); g.stroke();
+        g.beginPath(); g.arc(64 + Math.cos(a) * d1, 64 + Math.sin(a) * d1, w * (.8 + r() * .8), 0, Math.PI * 2); g.fill(); }
+      for (let k = 0; k < 40; k++) { const a = r() * Math.PI * 2, d = big + r() * 44; g.beginPath(); g.arc(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, .6 + r() * 2.2, 0, Math.PI * 2); g.fill(); }   // fine spray
+      const t = new THREE.CanvasTexture(c); t.anisotropy = 4; SPLATS.push(t); } }
+  return SPLATS[i % SPLATS.length];
+}
+const SPLAT_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+function splatMesh(size, col, op = .9, seed = 0) { const m = new THREE.Mesh(SPLAT_GEO, new THREE.MeshBasicMaterial({ color:col, map:splatTex(seed), transparent:true, opacity:op, depthWrite:false, alphaTest:.05 }));
+  m.scale.set(size, 1, size * (.85 + (seed % 5) * .07)); m.rotation.y = seed * 1.7; return m; }
 function inkStain(p, col, s) {
   if (!B || (B.stains = (B.stains || 0) + 1) > 160) return;
-  const m = new THREE.Mesh(INK_POOL, new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:.9, depthWrite:false }));
-  m.rotation.x = -Math.PI / 2; m.position.set(p.x, INK_FLOOR + .012 + B.stains * .0004, p.z); m.scale.set(s * rnd(.8, 1.7), s * rnd(.8, 1.4), 1); battleScene.add(m);
+  const m = splatMesh(s * rnd(2.2, 3.6), col, .92, B.stains * 7 + Math.floor(Math.random() * 8));
+  m.position.set(p.x, INK_FLOOR + .012 + B.stains * .0004, p.z); battleScene.add(m);
 }
 function shakeB(k) { if (B) B.shake = Math.max(B.shake || 0, k); }
 async function hitStop(ms) { const v = $('#bloodv'); if (v) { v.classList.remove('on'); void v.offsetWidth; v.classList.add('on'); } await wait(ms); }
