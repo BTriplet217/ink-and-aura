@@ -4754,8 +4754,11 @@ function pollPad(dt) {
   const d = padDirFrom(gp);
   if (d !== padState.dir) { if (padState.dir) held[padState.dir] = 0; padState.dir = d; padState.dirT = 0; padState.rep = 0; if (d) { held[d] = 1; lastDir = d; press(d); } }
   else if (d) { padState.dirT += dt; const roam = scene === 'world' && (!busy || PADDLING) && !UI.dlg && !UI.cho && !UI.list; if (!roam && padState.dirT > .38) { padState.rep += dt; if (padState.rep > .11) { padState.rep = 0; press(d); } } }
+  // any open page (a summary, the Codex, the Aura sheet): the other stick scrolls it, so up/down stay free for paging
+  if (sheetEl && !sheetEl.classList.contains('hidden')) { const [sx, sy] = /right/.test(PAD.move) ? [0, 1] : [2, 3]; let y = gp.axes[sy] || 0;
+    if (Math.abs(y) > Math.max(.2, PAD.dead)) { y = (y - Math.sign(y) * PAD.dead) / (1 - PAD.dead); sheetEl.scrollTop += y * dt * 900; } }
   // camera stick: free orbit (x) and zoom (y), world only
-  if (scene === 'world' && PAD.cam !== 'none') {
+  if (scene === 'world' && PAD.cam !== 'none' && sheetEl.classList.contains('hidden')) {   // not while a page is open: that stick is scrolling it
     const [ax, ay] = PAD.cam === 'left' ? [0, 1] : [2, 3]; let x = gp.axes[ax] || 0, y = gp.axes[ay] || 0;
     const dz = v => Math.abs(v) < PAD.dead ? 0 : (v - Math.sign(v) * PAD.dead) / (1 - PAD.dead);
     x = dz(x) * (PAD.invX ? -1 : 1); y = dz(y) * (PAD.invY ? -1 : 1);
@@ -10344,7 +10347,7 @@ async function summary(m, list) {
   list = list && list.length ? list : [m]; let i = Math.max(0, list.indexOf(m));
   for (;;) {
     const cur = list[i]; showSheet(summaryHTML(cur) + (list.length > 1 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
-      <button id="sumPrev" style="min-height:44px;padding:0 16px;background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.5);border-radius:20px;font:800 13px 'Nunito Sans';cursor:pointer">▲ Previous</button><span style="font-size:12px;color:var(--muted);font-weight:800">${i + 1} of ${list.length} · up/down to browse</span><button id="sumNext" style="min-height:44px;padding:0 16px;background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.5);border-radius:20px;font:800 13px 'Nunito Sans';cursor:pointer">Next ▼</button></div>` : '<p style="text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin:10px 0 0">A or B to close</p>'));
+      <button id="sumPrev" style="min-height:44px;padding:0 16px;background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.5);border-radius:20px;font:800 13px 'Nunito Sans';cursor:pointer">▲ Previous</button><span style="font-size:12px;color:var(--muted);font-weight:800">${i + 1} of ${list.length} · up/down to browse${padState && padState.used ? ' · right stick scrolls' : ''}</span><button id="sumNext" style="min-height:44px;padding:0 16px;background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.5);border-radius:20px;font:800 13px 'Nunito Sans';cursor:pointer">Next ▼</button></div>` : '<p style="text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin:10px 0 0">A or B to close</p>'));
     UI.sheetStatic = false; sheetEl.scrollTop = 0;   // up/down page through Manifs here instead of scrolling
     const k = await new Promise(res => { selectHandler = b => { if (['up', 'down', 'left', 'right', 'a', 'b', 'menu'].includes(b)) { selectHandler = null; res(b); } };
       const pv = document.getElementById('sumPrev'), nx = document.getElementById('sumNext'); if (pv) pv.onclick = () => { selectHandler = null; res('up'); }; if (nx) nx.onclick = () => { selectHandler = null; res('down'); }; });
