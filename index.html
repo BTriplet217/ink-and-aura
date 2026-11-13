@@ -3476,7 +3476,7 @@ async function talkRouteNpc(R, n) {
   // Important people ask your name the first time you speak, then use it (and your pronouns) after.
   const mk = 'met_' + n.id;
   if (!S.flags[mk] && (n.role !== 'talk') && n.trust()) { S.flags[mk] = 1;
-    await say(`${n.name}: ${pickA(['And who are you?', 'Haven\'t seen you before. Name?', 'You\'ve got a name, I expect?', 'Who\'s asking?'])}`); await say('(You tell them your name.)'); await say(`${n.name}: {name}. All right, {name}.`); }
+    await nameExchange(n.name, TALKING); }
   if (n.role === 'guard' || n.role === 'war') return talkTrainer(R, n);
   if (n.role === 'talk') { if (!n.trust()) return say(n.distrust); return say(vline(n.lines, TENDER.route[n.id])); }
   return FAVORS[n.id](R, n);
@@ -4237,13 +4237,17 @@ function fillP(t) { if (typeof t !== 'string' || t.indexOf('{') < 0) return t; c
     if (k === 'name' || k === 'Name') return pname(); const lk = k.toLowerCase(), v = lk === 'theyre' ? P.are : P[lk]; return k[0] === k[0].toUpperCase() ? v[0].toUpperCase() + v.slice(1) : v; }); }
 function setDlg(text, hold) {
   text = fillP(text);
-  let who = '', m = /^([A-Z][a-zA-Z]{1,11}): ([\s\S]*)$/.exec(text);
-  if (m) { who = m[1]; text = m[2]; }
+  let who; ({ who, text } = speakerOf(text, hold));
   whoEl.textContent = who; whoEl.style.display = who ? '' : 'none';
   UI.dlg = { text, shown: hold ? text.length : 0, res:null, hold };
   txtEl.textContent = hold ? text : ''; dlgEl.classList.remove('hidden');
 }
-function say(text) { return new Promise(res => { setDlg(text); UI.dlg.res = res; }); }
+// Whoever you're talking to: when a line says they turn their back, look away or walk off, their figure really does turn away from you.
+let TALKING = null;
+const BACK_RE = /turns? (?:their|his|her) back|turned (?:their|his|her) back|turns? away|turned away|walks? (?:off|away)|looks? away|won't look at you|doesn't look at you|don't look at you|won't meet your eyes|turns? back to (?:what|the|her|his|their)|goes? back to (?:what|work|her|his|their)/i;
+function backTurned(text) { if (typeof text !== 'string') return false; const stage = (text.match(/\([^)]*\)/g) || []).join(' ') + (/^[A-Z][\w .'-]{0,30}: /.test(text) ? '' : ' ' + text); return BACK_RE.test(stage); }   // stage directions and narration only, not what someone says
+function say(text) { if (TALKING && backTurned(text)) npcFace[TALKING.id] = S.dir;
+  return new Promise(res => { setDlg(text); UI.dlg.res = res; }); }
 function choose(opts, o = {}) {
   return new Promise(res => {
     const items = opts.map(x => typeof x === 'string' ? { label:x } : x);
@@ -4635,7 +4639,8 @@ async function interact() {
   const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
   const w = wildAt(fx, fy); if (w) return startWild(w);
   const e = entAt(fx, fy);
-  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; VOICED = null; if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); await e.talk(); return; }
+  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; VOICED = null; TALKING = e.item || e.invisible || e.note ? null : e;
+    try { if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); await e.talk(); } finally { TALKING = null; } return; }
   const tl = tileAt(fx, fy);
   if (tl === 's') {
     if (S.map === 'vellum') { const g = Object.entries(GATES).find(([, g]) => g.sign[0] === fx && g.sign[1] === fy); if (g) { const t = GATE_TYPE[g[0]], T = TOWNS[t], Wt = WAYTOWNS[t]; await say(`This road: ${Wt.name} (Lv ${Wt.lv[0]}+), then ${ROUTES[t].name} (Lv ${ROUTES[t].lv[0]}+), then the city of ${T.name}, ruled by ${TYPES[t].name} (Lv ${T.lv[0]}+).${S.hearts[t] ? ' Its Heart has settled.' : ''}`); } }
@@ -4815,7 +4820,7 @@ async function talkSable() {
 }
 async function talkKeeper(t) {
   const T = TOWNS[t]; healAll(); await checkDeliveries();
-  if (!S.flags['met_k_' + t]) { S.flags['met_k_' + t] = 1; await say(`${T.keeper.name}: A new face. What do I call you?`); await say('(You tell them your name.)'); await say(`${T.keeper.name}: {name}. Welcome to ${T.name}, {name}. I'll remember it.`); }
+  if (!S.flags['met_k_' + t]) { S.flags['met_k_' + t] = 1; await nameExchange(T.keeper.name, TALKING); await say(`${T.keeper.name}: Welcome to ${T.name}.`); }
   else await say(`${T.keeper.name}: {name}! Back again.`);
   await say(T.keeper.lines[0].replace(/^(\w+):/, T.keeper.name + ':'));
   await say('(Everything you carry is composed again.)');
@@ -4831,7 +4836,7 @@ async function talkLocal(t) {
 }
 async function talkWayKeeper(t) {
   const T = WAYTOWNS[t]; healAll(); await checkDeliveries();
-  if (!S.flags['met_w_' + t]) { S.flags['met_w_' + t] = 1; await say(`${T.keeper}: Hello, stranger. Got a name?`); await say('(You tell them your name.)'); }
+  if (!S.flags['met_w_' + t]) { S.flags['met_w_' + t] = 1; await nameExchange(T.keeper, TALKING); }
   await say(`${T.keeper}: Rest here a bit, {name}. The road to ${TOWNS[t].name} is longer than it looks.`);
   await say('(Everything you carry is composed again.)');
   const i = wIdx(t), a = wAt(i - 1), b = wAt(i + 1), o = oppOf(t);
@@ -4956,7 +4961,8 @@ function wheelSVG() {
 }
 async function auraMenu() {
   const v = auraValue(), tid = tierOf(v), pct = (clamp(v, -9, 9) + 9) / 18 * 100;
-  showSheet(`<h2>Your Aura · ${zoneOf().name}</h2><div class="subt">The sum of what you carry. Everyone you meet can see it.</div>
+  const AS = auraStory(); showSheet(`<h2>Your Aura · ${AS.title}</h2><div class="subt">${zoneOf().name}. The sum of what you carry. Everyone you meet can see it.</div>
+    <p style="text-align:center;font-style:italic;margin:4px 12px 10px;line-height:1.45">${AS.story}</p>
     ${auraGridSheet()}
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:8px">${S.party.map(m => `<span style="display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px">${manifIcon(m, 20)}${nm(m)} <span style="font-weight:400;color:var(--muted)">${sgn(valOf(m))} light · ${sgn(Math.round(energyOf(m) * 10) / 10)} fierce</span></span>`).join('')}</div>
     ${worldSheet()}
@@ -5810,8 +5816,10 @@ async function auraPreTalk(e) {
     const ok = await trainerFight(e.name || 'a mugger', [[spAt('DISGUST', 1, 1), Math.max(6, strongest() - 1)]]);
     if (ok) { await say('The knife skids away across the cobbles. They clutch a cut forearm, blood running through their fingers, and run.'); pay(25); await say('(They dropped 25 Marks.)'); } return 'refuse';
   }
+  // Sometimes it's the whole story of what you carry they comment on, not just the light or the dark of it.
+  if (S.party.length && Math.random() < .35) await sayE(auraRemark(moral));
   // A menacing aura gets the old treatment; everything else meets the six kinds of people.
-  if (read === 'menace') {
+  else if (read === 'menace') {
     const mr = manifReaction(e, fam0); if (mr) await sayManifReaction(e, mr); else await sayE(deal('react:' + fam0 + moral, REACT[fam0][moral]));
     if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam0) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
   } else if (await reactFolk(e, read, fam, sayE) === 'refuse') return 'refuse';
@@ -5981,13 +5989,13 @@ async function childTalk(e, z, town, menace) {
     if (n < 2) { await say(deal('kiduneasy', ['(The child goes quiet when you come close, and looks around for someone.)', '(The child takes a small step back.)', '(The child\'s smile slips. They grip their sleeve.)'])); return; }
     const moral = adult ? moralOf(adult) : 'fair';
     if (adult) await stepIn(adult, e);
-    await say(`${who} gets over their fear of you and steps in between: "${deal('darkstep:' + moral, DARK_STEP_IN[moral])}"`);
+    { const pt = TALKING; if (adult) TALKING = adult; await say(`${who} gets over their fear of you and steps in between: "${deal('darkstep:' + moral, DARK_STEP_IN[moral])}"`); TALKING = pt; }
     if (menace && moral !== 'kind') { const c = await ask('They square up to you, the child pushed behind them.', ['Back off', 'Stand your ground']);
       if (c === 1) { const ok = await trainerFight(who === 'A grown-up' ? 'an angry parent' : who, [[spAt(town || 'CONFIDENCE', 1, 0), Math.max(6, strongest() - 2)]]); if (ok) { S.sins = (S.sins || 0) + 1; await say('They go down hard, nose streaming. The child is already gone, running for the nearest door.'); } } }
-    await say('(They hurry the child away, looking back at you the whole time.)'); GONE[key] = performance.now() + 60000; if (adult) GONE[S.map + ':' + adult.id] = performance.now() + 60000; clearStep(adult, e); return 'refuse';
+    { const pt = TALKING; if (adult) TALKING = adult; await say(`(${who === 'A grown-up' ? 'The grown-up' : who} hurries the child away, looking back at you the whole time.)`); TALKING = pt; } GONE[key] = performance.now() + 60000; if (adult) GONE[S.map + ':' + adult.id] = performance.now() + 60000; clearStep(adult, e); return 'refuse';
   }
   if (z.x === 'light' && DARK_FAM5.includes(town) && n === 1 && adult) {
-    await stepIn(adult, e); await say(`${who} steps between you and the child: "${deal('vibestep:' + town, VIBE_STEP_IN[town])}"`); clearStep(adult, e); return 'refuse';
+    await stepIn(adult, e); { const pt = TALKING; TALKING = adult; await say(`${who} steps between you and the child: "${deal('vibestep:' + town, VIBE_STEP_IN[town])}"`); TALKING = pt; } clearStep(adult, e); return 'refuse';
   }
 }
 // =============================================================================
@@ -7061,7 +7069,7 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
   B.piece('glassdome', 24, 17, 7, 6, { keep:true });
   for (const [k, x, o] of [['planter', 25, { crop:'tomato' }], ['planter', 26, { crop:'beans' }], ['planter', 27, { crop:'lettuce' }], ['planter', 28, { crop:'pepper' }], ['planter', 29, { crop:'strawberry' }]]) B.piece(k, x, 18, 1, 1, o);
   B.piece('fruittree', 25, 19, 1, 1, { fruit:'#f2d13a' }); B.piece('fruittree', 29, 19, 1, 1, { fruit:'#c8302a' }); B.piece('planter', 25, 20, 1, 1, { crop:'carrot' }); B.piece('fruittree', 29, 20, 1, 1, { fruit:'#f08a2a' });
-  B.piece('pumpkins', 25, 21); B.piece('sacks', 29, 21);
+  B.piece('pumpkins', 25, 21); B.piece('planter', 29, 21, 1, 1, { crop:() => S.flags.doreenSpud ? 'potato' : 'bare' });   // the potato bed stays bare until somebody brings Doreen a potato
   B.piece('watertower', 31, 12, 2, 2); B.piece('barricade', 3, 13); B.piece('barricade', 3, 18); B.piece('block', 8, 13); B.piece('block', 9, 13); B.piece('pallet', 27, 12); B.piece('hay', 13, 20);
   rect(m, 22, 26, 10, 2, 'f'); rect(m, 4, 26, 10, 2, ','); for (const [x, y] of [[13, 12], [23, 12], [13, 21], [22, 21]]) B.lamp(x, y);
   regionMap('holdfast', B, { name:'Holdfast', sub:'Prepared', V:HOLD_V, music:'prepper', arrive:'Five buildings behind a fence of cut pines. Sandbags, a water tower, rain barrels, a round glass greenhouse, green to the roof. Ten people, and every one of them stops what they\'re doing to look at you.',
@@ -7074,7 +7082,7 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
   IN(1).npcs = [npc('fen_h', 4, 4, 'up', 'Fen', lk('#3a4a5a', '#8a8a6a', SK[0], '#e2c070', ['glasses']), () => sayAs('Fen', sideLine({ light:'I listen to the static for voices. Last week I heard one. Saltmere. A whole city on the coast, with a lighthouse. People are just... living there. In the open.', even:'Shh. I\'m listening.', shadow:'You\'re on the band, you know. People talk about you. Up and down the Welkin, people talk.' })))];
   IN(2).npcs = [npc('vosk_h', 6, 2, 'down', 'Elder Vosk', lk('#5a3a2a', '#c8b898', SK[4], '#d8d0c0', ['longcoat', 'beard', 'staff']), talkVosk)];
   IN(3).note = { x:3, y:2, text:'(A checklist, nailed to the bench.) "WHEN IT ENDS: 1. Doors. 2. Water. 3. Count everyone. 4. Count everyone again. 5. Don\'t open the doors for anyone who isn\'t counted."' };
-  const DOREEN = [npc('doreen_in', 27, 19, 'down', 'Doreen', lk('#5f8a3e', '#f3e7c9', SK[1], '#d8d0c0', ['apron', 'bun']), () => sayAs('Doreen', sideLine({ light:'Tomatoes, beans, squash, potatoes. If the world ends again, Holdfast eats. Take a tomato. Go on.', even:'Don\'t touch the seedlings.', shadow:'Out of my greenhouse.' })))];
+  const DOREEN = [npc('doreen_in', 27, 19, 'down', 'Doreen', lk('#5f8a3e', '#f3e7c9', SK[1], '#d8d0c0', ['apron', 'bun']), talkDoreen)];
   REGION_NPCS.holdfast = () => [ ...DOREEN,
     npc('marsh_h', 4, 14, 'right', 'Marsh', lk('#3a4a2a', '#8a7a5a', SK[3], '#3a2414', ['cap', 'stout']), talkMarsh),
     npc('mags_h', 28, 11, 'down', 'Mags', lk('#5a5a3a', '#e8a83a', SK[0], '#7a3e1e', ['bandana']), () => sayAs('Mags', sideLine({ light:'Sandbags. Four hundred so far. You can help if you like, but you\'ll be doing it wrong.', even:'Bags won\'t fill themselves.', shadow:'(She keeps filling sandbags and does not take her eyes off you once.)' }))),
@@ -7099,8 +7107,25 @@ async function talkHoldSupply() {
   await openShop('holdfast');
   if (!S.flags.deepOk && (s === 'light' || s === 'hurt') && S.flags.voskOk) { await sayAs('Earl', 'Vosk says you\'re all right. Then I\'ll show you something. Through the back. Mind the stairs, there\'s three hundred of them.'); S.flags.deepOk = 1; }
 }
+async function talkDoreen() {
+  const F = S.flags, s = auraSide(), have = (S.items.spud || 0) > 0 ? 'spud' : (S.items.potato || 0) > 0 ? 'potato' : null;
+  if (!F.doreenSpud && have && s !== 'shadow') {
+    await sayAs('Doreen', 'Tomatoes, beans, squash, peppers. Everything but potatoes. The seed potatoes rotted in the grey years and nobody\'s had one since. That bed in the corner\'s been waiting nine years.');
+    const c = await ask('Give Doreen a potato?', ['Give her one', 'Not now']); if (c !== 0) return;
+    S.items[have]--; F.doreenSpud = 1; await say('(Doreen turns the potato over in her hands like it\'s an egg. Then she kneels and puts it straight in the corner bed.)');
+    await sayAs('Doreen', 'You don\'t know what you\'ve done. Here. A ration, it\'s all I\'ve got on me. And go and see Elder Vosk in the Meeting Hall. Tell him about the potato. He\'ll have something for you.');
+    S.items.ration = (S.items.ration || 0) + 1; F.voskGiftDue = 1; return say(`You received a ${ITEMS.ration.name}.`); }
+  if (F.doreenSpud) return sayAs('Doreen', s === 'shadow' ? 'You brought the potato. I remember. That buys you one visit. Look, don\'t touch.' : pickA(['Look at them come up. Holdfast\'s going to have chips. Chips!', 'The potatoes are doing grand. I talk to them. Don\'t tell Wendel.', 'Every one of those plants came from yours. I tell everybody.']));
+  return sayAs('Doreen', sideLine({ light:'Tomatoes, beans, squash. No potatoes. The seed potatoes rotted in the grey years, and nobody\'s found one since. Take a tomato. Go on.', even:'Don\'t touch the seedlings.', shadow:'Out of my greenhouse.' }));
+}
 async function talkVosk() {
   const s = auraSide();
+  // the potato: thanks and a gift, whoever you are. It doesn't vouch for you below; that still takes the right kind of aura.
+  if (S.flags.voskGiftDue && !S.flags.voskGift) { S.flags.voskGift = 1;
+    await sayAs('Elder Vosk', 'Doreen came in here with dirt to her elbows and tears on her face. A potato. Nine years we\'ve gone without. Holdfast doesn\'t forget a thing like that.');
+    S.items.hearth = (S.items.hearth || 0) + 2; S.items.charm = (S.items.charm || 0) + 1;
+    await say(`(Elder Vosk gives you 2 ${ITEMS.hearth.name}s and a ${ITEMS.charm.name}.)`);
+    await sayAs('Elder Vosk', 'That\'s thanks. It isn\'t a key. What\'s under this town, I show to people for what they carry, not for what they bring.'); }
   if (s === 'hurt') { await sayAs('Elder Vosk', 'Everyone here lost someone in the grey years. You\'re carrying that same weight. I can see it.');
     if (!S.flags.voskOk) { S.flags.voskOk = 1; return sayAs('Elder Vosk', 'Grief that keeps walking is the reason this town is still here. Tell Earl I said to show you the stockroom.'); } return; }
   if (s === 'shadow') return sayAs('Elder Vosk', 'I have buried two worlds already. I know what walks at the end of them. You may stay until dark, and then you will go back the way you came.');
@@ -9021,6 +9046,14 @@ const V_HABITS = ['counting steps', 'naming the clouds', 'humming the same three
 const FEEL = { JOY:'that happy', HOPE:'that hopeful', CALM:'that calm', CONFIDENCE:'that sure of themselves', SURPRISE:'that wide-eyed', SADNESS:'that low', FEAR:'that frightened', ANGER:'that angry',
   SHAME:'that ashamed', DISGUST:'that sour', LOVE:'that full-hearted', CURIOUS:'that full of make-believe', BEACON:'that steady', BELONG:'that at home', HOLLOW:'that empty' };
 
+// family words and names that go together (no "my son Cordelia")
+const V_MALE_KIN = /^(brother|grandfather|uncle|son|grandpa|little brother|big brother|dad)$/, V_FEM_KIN = /^(sister|grandmother|aunt|daughter|big sister|gran|baby sister|mum|auntie)$/;
+const V_FEM = new Set(['Ottilie', 'Wilhelmina', 'Petra', 'Maude', 'Ysolde', 'Gwenna', 'Delphine', 'Isolde', 'Marigold', 'Clementine', 'Rosalind', 'Edda', 'Philippa', 'Henrietta', 'Imelda', 'Winifred',
+  'Agatha', 'Beatrix', 'Hester', 'Nell', 'Theodora', 'Briony', 'Millicent', 'Tamsin', 'Juniper', 'Esme', 'Primrose', 'Rosamund', 'Lettice', 'Ione', 'Mathilde', 'Cordelia', 'Bryony', 'Constance',
+  'Dorcas', 'Elspeth', 'Philomena', 'Ottoline', 'Verity', 'Araminta', 'Perpetua', 'Cressida', 'Iolanthe', 'Thomasina']);
+const V_MALE = new Set(['Halloran', 'Bertram', 'Corrin', 'Ansel', 'Lorcan', 'Tobiah', 'Barnaby', 'Fenwick', 'Osric', 'Jasper', 'Linus', 'Cormac', 'Ambrose', 'Quentin', 'Rafferty', 'Leopold', 'Emrys',
+  'Florian', 'Lucius', 'Caspian', 'Wystan', 'Oswin', 'Peregrine', 'Godfrey', 'Alaric', 'Horatio', 'Ignatius', 'Benedick', 'Crispin', 'Hamish', 'Ulric', 'Lysander', 'Emmerich', 'Tristram', 'Gareth',
+  'Hugo', 'Silas', 'Mordecai', 'Wendel', 'Lambert', 'Anselm', 'Barnabas']);
 // mixed-radix allocation: person n always gets combination n of a pool, scattered by a stride coprime to its size
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
 function vPick(n, sizes, salt) { const tot = sizes.reduce((a, b) => a * b, 1); let st = 7919 + salt * 104729; while (gcd(st, tot) !== 1) st++; let i = (n * st + salt * 31) % tot; return sizes.map(s => { const v = i % s; i = Math.floor(i / s); return v; }); }
@@ -9033,14 +9066,16 @@ function voiceOf(e) {
   const [wa, wb] = vPick(n, [V_WHENS.length, V_EVENTS.length], 4), [ya, yb] = vPick(n, [V_WHO.length, V_SAYINGS.length], 5);
   const [ca, cb] = vPick(n, [V_KIDKIN.length, V_NAMES.length], 6), [da, db] = vPick(n, [V_KIDSPOTS.length, V_KIDGAMES.length], 7);
   const [ta, tb] = vPick(n, [V_THINGS.length, V_SKY.length], 8), [ha] = vPick(n, [V_HABITS.length * 97], 9);
-  const kinN = V_NAMES[kb], petN = V_PETNAMES[pb];
+  const fitN = (word, i) => { const want = V_MALE_KIN.test(word) ? 'm' : V_FEM_KIN.test(word) ? 'f' : null; if (!want) return V_NAMES[i];
+    for (let d = 0; d < V_NAMES.length; d++) { const nn = V_NAMES[(i + d) % V_NAMES.length]; if ((V_FEM.has(nn) ? 'f' : V_MALE.has(nn) ? 'm' : 'x') === want) return nn; } return V_NAMES[i]; };
+  const kinN = fitN(V_KIN[ka], kb), petN = V_PETNAMES[pb], kkinN = fitN(V_KIDKIN[ca], cb);
   return { n, key,
     kin:`my ${V_KIN[ka]} ${kinN}`, kinN, kinW:V_KIN[ka],
     pet:`my ${V_ANIMALS[pa]} ${petN}`, petN, petA:V_ANIMALS[pa],
     place:`the ${V_SHOPS[sa]} on ${V_STREETS[sb]}`,
     mem:`${V_WHENS[wa]} ${V_EVENTS[wb]}`,
     who:V_WHO[ya], saying:V_SAYINGS[yb],
-    kkin:`my ${V_KIDKIN[ca]} ${V_NAMES[cb]}`, kkinN:V_NAMES[cb], kspot:V_KIDSPOTS[da], kgame:V_KIDGAMES[db],
+    kkin:`my ${V_KIDKIN[ca]} ${kkinN}`, kkinN, kspot:V_KIDSPOTS[da], kgame:V_KIDGAMES[db],
     thing:V_THINGS[ta], sky:V_SKY[tb], habit:V_HABITS[ha % V_HABITS.length], hn:Math.floor(ha / V_HABITS.length) + 2 };
 }
 
@@ -9681,13 +9716,15 @@ SET.glassdome = p => { const g = new THREE.Group(), R = 3.35, H1 = 1.55, rib = '
 // a raised bed of soil, with whatever's growing in it
 SET.planter = p => { const g = new THREE.Group(); sBox(g, .9, .34, .8, '#7a5a3a', 0, .17, 0, { rot:[0, 0, 0] }); sBox(g, .82, .04, .72, '#4a3424', 0, .33, 0, { ink:0 });
   const leaf = (x, z, s = .1, c = '#4f8a3e') => sBall(g, s, c, x, .38 + s * .6, z, null, { lump:1 });
-  const crop = p.crop || 'lettuce';
+  const crop = (typeof p.crop === 'function' ? p.crop() : p.crop) || 'lettuce';
   if (crop === 'tomato') for (const x of [-.24, .24]) { sCyl(g, .015, .015, 1.1, '#9a7a4a', x, .85, 0, null, { ink:0 }); for (let i = 0; i < 4; i++) { leaf(x + (i % 2 ? .07 : -.07), (i % 2 ? .05 : -.05), .1); sBall(g, .055, '#d8352a', x + (i % 2 ? -.08 : .09), .55 + i * .16, .07); } }
   if (crop === 'beans') for (const x of [-.25, 0, .25]) { sCyl(g, .015, .015, 1.4, '#9a7a4a', x, 1.0, 0, [0, 0, x * .3], { ink:0 }); for (let i = 0; i < 5; i++) { sBall(g, .07, '#5f9a3e', x + (i % 2 ? .05 : -.05), .5 + i * .2, 0, [1, .7, 1]); if (i % 2) sCyl(g, .015, .015, .16, '#8ab04a', x + .07, .48 + i * .2, .04, null, { ink:0 }); } }
   if (crop === 'lettuce') for (const x of [-.24, .12]) for (const z of [-.2, .2]) { sBall(g, .13, '#8ac85a', x + .06, .42, z, [1, .7, 1], { lump:1 }); sBall(g, .08, '#b8e07a', x + .06, .48, z); }
   if (crop === 'pepper') for (const x of [-.22, .22]) { leaf(x, 0, .16, '#3f7a32'); for (let i = 0; i < 3; i++) sBall(g, .05, ['#e8402a', '#f2c040', '#f08a2a'][i], x + (i - 1) * .1, .52, .12, [1, 1.5, 1]); }
   if (crop === 'strawberry') for (let i = 0; i < 6; i++) { const x = -.28 + (i % 3) * .28, z = i < 3 ? -.18 : .18; sBall(g, .08, '#4f8a3e', x, .4, z, [1, .5, 1]); sBall(g, .035, '#e0302a', x + .05, .4, z + .06, [1, 1.3, 1]); }
   if (crop === 'carrot') for (let i = 0; i < 8; i++) { const x = -.3 + (i % 4) * .2, z = i < 4 ? -.16 : .16; sCyl(g, .03, .005, .06, '#f08a2a', x, .36, z); for (const a of [-.4, 0, .4]) sCyl(g, .01, .006, .2, '#5faa3e', x, .46, z, [a, 0, a * .5], { ink:0 }); }
+  if (crop === 'potato') for (let i = 0; i < 4; i++) { const x = -.22 + (i % 2) * .44, z = i < 2 ? -.17 : .17; for (let j = 0; j < 4; j++) sBall(g, .09, j % 2 ? '#5f9a3e' : '#4a8a32', x + Math.cos(j * 1.6) * .07, .46 + j * .03, z + Math.sin(j * 1.6) * .07, [1, .7, 1]); sBall(g, .025, '#f0e8f8', x, .58, z); }
+  if (crop === 'bare') { for (let i = 0; i < 3; i++) sBox(g, .5, .02, .06, '#3a2a1c', 0, .355, -.22 + i * .22, { ink:0 }); sCyl(g, .012, .012, .32, '#9a7a4a', .3, .5, .25, null, { ink:0 }); sBox(g, .16, .1, .01, '#e8dcc0', .3, .66, .25, { ink:0 }); }
   return g; };
 SET.fruittree = p => { const g = new THREE.Group(); sCyl(g, .28, .22, .4, '#b0603a', 0, .2, 0); sCyl(g, .26, .26, .02, '#4a3424', 0, .39, 0, null, { ink:0 }); sCyl(g, .04, .06, .8, '#6a4a2a', 0, .8, 0);
   for (let i = 0; i < 6; i++) { const a = i * 1.05; sBall(g, .24, i % 2 ? '#4a8a3a' : '#3f7a32', Math.cos(a) * .2, 1.3 + (i % 3) * .1, Math.sin(a) * .2, null, { lump:1 }); }
@@ -9697,6 +9734,178 @@ SET.pumpkins = p => { const g = new THREE.Group(); for (const [x, z, s] of [[-.1
   for (let i = 0; i < 5; i++) sBall(g, .09, '#4f8a3e', -.3 + i * .15, .06, .3 - (i % 2) * .5, [1.2, .4, 1]); return g; };
 SET.sacks = p => { const g = new THREE.Group(); for (const [x, z, r] of [[-.15, 0, .2], [.18, .08, .18], [0, -.2, .16]]) { sBall(g, r, '#c8a878', x, r * .9, z, [1, 1.3, 1], { lump:1 }); sBall(g, .05, '#a8784a', x + .05, r * 2.1, z + .06); }
   sBox(g, .3, .2, .25, '#8a6a48', .3, .1, -.25); for (let i = 0; i < 4; i++) sBall(g, .045, '#b08a5a', .26 + (i % 2) * .08, .24, -.3 + (i > 1 ? .08 : 0)); return g; };
+// =============================================================================
+//  WHO'S TALKING
+//  · The name bar only shows a person's name once you know it. Strangers speak
+//    without a name bar; the first time a named person talks to you they tell you
+//    who they are (in their own manner), and from then on their name shows.
+//    Job titles ("Barkeep", "Resident") never show as names.
+//  · Stage directions don't call a stranger "they": it's "the stranger" or
+//    "the child" until you know them, then their name.
+//  · Nobody says a line someone else has already said. If a stock line comes round
+//    to a second person, it's bent to fit that person's own life.
+// =============================================================================
+const ROLE_WORDS = new Set(['They', 'Clerk', 'Numbed', 'Child', 'Resident', 'Lookout', 'Teller', 'Stranger', 'Townsperson', 'Innkeep', 'Engineer', 'Elder', 'Drinker', 'Concierge', 'Busker',
+  'Hitchhiker', 'Tourist', 'Surfer', 'Sunbather', 'Statue', 'Pupil', 'Pianist', 'Lifeguard', 'Gardener', 'Fisherman', 'Drifter', 'Driller', 'Cyclist', 'Cook', 'Caretaker', 'Bouncer', 'Barkeep',
+  'Shopkeeper', 'Guard', 'Scout', 'Farmer', 'Preacher', 'Mourner', 'Sign', 'Kid', 'Mechanic', 'Sailor', 'Courier', 'Wanderer']);
+let NOT_PEOPLE = null, QUIET_INTRO = false;      // Manif names, feelings, places: these labels always show
+function notPerson(w) { if (!NOT_PEOPLE) { NOT_PEOPLE = new Set(); for (const k in SPECIES) NOT_PEOPLE.add(SPECIES[k].name); for (const k in TYPES) NOT_PEOPLE.add(TYPES[k].name);
+    NOT_PEOPLE.add('You'); NOT_PEOPLE.add('Hush'); }
+  return NOT_PEOPLE.has(w); }
+const knownNames = () => (S.knownNames = S.knownNames || {});
+const talkerMoral = () => { try { return TALKING ? moralOf(TALKING) : 'fair'; } catch (e) { return 'fair'; } };
+const hashS = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h; };
+// how someone tells you their name the first time they speak to you, by temperament
+const INTRO = {
+  kind:['I\'m {N}, by the way.', '{N}. That\'s me. Pleased to meet you.', 'Oh, I\'m {N}, love.', 'Call me {N}. Everyone does.', 'I\'m {N}. Mind how you go.'],
+  fair:['Name\'s {N}.', '{N}.', 'I\'m {N}, if you\'re asking.', '{N}. You\'ll want to remember that.', 'They call me {N}. Because it\'s my name.'],
+  cruel:['{N}. Not that it\'s any of your business.', 'I\'m {N}. Don\'t wear it out.', '{N}. Forget it if you like.', 'You can call me {N}. Or don\'t.', '{N}. What of it?'] };
+// the stage-direction subject for a stranger or a known person
+function subjOf(e) { if (!e) return null; const n = (e.name || '').split(' ')[0];
+  if (n && knownNames()[n] && !ROLE_WORDS.has(n)) return n;
+  if (isChild(e)) return 'The child';
+  if (n && ROLE_WORDS.has(n)) return 'The ' + n.toLowerCase();
+  return 'The stranger'; }
+const VERB_KEEP = new Set(['can', 'could', 'would', 'will', 'won\'t', 'might', 'must', 'should', 'can\'t', 'couldn\'t', 'wouldn\'t', 'didn\'t', 'did', 'had', 'hadn\'t', 'may', 'shall', 'just', 'never', 'always', 'still', 'only', 'both', 'all', 'almost', 'already', 'also', 'even']);
+const VERB_MAP = { are:'is', were:'was', have:'has', do:'does', 'don\'t':'doesn\'t', 'aren\'t':'isn\'t', 'weren\'t':'wasn\'t', 'haven\'t':'hasn\'t', 'They\'re':'is', 'They\'ve':'has', 'They\'ll':'will', 'They\'d':'would' };
+function conj(w) { if (VERB_MAP[w]) return VERB_MAP[w]; if (VERB_KEEP.has(w) || /ly$/.test(w)) return null;
+  if (/(s|sh|ch|x|z|o)$/.test(w)) return w + 'es'; if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + 'ies'; return w + 's'; }
+// "(They flinch away.)" → "(The stranger flinches away.)" / "(Nell flinches away.)"
+function deThey(text, subj) { let n = 0;
+  return text.replace(/(^|\(|\. )They('re|'ve|'ll|'d)?( (\w+'?\w*))?( (\w+'?\w*))?/g, (all, pre, cl, s1, w1, s2, w2) => { if (n++) return all;   // only the first: after that, "they" reads fine
+    if (cl) return `${pre}${subj} ${VERB_MAP['They' + cl]}${s1 || ''}${s2 || ''}`;
+    if (!w1) return all.replace('They', subj);
+    const c1 = conj(w1); if (c1) return `${pre}${subj} ${c1}${s2 || ''}`;
+    if (VERB_KEEP.has(w1) || /ly$/.test(w1)) { if (w2 && /ly$/.test(w1) && !VERB_KEEP.has(w2)) { const c2 = conj(w2); return `${pre}${subj} ${w1} ${c2 || w2}`; } return `${pre}${subj} ${w1}${s2 || ''}`; }
+    return all.replace('They', subj); })
+    .replace(/ and don't /, ' and doesn\'t ').replace(/, then (\w+)\b/, (a, w) => { const c = /s$/.test(w) ? null : conj(w); return ', then ' + (c || w); })
+    .replace(/(^|\(|\. )Their /g, (a, pre) => `${pre}${subj.startsWith('The ') ? subj + '\'s' : subj + '\'s'} `); }
+// a person's own spin on a stock line, so it's theirs and nobody else's (every tag carries a detail only they have)
+function personalTag(e, line) { let v; try { v = voiceOf(e); } catch (er) { return null; }
+  const kid = isChild(e), cap = s => s.charAt(0).toUpperCase() + s.slice(1), k = hashS(line) + v.n;
+  const stage = /^\([^)]*\)$/.test(line.trim());
+  const T = kid ? (stage
+      ? [`(They were playing ${v.kgame} with ${v.kkin.replace('my ', 'their ')} a minute ago.)`, `(They keep glancing back at ${v.kspot}, where the ${v.kgame} game is waiting.)`, `(${v.kkin.replace('my ', 'Their ')} has written a name on their sleeve in felt pen.)`]
+      : [` ${cap(v.kkin)} says so too.`, ` I'm telling ${v.kkin}!`, ` We're playing ${v.kgame} at ${v.kspot} later.`])
+    : (stage
+      ? [`(A parcel from ${v.place} is tucked under their arm.)`, `(A drawing of ${v.petN}, their ${v.petA}, pokes out of their pocket.)`, `(They mention ${v.kin.replace('my ', 'their ')}, half to themselves.)`]
+      : [` ${cap(v.kin)} would say the same.`, ` I'll be telling ${v.kin} about you.`, ` I was on my way to ${v.place}, as it happens.`, ` ${v.petN}, my ${v.petA}, would have had something to say about it.`]);
+  return { stage, tag:T[k % T.length] }; }
+function uniqueLine(body) {
+  if (!TALKING || !S || /^\(?(You |Everything|Something warm)/.test(body) || body.length < 8) return body;
+  const said = (S.saidBy = S.saidBy || {}), who = S.map + ':' + TALKING.id, h = hashS(body.replace(/\{[a-z]+\}/g, '')).toString(36);
+  if (!said[h] || said[h] === who) { said[h] = who; return body; }
+  const p = personalTag(TALKING, body); if (!p) return body;
+  let out;
+  if (p.stage) out = body + ' ' + p.tag;
+  else if (/"\s*$/.test(body)) out = body.replace(/"\s*$/, p.tag + '"');
+  else out = body.replace(/\s*$/, '') + p.tag;
+  said[hashS(out).toString(36)] = who; return out; }
+// called by setDlg on every line: decides the name bar, introduces strangers, and keeps lines unique
+function speakerOf(text, hold) {
+  let who = '', m = /^([A-Z][a-zA-Z']{1,13}(?: [A-Z][a-zA-Z']{1,13}){0,2}): ([\s\S]*)$/.exec(text);
+  if (m) { who = m[1]; text = m[2]; }
+  if (who && who.length > 14 && !/ /.test(who)) { text = who + ': ' + text; who = ''; }
+  if (!S || scene === 'title' || scene === 'boot') return { who, text };
+  if (who && ROLE_WORDS.has(who.split(' ')[0]) && !/ [A-Z]/.test(who)) who = '';                        // job titles never show as names
+  else if (who && !notPerson(who)) {
+    const K = knownNames();
+    if (!K[who]) { if (QUIET_INTRO) who = ''; else if (TALKING && !hold) { const mor = talkerMoral(), arr = INTRO[mor] || INTRO.fair;
+        if (!new RegExp('\\b' + who + '\\b').test(text)) text = arr[hashS(who) % arr.length].replace('{N}', who) + ' ' + text; K[who] = 1; who = ''; }
+      else if (!TALKING) K[who] = 1;                                 // met in a scene: you know who they are
+      else who = ''; } }
+  if (!hold) text = uniqueLine(text);
+  const subj = subjOf(TALKING);
+  if (TALKING && subj) text = m ? text.replace(/\([^)]*\)/g, seg => deThey(seg, subj)) : deThey(text, subj);   // stage directions only, never someone's own words
+  return { who, text }; }
+
+// Being asked your name: they ask, you give it, they answer in their own way (and tell you theirs).
+const NAME_ASK = { kind:['Hello, love. And who might you be?', 'A new face! What do we call you?', 'Welcome, welcome. Have you a name?'],
+  fair:['And who are you?', 'Haven\'t seen you before. Name?', 'You\'ve got a name, I expect?'],
+  cruel:['Who\'s asking?', 'You. Name. Now.', 'I don\'t know you. Should I?'] };
+const NAME_REPLY = {
+  kind:['{name}! What a good name. I\'m {N}. Anything you need, you come to me.', '{name}. I\'ll remember that. I\'m {N}, and you\'re welcome here.', 'Oh, {name}, that suits you. {N}, that\'s me. Sit down whenever you like.'],
+  fair:['{name}. All right, {name}. I\'m {N}.', '{name}. Fine. {N}. We\'ll see how we get on.', '{name}, is it. {N}. Don\'t make me regret knowing it.'],
+  cruel:['{name}. Stupid name. {N}. Don\'t make me say it twice.', '{name}? Hah. I\'m {N}, and I\'ll be watching you, {name}.', '{name}. I\'ll forget it by supper. {N}. Now what do you want?'] };
+async function nameExchange(name, e, o = {}) {
+  const prev = TALKING; if (e) TALKING = e; const mor = e ? talkerMoral() : 'fair', h = hashS(name);
+  knownNames()[name] = 0; QUIET_INTRO = true;  // still a stranger while they ask
+  await say(`${name}: ${o.ask || NAME_ASK[mor][h % 3]}`); QUIET_INTRO = false;
+  await say('(You give your name.)');
+  knownNames()[name] = 1;
+  await say(`${name}: ${(o.reply || NAME_REPLY[mor][(h >>> 3) % 3]).replace(/\{N\}/g, name)}`);
+  TALKING = prev; }
+// =============================================================================
+//  WHAT YOU CARRY TELLS A STORY — the aura isn't only light or dark. Which
+//  feelings you hold, how fierce they are, which ones sit together (and which
+//  pull against each other), which you've carried longest, how many different
+//  ones, how grown they are: people read all of it. auraStory() names it and
+//  tells it; the HUD and the Aura page show it, and people remark on it.
+// =============================================================================
+const OPP_PAIRS = [['JOY', 'SADNESS'], ['HOPE', 'FEAR'], ['CALM', 'ANGER'], ['CONFIDENCE', 'SHAME'], ['SURPRISE', 'DISGUST']];
+const ONE_NOTE = {   // one family filling the hands: gentle / strong / fierce
+  JOY:['Sunny', 'Radiant', 'Manic'], HOPE:['Wishful', 'Sanguine', 'Zealous'], CALM:['Unhurried', 'Still Water', 'Glassy'], CONFIDENCE:['Self-possessed', 'Swaggering', 'Untouchable'],
+  SURPRISE:['Curious', 'Starstruck', 'Thunderstruck'], SADNESS:['Wistful', 'Mournful', 'Bereft'], FEAR:['Jumpy', 'Haunted', 'Hunted'], ANGER:['Prickly', 'Smouldering', 'Incandescent'],
+  SHAME:['Bashful', 'Hangdog', 'Hiding'], DISGUST:['Fastidious', 'Sour', 'Venomous'] };
+const PAIR_TITLE = { 'JOY+SADNESS':['Bittersweet', 'Laughing Through Tears', 'Torn Open'], 'FEAR+HOPE':['Nervous Hope', 'Holding Breath', 'White-knuckled'],
+  'ANGER+CALM':['Banked Fire', 'Lid on a Boil', 'Eye of the Storm'], 'CONFIDENCE+SHAME':['Brave Face', 'Bravado', 'Cracked Armour'], 'DISGUST+SURPRISE':['Aghast', 'Wide-eyed Revulsion', 'Recoiling'] };
+const PAIR_STORY = { 'JOY+SADNESS':'happiness and grief in the same hands, like someone who laughs at funerals and cries at weddings',
+  'FEAR+HOPE':'hope with fear holding its hand: someone waiting on news',
+  'ANGER+CALM':'calm sitting on top of anger like a lid on a pot',
+  'CONFIDENCE+SHAME':'swagger worn over shame, the way a coat hides a stain',
+  'DISGUST+SURPRISE':'surprise curdling into disgust: someone who has just found out' };
+const DYAD_STORY = { Optimism:'joy and hope leaning together: someone who expects the good news', Faith:'calm trust in what\'s coming', Composure:'steady nerve with the cool to use it',
+  Daring:'nerve looking for a surprise to meet', Disappointment:'surprise that turned out sad', Despair:'fear and grief feeding each other', Desperation:'anger with fear behind it, cornered',
+  Humiliation:'shame that has gone hot and angry', 'Self-disgust':'shame turned to disgust, aimed inward', Schadenfreude:'a nasty little joy at somebody else\'s trouble' };
+const LEAD = {   // the feeling that leads, by intensity
+  JOY:['a quiet contentment', 'an easy, catching joy', 'a joy that won\'t sit still'], HOPE:['a small, stubborn hope', 'a bright hope', 'a hope with something desperate in it'],
+  CALM:['an unhurried ease', 'a deep calm', 'a stillness that\'s almost eerie'], CONFIDENCE:['a quiet self-belief', 'a confident set to the shoulders', 'a pride that fills the street'],
+  SURPRISE:['a curious tilt', 'a wide-eyed wonder', 'a jolt that hasn\'t worn off'], SADNESS:['a wistful heaviness', 'a sadness that slows your walk', 'a grief like a black armband'],
+  FEAR:['an unease at the edges', 'a fear that checks the corners', 'a terror close to the skin'], ANGER:['an irritable edge', 'an anger close to the surface', 'a rage barely held'],
+  SHAME:['a shyness', 'a shame that keeps your eyes down', 'a humiliation you can\'t shake'], DISGUST:['a fussy distaste', 'a disgust that curls the lip', 'a loathing with teeth'] };
+const GIFT_TITLE = { LOVE:'Whole-hearted', CURIOUS:'Make-believe', BEACON:'Lighthouse-steady', BELONG:'At Home Anywhere', HOLLOW:'Hollowed' };
+function auraStory(p = S.party) {
+  if (!p || !p.length) return { title:'Empty-handed', story:'You carry nothing at all. People look straight through you, as if you\'d only just arrived.', bits:{} };
+  const fam = m => SPECIES[m.sp].type, tier = m => SPECIES[m.sp].tier || 0, F = {};
+  for (const m of p) F[fam(m)] = (F[fam(m)] || 0) + 1 + tier(m) * .4;
+  const order = Object.keys(F).sort((a, b) => F[b] - F[a]), top = order[0], second = order[1];
+  const avgT = p.reduce((s, m) => s + tier(m), 0) / p.length, I = avgT < .7 ? 0 : avgT < 1.4 ? 1 : 2;
+  const gift = p.map(fam).find(f => GIFT_TITLE[f]);
+  const nFam = order.length, opp = nFam < 5 && OPP_PAIRS.find(([a, b]) => F[a] && F[b]), oppKey = opp && opp.slice().sort().join('+');
+  const dy = second && nFam < 5 ? dyadOf(top, second) : null;
+  const longest = p.slice().sort((a, b) => (a.keptAt || 0) - (b.keptAt || 0))[0], held = S.time - (longest.keptAt || S.time);
+  const lv = p.map(m => m.lvl || 1), lvMin = Math.min(...lv), lvMax = Math.max(...lv);
+  let title;
+  if (gift) title = GIFT_TITLE[gift];
+  else if (nFam === 1 && p.length >= 2) title = (ONE_NOTE[top] || ['Plain', 'Plain', 'Plain'])[I];
+  else if (oppKey && PAIR_TITLE[oppKey]) title = PAIR_TITLE[oppKey][I];
+  else if (nFam >= 5) title = ['Kaleidoscope', 'A Full House', 'Crowded Heart'][I];
+  else if (dy) title = ['A Touch of ', '', 'Raw '][I] + dy;
+  else title = (ONE_NOTE[top] || ['Plain', 'Plain', 'Plain'])[I];
+  const parts = [`You carry ${LEAD[top] ? LEAD[top][I] : 'something hard to name'}`];
+  if (oppKey) parts[0] += `, and with it ${PAIR_STORY[oppKey]}`;
+  else if (dy && DYAD_STORY[dy]) parts[0] += `: ${DYAD_STORY[dy]}`;
+  parts[0] += '.';
+  if (nFam === 1 && p.length >= 3) parts.push('Nothing else gets a word in.');
+  else if (nFam >= 5) parts.push('Everyone who looks at you sees something different.');
+  if (held > 600 && p.length > 1) parts.push(`You've carried ${nm(longest)} the longest; it's started to look like part of you.`);
+  if (lvMin >= 40) parts.push('Everything you hold is full-grown.'); else if (lvMax - lvMin >= 20) parts.push('Some of it is old and heavy, and some of it is very new.');
+  if (gift) parts.push({ LOVE:'And under all of it, Love, which makes the rest bearable.', CURIOUS:'And there\'s a made-up creature in there that nobody can quite take seriously, or forget.',
+    BEACON:'And a steady light in it that people turn toward without meaning to.', BELONG:'And a feeling of belonging that makes strangers wave.', HOLLOW:'And a hollow at the middle of it that people step around.' }[gift]);
+  return { title, story:parts.join(' '), bits:{ top, second, I, oppKey, dy, nFam, longest, gift } };
+}
+// what someone says about it, by temperament (the uniqueness pass keeps each person's version their own)
+function auraRemark(moral) { const A = auraStory(), b = A.bits, t = A.title.toLowerCase(), lead = b.top && LEAD[b.top] ? LEAD[b.top][b.I] : 'something';
+  const insight = b.oppKey ? PAIR_STORY[b.oppKey] : b.dy && DYAD_STORY[b.dy] ? DYAD_STORY[b.dy] : lead;
+  const K = { kind:[`You've a ${t} look about you. ${cap1(insight)}. Go gently.`, `I can see it on you: ${insight}. You don't have to carry it all at once.`, b.longest ? `That ${nm(b.longest)} of yours has been with you a while, hasn't it? It's in your walk.` : `There's ${lead} on you. It suits you, mostly.`],
+    fair:[`${cap1(t)}. That's what you look like. ${cap1(insight)}.`, `Funny mix you've got on you. ${cap1(insight)}.`, `You wear ${lead} like other people wear a hat.`],
+    cruel:[`Look at you. ${cap1(insight)}. Pathetic.`, `${cap1(t)}, is it? I've seen how that ends.`, `Walking about with ${lead} like it's a medal. Christ.`] };
+  return pickA(K[moral] || K.fair); }
+const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// the HUD asks every frame: only recompute when what you carry changes
+let AT_KEY = '', AT_VAL = '';
+function auraTitleCached() { const k = S.party.map(m => m.sp + m.lvl + ':' + (m.keptAt || 0)).join(','); if (k !== AT_KEY) { AT_KEY = k; AT_VAL = auraStory().title; } return AT_VAL; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -10704,7 +10913,7 @@ function updateWorld(dt, t) {
     m.life -= dt * .7; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vx * dt * .5; arr[i * 3] = m.x; arr[i * 3 + 1] = m.y; arr[i * 3 + 2] = m.z;
   });
   W.motes.geometry.attributes.position.needsUpdate = true;
-  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : zoneOf().name); if (!RIDE.on) { camTarget.set(px, py, pz); updateCamera(dt); } }   // while riding, rideTick alone moves the camera (two targets fought and shook the screen)
+  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : auraTitleCached()); if (!RIDE.on) { camTarget.set(px, py, pz); updateCamera(dt); } }   // while riding, rideTick alone moves the camera (two targets fought and shook the screen)
   else { const a = t * .1, cx = (M.w - 1) / 2, cz = (M.h - 1) / 2; camera.position.set(cx + Math.sin(a) * 16, 9, cz + Math.cos(a) * 16); camera.lookAt(cx, 0, cz); worldSky.position.copy(camera.position); }
 }
 function updateBattle(dt, t) {
