@@ -10106,7 +10106,7 @@ const INTRO = {
   cruel:['{N}. Not that it\'s any of your business.', 'I\'m {N}. Don\'t wear it out.', '{N}. Forget it if you like.', 'You can call me {N}. Or don\'t.', '{N}. What of it?'] };
 // the stage-direction subject for a stranger or a known person
 function subjOf(e) { if (!e) return null; const n = (e.name || '').split(' ')[0];
-  if (n && knownNames()[n] && !ROLE_WORDS.has(n)) return n;
+  if (n && !ROLE_WORDS.has(n) && /^[A-Z][a-z']+$/.test(n)) return n;
   if (isChild(e)) return 'The child';
   if (n && ROLE_WORDS.has(n)) return 'The ' + n.toLowerCase();
   return 'The stranger'; }
@@ -10147,17 +10147,12 @@ function uniqueLine(body) {
   said[hashS(out).toString(36)] = who; return out; }
 // called by setDlg on every line: decides the name bar, introduces strangers, and keeps lines unique
 function speakerOf(text, hold) {
-  let who = '', m = /^([A-Z][a-zA-Z']{1,13}(?: [A-Z][a-zA-Z']{1,13}){0,2}): ([\s\S]*)$/.exec(text);
+  let who = '', m = /^([A-Z][a-zA-Z']{1,13}(?: [a-zA-Z']{1,12}){0,3}): ([\s\S]*)$/.exec(text);
+  if (m && (m[1].length > 24 || / (is|are|was|has|have|says|said|reads|written|writes)\b/.test(m[1]))) m = null;   // a sentence with a colon in it, not a speaker
   if (m) { who = m[1]; text = m[2]; }
-  if (who && who.length > 14 && !/ /.test(who)) { text = who + ': ' + text; who = ''; }
   if (!S || scene === 'title' || scene === 'boot') return { who, text };
-  if (who && ROLE_WORDS.has(who.split(' ')[0]) && !/ [A-Z]/.test(who)) who = '';                        // job titles never show as names
-  else if (who && !notPerson(who)) {
-    const K = knownNames();
-    if (!K[who]) { if (QUIET_INTRO) who = ''; else if (TALKING && !hold) { const mor = talkerMoral(), arr = INTRO[mor] || INTRO.fair;
-        if (!new RegExp('\\b' + who + '\\b').test(text)) text = arr[hashS(who) % arr.length].replace('{N}', who) + ' ' + text; K[who] = 1; who = ''; }
-      else if (!TALKING) K[who] = 1;                                 // met in a scene: you know who they are
-      else who = ''; } }
+  if (who === 'They') who = '';                                     // the speaker's name always shows in the name tag; a bare "They" isn't a name
+  if (who && !notPerson(who)) knownNames()[who] = 1;
   if (!hold) text = uniqueLine(text);
   const subj = subjOf(TALKING);
   if (TALKING && subj) text = m ? text.replace(/\([^)]*\)/g, seg => deThey(seg, subj)) : deThey(text, subj);   // stage directions only, never someone's own words
