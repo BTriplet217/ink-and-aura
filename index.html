@@ -1240,7 +1240,7 @@ function newManif(sp, lvl) {
   const m = { sp, lvl, xp:0, hp:0, moves: movesForSp(sp, lvl), c:0, s:0, id:0, metType:SPECIES[sp].type, eid: 1 + Math.floor(Math.random() * 2e9) };
   m.hp = maxHp(m); return m;
 }
-function adopt(m) { m.id = S.nextId++; m.c = 0; m.s = 0; m.keptAt = S.time; return m; }
+function adopt(m) { m.id = S.nextId++; m.c = 0; m.s = 0; m.keptAt = S.time; if (!m.foundAt && S.map) m.foundAt = S.map; return m; }
 const healAll = () => { let any = false; for (const m of S.party.concat(S.satchel)) { if (m.hp < maxHp(m)) any = true; m.hp = maxHp(m); } if (any && typeof sfx === 'function') sfx('restore'); };
 const valOf = m => { const d = SPECIES[m.sp]; return d.dyad ? d.val : TYPES[d.type].val; };
 const auraValue = (p = S.party) => p.reduce((a, m) => a + valOf(m), 0) - Math.min(8, Math.floor((S.sins || 0) / 3));
@@ -1681,7 +1681,7 @@ function buildPerson(L) {
 }
 // Walk and idle: legs swing when someone moves; arms swing with them or sway a little at rest.
 function animPerson(g, moving, t, dt) {
-  const u = g.userData; if (u.critter) return critterAnim(g, t); if (u.stone) return; if (!u.legs || !u.legs.length) return;
+  const u = g.userData; if (u.critter) return critterAnim(g, t); if (u.stone) return; if (u.body && !u.legs && u.shape !== undefined) return animManif(g, t); if (!u.legs || !u.legs.length) return;
   moving = moving || !!u.forceWalk;
   if (u.sit) { u.legs[0].rotation.x = u.legs[1].rotation.x = -2.0; for (const h of u.legs) h.userData.knee.rotation.x = 2.3; u.inner.position.y = -.08; u.inner.rotation.z = .12;
     for (const [i, a] of u.arms.entries()) { a.rotation.set(-1.05, 0, (i ? 1 : -1) * -.25); a.userData.el.rotation.x = -.7; } return; }
@@ -4860,7 +4860,7 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); t.push(...companionEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
 const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
@@ -4964,7 +4964,7 @@ async function interact() {
   const w = wildAt(fx, fy); if (w) return startWild(w);
   const e = entAt(fx, fy);
   if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; VOICED = null; TALKING = e.item || e.invisible || e.note ? null : e;
-    try { if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); await e.talk(); } finally { TALKING = null; } return; }
+    try { if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); await e.talk(); if (!e.manifComp) await compMention(e); } finally { TALKING = null; } return; }
   const tl = tileAt(fx, fy);
   if (tl === 's') {
     if (S.map === 'vellum') { const g = Object.entries(GATES).find(([, g]) => g.sign[0] === fx && g.sign[1] === fy); if (g) { const t = GATE_TYPE[g[0]], T = TOWNS[t], Wt = WAYTOWNS[t]; await say(`This road: ${Wt.name} (Lv ${Wt.lv[0]}+), then ${ROUTES[t].name} (Lv ${ROUTES[t].lv[0]}+), then the city of ${T.name}, ruled by ${TYPES[t].name} (Lv ${T.lv[0]}+).${S.hearts[t] ? ' Its Heart has settled.' : ''}`); } }
@@ -5233,7 +5233,7 @@ async function partyMenu() {
     opts.push('Back');
     const c = await choose(opts), lab = opts[c];
     if (lab === 'Listen') await listen(m);
-    if (lab === 'Summary') await summary(m);
+    if (lab === 'Summary') { idx = await summary(m, S.party); continue; }
     if (lab === 'Move to front') { S.party.splice(i, 1); S.party.unshift(m); idx = 0; rebuildMinis(); }
     if (lab === 'Set down') {
       if (S.party.length <= 1) { await say('You can\'t set down the last thing you\'re carrying.'); continue; }
@@ -5256,22 +5256,20 @@ async function satchelMenu() {
       const before = auraName(); S.satchel.splice(i, 1); S.party.push(m); idx = Math.max(0, i - 1); rebuildMinis();
       await say('You carry ' + nm(m) + ' again.'); await announceShift(before);
     }
-    if (c === 1) await summary(m);
+    if (c === 1) { idx = await summary(m, S.satchel); continue; }
     if (c === 2) { const y = await ask('Let ' + nm(m) + ' go back into the Welkin? It won\'t return.', ['Let it go', 'Keep it']); if (y === 0) { recordRelease(m); S.satchel.splice(i, 1); idx = Math.max(0, i - 1); sfx('release'); await say(nm(m) + ' drifts up and away, back into the weather.'); } }
   }
 }
-async function summary(m) {
+function summaryHTML(m) {
   const v = valOf(m), nf = nextForm(m.sp), lvTo = nf ? INTENSIFY_AT[SPECIES[m.sp].tier] : null;
   const pic = manifPortrait(m.sp);
-  showSheet(`${pic ? `<img src="${pic}" alt="${nm(m)}" style="display:block;width:150px;height:150px;margin:0 auto 6px;border-radius:14px;border:2px solid #3a2c20">` : ''}<h2>${manifIcon(m)} ${nm(m)}</h2><div class="subt">${pillsOf(m.sp)} &nbsp;Lv ${m.lvl} · ${tierWord(m.sp)} (${SPECIES[m.sp].dyad ? 'a dyad' : TYPES[typeOf(m)].ladder[SPECIES[m.sp].tier]}) &nbsp;·&nbsp; Aura <b>${sgn(v)}</b></div>
+  return `${pic ? `<img src="${pic}" alt="${nm(m)}" style="display:block;width:150px;height:150px;margin:0 auto 6px;border-radius:14px;border:2px solid #3a2c20">` : ''}<h2>${manifIcon(m)} ${nm(m)}</h2><div class="subt">${pillsOf(m.sp)} &nbsp;Lv ${m.lvl} · ${tierWord(m.sp)} (${SPECIES[m.sp].dyad ? 'a dyad' : TYPES[typeOf(m)].ladder[SPECIES[m.sp].tier]}) &nbsp;·&nbsp; Aura <b>${sgn(v)}</b></div>
     <div style="font-size:12px;font-weight:800;color:var(--muted)">COMPOSURE ${m.hp}/${maxHp(m)}</div><div class="bar" style="margin:4px 0 8px"><i style="width:${m.hp / maxHp(m) * 100}%"></i></div>
     <div style="font-size:12px;font-weight:800;color:var(--muted)">INSIGHT ${m.xp}/${need(m.lvl)}</div><div class="bar xp" style="margin:4px 0 10px"><i style="width:${m.xp / need(m.lvl) * 100}%"></i></div>
     <p style="margin:0 0 8px">Force <b>${stat(m, 'atk')}</b> &nbsp; Poise <b>${stat(m, 'def')}</b> &nbsp; Pace <b>${stat(m, 'spd')}</b> &nbsp;·&nbsp; carried ${fmtTime(m.c || 0)}</p>
     <p style="margin:0 0 6px"><b>Expressions:</b> ${m.moves.map(k => MOVES[k].type ? `${MOVES[k].name} ${pill(MOVES[k].type)}` : MOVES[k].name).join(' &nbsp; ')}</p>
     ${nf ? `<p style="margin:0 0 6px;font-size:13px">Can intensify into <b>${SPECIES[nf].name}</b> at Lv ${lvTo}.</p>` : ''}
-    <p style="margin:0 0 6px;color:var(--muted);font-style:italic">${SPECIES[m.sp].desc}</p><p style="margin:0;font-size:13px">${personaLine(m)}</p>`);
-  await say(nm(m) + '.');
-  closeSheet();
+    <p style="margin:0 0 6px;color:var(--muted);font-style:italic">${SPECIES[m.sp].desc}</p><p style="margin:0;font-size:13px">${personaLine(m)}</p>${manifWhereHTML(m)}`;
 }
 async function codexMenu() {
   const i = await listChoose(CODEX, { title:'Codex of Manifs', sub: `${Object.keys(S.codex.kept).length} kept · ${Object.keys(S.codex.seen).length} met · of ${CODEX.length}`,
@@ -10118,7 +10116,7 @@ function personalTag(e, line) { let v; try { v = voiceOf(e); } catch (er) { retu
       : [` ${cap(v.kin)} would say the same.`, ` I'll be telling ${v.kin} about you.`, ` I was on my way to ${v.place}, as it happens.`, ` ${v.petN}, my ${v.petA}, would have had something to say about it.`]);
   return { stage, tag:T[k % T.length] }; }
 function uniqueLine(body) {
-  if (!TALKING || !S || /^\(?(You |Everything|Something warm)/.test(body) || body.length < 8) return body;
+  if (!TALKING || TALKING.manifComp || !S || /^\(?(You |Everything|Something warm)/.test(body) || body.length < 8) return body;
   const said = (S.saidBy = S.saidBy || {}), who = S.map + ':' + TALKING.id, h = hashS(body.replace(/\{[a-z]+\}/g, '')).toString(36);
   if (!said[h] || said[h] === who) { said[h] = who; return body; }
   const p = personalTag(TALKING, body); if (!p) return body;
@@ -10230,7 +10228,7 @@ function auraRemark(moral) { const A = auraStory(), b = A.bits, t = A.title.toLo
 const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 // the HUD asks every frame: only recompute when what you carry changes
-let AT_KEY = '', AT_VAL = '';
+let AT_KEY = null, AT_VAL = '';
 function auraTitleCached() { const k = S.party.map(m => m.sp + m.lvl + ':' + (m.keptAt || 0)).join(','); if (k !== AT_KEY) { AT_KEY = k; AT_VAL = auraStory().title; } return AT_VAL; }
 
 // ---------------------------------------------------------------- portraits
@@ -10254,6 +10252,104 @@ function manifPortrait(sp, size = 220) {
     const url = PR.cv.toDataURL('image/png'); PR.sc.remove(g); disposeTree(g);
     return (PORTRAITS_M[sp] = url);
   } catch (e) { return null; }
+}
+// =============================================================================
+//  PEOPLE'S OWN MANIFS — some people walk about with a feeling of their own beside
+//  them. The person mentions what's eating them, briefly, or not at all; their Manif
+//  tells you the rest, a little more each time you listen. And in a Manif's summary
+//  you can page through everything you hold, and see on a small map where its person
+//  lives and where it was let go.
+// =============================================================================
+const COMP_BRIEF = {
+  JOY:['Don\'t mind my {M}. It\'s about {their} {who}, {them}. Good news, for once.', 'That\'s my {M}. Ask it, if you like. It won\'t shut up about {them}.'],
+  HOPE:['My {M}\'s been like that since {them} wrote. Don\'t ask. I\'ll jinx it.', 'It\'s about {their} {who}. I\'m not saying more till I know.'],
+  CALM:['That\'s my {M}. It\'s been steady since I made my peace with {them}.', 'Leave my {M} be. It took me a long time to get it that quiet.'],
+  CONFIDENCE:['My {M}? That\'s from standing up to {their} {who}. About time too.', 'It\'s been with me since {them}. I\'m not ashamed of it.'],
+  SURPRISE:['My {M} turned up the day {them} told me. I still haven\'t got over it.', 'Ask it. I can\'t even explain it, and it was my {who}.'],
+  SADNESS:['That\'s my {M}. It\'s about {their} {who}. I don\'t talk about it.', '(They put a hand near their {M}, not quite touching it.) {Them}. That\'s all.'],
+  FEAR:['My {M} won\'t settle. Not since {them}. Don\'t look at it too long.', 'It\'s nothing. It\'s {their} {who}. It\'s nothing.'],
+  ANGER:['Don\'t. My {M}\'s about {their} {who}, {them}, and I\'m not getting into it.', '(Their jaw goes tight.) Ask the {M}. I\'ve said all I\'m saying about {them}.'],
+  SHAME:['(They step in front of their {M}.) It\'s mine. It\'s about {them}. Please don\'t.', 'You can see it, can\'t you. It\'s about {their} {who}. I\'d rather you didn\'t ask.'],
+  DISGUST:['My {M}? That\'s {them}. You\'d feel it too if you knew.', 'Ask it, if you want the whole sorry thing about {their} {who}. I\'m done with it.'] };
+// the person's own name, if they have one (job titles like "Notice clerk" aren't names)
+function ownerName(map, e) { const M = MAPS[map], t = M && M.vibe;
+  if ((e.id === 'keeper' || e.id === 'local') && t) { if (M.kind === 'way') return e.id === 'keeper' ? WAYTOWNS[t].keeper : WAYTOWNS[t].local; if (M.kind === 'city') return e.id === 'keeper' ? TOWNS[t].keeper.name : TOWNS[t].local.name; }
+  const n = e.name || ''; return /^[A-Z][a-z']+(?: [A-Z][a-z']+)*$/.test(n) && !ROLE_WORDS.has(n.split(' ')[0]) ? n.split(' ').slice(-1)[0] === n ? n : n : null; }
+function compKey(map, e) { return map + ':' + e.id; }
+function compFor(map, e) {
+  S.comp = S.comp || {}; const key = compKey(map, e);
+  if (S.comp[key] !== undefined) return S.comp[key];
+  let h = 9; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  if (h % 3 !== 0) return (S.comp[key] = null);                    // about one person in three has one with them
+  const M = MAPS[map], fam = (M && (M.vibe || (MAPS[M.route] && MAPS[M.route].vibe))) || WHEEL[h % WHEEL.length];
+  const pool = ROSTER.filter(r => r[1] === (TYPES[fam] ? fam : WHEEL[h % WHEEL.length]) && r[3] !== 4).map(r => r[0]);
+  if (!pool.length) return (S.comp[key] = null);
+  const cm = { sp:pool[(h >>> 3) % pool.length], eid:1 + (h % 2e9), lvl:8 }; const P = personaOf(cm);
+  const own = ownerName(map, e);
+  const townName = M && M.name ? M.name : P.home;
+  cm.pn = { ...P, name:own || P.name, home:townName };
+  return (S.comp[key] = { sp:cm.sp, eid:cm.eid, pn:cm.pn, said:0, told:0 });
+}
+const compManif = c => ({ sp:c.sp, eid:c.eid, pn:c.pn, lvl:8 });
+function companionEnts(map, list) {
+  const F = S.flags || {}, M = MAPS[map]; if (F.ruin || F.doom || !M || M.kind === 'still' || M.kind === 'inside') return [];
+  const out = [];
+  for (const e of list) { if (!isPerson(e) || e.real || isChild(e) || e.numb || e.pet || e.invisible) continue;
+    const c = compFor(map, e); if (!c) continue;
+    const [x, y] = spotNear(map, e.x + 1, e.y, list.concat(out));
+    if (Math.abs(x - e.x) + Math.abs(y - e.y) > 3) continue;
+    out.push({ id:'comp_' + e.id, x, y, dir:e.dir, manifComp:true, name:null, owner:e.id,
+      model:() => { const g = buildManif(c.sp, { scale:.55 }); g.position.y += .35; return g; }, talk:() => compTalk(map, e, c) }); }
+  return out;
+}
+async function compTalk(map, e, c) {
+  const m = compManif(c), lines = echoesOf(m), order = [0, 1, 2, 4, 3, 5, 6].filter(i => lines[i]);
+  const P = c.pn, nmM = SPECIES[c.sp].name;
+  if (c.said === 0) await say(`(${P.name}'s ${nmM} turns toward you.)`);
+  const line = lines[order[Math.min(c.said, order.length - 1)]];
+  await say(`${nmM}: "${line}"`);
+  if (c.said >= order.length - 1) await say(`(${P.name}'s ${nmM} has told you all of it. It stays close to ${P.name}.)`);
+  c.said = Math.min(c.said + 1, order.length);
+}
+async function compMention(e) {
+  const c = S.comp && S.comp[compKey(S.map, e)]; if (!c || c.told) return; c.told = 1;
+  let h = 0; for (const ch of e.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const P = c.pn, fam = SPECIES[c.sp].type, arr = COMP_BRIEF[fam] || COMP_BRIEF.CALM, cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  if (h % 5 === 0) return;                                            // some people don't mention it at all
+  const t = arr[h % arr.length].replace(/\{M\}/g, SPECIES[c.sp].name).replace(/\{their\}/g, 'my').replace(/\{who\}/g, P.who).replace(/\{them\}/g, P.them).replace(/\{Them\}/g, cap(P.them));
+  await say((e.name ? e.name + ': ' : '') + t);
+}
+
+// ---------------------------------------------------------------- summary: paging, and where it belongs
+function whereNode(id) { if (!id || !MAPS[id]) return null; const M = MAPS[id]; return M.kind === 'inside' ? (M.route || id) : id; }
+function manifWhereHTML(m) {
+  if (!m || m.canon || m.giftOf || m.sp === 'HUSH' || !SPECIES[m.sp] || SPECIES[m.sp].special) return '';
+  const P = personaOf(m), homeId = homeMap(P.home), d = SPECIES[m.sp];
+  const foundId = whereNode(m.foundAt) || ROUTE_OF[d.type];
+  const { N, L } = mapNodes(), byId = id => N.find(n => n.id === id), H = byId(homeId), Fd = byId(foundId);
+  const xs = N.map(n => n.x), ys = N.map(n => n.y), x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 20, w = Math.max(...xs) + 20 - x0, h = Math.max(...ys) + 20 - y0;
+  let svg = `<svg viewBox="${x0} ${y0} ${w} ${h}" width="120" height="120" style="flex:none;background:#efe4c8;border-radius:10px;border:2px solid #3a2c20" aria-hidden="true">`;
+  for (const [a, b] of L) { const A = byId(a), B = byId(b); if (A && B) svg += `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="#b8a888" stroke-width="3"/>`; }
+  for (const n of N) svg += `<circle cx="${n.x}" cy="${n.y}" r="${n.kind === 'city' ? 7 : n.kind === 'hub' ? 9 : 4}" fill="${n.t ? TYPES[n.t].c : '#c8a060'}" opacity=".5"/>`;
+  if (Fd) svg += `<circle cx="${Fd.x}" cy="${Fd.y}" r="15" fill="none" stroke="#2f6aa0" stroke-width="5" stroke-dasharray="7 5"/>`;
+  if (H) svg += `<circle cx="${H.x}" cy="${H.y}" r="15" fill="none" stroke="#c0302a" stroke-width="6"/><circle cx="${H.x}" cy="${H.y}" r="6" fill="#c0302a"/>`;
+  svg += '</svg>';
+  const waiting = S.flags && S.flags.restored && !S.flags.doom ? ` ${P.name} is there now, waiting for it.` : '';
+  return `<div style="display:flex;gap:12px;align-items:center;margin:8px 0 6px">${svg}<div style="font-size:13px;line-height:1.45">
+    <div><span style="color:#c0302a;font-weight:800">●</span> <b>${P.name} ${P.last}</b> lives in <b>${P.home}</b>.${waiting}</div>
+    <div style="margin-top:4px"><span style="color:#2f6aa0;font-weight:800">◌</span> Let go near <b>${(Fd && Fd.name) || (MAPS[foundId] && MAPS[foundId].name) || 'the roads'}</b>, where you found it.</div></div></div>`;
+}
+async function summary(m, list) {
+  list = list && list.length ? list : [m]; let i = Math.max(0, list.indexOf(m));
+  for (;;) {
+    const cur = list[i]; showSheet(summaryHTML(cur) + (list.length > 1 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <button id="sumPrev" style="min-height:44px;padding:0 16px;background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.5);border-radius:20px;font:800 13px 'Nunito Sans';cursor:pointer">▲ Previous</button><span style="font-size:12px;color:var(--muted);font-weight:800">${i + 1} of ${list.length} · up/down to browse</span><button id="sumNext" style="min-height:44px;padding:0 16px;background:rgba(27,21,18,.88);color:var(--gold);border:1.5px solid rgba(232,184,74,.5);border-radius:20px;font:800 13px 'Nunito Sans';cursor:pointer">Next ▼</button></div>` : '<p style="text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin:10px 0 0">A or B to close</p>'));
+    UI.sheetStatic = false; sheetEl.scrollTop = 0;   // up/down page through Manifs here instead of scrolling
+    const k = await new Promise(res => { selectHandler = b => { if (['up', 'down', 'left', 'right', 'a', 'b', 'menu'].includes(b)) { selectHandler = null; res(b); } };
+      const pv = document.getElementById('sumPrev'), nx = document.getElementById('sumNext'); if (pv) pv.onclick = () => { selectHandler = null; res('up'); }; if (nx) nx.onclick = () => { selectHandler = null; res('down'); }; });
+    if (k === 'up' || k === 'left') i = (i - 1 + list.length) % list.length; else if (k === 'down' || k === 'right') i = (i + 1) % list.length; else break;
+  }
+  closeSheet(); return i;
 }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
