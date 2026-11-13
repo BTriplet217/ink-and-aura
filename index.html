@@ -6469,7 +6469,7 @@ function endingFilter(map, list) {
   return list;
 }
 const PET_POOL = () => ROSTER.filter(r => r[2] === 0 && r[3] !== 4).map(r => r[0]);
-function petFor(e) { const C = S.comp && S.comp[S.map + ':' + e.id]; if (C && C.sp && SPECIES[C.sp]) return C.sp;   // the same Manif you saw them with before
+function petFor(e) { if (e.petSp && SPECIES[e.petSp]) return e.petSp; const C = S.comp && S.comp[S.map + ':' + e.id]; if (C && C.sp && SPECIES[C.sp]) return C.sp;   // the same Manif you saw them with before
   const P = PET_POOL(); let h = 0; for (const ch of e.id + S.map) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return P[h % P.length]; }
 
 
@@ -6921,8 +6921,24 @@ function ownerEnts(map, base) {
   const out = [];
   for (const m of S.party.concat(S.satchel)) { if (!m.pn || m.canon || m.giftOf || m.sp === 'HUSH') continue; const P = personaOf(m); if (homeMap(P.home) !== map) continue;
     const [x, y] = spotNear(map, Math.floor(M.w / 2) + (out.length % 2 ? 4 : -4), Math.floor(M.h / 2) + 3 + out.length, base.concat(out));
-    out.push({ id:'owner_' + m.eid, x, y, dir:'down', name:P.name, look:roomLook(M.vibe || 'HOPE', (m.eid % 7) + 1, { small:false }), folk:true, talk:() => giveBack(m) }); if (out.length >= 3) break; }
+    const st = ownerState(m);
+    out.push({ id:'owner_' + m.eid, x, y, dir:'down', name:P.name, look:roomLook(M.vibe || 'HOPE', (m.eid % 7) + 1, { small:false }), folk:true, ...(st === 'replaced' ? { pet:true, petSp:ownerNewManif(m) } : {}), talk:() => st === 'waiting' ? giveBack(m) : movedOn(m, st) }); if (out.length >= 3) break; }
   return out;
+}
+// Not everyone is still looking. Some got over it with time; some have taken in a newer, stronger feeling.
+function ownerState(m) { const h = (m.eid * 2654435761) >>> 0, r = (h % 100) / 100; return r < .5 ? 'waiting' : r < .75 ? 'healed' : 'replaced'; }
+function ownerNewManif(m) { const d = SPECIES[m.sp] || {}, h = (m.eid * 40503) >>> 0, fams = WHEEL.filter(t => t !== d.type);
+  const fam = fams[h % fams.length], pool = ROSTER.filter(r => r[1] === fam && r[2] >= 1 && r[3] !== 4).map(r => r[0]); return pool[(h >>> 4) % pool.length] || pool[0]; }
+async function movedOn(m, st) {
+  const P = personaOf(m), cap = s => s.charAt(0).toUpperCase() + s.slice(1), k = m.eid % 3;
+  if (st === 'healed') {
+    await say(`${P.name}: ${['(They look at ' + nm(m) + ' for a long moment, and then they smile.) I know that one. That was mine, the year ' + P.them + '...', '(They recognise it straight away. They don\'t reach for it.) Oh. You found it. That\'s the day with ' + P.them + '.', '(They laugh, softly, surprised at themselves.) I used to carry that. All about ' + P.them + '. Every day, for years.'][k]}`);
+    await say(`${P.name}: ${['I don\'t need it any more. Time did what time does. Keep it, if it\'s good to you. It was good to me, once.', 'I put it down a long while ago and I\'ve not missed it. That\'s not a sad thing. Look after it.', 'Funny. I thought I\'d want it back. I don\'t. I\'m glad someone kind has it.'][k]}`);
+    S.sins = Math.max(0, (S.sins || 0) - 1); return;
+  }
+  const nw = SPECIES[ownerNewManif(m)] ? SPECIES[ownerNewManif(m)].name : 'another';
+  await say(`${P.name}: ${['(They glance at ' + nm(m) + ', then at the ' + nw + ' beside them.) That was mine once. About ' + P.them + '. Feels like someone else\'s life now.', '(The ' + nw + ' at their side shifts closer to them.) I know it. I let it go when everything went grey. This one came to me after, and it\'s louder. It\'s what I carry now.', '(Their ' + nw + ' bristles at ' + nm(m) + '.) Ha. Look at them. No, it\'s yours. I\'ve got my hands full with this one.'][k]}`);
+  await say(`${P.name}: ${['Keep it. Something worse happened since, and something better, and this ' + nw + ' is what\'s left of both.', 'You hang on to it. I haven\'t got room for two.', cap(P.them) + ' would laugh to see it. Go on. It\'s in good hands.'][k]}`);
 }
 async function giveBack(m) {
   const P = personaOf(m), e = echoesOf(m);
@@ -10106,7 +10122,7 @@ function deThey(text, subj) { let n = 0;
     const c1 = conj(w1); if (c1) return `${pre}${subj} ${c1}${s2 || ''}`;
     if (VERB_KEEP.has(w1) || /ly$/.test(w1)) { if (w2 && /ly$/.test(w1) && !VERB_KEEP.has(w2)) { const c2 = conj(w2); return `${pre}${subj} ${w1} ${c2 || w2}`; } return `${pre}${subj} ${w1}${s2 || ''}`; }
     return all.replace('They', subj); })
-    .replace(/ and don't /, ' and doesn\'t ').replace(/, then (\w+)\b/, (a, w) => { const c = /s$/.test(w) ? null : conj(w); return ', then ' + (c || w); })
+    .replace(/ and don't /, ' and doesn\'t ').replace(/, then (\w+)\b/, (a, w) => { const c = /s$/.test(w) || /^(at|to|the|a|an|back|away|in|on|off|up|down|out|over|around|round|he|she|they|it|you|their|his|her|my|your|again|slowly|quietly)$/.test(w) ? null : conj(w); return ', then ' + (c || w); })
     .replace(/(^|\(|\. )Their /g, (a, pre) => `${pre}${subj.startsWith('The ') ? subj + '\'s' : subj + '\'s'} `); }
 // a person's own spin on a stock line, so it's theirs and nobody else's (every tag carries a detail only they have)
 function personalTag(e, line) { let v; try { v = voiceOf(e); } catch (er) { return null; }
@@ -10338,7 +10354,8 @@ function manifWhereHTML(m) {
   if (Fd) svg += `<circle cx="${Fd.x}" cy="${Fd.y}" r="15" fill="none" stroke="#2f6aa0" stroke-width="5" stroke-dasharray="7 5"/>`;
   if (H) svg += `<circle cx="${H.x}" cy="${H.y}" r="15" fill="none" stroke="#c0302a" stroke-width="6"/><circle cx="${H.x}" cy="${H.y}" r="6" fill="#c0302a"/>`;
   svg += '</svg>';
-  const waiting = S.flags && S.flags.restored && !S.flags.doom ? ` ${P.name} is there now, waiting for it.` : '';
+  const os = typeof ownerState === 'function' ? ownerState(m) : 'waiting', live = S.flags && S.flags.restored && !S.flags.doom;
+  const waiting = !live ? '' : os === 'waiting' ? ` ${P.name} is there now, waiting for it.` : os === 'healed' ? ` ${P.name} is there now, but has made peace with it.` : ` ${P.name} is there now, with a newer feeling of their own.`;
   return `<div style="display:flex;gap:12px;align-items:center;margin:8px 0 6px">${svg}<div style="font-size:13px;line-height:1.45">
     <div><span style="color:#c0302a;font-weight:800">●</span> <b>${P.name} ${P.last}</b> lives in <b>${P.home}</b>.${waiting}</div>
     <div style="margin-top:4px"><span style="color:#2f6aa0;font-weight:800">◌</span> Let go near <b>${(Fd && Fd.name) || (MAPS[foundId] && MAPS[foundId].name) || 'the roads'}</b>, where you found it.</div></div></div>`;
