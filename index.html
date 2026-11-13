@@ -1810,6 +1810,7 @@ function animManif(g, t, k = 1) {
   u.body.rotation.y = Math.sin(t * .9 + u.phase) * .35;
   if (u.special) { animSpecial(g, t); return; }
   if (u.ring) u.ring.rotation.z = t * 1.2;
+  if (u.hushAnim) u.hushAnim(t);
   animDecor(u.body, t);
   switch (u.shape) {
     case 'flame': u.body.scale.set(1, 1 + Math.sin(t * 9 + u.phase) * .05, 1); break;
@@ -2061,17 +2062,53 @@ function animDecor(body, t) {
 }
 
 // The Hush: the Numbing given a body. Pale, eyeless, wearing eight stolen feelings like shards.
+// The Hush: a pale, faceless-calm core under three tattered shrouds, grey ribbons trailing to the ground,
+// a crown of thin bone spines, the ten feelings it has taken circling it on threads, a slower ring of ash-stones
+// turning the other way, and ash drifting up off it. It breathes; its mouth is a slit that opens and closes.
 function buildHush() {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const mat = toon('#d8d4cc', { emissive:new THREE.Color('#ffffff'), emissiveIntensity:.15 });
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.6, 1), mat); core.castShadow = true; inkScale(core, 1.05); body.add(core);
-  const shroud = new THREE.Mesh(new THREE.ConeGeometry(.9, 1.8, 10, 1, true), toon('#b8b4ac', { side:THREE.DoubleSide, transparent:true, opacity:.75 })); shroud.position.y = -.4; body.add(shroud);
-  body.add(MB(new THREE.BoxGeometry(.5, .03, .03), BLK, [0, .1, .58]));
+  const core = new THREE.Mesh(lumpy(new THREE.IcosahedronGeometry(.6, 3), .05, 2.5, 7), mat); core.castShadow = true; inkScale(core, 1.05); body.add(core);
+  // face: two deep hollows with a pinprick of light at the bottom of each, and a breathing slit
+  const hol = toon('#141216'), pin = emis('#f4efe2', 1.4), face = new THREE.Group(); face.position.set(0, .05, .5); body.add(face); face.rotation.x = -.1;
+  for (const sx of [-1, 1]) { const e = MB(new THREE.SphereGeometry(.12, 16, 12), hol, [sx * .19, .06, .02], { s:[.8, 1.7, .45], ink:0 }); e.rotation.z = sx * .25; face.add(e); face.add(MB(new THREE.SphereGeometry(.016, 8, 6), pin, [sx * .2, -.06, .08], { ink:0 })); }
+  const mouth = MB(new THREE.BoxGeometry(.06, .3, .03), hol, [0, -.26, .02], { ink:0 }); mouth.rotation.x = -.4; face.add(mouth);   // a long vertical seam, not a smile
+  // three shrouds, each hem torn into tatters
+  const shrouds = [];
+  for (const [r, h, y, c, op] of [[.95, 1.9, -.45, '#c8c4bc', .55], [.8, 1.7, -.38, '#b0aca4', .7], [.66, 1.45, -.3, '#9a968e', .85]]) {
+    const geo = new THREE.ConeGeometry(r, h, 28, 6, true), P = geo.attributes.position;
+    for (let i = 0; i < P.count; i++) { const yy = P.getY(i); if (yy < -h / 2 + .01) { const a = Math.atan2(P.getZ(i), P.getX(i)), tear = .5 + .5 * Math.sin(a * 7 + r * 9); P.setY(i, yy + tear * .35); P.setX(i, P.getX(i) * (1 + tear * .12)); P.setZ(i, P.getZ(i) * (1 + tear * .12)); } }
+    geo.computeVertexNormals(); const m = new THREE.Mesh(geo, toon(c, { side:THREE.DoubleSide, transparent:true, opacity:op })); m.position.y = y; body.add(m); shrouds.push(m); }
+  // grey ribbons trailing from under the shrouds
+  const ribbons = []; for (let i = 0; i < 11; i++) { const a = i / 11 * Math.PI * 2 + .3, rr = .7 + (i % 3) * .1, x = Math.cos(a) * rr, z = Math.sin(a) * rr;
+    const pts = [V3(x, -1.05, z), V3(x * 1.1 + .05, -1.3, z * 1.1), V3(x * 1.05 - .05, -1.5, z * 1.05), V3(x * 1.2, -1.75 - (i % 2) * .15, z * 1.2)];
+    const tg = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, .018, 5), P = tg.attributes.position;   // taper to a point
+    for (let j = 0; j < P.count; j++) { const yy = P.getY(j), k2 = Math.max(0, Math.min(1, (-1.05 - yy) / .8)); const cx = x + (x * .2) * k2, cz = z + (z * .2) * k2; P.setX(j, cx + (P.getX(j) - cx) * (1 - k2 * .85)); P.setZ(j, cz + (P.getZ(j) - cz) * (1 - k2 * .85)); }
+    const rb = new THREE.Mesh(tg, toon('#b8b4ac', { transparent:true, opacity:.45 })); body.add(rb); ribbons.push(rb); }
+  // crown of thin bone spines
+  // a broken halo behind the head: a pale ring with spines pointing out, a gap where a piece is missing
+  const crown = new THREE.Group(); crown.position.set(0, .2, -.35); body.add(crown);
+  crown.add(MB(new THREE.TorusGeometry(.85, .03, 6, 40, Math.PI * 1.7), toon('#e8e2d6'), [0, 0, 0], { rot:[0, 0, Math.PI * .65], ink:1.2 }));
+  for (let i = 0; i < 13; i++) { const a = Math.PI * .65 + i / 12 * Math.PI * 1.7, L = .2 + (i % 3) * .1, sp = MB(new THREE.ConeGeometry(.022, L, 5), toon('#e8e2d6'), [Math.cos(a) * (.85 + L / 2), Math.sin(a) * (.85 + L / 2), 0], { ink:1.15 }); sp.rotation.z = a - Math.PI / 2; crown.add(sp); }
+  // the ten feelings it has taken, each on a faint thread back to the core
   const ring = new THREE.Group(); ring.userData.spin = .4;
-  WHEEL.forEach((t, i) => { const a = i / 8 * Math.PI * 2; const s = MB(new THREE.OctahedronGeometry(.16, 0), emis(TYPES[t].c, .5), [Math.cos(a) * 1.15, Math.sin(i * 1.7) * .25, Math.sin(a) * 1.15], { s:[.7, 1.5, .7], ink:1.15 }); s.userData.type = t; ring.add(s); });
+  WHEEL.forEach((t, i) => { const a = i / WHEEL.length * Math.PI * 2, p = [Math.cos(a) * 1.25, Math.sin(i * 1.7) * .25, Math.sin(a) * 1.25];
+    const s = MB(new THREE.OctahedronGeometry(.16, 0), emis(TYPES[t].c, .5), p, { s:[.7, 1.5, .7], ink:1.15 }); s.userData.type = t; ring.add(s);
+    const th = new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(...p).multiplyScalar(.92), V3(...p).multiplyScalar(.45)]), new THREE.LineBasicMaterial({ color:TYPES[t].c, transparent:true, opacity:.35 })); ring.add(th); });
   body.add(ring);
-  const gl = glow('#ffffff', 4, .35); g.add(gl);
-  g.userData = { body, mat, glow:gl, shape:'hush', phase:0, tier:2, ring };
+  // a slower ring of grey ash-stones, tilted, turning the other way
+  const ash = new THREE.Group(); ash.rotation.x = .5; body.add(ash);
+  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; ash.add(MB(new THREE.DodecahedronGeometry(.05 + (i % 3) * .02, 0), toon('#8a8680'), [Math.cos(a) * 1.6, 0, Math.sin(a) * 1.6], { ink:1.1 })); }
+  // ash drifting up off it
+  const N = 60, pp = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pp[i * 3] = (Math.random() - .5) * 2.4; pp[i * 3 + 1] = Math.random() * 3 - 1.5; pp[i * 3 + 2] = (Math.random() - .5) * 2.4; }
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); const dust = new THREE.Points(pg, new THREE.PointsMaterial({ color:'#d8d4cc', size:.05, transparent:true, opacity:.6, depthWrite:false })); body.add(dust);
+  const gl = glow('#ffffff', 4, .35); g.add(gl); const inner = glow('#e8e4ff', 1.6, .5); body.add(inner);
+  const hushAnim = t => { const br = Math.sin(t * .9); core.scale.setScalar(1 + br * .03); mouth.scale.set(1 + Math.max(0, br) * 1.6, 1 + br * .12, 1);
+    shrouds.forEach((m, i) => { m.rotation.y = Math.sin(t * .3 + i) * .25; m.scale.x = m.scale.z = 1 + Math.sin(t * .8 + i * 2) * .03; });
+    ribbons.forEach((r, i) => { r.rotation.x = Math.sin(t * .7 + i) * .06; r.rotation.z = Math.cos(t * .6 + i * 1.3) * .06; });
+    crown.rotation.z = Math.sin(t * .2) * .15; ash.rotation.y = -t * .25; inner.material.opacity = .35 + .15 * Math.sin(t * 1.3);
+    const P = pg.attributes.position; for (let i = 0; i < N; i++) { let y = P.getY(i) + .006; if (y > 1.8) y = -1.4; P.setY(i, y); } P.needsUpdate = true; };
+  g.userData = { body, mat, glow:gl, shape:'hush', phase:0, tier:2, ring, hushAnim };
   g.scale.setScalar(1.6);
   return g;
 }
@@ -2620,6 +2657,291 @@ const SCULPT = {
   LOATHING: k => { k.anim = 'breathe'; k.cyl(.6, .62, .02, [0, -.46, 0], { m:k.mat('#7a8a3a'), seg:28 }); k.ball(.36, [0, -.12, -.06], { s:[1.25, .85, 1.25] }); for (const [x, z] of [[-.3, .28], [.3, .28], [-.32, -.3], [.32, -.3]]) { PK.arm(k, [x * .7, -.2, z * .7], [x, -.44, z], .07, { end:0 }); PK.claws(k, [x, -.44, z], [x, 0, 1], { n:3, len:.1, r:.014 }); }
     k.face({ e:'glow', gc:'#ff8a3a', st:.55, es:.03, sp:.11, m:'teeth', mw:.09, my:-.1 }, [0, -.06, .36]); }
 };
+// =============================================================================
+//  REDESIGNS (13 Nov) — Manifs Blaine flagged as unclear or too alike. Each has a
+//  silhouette and a prop or pose of its own that reads as the feeling, in its
+//  family's body and light (lit for the bright feelings, charcoal for the heavy),
+//  with the same faces as the rest. No animals. Overrides SCULPT entries in d8.
+// =============================================================================
+Object.assign(SCULPT, {
+  // ─────────────────────────────── JOY ───────────────────────────────
+  // Pride: chest puffed, chin up, fists on hips, a gold rosette pinned on.
+  PRIDE: k => { k.anim = 'sway'; k.lathe([[0, -.46], [.24, -.45], [.27, -.3], [.33, -.08], [.34, .08], [.27, .22], [.16, .3], [0, .33]]);
+    const hd = k.grp([0, .42, .02], { rot:[-.35, 0, 0] }); k.ball(.16, [0, 0, 0], { p:hd });
+    for (const sx of [-1, 1]) { PK.arm(k, [sx * .3, .1, 0], [sx * .44, -.04, .04], .05, { end:0 }); PK.arm(k, [sx * .44, -.04, .04], [sx * .3, -.12, .1], .05, { hand:1.3 }); }
+    const gold = k.mat('#ffd040', { e:.8 }); k.cyl(.07, .07, .025, [-.12, .14, .3], { m:gold, rot:[1.45, 0, 0], seg:16 });
+    for (const sx of [-1, 1]) k.box(.035, .13, .01, [-.12 + sx * .03, .03, .3], { m:k.mat('#c0302a'), rot:[0, 0, sx * .2], ink:0, rr:.005 });
+    k.face({ e:'calm', m:'smirk', es:.035, sp:.065, mw:.04 }, [0, .02, .15], 1, hd); },
+
+  // ─────────────────────────────── HOPE ───────────────────────────────
+  // Faith: a veiled figure, head bowed, cupping a small flame close; a thin halo behind.
+  FAITH: k => { k.anim = 'still'; k.lathe([[0, -.46], [.3, -.45], [.26, -.2], [.2, .1], [.17, .3], [.13, .42], [0, .46]]);
+    k.lathe([[.14, .44], [.19, .36], [.24, .12], [.3, -.15], [.36, -.42]], [0, 0, -.02], { m:k.mat('#fff8ee', { e:.4, op:.7 }), ink:0, seg:24 });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .17, .12, .06], [sx * .05, .06, .28], .04, { hand:1.2 });
+    const fl = PK.orb(k, .04, [0, .12, .3], '#ffb040', 1.8); k.tag(fl, 'e', .5, 4); k.cone(.03, .09, [0, .19, .3], { m:k.mat('#ffd070', { e:1.2 }), ink:0, seg:8 });
+    PK.ring(k, .2, .012, [0, .5, -.12], '#fff0c0', { e:1, rot:[0, 0, 0] });
+    k.face({ e:'calm', m:'smile', es:.03, sp:.06, mw:.025, my:-.07 }, [0, .3, .16]); },
+  // Interest: leaning in, a hand to its chin, one curl springing up off its head.
+  INTEREST: k => { k.anim = 'scan'; const g = k.grp([0, 0, 0], { rot:[.15, 0, .1] }); k.ball(.27, [0, -.18, 0], { s:[1, 1.15, .95], p:g }); k.ball(.2, [0, .2, .04], { p:g });
+    const c = k.tube([[0, .38, .02], [.02, .5, 0], [.1, .55, .02], [.12, .47, .03], [.06, .45, .03]], .015, { m:k.m, p:g }); k.tag(c, 'rz', .2, 3);
+    PK.arm(k, [.22, -.08, .06], [.1, .06, .22], .045, { p:g }); PK.arm(k, [-.24, -.1, .04], [-.3, -.3, .08], .045, { p:g });
+    k.face({ e:'big', m:'o', es:.035, sp:.07, mw:.025, p:[.5, .3] }, [0, .22, .21], 1, g); },
+  // Anticipation: up on tiptoe, hands clasped under its chin, three lights above counting down.
+  ANTICIPATION: k => { k.anim = 'bounce'; k.lathe([[0, -.46], [.06, -.45], [.1, -.38], [.2, -.2], [.25, 0], [.22, .2], [.14, .33], [0, .36]]);
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .2, .06, .05], [sx * .03, .16, .24], .04, { hand:1.2 });
+    for (let i = 0; i < 3; i++) { const m = k.uniq('#fff0b0', .2); k.ball(.04, [-.12 + i * .12, .56, 0], { m, ink:1.1 }); k.tag(m, 'e', 1.4, .9, -i * 1.2, 'abs'); }
+    k.face({ e:'big', m:'smile', es:.032, sp:.065, mw:.03, p:[0, .6], bl:1 }, [0, .2, .21]); },
+  // Reassurance: a big soft one with an arm around a small one leaning into it.
+  REASSURANCE: k => { k.anim = 'breathe'; k.ball(.3, [-.06, -.18, 0], { s:[1, 1.1, .9] }); k.ball(.18, [-.08, .2, .02]);
+    PK.arm(k, [.12, -.02, .1], [.32, -.12, .16], .055, { end:0 }); PK.arm(k, [.32, -.12, .16], [.38, -.24, .16], .05);
+    const sm = k.grp([.33, -.3, .08], { rot:[0, 0, .3] }); k.ball(.12, [0, 0, 0], { p:sm, s:[1, 1.15, 1] }); k.face({ e:'calm', m:'smile', es:.02, sp:.04, mw:.015 }, [0, .03, .11], 1, sm);
+    k.face({ e:'calm', m:'smile', es:.032, sp:.065, mw:.035, bl:1, p:[.4, 0] }, [-.06, .2, .19]); },
+  // Yearning: stretched upward off the ground, both arms reaching for a star just out of reach.
+  YEARNING: k => { k.anim = 'rise'; k.lathe([[0, -.3], [.06, -.28], [.15, -.12], [.19, .1], [.16, .3], [.1, .42], [0, .45]]);
+    k.tube([[0, -.3, 0], [.04, -.38, -.03], [-.02, -.45, -.06]], .03, { m:k.m });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .12, .25, 0], [sx * .1 + .04, .62, .04], .035);
+    PK.star4(k, [.08, .82, .06], .06, { m:k.mat('#fff4b8', { e:1.3 }) });
+    k.face({ e:'round', m:'o', es:.03, sp:.055, mw:.02, p:[.2, 1] }, [0, .26, .16]); },
+  // Aspiration: climbing a stair of floating steps toward the light at the top.
+  ASPIRATION: k => { k.anim = 'float'; const st = k.mat('#fff0cc', { e:.5 });
+    for (let i = 0; i < 4; i++) k.box(.22, .05, .16, [-.36 + i * .18, -.42 + i * .14, 0], { m:st, rr:.02 });
+    const g = k.grp([.22, 0, 0]); k.ball(.13, [0, .05, 0], { p:g, s:[1, 1.25, 1] }); k.ball(.09, [0, .26, .01], { p:g });
+    PK.leg(k, -.05, -.06, -.14, .03, { p:g }); PK.leg(k, .05, -.04, -.04 + -.05, .03, { p:g }); PK.arm(k, [.08, .1, 0], [.18, .36, .02], .03, { p:g });
+    PK.orb(k, .05, [.4, .52, 0], '#fff4c8', 1.6); k.face({ e:'round', m:'smile', es:.022, sp:.04, mw:.018, b:.15, p:[.6, .5] }, [0, .27, .09], 1, g); },
+
+  // ─────────────────────────────── CALM ───────────────────────────────
+  // Relaxation: lounging back on a floating lily pad, hands behind its head.
+  RELAXATION: k => { k.anim = 'rock'; k.cyl(.36, .38, .04, [0, -.38, 0], { m:k.mat('#3a9a8a', { e:.3 }), seg:28 });
+    const g = k.grp([0, -.22, 0], { rot:[-1.0, 0, 0] }); k.ball(.2, [0, 0, 0], { p:g, s:[1.1, 1.35, .8] }); k.ball(.14, [0, .3, .02], { p:g });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .14, .2, 0], [sx * .12, .4, -.08], .035, { p:g });
+    PK.leg(k, -.08, -.22, -.3, .04, { p:g, z:.05 }); PK.leg(k, .1, -.2, -.24, .04, { p:g, z:.12 });
+    k.face({ e:'calm', m:'smile', es:.028, sp:.055, mw:.03 }, [0, .3, .14], 1, g); },
+  // Composure: tall and straight, hands folded, a neat collar; nothing out of place.
+  COMPOSURE: k => { k.anim = 'still'; k.lathe([[0, -.46], [.22, -.46], [.2, -.3], [.16, -.05], [.14, .15], [.11, .26], [0, .28]]); k.ball(.13, [0, .39, 0]);
+    k.torus(.1, .025, [0, .27, 0], { m:k.mat('#e8fafa', { e:.5 }), rot:[Math.PI / 2, 0, 0], ink:0 });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .14, .16, .02], [sx * .03, -.02, .17], .035, { hand:1.1 });
+    k.face({ e:'half', m:'smile', es:.025, sp:.045, mw:.018, lid:k.m }, [0, .39, .12]); },
+  // Calmness: a smooth pebble afloat over water, rings spreading out under it.
+  CALMNESS: k => { k.anim = 'float'; k.ball(.26, [0, .05, 0], { s:[1.2, .8, 1.05] });
+    for (let i = 0; i < 3; i++) { const r = PK.ring(k, .18, .01, [0, -.44, 0], '#a8f0f2', { e:.6 }); k.tag(r, 's', 1.6, .35, i * 2.1, 'saw'); }
+    k.face({ e:'calm', m:'smile', es:.035, sp:.08, mw:.03 }, [0, .06, .25]); },
+  // Centeredness: sitting cross-legged, a light at its middle and three small lights stacked above.
+  CENTEREDNESS: k => { k.anim = 'breathe'; k.ball(.28, [0, -.36, 0], { s:[1.45, .4, 1.1] }); k.lathe([[0, -.32], [.2, -.3], [.21, -.1], [.17, .08], [0, .12]]); k.ball(.15, [0, .25, 0]);
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .17, 0, .02], [sx * .3, -.28, .12], .035, { hand:1.1 });
+    PK.orb(k, .045, [0, -.1, .2], '#bff8fa', 1.6); for (let i = 0; i < 3; i++) { const o = PK.orb(k, .022, [0, .48 + i * .1, 0], '#d8fcfc', 1.3); k.tag(o, 'e', .8, 1.2, i, 'abs'); }
+    k.face({ e:'calm', m:'none', es:.03, sp:.055 }, [0, .26, .14]); },
+
+  // ─────────────────────────────── CONFIDENCE ───────────────────────────────
+  // Boldness: mid-stride, fist out front, a scarf streaming behind, a big grin.
+  BOLDNESS: k => { k.anim = 'charge'; const g = k.grp([0, 0, 0], { rot:[-.12, 0, 0] }); k.ball(.27, [0, -.1, 0], { s:[1.1, 1.1, 1], p:g }); k.ball(.17, [0, .28, .05], { p:g });
+    PK.arm(k, [.2, 0, .1], [.18, .06, .42], .055, { hand:1.4, p:g }); PK.arm(k, [-.22, 0, 0], [-.3, -.18, -.18], .05, { p:g });
+    PK.leg(k, -.1, -.32, -.45, .055, { z:-.12 }); PK.leg(k, .1, -.32, -.45, .055, { z:.14 });
+    const sc = k.tube([[0, .14, -.1], [-.12, .18, -.32], [-.06, .26, -.5], [-.16, .3, -.62]], .03, { m:k.mat('#e8402a', { e:.3 }), ink:0, p:g }); k.tag(sc, 'ry', .15, 5);
+    k.face({ e:'round', m:'grin', es:.032, sp:.065, mw:.05, b:-.15, by:.01 }, [0, .3, .2], 1, g); },
+  // Assertiveness: on a little box, pointing straight ahead, other hand on its hip.
+  ASSERTIVENESS: k => { k.anim = 'still'; k.box(.42, .14, .32, [0, -.39, 0], { m:k.mat('#b08a3a'), rr:.02 });
+    k.lathe([[0, -.32], [.2, -.31], [.22, -.1], [.2, .12], [.13, .24], [0, .26]]); k.ball(.15, [0, .36, 0]);
+    PK.arm(k, [.18, .1, .04], [.18, .14, .44], .04, { hand:.9 }); k.cone(.015, .08, [.18, .14, .51], { rot:[Math.PI / 2, 0, 0], seg:6 });
+    PK.arm(k, [-.18, .08, 0], [-.3, -.02, .04], .04, { end:0 }); PK.arm(k, [-.3, -.02, .04], [-.17, -.1, .08], .04);
+    k.face({ e:'round', m:'flat', es:.03, sp:.06, mw:.03, b:.3 }, [0, .37, .14]); },
+  // Grit: a lumpy, rock-hard body leaning into a boulder, teeth set, sweat flying.
+  GRIT: k => { k.anim = 'strain'; const g = k.grp([-.08, 0, 0], { rot:[0, .5, -.2] }); k.dodec(.27, [0, -.15, 0], { p:g }); k.ball(.16, [.02, .2, .05], { p:g, d:1 });
+    k.dodec(.22, [.36, -.24, .1], { m:k.mat('#8a7a5a') });
+    for (const sy of [0, -.16]) PK.arm(k, [.12, sy, .1], [.24, sy - .02, .1], .05, { p:g, hand:1.3 });
+    PK.leg(k, -.12, -.36, -.45, .055, { z:-.1 }); PK.leg(k, .04, -.36, -.45, .055, { z:-.2 });
+    const sw = k.ball(.02, [-.14, .34, .1], { m:k.mat('#cfe8ff', { e:.6 }), s:[.7, 1.4, .7], ink:0 }); k.tag(sw, 'py', .08, 2.5, 0, 'saw');
+    k.face({ e:'mad', m:'teeth', es:.03, sp:.06, mw:.03 }, [0, .2, .21], 1, g); },
+  // Endurance: three heavy stones balanced across its shoulders; knees bent, steady.
+  ENDURANCE: k => { k.anim = 'breathe'; k.lathe([[0, -.38], [.22, -.36], [.27, -.15], [.27, .08], [.2, .22], [0, .26]]); k.ball(.14, [0, .32, .04]);
+    PK.leg(k, -.12, -.36, -.45, .055, { spread:1.4 }); PK.leg(k, .12, -.36, -.45, .055, { spread:1.4 });
+    k.dodec(.3, [0, .42, -.22], { m:k.mat('#8a8070') });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .22, .12, 0], [sx * .2, .34, -.12], .045, { hand:1.3 });
+    k.face({ e:'half', m:'flat', es:.028, sp:.055, mw:.025, lid:k.m }, [0, .32, .17]); },
+  // Conviction: a figure of light planted like a pillar, hand over its blazing heart, a beam running up through it.
+  CONVICTION: k => { k.anim = 'pulse'; k.lathe([[0, -.46], [.3, -.46], [.24, -.36], [.2, -.1], [.2, .15], [.16, .3], [0, .34]]); k.ball(.15, [0, .44, 0]);
+    const beam = k.cyl(.03, .03, 1.5, [0, .2, -.02], { m:k.mat('#fff4c0', { e:1.2, op:.5 }), ink:0, sh:1 }); k.tag(beam.material, 'e', .5, 2);
+    PK.orb(k, .06, [-.05, .14, .2], '#ffb030', 1.8); PK.arm(k, [-.18, .2, .02], [-.07, .14, .22], .045, { hand:1.3 }); PK.arm(k, [.18, .2, .02], [.24, -.08, .06], .045, { hand:1.2 });
+    k.face({ e:'glow', gc:'#fff6d0', st:.25, es:.025, sp:.06, m:'flat', mw:.025, b:.25 }, [0, .45, .14]); },
+
+  // ─────────────────────────────── SURPRISE ───────────────────────────────
+  // Intrigue: squinting through a magnifying glass held up to one eye.
+  INTRIGUE: k => { k.anim = 'scan'; k.ball(.26, [0, -.2, 0], { s:[1, 1.1, .95] }); k.ball(.19, [0, .17, .03]);
+    const lens = k.grp([.1, .2, .26]); k.torus(.075, .012, [0, 0, 0], { p:lens, m:k.mat('#8a6a3a'), rot:[0, 0, 0] }); k.cyl(.07, .07, .005, [0, 0, 0], { p:lens, m:k.mat('#d8f0ff', { e:.4, op:.4 }), rot:[Math.PI / 2, 0, 0], ink:0 });
+    k.limb([.15, .14, .26], [.22, -.04, .24], .012, { m:k.mat('#5a4030') }); PK.arm(k, [.18, -.06, .05], [.22, -.04, .22], .04);
+    k.face({ e:'side', m:'smirk', es:.032, sp:.065, mw:.025, p:[.4, 0], b:.2, b2:-.2 }, [0, .18, .2]); },
+  // Curiosity: a little one on its toes, peering up at a glowing bud on a long stalk it grew itself.
+  CURIOSITY: k => { k.anim = 'bob'; k.ball(.22, [0, -.24, 0], { s:[1, 1.2, .95] }); k.ball(.15, [0, .07, .03]);
+    k.tube([[0, .2, 0], [.05, .38, 0], [.16, .5, .04], [.24, .48, .08]], .012, { m:k.mat('#9ab060') });
+    const bud = PK.orb(k, .045, [.25, .45, .1], '#fff4a0', 1.4); k.tag(bud, 'e', .6, 2);
+    PK.arm(k, [.16, -.1, .06], [.24, .08, .14], .035);
+    k.face({ e:'big', m:'o', es:.03, sp:.055, mw:.02, p:[.6, .9] }, [0, .08, .15]); },
+  // Astonishment: jolted clean off the ground, hands on its cheeks, everything standing on end.
+  ASTONISHMENT: k => { k.anim = 'hop'; k.lathe([[0, -.3], [.18, -.28], [.24, -.1], [.24, .1], [.18, .26], [0, .3]], [0, .05, 0]);
+    for (let i = 0; i < 7; i++) { const a = (i / 6 - .5) * 2.2; PK.spike(k, [Math.sin(a) * .14, .34 + Math.cos(a) * .04, 0], [Math.sin(a), 1.4, 0], .12, .02, { m:k.m }); }
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .2, .05, .05], [sx * .14, .2, .2], .035, { hand:1.3 });
+    PK.burst(k, 10, [0, .05, -.1], .42, .1, { r:.01, m:k.mat('#fff0a0', { e:1 }) });
+    k.face({ e:'wide', m:'scream', es:.035, sp:.07, mw:.035 }, [0, .14, .23]); },
+  // Epiphany: one finger in the air, a lit bulb bursting over its head.
+  EPIPHANY: k => { k.anim = 'pulse'; k.ball(.26, [0, -.2, 0], { s:[1, 1.15, .95] }); k.ball(.18, [0, .18, .03]);
+    PK.arm(k, [.2, .02, .04], [.26, .34, .06], .035, { hand:.8 }); k.cone(.014, .07, [.26, .41, .06], { seg:6 });
+    const b = PK.orb(k, .08, [0, .56, 0], '#fff6b0', 2); k.cyl(.035, .03, .05, [0, .47, 0], { m:k.mat('#9a9a8a') }); k.tag(b, 'e', 1, 3, 0, 'abs');
+    PK.burst(k, 9, [0, .56, 0], .12, .1, { r:.012, m:k.mat('#fff0a0', { e:1.2 }) });
+    k.face({ e:'star', m:'open', es:.03, sp:.065, mw:.03 }, [0, .2, .19]); },
+
+  // ─────────────────────────────── SADNESS ───────────────────────────────
+  // Longing: holding a glowing memory against its chest, looking off at something gone.
+  LONGING: k => { k.anim = 'sigh'; const f = PK.ghost(k, { h:.82, w:.24, fl:1.25 }); for (const sx of [-1, 1]) PK.arm(k, [sx * .18, .05, .06], [sx * .04, .02, .27], .04);
+    PK.orb(k, .05, [0, .03, .3], '#bcd8ff', 1.4); k.face({ e:'sad', m:'none', es:.032, sp:.06, p:[-.8, .4] }, [0, f.fy, f.fz]); },
+  // Heartbreak: a red heart in its chest, split down the middle, one half slipping loose.
+  HEARTBREAK: k => { k.anim = 'droop'; k.lathe([[0, -.46], [.3, -.45], [.28, -.2], [.25, .05], [.18, .22], [.08, .32], [0, .34]]);
+    const red = k.mat('#c8303a', { e:.4 });
+    const L = k.grp([-.03, .02, .26]); k.ball(.06, [-.04, .03, 0], { m:red, p:L }); k.cone(.065, .12, [-.01, -.06, 0], { m:red, p:L, rot:[0, 0, Math.PI + .5], seg:12 });
+    const R = k.grp([.05, -.02, .26], { rot:[0, 0, -.35] }); k.ball(.06, [.04, .03, 0], { m:red, p:R }); k.cone(.065, .12, [.01, -.06, 0], { m:red, p:R, rot:[0, 0, Math.PI - .5], seg:12 }); k.tag(R, 'py', -.02, 1.2);
+    PK.arm(k, [-.22, -.02, .04], [-.12, -.02, .26], .04);
+    k.face({ e:'sad', m:'frown', es:.032, sp:.065, mw:.03, tear:1 }, [0, .2, .2]); },
+  // Disappointment: slouched, holding the string of a balloon that's gone soft and sagging.
+  DISAPPOINTMENT: k => { k.anim = 'droop'; const g = k.grp([0, 0, 0], { rot:[.2, 0, 0] }); k.ball(.27, [0, -.22, 0], { s:[1.1, .95, 1], p:g }); k.ball(.16, [0, .12, .04], { p:g });
+    PK.arm(k, [.2, -.15, .06], [.3, -.22, .14], .04, { p:g }); k.tube([[.32, -.22, .16], [.36, -.05, .18], [.34, .1, .16]], .005, { m:k.mat('#d8d8d8'), ink:0 });
+    const bl = k.ball(.1, [.3, .1, .12], { m:k.mat('#7aa0d8', { e:.15 }), s:[1.2, .55, 1] }); bl.rotation.z = .6; k.tag(bl, 'rz', .1, 1);
+    k.face({ e:'half', m:'frown', es:.03, sp:.06, mw:.03, lid:k.m, p:[.4, .2] }, [0, .12, .19], 1, g); },
+  // Dejection: sat on the ground, arms around its knees, head down on them.
+  DEJECTION: k => { k.anim = 'breathe'; k.ball(.25, [0, -.3, -.05], { s:[1.2, .7, 1.1] }); k.ball(.13, [-.08, -.2, .2], { s:[1, .8, 1] }); k.ball(.13, [.08, -.2, .2], { s:[1, .8, 1] });
+    const hd = k.grp([0, -.04, .1], { rot:[.7, 0, 0] }); k.ball(.16, [0, 0, 0], { p:hd });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .22, -.2, 0], [sx * .05, -.2, .3], .04);
+    k.face({ e:'shut', m:'none', es:.022, sp:.05 }, [0, -.03, .14], 1, hd); },
+  // Sorrow: tall and draped, hands over its face, two thin streams falling from under them.
+  SORROW: k => { k.anim = 'sob'; k.lathe([[0, -.46], [.34, -.46], [.28, -.2], [.21, .1], [.17, .3], [.1, .42], [0, .44]]);
+    for (const sx of [-1, 1]) { PK.arm(k, [sx * .17, .18, .03], [sx * .06, .3, .17], .04, { hand:1.5 }); }
+    for (const sx of [-1, 1]) { const t = k.tube([[sx * .06, .24, .19], [sx * .07, .05, .22], [sx * .09, -.2, .27], [sx * .12, -.44, .32]], .01, { m:k.mat('#a8d0ff', { e:.6, op:.75 }), ink:0 }); k.tag(t, 'sy', .04, 3, sx); } },
+  // Grief: hooded and kneeling at a small stone with one flower laid on it.
+  GRIEF: k => { k.anim = 'still'; const g = k.grp([-.1, -.05, -.05], { rot:[.4, 0, 0] }); PK.ghost(k, { h:.7, w:.27, fl:1.3, p:g, y0:-.4 });
+    PK.hood(k, .16, [0, .25, .04], { p:g }); PK.arm(k, [.18, -.02, .1], [.3, -.18, .28], .04, { p:g });
+    k.box(.16, .22, .07, [.3, -.36, .2], { m:k.mat('#6a7080'), rr:.04 }); k.tube([[.26, -.25, .25], [.3, -.24, .25], [.33, -.26, .24]], .006, { m:k.mat('#6a9a4a'), ink:0 }); k.ball(.025, [.25, -.25, .25], { m:k.mat('#f0f0f0', { e:.5 }), ink:0 }); },
+  // Loneliness: small, at the far end of a long empty bench, looking at the empty seat.
+  LONELINESS: k => { k.anim = 'breathe'; const wd = k.mat('#4a5568'); k.box(.9, .04, .2, [0, -.26, 0], { m:wd, rr:.015 }); for (const x of [-.4, .4]) k.box(.04, .2, .16, [x, -.37, 0], { m:wd, rr:.01 });
+    const g = k.grp([.3, -.1, 0]); k.ball(.13, [0, 0, 0], { p:g, s:[1, 1.2, 1] }); k.ball(.09, [0, .17, .01], { p:g });
+    k.face({ e:'sad', m:'none', es:.022, sp:.04, p:[-1, -.3] }, [0, .17, .085], 1, g); },
+
+  // ─────────────────────────────── FEAR ───────────────────────────────
+  // Unease: leaning away, holding one arm with the other, eyes flicking side to side.
+  UNEASE: k => { k.anim = 'sway'; const g = k.grp([0, 0, 0], { rot:[-.12, 0, .1] }); PK.ghost(k, { h:.74, w:.22, fl:1.2, p:g });
+    PK.arm(k, [.15, .08, .05], [-.06, -.02, .22], .035, { p:g }); PK.arm(k, [-.15, .08, .05], [-.16, -.08, .14], .035, { p:g });
+    const fc = k.face({ e:'glow', gc:WHITEEYE, es:.016, sp:.045, m:'wavy', mw:.025 }, [0, .3, .19], 1, g); k.tag(fc, 'px', .03, 1.5); },
+  // Worry: wringing its hands, brows pinched, three worry-lines circling its head.
+  WORRY: k => { k.anim = 'breathe'; const f = PK.ghost(k, { h:.76, w:.25, fl:1.2 }); for (const sx of [-1, 1]) PK.arm(k, [sx * .18, 0, .06], [sx * .02, -.08, .26], .035, { hand:1.3 });
+    const o = k.grp([0, .5, 0]); for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; k.tube([[Math.cos(a) * .2, 0, Math.sin(a) * .2], [Math.cos(a + .2) * .21, .02, Math.sin(a + .2) * .21], [Math.cos(a + .4) * .2, 0, Math.sin(a + .4) * .2]], .008, { m:k.mat('#e8e0f0', { e:.6 }), ink:0, p:o }); } k.tag(o, 'ry', 1, .5, 0, 'spin');
+    k.face({ e:'glow', gc:WHITEEYE, st:-.4, es:.016, sp:.05, m:'wavy', mw:.03 }, [0, f.fy, f.fz]); },
+  // Anxiety: a tangle of scribble over its head, biting its nails, never still.
+  ANXIETY: k => { k.anim = 'jitter'; k.ball(.25, [0, -.2, 0], { s:[1, 1.15, .95] }); k.ball(.17, [0, .15, .03]);
+    const sc = k.grp([0, .42, 0]); for (let i = 0; i < 3; i++) k.tube(helix(.1 + i * .02, -.04, .08, 2.2, 30).map(([x, y, z]) => [x + (i - 1) * .05, y + i * .02, z]), .007, { m:k.mat('#d8d0e8', { e:.5 }), ink:0, p:sc }); k.tag(sc, 'rz', .3, 7);
+    PK.arm(k, [.15, -.05, .06], [.03, .06, .2], .035, { hand:1.1 });
+    k.face({ e:'wide', m:'teeth', es:.03, sp:.06, mw:.02 }, [0, .16, .17]); },
+  // Nervousness: thin and shaking, knees knocking together, sweat beading.
+  NERVOUSNESS: k => { k.anim = 'tremble'; k.lathe([[0, -.18], [.15, -.16], [.17, .05], [.14, .25], [.08, .36], [0, .38]]);
+    for (const sx of [-1, 1]) k.limb([sx * .08, -.16, 0], [sx * .01, -.32, .03], .03), k.limb([sx * .01, -.32, .03], [sx * .1, -.45, .02], .028);
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .14, .12, .03], [sx * .08, -.05, .13], .028);
+    for (const [x, y] of [[.13, .3], [-.12, .26]]) { const d = k.ball(.016, [x, y, .1], { m:k.mat('#cfe8ff', { e:.6 }), s:[.7, 1.3, .7], ink:0 }); k.tag(d, 'py', -.1, 1.4, x * 10, 'saw'); }
+    k.face({ e:'wide', m:'wavy', es:.024, sp:.05, mw:.025 }, [0, .24, .14]); },
+  // Dread: hunched, edging toward a dark doorway it can't stop looking at.
+  DREAD: k => { k.anim = 'sink'; const dr = k.uniq('#0a080c', .0); k.box(.04, .7, .34, [-.35, -.1, -.1], { m:dr, rr:.02, rot:[0, .4, 0] });
+    k.box(.05, .78, .42, [-.36, -.08, -.12], { m:k.mat('#3a3440'), rr:.02, rot:[0, .4, 0] });
+    const g = k.grp([.12, 0, 0], { rot:[.35, -.6, 0] }); PK.ghost(k, { h:.62, w:.22, fl:1.3, p:g, y0:-.4 });
+    k.face({ e:'glow', gc:WHITEEYE, st:-.3, es:.014, sp:.04, m:'none', p:[-1, 0] }, [0, .1, .17], 1, g); },
+  // Terror: thrown back, arms flung up, huge white eyes and a scream, edges torn ragged.
+  TERROR: k => { k.anim = 'shiver'; const g = k.grp([0, 0, 0], { rot:[-.3, 0, 0] }); PK.ghost(k, { h:.86, w:.27, fl:1.4, p:g });
+    for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; PK.spike(k, [Math.cos(a) * .36, -.44, Math.sin(a) * .36], [Math.cos(a), .2, Math.sin(a)], .1, .03, { m:k.m, p:g }); }
+    for (const sx of [-1, 1]) { PK.arm(k, [sx * .2, .12, 0], [sx * .38, .5, .04], .035, { end:0, p:g }); PK.claws(k, [sx * .38, .5, .04], [sx * .5, 1, 0], { n:4, len:.08, r:.008, p:g }); }
+    k.face({ e:'wide', es:.034, sp:.07, m:'scream', mw:.045 }, [0, .25, .24], 1, g); },
+
+  // ─────────────────────────────── ANGER ───────────────────────────────
+  // Exasperation: both hands thrown up, eyes rolled to the sky, steam puffing off the top.
+  EXASPERATION: k => { k.anim = 'huff'; const f = PK.ghost(k, { h:.74, w:.26, fl:1.15 }); for (const sx of [-1, 1]) PK.arm(k, [sx * .2, .1, 0], [sx * .42, .28, .05], .04, { hand:1.3 });
+    for (let i = 0; i < 3; i++) { const p = k.ball(.05 + i * .01, [(i - 1) * .08, .45, 0], { m:k.mat('#f0e8e0', { e:.4, op:.8 }), ink:0 }); k.tag(p, 'py', .3, .8, i * 2, 'saw'); }
+    k.face({ e:'glow', gc:EMBER, st:.1, es:.016, sp:.05, m:'flat', mw:.035, p:[0, 1] }, [0, f.fy, f.fz]); },
+  // Bitterness: arms folded, mouth puckered sour, ember cracks running through it.
+  BITTERNESS: k => { k.anim = 'still'; k.lathe([[0, -.46], [.3, -.45], [.29, -.2], [.25, .05], [.18, .22], [0, .26]]); k.ball(.15, [0, .34, .02]);
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .26, .04, .04], [-sx * .12, -.02, .28], .045, { end:0 });
+    const em = k.mat(EMBER, { e:1 }); for (const pts of [[[-.2, -.1, .24], [-.12, -.2, .26], [-.16, -.32, .25]], [[.22, -.25, .22], [.12, -.3, .26], [.16, -.42, .26]], [[.06, .18, .2], [.12, .1, .22]]]) k.tube(pts, .008, { m:em, ink:0 });
+    k.face({ e:'glow', gc:EMBER, st:.5, es:.016, sp:.05, m:'pucker', mw:.03 }, [0, .34, .14]); },
+  // Rage: erupting at the top like a volcano, molten cracks, fists up, teeth bared.
+  RAGE: k => { k.anim = 'stomp'; k.lathe([[0, -.46], [.38, -.46], [.33, -.2], [.27, .1], [.2, .3], [.24, .38], [0, .36]]);
+    const lava = k.uniq('#ff4a1a', 1.2); k.tag(lava, 'e', .6, 6); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const c = PK.spike(k, [Math.cos(a) * .12, .4, Math.sin(a) * .12], [Math.cos(a) * .5, 1, Math.sin(a) * .5], .18 + (i % 3) * .06, .04, { m:lava }); k.tag(c, 'sy', .3, 9, i, 'abs'); }
+    for (const pts of [[[-.3, -.3, .18], [-.2, -.1, .25], [-.1, .1, .22]], [[.28, -.35, .2], [.18, -.15, .26]], [[.05, -.42, .3], [0, -.25, .3]]]) k.tube(pts, .012, { m:lava, ink:0 });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .26, .05, 0], [sx * .42, .3, .08], .06, { hand:1.6 });
+    k.face({ e:'glow', gc:'#ffd040', st:.6, es:.024, sp:.07, m:'teeth', mw:.045 }, [0, .12, .27]); },
+
+  // ─────────────────────────────── SHAME ───────────────────────────────
+  // Contrition: kneeling with hands pressed together, a small flower laid in front as an apology.
+  CONTRITION: k => { k.anim = 'bow'; const g = k.grp([0, -.08, -.05], { rot:[.5, 0, 0] }); PK.ghost(k, { h:.6, w:.22, fl:1.2, p:g, y0:-.35 });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .15, .02, .1], [sx * .015, .1, .3], .033, { hand:1.3, p:g });
+    k.tube([[0, -.44, .3], [.02, -.42, .38], [.03, -.4, .44]], .006, { m:k.mat('#6a8a4a'), ink:0 }); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; k.ball(.018, [.03 + Math.cos(a) * .025, -.38 + Math.sin(a) * .025, .45], { m:k.mat('#e8a0b0', { e:.4 }), ink:0 }); }
+    k.face({ e:'glow', gc:WHITEEYE, st:-.3, es:.012, sp:.04, m:'none', p:[0, -1] }, [0, .22, .18], 1, g); },
+  // Guilt: dragging a ball and chain behind it, hands behind its back, eyes on the ground.
+  GUILT: k => { k.anim = 'pace'; const g = k.grp([0, 0, 0], { rot:[.25, 0, 0] }); PK.ghost(k, { h:.62, w:.23, fl:1.25, p:g }); PK.hood(k, .17, [0, .22, .02], { p:g });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .17, .02, -.02], [sx * .06, -.08, -.24], .033, { p:g });
+    const ch = k.mat('#6a6670'); for (let i = 0; i < 6; i++) k.torus(.025, .007, [.16 + i * .045, -.44, .02 + i * .02], { m:ch, rot:[i % 2 ? 0 : Math.PI / 2, .3, 0], ink:0 });
+    k.ball(.1, [.46, -.36, .16], { m:k.mat('#4a4650') });
+    k.face({ e:'glow', gc:WHITEEYE, st:-.3, es:.018, sp:.045, m:'none', p:[0, -1] }, [0, .2, .17], 1, g); },
+  // Remorse: looking back over its shoulder at the broken pieces of something, a hand to its mouth.
+  REMORSE: k => { k.anim = 'sob'; const g = k.grp([.08, 0, 0], { rot:[.15, -.75, 0] }); const f = PK.ghost(k, { h:.5, w:.24, fl:1.5, p:g, y0:-.45, neck:.95 }); PK.arm(k, [.15, -.05, .1], [.03, .07, .22], .033, { hand:1.2, p:g }); PK.arm(k, [-.18, -.1, .08], [-.3, -.36, .2], .033, { hand:1.1, p:g });
+    const pc = k.mat('#c8c0d0', { e:.25 }); for (let i = 0; i < 6; i++) k.tetra(.045, [-.42 + (i % 3) * .12, -.43, .12 - Math.floor(i / 3) * .12], { m:pc, rot:[i, i * 2, i * .5] });
+    k.face({ e:'glow', gc:WHITEEYE, st:-.4, es:.014, sp:.045, m:'none', tear:1, p:[-.6, -.6] }, [0, f.fy, f.fz], 1, g); },
+  // Disgrace: a sack pulled down over its head, a tarnished medal hanging off it upside down.
+  DISGRACE: k => { k.anim = 'droop'; k.lathe([[0, -.46], [.3, -.45], [.26, -.2], [.22, .05], [.17, .2], [0, .24]]);
+    const sk = k.uniq('#b89a6a', .25); k.lathe([[0, .52], [.12, .5], [.2, .42], [.22, .28], [.24, .12]], [0, 0, 0], { m:sk });
+    k.torus(.2, .015, [0, .14, 0], { m:k.mat('#4a3e2e'), rot:[Math.PI / 2, 0, 0], ink:0 });
+    for (const sx of [-1, 1]) { k.ball(.03, [sx * .07, .36, .2], { m:k.blk, ink:0, s:[1, .7, .4] }); k.ball(.012, [sx * .07, .35, .215], { m:k.mat('#f4efe2', { e:1 }), ink:0 }); }
+    k.tube([[-.06, .1, .22], [0, .02, .24], [.06, .1, .22]], .005, { m:k.mat('#5a4a3a'), ink:0 }); k.cyl(.05, .05, .015, [0, -.03, .25], { m:k.mat('#6a5a3a'), rot:[1.4, 0, 2.6], seg:12 }); },
+  // Humiliation: caught in a spotlight, both hands over its face, cheeks burning.
+  HUMILIATION: k => { k.anim = 'tremble'; k.cone(.34, 1.25, [0, .18, 0], { m:k.mat('#fff4d0', { op:.16 }), ink:0, sh:1, seg:20 }); PK.orb(k, .04, [0, .8, 0], '#fff4d0', 1.5);
+    k.cyl(.36, .36, .01, [0, -.455, 0], { m:k.mat('#fff4d0', { e:.6, op:.4 }), ink:0, seg:28 });
+    const f = PK.ghost(k, { h:.56, w:.2, fl:1.3, y0:-.45 }); k.ball(.07, [0, f.fy, f.fz - .02], { m:k.mat(BLUSH, { e:1 }), s:[2.2, .9, .5], ink:0 });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .14, -.05, .05], [sx * .05, f.fy, f.fz + .03], .03, { hand:1.6 }); },
+  // Self-loathing: facing a cracked mirror, clawing at the glass; its reflection glares back pink.
+  SELFLOATHING: k => { k.anim = 'loom'; const fr = k.mat('#4a3e46'); const mr = k.grp([-.3, 0, -.05], { rot:[0, .9, 0] }); k.box(.5, .78, .04, [0, -.07, 0], { m:fr, rr:.02, p:mr }); k.box(.42, .7, .01, [0, -.07, .025], { m:k.mat('#8a9aa8', { e:.15 }), ink:0, rr:.005, p:mr });
+    const ck = k.mat('#f4efe2', { e:.5 }); for (const [a, b] of [[[-.05, .2, .035], [.06, -.05, .035]], [[.06, -.05, .035], [-.08, -.3, .035]], [[.06, -.05, .035], [.16, .05, .035]]]) k.tube([a, b], .005, { m:ck, ink:0, p:mr });
+    k.face({ e:'glow', gc:BLUSH, st:.4, es:.016, sp:.05, m:'none' }, [0, .1, .035], 1, mr);
+    const g = k.grp([.12, 0, .05], { rot:[0, -.8, 0] }); PK.ghost(k, { h:.7, w:.23, fl:1.3, p:g });
+    for (const sx of [-1, 1]) { PK.arm(k, [sx * .15, .1, .08], [sx * .1, .12, .4], .033, { end:0, p:g }); PK.claws(k, [sx * .1, .12, .4], [0, .3, 1], { n:4, len:.07, r:.008, p:g }); }
+    const pk = k.uniq('#d0607a', .8); for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) k.box(.008, .1, .006, [sx * (.12 + i * .03), .0 - i * .03, .24], { m:pk, rot:[0, 0, sx * .4], ink:0, rr:.003, p:g });
+    k.face({ e:'glow', gc:BLUSH, st:.45, es:.016, sp:.05, m:'none' }, [0, .3, .2], 1, g); },
+
+  // ─────────────────────────────── DISGUST ───────────────────────────────
+  // Distaste: shoving away a plate with something on it, tongue out, head turned.
+  DISTASTE: k => { k.anim = 'turn'; k.ball(.24, [0, -.22, 0], { s:[1.1, 1.05, 1] }); const hd = k.grp([0, .1, .02], { rot:[0, -.6, .1] }); k.ball(.15, [0, 0, 0], { p:hd });
+    PK.arm(k, [.18, -.15, .1], [.36, -.18, .26], .04); k.cyl(.12, .1, .02, [.42, -.2, .3], { m:k.mat('#d8d0c0'), seg:20 }); k.dodec(.05, [.42, -.16, .3], { m:k.mat('#7a8a3a', { e:.2 }) });
+    k.face({ e:'glow', gc:REDEYE, st:.3, es:.016, sp:.05, m:'tongue', mw:.03 }, [0, -.01, .14], 1, hd); },
+  // Queasiness: green around the face, spiralled eyes, a hand on its belly, swaying.
+  QUEASINESS: k => { k.anim = 'wobble'; k.lathe([[0, -.45], [.28, -.44], [.3, -.22], [.26, .02], [.2, .2], [.1, .3], [0, .32]]);
+    k.ball(.13, [0, .14, .2], { m:k.mat('#8ac040', { e:.7, op:.55 }), s:[1.3, 1, .4], ink:0 }); PK.arm(k, [.24, -.05, .06], [.05, -.16, .29], .045, { hand:1.3 }); PK.arm(k, [-.24, 0, .04], [-.12, .2, .2], .04, { hand:1.2 });
+    const d = k.ball(.025, [-.05, .02, .25], { m:k.mat('#9ac050', { e:.6 }), s:[.8, 1.4, .8], ink:0 }); k.tag(d, 'py', -.2, .8, 0, 'saw');
+    k.face({ e:'spiral', m:'wavy', es:.028, sp:.06, mw:.03 }, [0, .16, .23]); },
+  // Squeamishness: up on one foot, edging away from a little puddle of goo, arms tucked in tight.
+  SQUEAMISHNESS: k => { k.anim = 'tremble'; k.cyl(.16, .17, .015, [.28, -.455, .12], { m:k.mat('#7a9a30', { e:.5 }), seg:18 }); k.ball(.04, [.3, -.43, .12], { m:k.mat('#8aaa38', { e:.5 }), s:[1, .6, 1] });
+    const g = k.grp([-.12, .04, 0], { rot:[0, 0, .25] }); PK.ghost(k, { h:.62, w:.2, fl:.7, p:g, y0:-.36 }); PK.leg(k, -.04, -.32, -.48, .035, { p:g });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .14, .04, .05], [sx * .05, .1, .18], .03, { hand:1.1, p:g });
+    k.face({ e:'shut', m:'wavy', es:.022, sp:.045, mw:.022 }, [0, .18, .17], 1, g); },
+  // Scorn: nose in the air, arms folded high, looking down sideways at you.
+  SCORN: k => { k.anim = 'still'; k.lathe([[0, -.46], [.24, -.46], [.2, -.2], [.17, .05], [.13, .26], [0, .3]]); const hd = k.grp([0, .4, 0], { rot:[-.45, .5, 0] }); k.ball(.13, [0, 0, 0], { p:hd, s:[.95, 1.1, 1] });
+    for (const sx of [-1, 1]) PK.arm(k, [sx * .17, .15, .03], [-sx * .1, .12, .2], .035, { end:0 });
+    k.face({ e:'half', m:'smirk', es:.026, sp:.05, mw:.025, lid:k.m, p:[.6, -.8] }, [0, -.01, .12], 1, hd); k.face({ e:'glow', gc:REDEYE, st:.3, es:.012, sp:.05, m:'none', p:[.6, -.8] }, [0, .005, .125], 1, hd); },
+  // Contempt: up on a pedestal with a monocle, holding something small out at arm's length between two fingers.
+  CONTEMPT: k => { k.anim = 'turn'; k.cyl(.2, .24, .24, [0, -.34, 0], { m:k.mat('#3a3632') }); k.lathe([[0, -.22], [.14, -.2], [.12, .1], [.1, .3], [0, .34]]); const h = k.grp([0, .44, 0], { rot:[-.35, 0, 0] }); k.ball(.11, [0, 0, 0], { p:h });
+    k.torus(.032, .006, [.04, .01, .1], { p:h, m:k.mat('#d8b850', { e:.5 }), rot:[0, 0, 0], ink:0 }); k.tube([[.07, .0, .1], [.09, -.1, .08], [.07, -.2, .02]], .003, { m:k.mat('#d8b850'), ink:0, p:h });
+    PK.arm(k, [.12, .2, 0], [.42, .22, .06], .028); k.ball(.03, [.47, .21, .06], { m:k.mat('#5a4a40') });
+    k.face({ e:'glow', gc:REDEYE, st:.35, es:.013, sp:.04, m:'sneer', mw:.02, p:[0, -1] }, [0, -.01, .1], 1, h); },
+  // Dislike: a squat lump with a thumbs-down, lip curled, turning half away.
+  DISLIKE: k => { k.anim = 'breathe'; k.ball(.29, [0, -.24, 0], { s:[1.25, .78, 1.05] }); PK.arm(k, [.26, -.2, .08], [.38, -.12, .18], .045, { hand:1.3 }); k.cone(.025, .08, [.38, -.2, .2], { rot:[Math.PI, 0, 0], seg:6 });
+    PK.arm(k, [-.27, -.22, .04], [-.32, -.36, .12], .04);
+    k.face({ e:'glow', gc:REDEYE, st:.5, es:.018, sp:.07, m:'sneer', mw:.04, p:[-.4, 0] }, [0, -.14, .27]); },
+  // Hate: a dark heart-shaped mass wound tight with thorned vines, red cracks, claws out.
+  HATE: k => { k.anim = 'tremble'; const hb = k.grp([0, -.04, 0]); for (const sx of [-1, 1]) k.ball(.24, [sx * .16, .14, 0], { p:hb }); k.cone(.36, .58, [0, -.18, 0], { p:hb, rot:[0, 0, Math.PI], seg:18, s:[1.05, 1, .75] });
+    const th = k.mat('#4a1612'), red = k.uniq('#e02a1a', 1); k.tag(red, 'e', .7, 5);
+    for (let i = 0; i < 2; i++) { const pts = helix(.33 - i * .05, -.4, .3, 1.5, 30).map(([x, y, z]) => [x, y, z * .75]); k.tube(pts, .016, { m:th, ink:0 }); for (let j = 3; j < pts.length; j += 4) PK.spike(k, pts[j], [pts[j][0], .2, pts[j][2]], .07, .015, { m:th }); }
+    for (const pts of [[[0, .3, .2], [.04, .1, .26], [-.03, -.1, .24]], [[-.2, .0, .2], [-.12, -.2, .22]]]) k.tube(pts, .01, { m:red, ink:0 });
+    for (const sx of [-1, 1]) { PK.arm(k, [sx * .3, 0, .04], [sx * .42, -.2, .2], .04, { end:0 }); PK.claws(k, [sx * .42, -.2, .2], [sx * .2, -1, .5], { n:4, len:.12, r:.012 }); }
+    k.face({ e:'glow', gc:'#ff3a2a', st:.55, es:.026, sp:.07, m:'fangs', mw:.05 }, [0, .12, .2]); }
+});
 // =============================================================================
 //  SET PIECES — the big props that make each route its own place
 //  (abandoned cars, a broken-down Prairie steam engine, a fair, a war camp…)
