@@ -5262,7 +5262,8 @@ async function satchelMenu() {
 }
 async function summary(m) {
   const v = valOf(m), nf = nextForm(m.sp), lvTo = nf ? INTENSIFY_AT[SPECIES[m.sp].tier] : null;
-  showSheet(`<h2>${manifIcon(m)} ${nm(m)}</h2><div class="subt">${pillsOf(m.sp)} &nbsp;Lv ${m.lvl} · ${tierWord(m.sp)} (${SPECIES[m.sp].dyad ? 'a dyad' : TYPES[typeOf(m)].ladder[SPECIES[m.sp].tier]}) &nbsp;·&nbsp; Aura <b>${sgn(v)}</b></div>
+  const pic = manifPortrait(m.sp);
+  showSheet(`${pic ? `<img src="${pic}" alt="${nm(m)}" style="display:block;width:150px;height:150px;margin:0 auto 6px;border-radius:14px;border:2px solid #3a2c20">` : ''}<h2>${manifIcon(m)} ${nm(m)}</h2><div class="subt">${pillsOf(m.sp)} &nbsp;Lv ${m.lvl} · ${tierWord(m.sp)} (${SPECIES[m.sp].dyad ? 'a dyad' : TYPES[typeOf(m)].ladder[SPECIES[m.sp].tier]}) &nbsp;·&nbsp; Aura <b>${sgn(v)}</b></div>
     <div style="font-size:12px;font-weight:800;color:var(--muted)">COMPOSURE ${m.hp}/${maxHp(m)}</div><div class="bar" style="margin:4px 0 8px"><i style="width:${m.hp / maxHp(m) * 100}%"></i></div>
     <div style="font-size:12px;font-weight:800;color:var(--muted)">INSIGHT ${m.xp}/${need(m.lvl)}</div><div class="bar xp" style="margin:4px 0 10px"><i style="width:${m.xp / need(m.lvl) * 100}%"></i></div>
     <p style="margin:0 0 8px">Force <b>${stat(m, 'atk')}</b> &nbsp; Poise <b>${stat(m, 'def')}</b> &nbsp; Pace <b>${stat(m, 'spd')}</b> &nbsp;·&nbsp; carried ${fmtTime(m.c || 0)}</p>
@@ -5275,6 +5276,7 @@ async function summary(m) {
 async function codexMenu() {
   const i = await listChoose(CODEX, { title:'Codex of Manifs', sub: `${Object.keys(S.codex.kept).length} kept · ${Object.keys(S.codex.seen).length} met · of ${CODEX.length}`,
     render: sp => S.codex.seen[sp] ? `${manifIcon(sp)}<span class="rowname">${SPECIES[sp].name}<br><small>${SPECIES[sp].dyad ? 'dyad' : TYPES[SPECIES[sp].type].ladder[SPECIES[sp].tier]}</small></span>${pillsOf(sp)}<span class="sub">${S.codex.kept[sp] ? 'Kept' : 'Met'}</span>` : `<span class="mi" style="background:#b8a688"></span><span class="rowname">???<br><small>${SPECIES[sp].dyad ? TYPES[SPECIES[sp].type].name + ' + ' + TYPES[SPECIES[sp].type2].name : TYPES[SPECIES[sp].type].name + ' family'}</small></span>` });
+  if (i >= 0 && S.codex.seen[CODEX[i]]) { const pic = manifPortrait(CODEX[i]); if (pic) showSheet(`<img src="${pic}" alt="${SPECIES[CODEX[i]].name}" style="display:block;width:170px;height:170px;margin:4px auto 8px;border-radius:14px;border:2px solid #3a2c20"><h2 style="text-align:center">${SPECIES[CODEX[i]].name}</h2><div class="subt" style="text-align:center">${pillsOf(CODEX[i])}</div>`); }
   if (i >= 0) { const sp = CODEX[i]; await say(S.codex.seen[sp] ? `${SPECIES[sp].name}. ${SPECIES[sp].desc} (Every ${SPECIES[sp].name} you meet carries a different person's feeling.)` : 'You haven\'t met this Manif yet.'); }
   closeSheet();
 }
@@ -10230,6 +10232,29 @@ const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
 // the HUD asks every frame: only recompute when what you carry changes
 let AT_KEY = '', AT_VAL = '';
 function auraTitleCached() { const k = S.party.map(m => m.sp + m.lvl + ':' + (m.keptAt || 0)).join(','); if (k !== AT_KEY) { AT_KEY = k; AT_VAL = auraStory().title; } return AT_VAL; }
+
+// ---------------------------------------------------------------- portraits
+// A still picture of a Manif for its summary page: rendered once per kind into a small offscreen
+// canvas (its own little renderer, a pale card tinted with its feeling), then kept as an image.
+const PORTRAITS_M = {}; let PR = null;
+function manifPortrait(sp, size = 220) {
+  if (PORTRAITS_M[sp]) return PORTRAITS_M[sp];
+  try {
+    if (!PR) { const cv = document.createElement('canvas'); cv.width = cv.height = size;
+      const r = new THREE.WebGLRenderer({ canvas:cv, antialias:true, preserveDrawingBuffer:true }); r.setPixelRatio(1); r.setSize(size, size, false); if (renderer.outputColorSpace) r.outputColorSpace = renderer.outputColorSpace; r.toneMapping = renderer.toneMapping;
+      const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, 1, .1, 50); cam.position.set(.75, .85, 3.0); cam.lookAt(0, .15, 0);
+      sc.add(new THREE.HemisphereLight(0xfff4dc, 0x6b5a48, 1.3)); const sun = new THREE.DirectionalLight(0xfff0d0, 1.6); sun.position.set(-3, 6, 5); sc.add(sun);
+      PR = { cv, r, sc, cam }; }
+    const d = SPECIES[sp], fam = d && TYPES[d.type] ? TYPES[d.type].c : '#c8b898';
+    PR.sc.background = new THREE.Color(fam).lerp(new THREE.Color('#f3ead6'), .78);
+    const g = sp === 'HUSH' ? buildHush() : buildManif(sp, { scale:1 }); if (sp === 'HUSH') g.scale.setScalar(.75); g.position.y = sp === 'HUSH' ? .3 : 0;
+    if (g.userData && g.userData.glow && g.userData.glow.material) g.userData.glow.material.opacity *= .45;   // the aura glow would wash out the picture
+    const ext = g.userData && g.userData.ring; if (ext && sp !== 'HUSH') ext.visible = false;
+    PR.sc.add(g); g.updateMatrixWorld(true); PR.r.render(PR.sc, PR.cam);
+    const url = PR.cv.toDataURL('image/png'); PR.sc.remove(g); disposeTree(g);
+    return (PORTRAITS_M[sp] = url);
+  } catch (e) { return null; }
+}
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
