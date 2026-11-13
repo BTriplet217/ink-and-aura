@@ -6364,7 +6364,9 @@ async function wrenBeg() {
 }
 
 // ---------------------------------------------------------------- the indifferent ending
-const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id, 'holdfast'];
+const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id, 'r_coast', 'r_dustline', 'holdfast'];
+const TOUR_START = { r_coast:[54, 10], r_dustline:[4, 10], holdfast:[5, 15] };   // the far stops open on what matters there: the shut gates, the man at Holdfast's fence
+const TOUR_SUB = { r_coast:'The gate to the mainland is chained shut, for good', r_dustline:'The gate to the mainland is chained shut, for good', holdfast:'Everyone went below. The hatch is barred.' };
 let BEG_MEM = null;   // the test build keeps the 'Wren begs' checkpoint in memory only
 async function indifferentEnding() {
   S.flags.ruinEnd = 1;
@@ -6383,7 +6385,9 @@ async function indifferentEnding() {
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
-  await say('The far places never felt it. Saltmere, the Pinewind and Cobb Hollow were too far off for the grey to reach, and they were left untouched.');
+  await say('The far places never felt it. Saltmere and Cobb Hollow were too far off for the grey to reach, and they were left untouched.');
+  await say('Clover packed her good books and her bat and left her cabin in the pines. The Pinewind road runs straight to Holdfast, and she had no intention of being on it when the grey came walking. She went west, to the Coast Road.');
+  await say('People ran for the far places while they still could. When the last of them were through, the gates were shut and chained: the one at Moonmoss with the Coast Road and Saltmere behind it, and the one at Veilham with the Dustline and Cobb Hollow behind it. They will never be opened again.');
   await say('Holdfast was too far off as well, but Holdfast knows the grey doesn\'t need to travel. Somebody can carry it. Fen heard the radio go quiet one town at a time, and by morning there were people on the Pinewind road, walking slowly and saying nothing, the way Silas Vosk walked home twenty years ago.');
   await say('Marsh rang the bell. Ninety people went down the three hundred and four steps, and Earl barred the hatch behind them. Down below, Old Saul counts ninety. He counts again. Up top, a man in grey sleeves knocks on the door of the store and calls for his father.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
@@ -6433,8 +6437,8 @@ async function ruinTour() {
   scene = 'tour'; $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden'); playMusic(THEMES.endingFor('none'));
   for (const id of RUIN_TOUR()) {
     await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; for (const m of W.minis || []) m.visible = false;   // you aren't here: you're still standing in the plaza, numb
-    const M = MAPS[id]; Object.assign(TOUR, { on:true, x:(M.w - 1) / 2, z:(M.h - 1) / 2, dist:16, yaw:0, auto:true, w:M.w, h:M.h }); await fadeTo(0, 700);
-    toast(MAPS[id].name, id === 'holdfast' ? 'Everyone went below. The hatch is barred.' : deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
+    const M = MAPS[id], st = TOUR_START[id]; Object.assign(TOUR, { on:true, x:st ? st[0] : (M.w - 1) / 2, z:st ? st[1] : (M.h - 1) / 2, dist:st ? 11 : 16, yaw:0, auto:true, w:M.w, h:M.h }); await fadeTo(0, 700);
+    toast(MAPS[id].name, TOUR_SUB[id] || deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
     await new Promise(r => { endingHandler = b => { if (b === 'a') { endingHandler = null; sfx('ok'); r(); } else tourKey(b); }; });
   }
   TOUR.on = false; document.body.classList.remove('touring'); tourHint(false);
@@ -7104,7 +7108,14 @@ SET.truck = p => { const g = new THREE.Group(), c = p.c || '#8a3a2a';           
 SET.tractor = p => { const g = new THREE.Group(); sBox(g, 1.3, .5, .6, '#4f7a3a', .1, .7, 0); sBox(g, .5, .6, .6, '#4f7a3a', -.4, 1.2, 0); sCyl(g, .5, .5, .2, '#211d1b', -.45, .5, .4, [Math.PI / 2, 0, 0]); sCyl(g, .5, .5, .2, '#211d1b', -.45, .5, -.4, [Math.PI / 2, 0, 0]);
   sCyl(g, .28, .28, .16, '#211d1b', .55, .28, .35, [Math.PI / 2, 0, 0]); sCyl(g, .28, .28, .16, '#211d1b', .55, .28, -.35, [Math.PI / 2, 0, 0]); sCyl(g, .05, .05, .5, '#2a2826', .5, 1.2, 0); return g; };
 SET.gatepost = p => { const g = new THREE.Group(); for (const s of [-1, 1]) { sBox(g, .3, 2.4, .3, '#6a5a48', 0, 1.2, s * 1.15); sBall(g, .2, '#d8b85a', 0, 2.5, s * 1.15); }
-  sBox(g, .12, .12, 2.6, '#6a5a48', 0, 2.2, 0); return g; };
+  sBox(g, .12, .12, 2.6, '#6a5a48', 0, 2.2, 0);
+  if (gateShut(S.map)) {   // after the ruin: the far gates are shut and chained, and they stay that way
+    for (const s of [-1, 1]) { sBox(g, .14, 1.9, 1.02, '#4e4032', 0, 1.05, s * .52); for (const y of [.45, 1.05, 1.65]) sBox(g, .2, .14, 1.0, '#3a3026', 0, y, s * .52); }
+    for (let k = 0; k < 7; k++) sBox(g, .06, .06, .16, '#7a7a80', .13, .9 + k * .04 * (k % 2 ? 1 : -1), -.48 + k * .16);
+    sBox(g, .1, .18, .14, '#8a7a3a', .18, .86, 0); }
+  return g; };
+const GATE_SHUT = new Set(['r_coast', 'r_dustline', 'moonmoss', 'veilham']);
+const gateShut = id => !!(S && S.flags && S.flags.ruin) && GATE_SHUT.has(id);
 SET.windmill = p => { const g = new THREE.Group(); sCyl(g, .06, .1, 4, '#9a968a', 0, 2, 0, null, { ink:0 }); const w = new THREE.Group(); w.position.set(.15, 4, 0); g.add(w);
   for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const b = sBox(w, .04, .7, .16, '#c8c4b8', 0, Math.sin(a) * .45, Math.cos(a) * .45, { ink:0 }); b.rotation.x = -a; }
   sBox(g, .06, .3, .9, '#c0503a', -.4, 4, 0, { ink:0 }); g.userData.spin = w; g.userData.spinAxis = 'x'; return g; };
@@ -7179,7 +7190,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   for (const x of [14, 34, 46]) B.lamp(x, 11);
   regionMap('r_coast', B, { name:'The Coast Road', sub:'Moonmoss to Saltmere', V:COAST_V, music:'coast_road', arrive:'The road out of Moonmoss runs downhill toward a smell you haven\'t smelled in years: salt. Houses start to appear, then more houses, then the gulls.',
     sign:'SALTMERE · 2 MI ← · → MOONMOSS. (Underneath, painted over and still legible: "THE SEA IS STILL THERE. WE CHECKED.")',
-    exit:(nx, ny) => nx >= 60 ? { map:'moonmoss', x:1, y:3, dir:'right' } : nx < 0 ? { map:'saltmere', x:50, y:30, dir:'left' } : null });
+    exit:(nx, ny) => nx >= 60 ? (S.flags.ruin ? null : { map:'moonmoss', x:1, y:3, dir:'right' }) : nx < 0 ? { map:'saltmere', x:50, y:30, dir:'left' } : null });
   MAPS.r_coast_in0.room.npcs = [npc('motel', 7, 4, 'down', 'Night clerk', lk('#4f8a8a', '#f3e7c9', SK[2], '#2a1a10', ['glasses']), async () => {
     const c = await ask('Night clerk: Room\'s thirty Marks. Clean sheets, mostly. Sea view if you stand on the bed.', ['Rest (30 Marks)', 'No thanks']); if (c !== 0) return;
     if ((S.marks || 0) < 30) return say('Night clerk: Thirty. Not twenty-nine.'); S.marks -= 30; await fadeTo(1, 500); healAll(); await fadeTo(0, 500); await say('You sleep to the sound of the sea, far off and patient. Your Chorus is rested.'); })];
@@ -7189,7 +7200,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
     if (auraSide() === 'shadow') return sayAs('Nan Hobb', 'Farmstand\'s closed. (The sign says OPEN. She turns it round while looking at you.)');
     await sayAs('Nan Hobb', 'Strawberries, early. First ones since the grey years. Take a punnet, love, on the house. People ought to taste things again.');
     if (once('pellBerries')) { S.items.cake = (S.items.cake || 0) + 2; await say('(You get 2 Honey Cakes\' worth of strawberries. They are better than Honey Cakes.)'); } })];
-  REGION_NPCS.r_coast = () => [
+  REGION_NPCS.r_coast = () => [ ...cloverOnCoast(),
     npc('hiker', 41, 11, 'left', 'Hitchhiker', lk('#8a5a3a', '#e8a83a', SK[1], '#7a3e1e', ['satchel', 'bandana']), async () => {
       if (auraSide() === 'shadow') { await sayAs('Hitchhiker', 'Oh. No, I\'m fine. I\'m waiting for a different car. A car that isn\'t you.');
         const c = await ask('The hitchhiker is alone on a long road, with a full pack.', ['Leave them be', 'Take the pack']); if (c === 1) { sin(2); pay(60); await say('You take the pack. They don\'t fight. They just stand there in the road while you go, and they\'re still standing there when you look back.'); } return; }
@@ -7640,7 +7651,7 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
   B.piece('stand', 50, 12, 1, 1, { c:'#f4cf5e' }); B.m[12][6] = 's'; B.piece('gatepost', 2, 9, 1, 2, { keep:1 });
   regionMap('r_dustline', B, { name:'The Dustline', sub:'Veilham to Cobb Hollow', V:DUST_V, music:'country', arrive:'Out past Veilham the paving stops and the road goes on in dust. Wheat, fence, a windmill turning slow. A pickup passes with a dog in the back, and everyone in it turns round to watch you go.',
     sign:'COBB HOLLOW 3 →. (Bullet holes in the O\'s.)',
-    exit:(nx, ny) => nx < 0 ? { map:'veilham', x:46, y:38, dir:'left' } : nx >= 60 ? { map:'cobb_hollow', x:1, y:16, dir:'right' } : null });
+    exit:(nx, ny) => nx < 0 ? (S.flags.ruin ? null : { map:'veilham', x:46, y:38, dir:'left' }) : nx >= 60 ? { map:'cobb_hollow', x:1, y:16, dir:'right' } : null });
   MAPS.r_dustline_in0.room.npcs = [npc('hadley', 5, 5, 'up', 'Ma Hadley', lk('#8a5a3a', '#f3e7c9', SK[1], '#d8d0c0', ['apron', 'bun']), judged('Ma Hadley', ['light', 'even'],
     async () => { await sayAs('Ma Hadley', 'Sit, sit. You look like you\'ve walked all the way from Veilham, and nobody walks from Veilham unless they\'re running from something. Eat.'); if (once('hadleyMeal')) { healAll(); await say('(Biscuits, gravy, sweet tea. Your Chorus is rested.)'); } },
     async () => { await sayAs('Ma Hadley', 'I\'ll thank you to step back out of my kitchen. Slowly. My husband\'s on the porch, and he\'s not alone.'); }))];
@@ -8237,9 +8248,19 @@ async function cloverBat() {
   await say('You wake up on the floor of the Archive with a lump on your head exactly the shape of a bat. Somebody carried you here. You get the feeling it wasn\'t Clover.');
 }
 function cloverPeople() {
-  if (false && S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But the grey got into the woods, so: west, with the good books and the bat. We\'re safe. Annoyed, but safe. The kettle\'s yours. Shoes off. — C."') }];
+  if (S.flags.ruin) return [{ id:'clover_note', note:true, keepRuin:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But this road goes straight to Holdfast, and whatever\'s coming for Holdfast is going to walk right past my door. So: the Coast Road, with the good books and the bat. Kettle\'s yours. Shoes off. — C."') }];
   const [x, y, dir] = CL_POS || [3, 5, 'down'];
   return [{ id:'clover', x, y, dir, name:'Clover', model:cloverModel, folk:false, real:true, talk:cloverTalk }];
+}
+// After the ruin Clover has left the Pinewind (it's the road to Holdfast) and gone to the Coast Road, behind the shut gate, sitting on her box of books by the hedge.
+function cloverOnCoast() {
+  if (!S.flags.ruin) return [];
+  const model = () => { const g = buildPerson(CLOVER_LOOK); g.userData.sit = true; const box = new THREE.Group(); box.position.set(0, 0, -.05);
+    box.add(part(new THREE.BoxGeometry(.62, .34, .44), '#7a5a3a', [0, .17, 0])); for (let k = 0; k < 4; k++) box.add(part(new THREE.BoxGeometry(.12, .16, .3), ['#8e2c14', '#3a5a7a', '#5a6a3a', '#a8862a'][k], [-.2 + k * .13, .42, 0], { ink:0 })); g.add(box);
+    holdItem(g, 'bat'); return g; };
+  const lines = ['(Clover is sitting on a box of books by the hedge, bat across her knees, glaring at the gate.) I had a very good couch, you know.', 'They chained the gate. Good. I checked the chain myself. Twice. Holdfast would be proud of me, and I hate that.',
+    'The gulls here are rude. I like them.', 'Don\'t look at me like that. I am not crying. It\'s the sea air.', 'Somebody has to sit by the gate. It might as well be someone with a bat.'];
+  return [{ id:'clover_coast', x:53, y:11, dir:'right', name:'Clover', model, folk:false, real:true, talk:() => sayAs('Clover', lines[(CL().line++) % lines.length]) }];
 }
 MAPS[CLOVER_ROOM].room.npcsFn = cloverPeople; MAPS[CLOVER_ROOM].set.push({ k:'rug', x:5, y:5.6 });
 { const base = REGION_NPCS.r_pinewind; REGION_NPCS.r_pinewind = () => [...base(),
