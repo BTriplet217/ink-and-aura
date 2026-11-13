@@ -3784,7 +3784,7 @@ function routeEnts(map) {
     const d = M.room;
     if (d.note) out.push({ id:'note', note:true, x:d.note.x, y:d.note.y, talk:() => say(d.note.text) });
     for (const it of [d.item, d.extra]) if (it && !pickedUp(it.id)) out.push({ id:'it_' + it.id, item:true, x:it.x, y:it.y, talk:() => pickUp(it) });
-    for (const n of (d.npcsFn ? d.npcsFn() : d.npcs) || []) out.push({ folk:!n.numb, ...n, numb:n.numb });
+    if (!ruinHere(map)) for (const n of (d.npcsFn ? d.npcsFn() : d.npcs) || []) out.push({ folk:!n.numb, ...n, numb:n.numb });   // in the ruin they're all outside
     // Once all ten Hearts are settled, the Archive floor splits open: the way down to the Stillwell.
     if (map === 'vellum_room0' && ((Object.keys(S.hearts).length >= WN && !S.flags.hushDone) || (S.flags.gift && !S.flags.superDone))) out.push({ id:'rift', rift:true, x:(M.room.rift || { x:5 }).x, y:(M.room.rift || { y:3 }).y, talk:() => enterStillwell(true) });
     return out;
@@ -4863,7 +4863,7 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); t.push(...companionEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
 const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
@@ -6378,7 +6378,7 @@ async function indifferentEnding() {
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
-  await say('The far places never felt it. Saltmere, the Pinewind, Holdfast and Cobb Hollow are too far off for the grey to reach. Clover is in her cabin in the pines with her books and her bat, grumbling. Ashlynn was out on the water off Saltmere when the floor split, and she is safe there.');
+  await say('The far places never felt it. Saltmere, the Pinewind, Holdfast and Cobb Hollow were too far off for the grey to reach, and they were left untouched.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
   // you go the way they went: standing, grey from the feet up, the stone climbing until there's nothing left that minds
@@ -6395,7 +6395,7 @@ async function indifferentEnding() {
 async function ruinTour() {
   scene = 'tour'; $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden'); playMusic(THEMES.endingFor('none'));
   for (const id of RUIN_TOUR()) {
-    await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; await fadeTo(0, 700);   // you aren't here: you're still standing in the plaza, numb
+    await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; for (const m of W.minis || []) m.visible = false; await fadeTo(0, 700);   // you aren't here: you're still standing in the plaza, numb
     toast(MAPS[id].name, deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
     await wait(4200);
   }
@@ -6462,7 +6462,7 @@ function worldExtras(id, M, V) {
 function endingFilter(map, list) {
   const fl = S.flags || {};
   if (fl.ruin && !offMainland(map)) { const out = []; let n = 0;
-    for (const e of list) { if (e.real) continue;   // characters based on real people always leave the region unharmed
+    for (const e of list) { if (e.keepRuin) { out.push(e); continue; } if (e.real) continue;   // characters based on real people always leave the region unharmed
       if (map === 'vellum' && (e.id === 'maribel' || e.id === 'sable')) { out.push({ ...e, ...(e.id === 'maribel' ? { x:19, y:18 } : {}), body:true, talk:() => say(e.id === 'maribel' ? '(Maribel. She almost made it to the door.)' : '(What\'s left of Sable. She fought longest.)') }); continue; }
       if (map === 'vellum' && e.id === 'tobin') { out.push({ ...e, x:19, y:17, dir:'down', numb:true, talk:() => say('(Tobin stands over Maribel, waiting for her to get up. He doesn\'t look at you.)') }); continue; }
       if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
@@ -10377,6 +10377,20 @@ async function summary(m, list) {
     if (k === 'up' || k === 'left') i = (i - 1 + list.length) % list.length; else if (k === 'down' || k === 'right') i = (i + 1) % list.length; else break;
   }
   closeSheet(); return i;
+}
+
+// ---------------------------------------------------------------- the ruin: nobody is left indoors
+// In the Indifferent ending, the people who lived and worked in each building came out into the street
+// when it happened; they stand by their own doors now, numbed, or lie there. The Dragon's Table is empty:
+// they left before it came, and pinned a note to the door.
+function ruinDoorEnts(map, base) {
+  if (!ruinHere(map)) return []; const M = MAPS[map]; if (!M || !M.doors || M.kind === 'inside') return [];
+  const out = [];
+  for (const [k, rid] of Object.entries(M.doors)) { const R = MAPS[rid]; if (!R || !R.room) continue; const [dx, dy] = k.split(',').map(Number);
+    if (rid === DND_ID) { out.push({ id:'dnd_door_note', note:true, keepRuin:true, x:dx, y:dy + 1, talk:() => say('(A note pinned to the door with a dart.) "GONE. The vibes were off. Packed up the campaign and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Session\'s paused, not cancelled. — M."') }); continue; }
+    for (const n of R.room.npcs || []) { if (n.real) continue; const [x, y] = spotNear(map, dx + (out.length % 2 ? 1 : -1), dy + 1, base.concat(out));
+      out.push({ ...n, id:'out_' + rid + '_' + n.id, x, y, dir:'down', folk:true }); } }
+  return out;
 }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
