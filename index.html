@@ -6464,7 +6464,7 @@ function endingFilter(map, list) {
   if (fl.ruin && !offMainland(map)) { const out = []; let n = 0;
     for (const e of list) { if (e.real) continue;   // characters based on real people always leave the region unharmed
       if (map === 'vellum' && (e.id === 'maribel' || e.id === 'sable')) { out.push({ ...e, ...(e.id === 'maribel' ? { x:19, y:18 } : {}), body:true, talk:() => say(e.id === 'maribel' ? '(Maribel. She almost made it to the door.)' : '(What\'s left of Sable. She fought longest.)') }); continue; }
-      if (map === 'vellum' && e.id === 'tobin') { out.push({ ...e, x:18, y:18, dir:'right', numb:true, talk:() => say('(Tobin stands over Maribel, waiting for her to get up. He doesn\'t look at you.)') }); continue; }
+      if (map === 'vellum' && e.id === 'tobin') { out.push({ ...e, x:19, y:17, dir:'down', numb:true, talk:() => say('(Tobin stands over Maribel, waiting for her to get up. He doesn\'t look at you.)') }); continue; }
       if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
       if (e.invisible) { out.push(e); continue; }
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
