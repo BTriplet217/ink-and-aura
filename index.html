@@ -10248,7 +10248,7 @@ function manifPortrait(sp, size = 220) {
     const d = SPECIES[sp], fam = d && TYPES[d.type] ? TYPES[d.type].c : '#c8b898';
     PR.sc.background = new THREE.Color(fam).lerp(new THREE.Color('#f3ead6'), .78);
     const g = sp === 'HUSH' ? buildHush() : buildManif(sp, { scale:1 }); if (sp === 'HUSH') g.scale.setScalar(.75); g.position.y = sp === 'HUSH' ? .3 : 0;
-    if (g.userData && g.userData.glow && g.userData.glow.material) g.userData.glow.material.opacity *= .45;   // the aura glow would wash out the picture
+    g.traverse(o => { if (o.isPoints || o.isSprite) o.visible = false; });   // no dust, sparkle or glow haze: just the Manif itself
     const ext = g.userData && g.userData.ring; if (ext && sp !== 'HUSH') ext.visible = false;
     PR.sc.add(g); g.updateMatrixWorld(true); PR.r.render(PR.sc, PR.cam);
     const url = PR.cv.toDataURL('image/png'); PR.sc.remove(g); disposeTree(g);
