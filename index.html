@@ -6374,7 +6374,7 @@ async function indifferentEnding() {
       const t0 = performance.now(), fly = () => { const k = Math.min(1, (performance.now() - t0) / 1600); mini.position.set(p0.x + Math.cos(a) * k * 6, p0.y + k * 2.2 + Math.sin(k * 9) * .15, p0.z + Math.sin(a) * k * 6); mini.scale.setScalar(.36 * (1 + k * .6)); if (k < 1) requestAnimationFrame(fly); else world.remove(mini); }; fly(); }
     await say(deal('rogue', [`{m} tears itself out of you. It doesn't look back.`, `{m} rips loose with a sound like cloth tearing, and turns on you.`, `{m} stops listening to you. Then it stops being yours.`, `{m} swells, splits, and pulls free, dripping ink.`, `{m} breaks away and goes looking for someone to feel at.`, `{m} slips its leash all at once.`]).replace('{m}', nm(m))); }
   await say('Everything you carried comes down on you at once. Every echo, every stranger\'s grief and rage and joy, all of it, all at the same time. You stand in the middle of the plaza and can\'t move.');
-  await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it to the bakery door. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
+  await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it out of the plaza. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
@@ -6463,8 +6463,8 @@ function endingFilter(map, list) {
   const fl = S.flags || {};
   if (fl.ruin && !offMainland(map)) { const out = []; let n = 0;
     for (const e of list) { if (e.real) continue;   // characters based on real people always leave the region unharmed
-      if (map === 'vellum' && (e.id === 'maribel' || e.id === 'sable')) { out.push({ ...e, body:true, talk:() => say(e.id === 'maribel' ? '(Maribel. She almost made it to the door.)' : '(What\'s left of Sable. She fought longest.)') }); continue; }
-      if (map === 'vellum' && e.id === 'tobin') { out.push({ ...e, x:25, y:27, dir:'right', numb:true, talk:() => say('(Tobin stands over Maribel, waiting for her to get up. He doesn\'t look at you.)') }); continue; }
+      if (map === 'vellum' && (e.id === 'maribel' || e.id === 'sable')) { out.push({ ...e, ...(e.id === 'maribel' ? { x:19, y:18 } : {}), body:true, talk:() => say(e.id === 'maribel' ? '(Maribel. She almost made it to the door.)' : '(What\'s left of Sable. She fought longest.)') }); continue; }
+      if (map === 'vellum' && e.id === 'tobin') { out.push({ ...e, x:18, y:18, dir:'right', numb:true, talk:() => say('(Tobin stands over Maribel, waiting for her to get up. He doesn\'t look at you.)') }); continue; }
       if (e.item || e.note || e.rift || e.manif || /^zone_|^frag|^clerk|^hesk|^conductor|^mercer|^rogue|^elder|^superboss/.test(e.id)) continue;
       if (e.invisible) { out.push(e); continue; }
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
@@ -10019,13 +10019,16 @@ function stoneColor(c) { const k = new THREE.Color(c), lum = .3 * k.r + .59 * k.
 function stoneLook(L) { const o = { ...L }; for (const k in o) if (typeof o[k] === 'string' && /^(#[0-9a-f]{3,8}|rgb|hsl)/i.test(o[k])) o[k] = '#' + stoneColor(o[k]).getHexString(); return o; }
 function stonePerson(L) { const g = withSurf('stone', () => buildPerson(stoneLook(L || NUMBED_LOOK))); g.userData.stone = 1; return g; }
 // Turn a built figure to stone in place, bottom to top, over `ms` milliseconds.
+// full stone grey, by brightness alone: the hero goes exactly as grey as the people around them
+function stoneGrey(c) { const k = new THREE.Color(c), lum = .3 * k.r + .59 * k.g + .11 * k.b; return new THREE.Color('#a8a29a').multiplyScalar(.5 + lum * .75); }
 async function petrify(g, ms = 2600) {
+  g.traverse(o => { if (o.isSprite || o.isPoints) o.visible = false; }); if (g === W.player) { if (W.ring) W.ring.visible = false; if (W.light) W.light.visible = false; }   // the aura goes out first
   g.updateMatrixWorld(true); const parts = [], v = new THREE.Vector3();
   g.traverse(o => { if (!o.isMesh || !o.material || o.material === INK || !o.material.color || (o.material.side === THREE.BackSide && o.material.color.getHex() === 0x1e1712)) return; o.getWorldPosition(v); parts.push([v.y, o]); });   // every coloured part, not just the shaded ones
   parts.sort((a, b) => a[0] - b[0]);
   // by the clock, not per piece: however slow the frames, it's all stone by the end
   const t0 = performance.now(); let done = 0;
-  const stoneIt = o => { const m = o.material; o.material = withSurf('stone', () => toon('#' + stoneColor(m.color).getHexString(), { transparent:!!m.transparent, opacity:m.opacity == null ? 1 : m.opacity })); if (Math.random() < .2) sfx('crack'); };
+  const stoneIt = o => { const m = o.material; o.material = withSurf('stone', () => toon('#' + (g === W.player ? stoneGrey(m.color) : stoneColor(m.color)).getHexString(), { transparent:!!m.transparent, opacity:m.opacity == null ? 1 : m.opacity })); if (Math.random() < .2) sfx('crack'); };
   while (done < parts.length) { const k = Math.min(1, (performance.now() - t0) / ms), upTo = Math.ceil(k * parts.length); while (done < upTo) stoneIt(parts[done++][1]); if (done < parts.length) await wait(30); }
   g.userData.stone = 1;
 }
@@ -10118,9 +10121,9 @@ function subjOf(e) { if (!e) return null; const n = (e.name || '').split(' ')[0]
   if (isChild(e)) return 'The child';
   if (n && ROLE_WORDS.has(n)) return 'The ' + n.toLowerCase();
   return 'The stranger'; }
-const VERB_KEEP = new Set(['can', 'could', 'would', 'will', 'won\'t', 'might', 'must', 'should', 'can\'t', 'couldn\'t', 'wouldn\'t', 'didn\'t', 'did', 'had', 'hadn\'t', 'may', 'shall', 'just', 'never', 'always', 'still', 'only', 'both', 'all', 'almost', 'already', 'also', 'even']);
+const VERB_KEEP = new Set(['got', 'went', 'came', 'took', 'made', 'said', 'saw', 'sat', 'stood', 'ran', 'left', 'knew', 'felt', 'found', 'gave', 'kept', 'held', 'put', 'let', 'was', 'heard', 'told', 'thought', 'brought', 'caught', 'fell', 'grew', 'began', 'turned', 'can', 'could', 'would', 'will', 'won\'t', 'might', 'must', 'should', 'can\'t', 'couldn\'t', 'wouldn\'t', 'didn\'t', 'did', 'had', 'hadn\'t', 'may', 'shall', 'just', 'never', 'always', 'still', 'only', 'both', 'all', 'almost', 'already', 'also', 'even']);
 const VERB_MAP = { are:'is', were:'was', have:'has', do:'does', 'don\'t':'doesn\'t', 'aren\'t':'isn\'t', 'weren\'t':'wasn\'t', 'haven\'t':'hasn\'t', 'They\'re':'is', 'They\'ve':'has', 'They\'ll':'will', 'They\'d':'would' };
-function conj(w) { if (VERB_MAP[w]) return VERB_MAP[w]; if (VERB_KEEP.has(w) || /ly$/.test(w)) return null;
+function conj(w) { if (VERB_MAP[w]) return VERB_MAP[w]; if (VERB_KEEP.has(w) || /ly$/.test(w) || /ed$/.test(w)) return null;
   if (/(s|sh|ch|x|z|o)$/.test(w)) return w + 'es'; if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + 'ies'; return w + 's'; }
 // "(They flinch away.)" → "(The stranger flinches away.)" / "(Nell flinches away.)"
 function deThey(text, subj) { let n = 0;
@@ -10163,7 +10166,7 @@ function speakerOf(text, hold) {
   if (who && !notPerson(who)) knownNames()[who] = 1;
   if (!hold) text = uniqueLine(text);
   const subj = subjOf(TALKING);
-  if (TALKING && subj) text = m ? text.replace(/\([^)]*\)/g, seg => deThey(seg, subj)) : deThey(text, subj);   // stage directions only, never someone's own words
+  if (TALKING && subj) text = text.replace(/\([^)]*\)/g, seg => deThey(seg, subj));   // only stage directions in brackets; narration is left alone   // stage directions only, never someone's own words
   return { who, text }; }
 
 // Being asked your name: they ask, you give it, they answer in their own way (and tell you theirs).
