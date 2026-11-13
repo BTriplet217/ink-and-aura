@@ -6466,7 +6466,8 @@ function endingFilter(map, list) {
   return list;
 }
 const PET_POOL = () => ROSTER.filter(r => r[2] === 0 && r[3] !== 4).map(r => r[0]);
-function petFor(e) { const P = PET_POOL(); let h = 0; for (const ch of e.id + S.map) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return P[h % P.length]; }
+function petFor(e) { const C = S.comp && S.comp[S.map + ':' + e.id]; if (C && C.sp && SPECIES[C.sp]) return C.sp;   // the same Manif you saw them with before
+  const P = PET_POOL(); let h = 0; for (const ch of e.id + S.map) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return P[h % P.length]; }
 
 
 // ---------------------------------------------------------------- the ruin, up close
@@ -10292,7 +10293,7 @@ function compFor(map, e) {
 }
 const compManif = c => ({ sp:c.sp, eid:c.eid, pn:c.pn, lvl:8 });
 function companionEnts(map, list) {
-  const F = S.flags || {}, M = MAPS[map]; if (F.ruin || F.doom || !M || M.kind === 'still' || M.kind === 'inside') return [];
+  const F = S.flags || {}, M = MAPS[map]; if (F.ruin || F.doom || F.restored || !M || M.kind === 'still' || M.kind === 'inside') return [];   // after the good ending everyone already walks with a Manif of their own
   const out = [];
   for (const e of list) { if (!isPerson(e) || e.real || isChild(e) || e.numb || e.pet || e.invisible) continue;
     const c = compFor(map, e); if (!c) continue;
@@ -10312,7 +10313,7 @@ async function compTalk(map, e, c) {
   c.said = Math.min(c.said + 1, order.length);
 }
 async function compMention(e) {
-  const c = S.comp && S.comp[compKey(S.map, e)]; if (!c || c.told) return; c.told = 1;
+  if (S.flags && S.flags.restored) return; const c = S.comp && S.comp[compKey(S.map, e)]; if (!c || c.told) return; c.told = 1;
   let h = 0; for (const ch of e.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const P = c.pn, fam = SPECIES[c.sp].type, arr = COMP_BRIEF[fam] || COMP_BRIEF.CALM, cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   if (h % 5 === 0) return;                                            // some people don't mention it at all
