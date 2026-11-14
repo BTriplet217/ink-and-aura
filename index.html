@@ -4997,7 +4997,11 @@ function onStep() { S.steps++; eggTick(); const w = wildAt(S.x, S.y); if (w) sta
 async function interact() {
   const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
   const w = wildAt(fx, fy); if (w) return startWild(w);
-  const e = entAt(fx, fy);
+  let e = entAt(fx, fy);
+  // someone with a Manif beside them: you can't always line up with the Manif itself, so ask which one you mean
+  if (e && !e.manifComp && !e.numb) { const c = ents(S.map).find(o => o.manifComp && o.owner === e.id);
+    if (c) { const cc = S.comp && S.comp[compKey(S.map, e)], nm = cc && SPECIES[cc.sp] ? SPECIES[cc.sp].name : 'Manif';
+      const r = await ask(`(Someone stands here with their ${nm} beside them.)`, ['Talk to them', `Talk to the ${nm}`]); if (r < 0 || r == null) return; if (r === 1) e = c; } }
   if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; VOICED = null; TALKING = e.item || e.invisible || e.note ? null : e;
     try { if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); await e.talk(); if (!e.manifComp) await compMention(e); } finally { TALKING = null; } return; }
   const tl = tileAt(fx, fy);
