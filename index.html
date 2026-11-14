@@ -4999,9 +4999,6 @@ async function interact() {
   const w = wildAt(fx, fy); if (w) return startWild(w);
   let e = entAt(fx, fy);
   // someone with a Manif beside them: you can't always line up with the Manif itself, so ask which one you mean
-  if (e && e.pet && !e.numb) { const sp = petFor(e), nm = SPECIES[sp] ? SPECIES[sp].name : 'Manif';   // after the good ending people carry their own feeling on their shoulder
-    const r = await ask(`(Someone stands here with their ${nm} on their shoulder.)`, ['Talk to them', `Talk to the ${nm}`]); if (r < 0) return;
-    if (r === 1) return petTalk(e, sp); }
   if (e && !e.manifComp && !e.numb) { const c = ents(S.map).find(o => o.manifComp && o.owner === e.id);
     if (c) { const cc = S.comp && S.comp[compKey(S.map, e)], nm = cc && SPECIES[cc.sp] ? SPECIES[cc.sp].name : 'Manif';
       const r = await ask(`(Someone stands here with their ${nm} beside them.)`, ['Talk to them', `Talk to the ${nm}`]); if (r < 0 || r == null) return; if (r === 1) e = c; } }
@@ -5359,23 +5356,6 @@ function activeJobsHTML() {
   return rows.length ? rows.map(r => `<div style="font-size:13px;margin:2px 0">• ${r}</div>`).join('') : '<div style="font-size:13px;color:var(--muted)">None. Townsfolk with work for you stand near the plaza and the back streets.</div>';
 }
 
-// A person's own feeling, back where it belongs. It doesn't tell you a story (that story is theirs); it just shows you how it is with them.
-const PET_LINES = {
-  JOY:['bounces in place and nearly falls off', 'beams at you, then back at them, as if to check you saw', 'hums something cheerful and slightly off-key'],
-  HOPE:['leans out toward the road ahead', 'glows a little brighter when you look at it', 'tugs gently at their collar, like it wants to get going'],
-  CALM:['blinks at you slowly and doesn\'t move at all', 'settles lower on their shoulder, perfectly content', 'breathes in time with them'],
-  CONFIDENCE:['puffs itself up to its full, small height', 'gives you a nod, as one professional to another', 'sits up very straight, and so do they'],
-  SURPRISE:['jumps when you look at it, then looks delighted about jumping', 'stares at your face as if it has never seen one', 'keeps turning round to see what\'s behind them'],
-  SADNESS:['leans its whole weight against their neck', 'looks at you for a long moment, then nods, as if you understand', 'is a little damp, and doesn\'t mind'],
-  FEAR:['hides behind their ear, then peeks out', 'trembles, then holds still when they put a hand on it', 'watches the sky, just in case'],
-  ANGER:['crackles at you, then calms down when they scratch it', 'glares at nothing in particular', 'is very warm to stand next to'],
-  SHAME:['turns its face away and goes a little pink', 'tucks itself into their collar where you can\'t see it', 'gives you the smallest wave'],
-  DISGUST:['wrinkles at the smell of something you can\'t smell', 'looks you up and down and decides you\'ll do', 'flicks a speck of dust off their shoulder'] };
-const PET_N = {};
-async function petTalk(e, sp) {
-  const S2 = SPECIES[sp] || {}, L = PET_LINES[S2.type] || PET_LINES.CALM; let h = 0; for (const ch of e.id + S.map) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const n = PET_N[e.id] = (PET_N[e.id] || 0) + 1; await say(`(The ${S2.name || 'Manif'} ${L[(h + n) % L.length]}.)`);
-}
 // =============================================================================
 //  ECONOMY & PEOPLE — citizens, jobs, shops, the Bag, selling, listening
 // =============================================================================
