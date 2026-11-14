@@ -6557,8 +6557,9 @@ function endingFilter(map, list) {
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
     return out; }
   // the world is saved: nobody stays Numbed, not in the towns, not in the houses, not down in the Stillwell
-  if (fl.restored && !fl.doom) return list.map(e => e.numb || e.look === NUMBED_LOOK ? unNumb(e, map) : e).map(e => e.look && !e.numb && isFolk(e) ? { ...e, pet:true } : e);
-  if (fl.restored) return list.map(e => e.look && !e.numb && isFolk(e) ? { ...e, pet:true } : e);
+  const far = offMainland(map);   // the far places never lost their feelings, so nobody there walks with a Manif
+  if (fl.restored && !fl.doom) return list.map(e => e.numb || e.look === NUMBED_LOOK ? unNumb(e, map) : e).map(e => e.look && !e.numb && isFolk(e) && !far ? { ...e, pet:true } : e);
+  if (fl.restored) return list.map(e => e.look && !e.numb && isFolk(e) && !far ? { ...e, pet:true } : e);
   return list;
 }
 const PET_POOL = () => ROSTER.filter(r => r[2] === 0 && r[3] !== 4).map(r => r[0]);
@@ -10451,13 +10452,23 @@ function compFor(map, e) {
   return (S.comp[key] = { sp:cm.sp, eid:cm.eid, pn:cm.pn, said:0, told:0 });
 }
 const compManif = c => ({ sp:c.sp, eid:c.eid, pn:c.pn, lvl:8 });
+// Would something standing on (x, y) cut the way through? Every open neighbour of the tile must still reach every other one
+// by a short walk round it (people and other companions count as in the way).
+function blocksPath(map, x, y, taken) {
+  const M = MAPS[map], T = (a, b) => (M.tiles[b] || [])[a], busy = new Set(taken.map(e => e.x + ',' + e.y)); busy.add(x + ',' + y);
+  const free = (a, b) => { const c = T(a, b); return c != null && !SOLID.has(c) && c !== 'D' && !busy.has(a + ',' + b); };
+  const N = [[1,0],[-1,0],[0,1],[0,-1]], nb = N.map(([dx, dy]) => [x + dx, y + dy]).filter(([a, b]) => free(a, b)); if (nb.length < 2) return nb.length === 0;
+  const seen = new Set([nb[0].join(',')]), q = [nb[0]];
+  while (q.length) { const [a, b] = q.shift(); for (const [dx, dy] of N) { const u = a + dx, v = b + dy, k = u + ',' + v; if (seen.has(k) || Math.abs(u - x) > 5 || Math.abs(v - y) > 5 || !free(u, v)) continue; seen.add(k); q.push([u, v]); } }
+  return nb.some(p => !seen.has(p.join(',')));
+}
 function companionEnts(map, list) {
-  const F = S.flags || {}, M = MAPS[map]; if (F.ruin || F.doom || F.restored || !M || M.kind === 'still' || M.kind === 'inside') return [];   // after the good ending everyone already walks with a Manif of their own
+  const F = S.flags || {}, M = MAPS[map]; if (F.ruin || F.doom || F.restored || !M || M.kind === 'still' || M.kind === 'inside' || offMainland(map)) return [];   // nobody off the mainland walks with a Manif   // after the good ending everyone already walks with a Manif of their own
   const out = [];
   for (const e of list) { if (!isPerson(e) || e.real || isChild(e) || e.numb || e.pet || e.invisible) continue;
     const c = compFor(map, e); if (!c) continue;
     const [x, y] = spotNear(map, e.x + 1, e.y, list.concat(out));
-    if (Math.abs(x - e.x) + Math.abs(y - e.y) > 3) continue;
+    if (Math.abs(x - e.x) + Math.abs(y - e.y) > 3 || (x === e.x && y === e.y) || blocksPath(map, x, y, list.concat(out))) continue;   // no Manif gets to stand across a path
     out.push({ id:'comp_' + e.id, x, y, dir:e.dir, manifComp:true, name:null, owner:e.id,
       model:() => { const g = buildManif(c.sp, { scale:.55 }); g.position.y += .35; return g; }, talk:() => compTalk(map, e, c) }); }
   return out;
