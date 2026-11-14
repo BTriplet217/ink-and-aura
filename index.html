@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Ink &amp; Aura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,8 +59,34 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 body.touring #hint{display:none!important}
 body.touring #joy,body.touring #pad .k[data-k=b]{visibility:hidden}
 #tourhint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:14;background:rgba(20,18,16,.72);color:#f3e7c9;font:13px/1.3 Georgia,serif;padding:7px 14px;border-radius:14px;pointer-events:none;max-width:70vw;text-align:center}
-.coarse #tourhint{bottom:auto;top:16px}
+.coarse #tourhint{bottom:auto;top:16px;max-width:62vw;font-size:12px}
+#tourbar{position:fixed;top:12px;right:12px;z-index:16;display:flex;gap:8px}
+#tourbar .tb{font-size:18px;height:40px;min-width:46px}
 body.padmode #pad{display:none!important}
+body.padmode #tourbar{display:none}
+/* Phone turned sideways: the world gets the whole wide screen. The stick and buttons sit low in the two side margins (clear of any notch),
+   dialogue and menus sit in the middle between them, and everything is a little smaller so it fits the short height. */
+@media (orientation:landscape) and (max-height:520px){
+  #pad{inset:auto 0 calc(8px + env(safe-area-inset-bottom)) 0;padding:0 calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left))}
+  #joy{width:118px;height:118px;margin:0}
+  #joyKnob{width:50px;height:50px;margin:-25px 0 0 -25px}
+  #ab{margin-bottom:4px;gap:10px}
+  .k.round{width:54px;height:54px;font-size:17px}
+  .coarse #bottom{width:min(600px,calc(100vw - 330px - env(safe-area-inset-left) - env(safe-area-inset-right)));bottom:8px}
+  #bottom{bottom:8px}
+  #dlg{font-size:14px;line-height:1.4;padding:10px 14px 9px;min-height:54px}
+  #cho{max-height:66vh}
+  #cho:has(.opt:nth-child(6)){display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:5px 8px}
+  #sheet{max-height:92vh;width:min(680px,calc(100vw - 40px));padding:12px 14px 10px}
+  #hud{top:8px;left:calc(10px + env(safe-area-inset-left));flex-direction:row;gap:6px}
+  #tools,#tourbar{top:8px;right:calc(10px + env(safe-area-inset-right))}
+  .tb{height:30px}
+  #toast{top:46px;font-size:20px}
+  #hint{display:none}
+  #bhud{top:8px;left:calc(10px + env(safe-area-inset-left));transform:none;width:min(320px,38vw);padding:8px 12px}
+  #ecard{padding:14px 16px 12px}#ecard img{width:min(110px,18vw)}#ecard p{font-size:14px;margin:0 0 6px}#ecard h3{font-size:24px}
+  .coarse #tourhint{top:auto;bottom:10px;max-width:calc(100vw - 260px)}
+}
 body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #pad>*{pointer-events:auto}
 #joy{position:relative;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(27,21,18,.45) 0 55%,rgba(27,21,18,.72) 56%);border:2px solid rgba(232,184,74,.35);touch-action:none;margin:0 0 6px 4px}
@@ -4652,7 +4678,7 @@ function press(b) {
   if (b === 'esc') b = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list && !selectHandler ? 'menu' : 'b';   // Esc: menu while walking, back inside menus
   if (b === 'mute') { toggleMute(); return; }
   if (b === 'zoom') { if (scene === 'world') cycleZoom(1); else if (scene === 'tour' && TOUR.on) tourKey('zoom'); return; }
-  if ((b === 'rotl' || b === 'rotr') && scene === 'tour' && TOUR.on) { TOUR.auto = false; TOUR.yaw += b === 'rotl' ? -Math.PI / 4 : Math.PI / 4; return; }
+  if ((b === 'rotl' || b === 'rotr') && scene === 'tour' && TOUR.on) { tourTurn(b === 'rotl' ? -Math.PI / 4 : Math.PI / 4); return; }
   if (b === 'rotl' || b === 'rotr') { if (scene === 'world') { if (camFree != null) { camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; camYaw = camFree; camFree = null; } camQ = (camQ + (b === 'rotl' ? 1 : 3)) % 4; } return; }
   if (UI.sheetStatic && (b === 'up' || b === 'down')) { sheetEl.scrollTop += (b === 'up' ? -1 : 1) * 90; return; }
   if (selectHandler) return selectHandler(b);
@@ -4779,8 +4805,9 @@ function padRumble(ms = 120, strong = .6) {
   if (!PAD.rumble || !padState.used) return; const gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(g => g && g.connected);
   try { const a = gp && gp.vibrationActuator; if (a && a.playEffect) a.playEffect('dual-rumble', { duration:ms, strongMagnitude:strong, weakMagnitude:strong * .6 }); } catch (e) {}
 }
-addEventListener('gamepadconnected', e => { padState.connected = e.gamepad.id; toast('Controller connected'); });
-addEventListener('gamepaddisconnected', () => { padState.connected = null; toast('Controller disconnected'); for (const k in held) held[k] = 0; padState.dir = null; });
+// a controller plugged into a phone or tablet takes over at once: the on-screen stick and buttons go away until you touch the screen again
+addEventListener('gamepadconnected', e => { padState.connected = e.gamepad.id; padState.used = true; document.body.classList.add('padmode'); toast('Controller connected'); });
+addEventListener('gamepaddisconnected', () => { padState.connected = null; padState.used = false; document.body.classList.remove('padmode'); toast('Controller disconnected'); for (const k in held) held[k] = 0; padState.dir = null; });
 addEventListener('pointerdown', () => { if (padState.used) { padState.used = false; document.body.classList.remove('padmode'); } }, true);
 
 // ---------------------------------------------------------------- settings --
@@ -6404,15 +6431,16 @@ async function indifferentEnding() {
   await ruinTour();
 }
 // The tour is yours to look around: drag to pan, pinch or scroll to zoom, Q / E to turn. A (or Z / Space) moves on to the next place.
-const TOUR = { on:false, x:0, z:0, dist:16, yaw:0, auto:true, w:1, h:1, pts:new Map(), pinch0:0, dist0:16 };
+const TOUR = { on:false, x:0, z:0, dist:16, yaw:0, yawV:0, auto:true, w:1, h:1, pts:new Map(), pinch0:0, dist0:16, ang0:0, yaw0:0, moved:0, rot:false };
 function tourCam(dt) {
   if (TOUR.auto) TOUR.yaw += dt * .08;
-  const ht = TOUR.dist * .62, cx = TOUR.x + Math.sin(TOUR.yaw) * TOUR.dist, cz = TOUR.z + Math.cos(TOUR.yaw) * TOUR.dist;
-  camera.position.lerp(V3(cx, ht, cz), 1 - Math.exp(-dt * 12)); camera.lookAt(TOUR.x, 0, TOUR.z); worldSky.position.copy(camera.position);
+  TOUR.yawV += (TOUR.yaw - TOUR.yawV) * (1 - Math.exp(-dt * 10));   // turning eases round the point you're looking at, rather than cutting across it
+  const ht = TOUR.dist * .62, cx = TOUR.x + Math.sin(TOUR.yawV) * TOUR.dist, cz = TOUR.z + Math.cos(TOUR.yawV) * TOUR.dist;
+  camera.position.lerp(V3(cx, ht, cz), 1 - Math.exp(-dt * 14)); camera.lookAt(TOUR.x, 0, TOUR.z); worldSky.position.copy(camera.position);
   if (W.fogBase) { const k = Math.max(1, TOUR.dist / 9); worldScene.fog.near = W.fogBase[0] * k; worldScene.fog.far = W.fogBase[1] * k; }
 }
 function tourPan(dx, dy) {   // screen-space drag, in pixels: the ground follows your finger
-  const k = TOUR.dist * .0028, s = Math.sin(TOUR.yaw), c = Math.cos(TOUR.yaw); TOUR.auto = false;
+  const k = TOUR.dist * .0028, s = Math.sin(TOUR.yawV), c = Math.cos(TOUR.yawV); TOUR.auto = false;
   TOUR.x = Math.max(0, Math.min(TOUR.w - 1, TOUR.x - c * dx * k - s * dy * k)); TOUR.z = Math.max(0, Math.min(TOUR.h - 1, TOUR.z + s * dx * k - c * dy * k));
 }
 const tourZoom = f => { TOUR.auto = false; TOUR.dist = Math.max(5, Math.min(34, TOUR.dist * f)); };
@@ -6420,24 +6448,42 @@ function tourKey(b) {
   if (b === 'up') tourPan(0, 60); else if (b === 'down') tourPan(0, -60); else if (b === 'left') tourPan(60, 0); else if (b === 'right') tourPan(-60, 0);
   else if (b === 'zoom') tourZoom(TOUR.dist > 20 ? .45 : 1.6);
 }
-canvas.addEventListener('pointerdown', e => { if (!TOUR.on) return; TOUR.pts.set(e.pointerId, [e.clientX, e.clientY]);
-  if (TOUR.pts.size === 2) { const [a, b] = [...TOUR.pts.values()]; TOUR.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); TOUR.dist0 = TOUR.dist; } });
-addEventListener('pointermove', e => { const p = TOUR.pts.get(e.pointerId); if (!p || !TOUR.on) return; const dx = e.clientX - p[0], dy = e.clientY - p[1]; TOUR.pts.set(e.pointerId, [e.clientX, e.clientY]);
-  if (TOUR.pts.size >= 2) { const [a, b] = [...TOUR.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (TOUR.pinch0 > 0) { TOUR.auto = false; TOUR.dist = Math.max(5, Math.min(34, TOUR.dist0 * TOUR.pinch0 / Math.max(20, d))); } return; }
-  tourPan(dx, dy); });
-const tourEnd = e => { TOUR.pts.delete(e.pointerId); if (TOUR.pts.size < 2) TOUR.pinch0 = 0; };
+const tourTurn = a => { TOUR.auto = false; TOUR.yaw += a; };
+// One finger (or the left mouse button) pans; two fingers pinch to zoom and twist to turn; the right mouse button, or Shift + drag, turns.
+canvas.addEventListener('pointerdown', e => { if (!TOUR.on) return; TOUR.pts.set(e.pointerId, [e.clientX, e.clientY]); if (TOUR.pts.size === 1) { TOUR.moved = 0; TOUR.rot = e.button === 2 || e.shiftKey; }
+  if (TOUR.pts.size === 2) { const [a, b] = [...TOUR.pts.values()]; TOUR.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); TOUR.dist0 = TOUR.dist; TOUR.ang0 = Math.atan2(b[1] - a[1], b[0] - a[0]); TOUR.yaw0 = TOUR.yaw; TOUR.moved = 99; } });
+canvas.addEventListener('contextmenu', e => { if (TOUR.on) e.preventDefault(); });
+addEventListener('pointermove', e => { const p = TOUR.pts.get(e.pointerId); if (!p || !TOUR.on) return; const dx = e.clientX - p[0], dy = e.clientY - p[1]; TOUR.pts.set(e.pointerId, [e.clientX, e.clientY]); TOUR.moved += Math.abs(dx) + Math.abs(dy);
+  if (TOUR.pts.size >= 2) { const [a, b] = [...TOUR.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (TOUR.pinch0 > 0) { TOUR.auto = false; TOUR.dist = Math.max(5, Math.min(34, TOUR.dist0 * TOUR.pinch0 / Math.max(20, d)));
+      let da = Math.atan2(b[1] - a[1], b[0] - a[0]) - TOUR.ang0; da = Math.atan2(Math.sin(da), Math.cos(da)); TOUR.yaw = TOUR.yaw0 - da; } return; }
+  if (TOUR.rot) return tourTurn(-dx * .01); tourPan(dx, dy); });
+// a tap (no drag) on a note, a person or what's left of one reads it out
+function tourPick(px, py) {
+  const r = canvas.getBoundingClientRect(); let best = null, bd = 46;
+  for (const e of ents(S.map)) { if (!e.talk || e.invisible) continue; const g = W.npcs[e.id]; if (!g) continue;
+    const v = g.position.clone(); v.y += e.note ? .1 : .9; v.project(camera); if (v.z > 1) continue;
+    const sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * r.height, d = Math.hypot(sx - px, sy - py) - (e.note ? 14 : 0);   // notes are small: they get a little extra reach
+    if (d < bd) { bd = d; best = e; } }
+  if (best) { sfx('tick'); runScript(async () => { await best.talk(); }); }
+}
+const tourEnd = e => { const was = TOUR.pts.size; TOUR.pts.delete(e.pointerId); if (TOUR.pts.size < 2) TOUR.pinch0 = 0;
+  if (TOUR.on && was === 1 && e.type === 'pointerup' && TOUR.moved < 10 && !UI.dlg && e.target === canvas) tourPick(e.clientX, e.clientY); };
 addEventListener('pointerup', tourEnd); addEventListener('pointercancel', tourEnd);
 addEventListener('wheel', e => { if (TOUR.on) tourZoom(e.deltaY < 0 ? 1 / 1.15 : 1.15); }, { passive:true });
-function tourHint(on) { let h = $('#tourhint'); if (!on) { if (h) h.remove(); return; }
+function tourHint(on) { let h = $('#tourhint'), bar = $('#tourbar'); if (!on) { if (h) h.remove(); if (bar) bar.remove(); return; }
   if (!h) { h = document.createElement('div'); h.id = 'tourhint'; document.body.appendChild(h); }
-  h.textContent = matchMedia('(pointer: coarse)').matches ? 'Drag to look around · Pinch to zoom · A for the next place' : 'Drag to look around · Scroll to zoom · Q / E to turn · Z or Space for the next place'; }
+  h.textContent = matchMedia('(pointer: coarse)').matches ? 'Drag to look around · Pinch to zoom · Twist two fingers or use ⟲ ⟳ to turn · Tap a note or a person to read it · A for the next place'
+    : 'Drag to look around · Scroll to zoom · Right-drag, Q / E or ⟲ ⟳ to turn · Click a note or a person to read it · Z or Space for the next place';
+  if (!bar) { bar = document.createElement('div'); bar.id = 'tourbar'; document.body.appendChild(bar);
+    for (const [k, t, a] of [['l', '⟲', -Math.PI / 4], ['r', '⟳', Math.PI / 4]]) { const b = document.createElement('div'); b.className = 'tb'; b.textContent = t; b.title = k === 'l' ? 'Turn left' : 'Turn right';
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); tourTurn(a); sfx('tick'); }); bar.appendChild(b); } } }
 
 async function ruinTour() {
   document.body.classList.add('touring'); tourHint(true);
   scene = 'tour'; $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden'); playMusic(THEMES.endingFor('none'));
   for (const id of RUIN_TOUR()) {
     await fadeTo(1, 500); S.map = id; buildWorld(id); if (W.player) W.player.visible = false; for (const m of W.minis || []) m.visible = false;   // you aren't here: you're still standing in the plaza, numb
-    const M = MAPS[id], st = TOUR_START[id]; Object.assign(TOUR, { on:true, x:st ? st[0] : (M.w - 1) / 2, z:st ? st[1] : (M.h - 1) / 2, dist:st ? 11 : 16, yaw:0, auto:true, w:M.w, h:M.h }); await fadeTo(0, 700);
+    const M = MAPS[id], st = TOUR_START[id]; Object.assign(TOUR, { on:true, x:st ? st[0] : (M.w - 1) / 2, z:st ? st[1] : (M.h - 1) / 2, dist:st ? 11 : 16, yaw:0, yawV:0, auto:true, w:M.w, h:M.h }); await fadeTo(0, 700);
     toast(MAPS[id].name, TOUR_SUB[id] || deal('ruinsub', ['Nobody left who minds', 'Still standing. Nobody inside it is', 'The Hearts burn on, unwatched', 'The Numbed stand where the note found them', 'Fields gone to seed', 'No one has spoken here in years', 'Doors open. Lamps out', 'The ink has dried on the cobbles', 'A dog still waits by a gate', 'The forges are cold', 'Every clock stopped at the same hour', 'Birds nest in the shrine', 'Nothing to do. Nobody to do it']));
     await new Promise(r => { endingHandler = b => { if (b === 'a') { endingHandler = null; sfx('ok'); r(); } else tourKey(b); }; });
   }
