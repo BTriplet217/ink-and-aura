@@ -6392,7 +6392,7 @@ async function wrenBeg() {
 
 // ---------------------------------------------------------------- the indifferent ending
 const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id, 'r_coast', 'r_dustline', 'holdfast'];
-const TOUR_START = { r_coast:[54, 10], r_dustline:[4, 10], holdfast:[5, 15] };   // the far stops open on what matters there: the shut gates, the man at Holdfast's fence
+const TOUR_START = { r_coast:[52, 13], r_dustline:[4, 10], holdfast:[5, 15] };   // the far stops open on what matters there: the shut gates, the man at Holdfast's fence
 const TOUR_SUB = { r_coast:'The gate to the mainland is chained shut, for good', r_dustline:'The gate to the mainland is chained shut, for good', holdfast:'Everyone went below. The hatch is barred.' };
 let BEG_MEM = null;   // the test build keeps the 'Wren begs' checkpoint in memory only
 async function indifferentEnding() {
@@ -6412,11 +6412,8 @@ async function indifferentEnding() {
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
   await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Brand carried the dice tin, Tam carried Lio on his shoulders, and Saffi walked at the back the whole way, watching the road. They got out together, and they are safe.');
-  await say('The far places never felt it. Saltmere and Cobb Hollow were too far off for the grey to reach, and they were left untouched.');
-  await say('Clover packed her good books and her bat and left her cabin in the pines. The Pinewind road runs straight to Holdfast, and she had no intention of being on it when the grey came walking. She went west, to the Coast Road.');
-  await say('People ran for the far places while they still could. When the last of them were through, the gates were shut and chained: the one at Moonmoss with the Coast Road and Saltmere behind it, and the one at Veilham with the Dustline and Cobb Hollow behind it. They will never be opened again.');
-  await say('Holdfast was too far off as well, but Holdfast knows the grey doesn\'t need to travel. Somebody can carry it. Fen heard the radio go quiet one town at a time, and by morning there were people on the Pinewind road, walking slowly and saying nothing, the way Silas Vosk walked home twenty years ago.');
-  await say('Marsh rang the bell. Ninety people went down the three hundred and four steps, and Earl barred the hatch behind them. Down below, Old Saul counts ninety. He counts again. Up top, a man in grey sleeves knocks on the door of the store and calls for his father.');
+  await say('The far places never felt it. Once the last people fleeing the mainland were through, the gates to the Coast Road and the Dustline were chained shut for good. Clover left the Pinewind before the grey could walk past her door, and built a smaller cabin on the Coast Road.');
+  await say('Holdfast saw it coming up the road and went below. The hatch is barred, and a man in grey sleeves knocks on it, calling for his father.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
   // you go the way they went: standing, grey from the feet up, the stone climbing until there's nothing left that minds
@@ -8294,19 +8291,35 @@ async function cloverBat() {
   await say('You wake up on the floor of the Archive with a lump on your head exactly the shape of a bat. Somebody carried you here. You get the feeling it wasn\'t Clover.');
 }
 function cloverPeople() {
-  if (S.flags.ruin) return [{ id:'clover_note', note:true, keepRuin:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But this road goes straight to Holdfast, and whatever\'s coming for Holdfast is going to walk right past my door. So: the Coast Road, with the good books and the bat. Kettle\'s yours. Shoes off. — C."') }];
+  if (S.flags.ruin) return [{ id:'clover_note', note:true, keepRuin:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, weighed down with a teapot.) "For the record, I did NOT want to leave. I have a very good couch and a first edition of everything. But this road goes straight to Holdfast, and whatever\'s coming for Holdfast is going to walk right past my door. So: the Coast Road, with the good books and the bat. I\'ll build something smaller. Not as good. Don\'t argue. Kettle\'s yours. Shoes off. — C."') }];
   const [x, y, dir] = CL_POS || [3, 5, 'down'];
   return [{ id:'clover', x, y, dir, name:'Clover', model:cloverModel, folk:false, real:true, talk:cloverTalk }];
 }
 // After the ruin Clover has left the Pinewind (it's the road to Holdfast) and gone to the Coast Road, behind the shut gate, sitting on her box of books by the hedge.
 function cloverOnCoast() {
   if (!S.flags.ruin) return [];
-  const model = () => { const g = buildPerson(CLOVER_LOOK); g.userData.sit = true; const box = new THREE.Group(); box.position.set(0, 0, -.05);
-    box.add(part(new THREE.BoxGeometry(.62, .34, .44), '#7a5a3a', [0, .17, 0])); for (let k = 0; k < 4; k++) box.add(part(new THREE.BoxGeometry(.12, .16, .3), ['#8e2c14', '#3a5a7a', '#5a6a3a', '#a8862a'][k], [-.2 + k * .13, .42, 0], { ink:0 })); g.add(box);
-    holdItem(g, 'bat'); return g; };
-  const lines = ['(Clover is sitting on a box of books by the hedge, bat across her knees, glaring at the gate.) I had a very good couch, you know.', 'They chained the gate. Good. I checked the chain myself. Twice. Holdfast would be proud of me, and I hate that.',
-    'The gulls here are rude. I like them.', 'Don\'t look at me like that. I am not crying. It\'s the sea air.', 'Somebody has to sit by the gate. It might as well be someone with a bat.'];
-  return [{ id:'clover_coast', x:53, y:11, dir:'right', name:'Clover', model, folk:false, real:true, talk:() => sayAs('Clover', lines[(CL().line++) % lines.length]) }];
+  // a little log hut she knocked together by the hedge: half the size of the old cabin, one window, one chimney, a porch step
+  const hut = () => { const g = new THREE.Group(), W2 = 2.8, D = 2.1, logC = ['#7a5232', '#6a4628', '#84593a'], fz = D / 2, bz = -D / 2;
+    sBox(g, W2 + .2, .2, D + .2, '#8a8478', 0, .1, 0);
+    for (let k = 0; k < 6; k++) { const y = .32 + k * .26, c = logC[k % 3];
+      for (const z of [fz, bz]) { const m = part(new THREE.CylinderGeometry(.13, .13, W2 + .4, 10), c, [0, y, z]); m.rotation.z = Math.PI / 2; g.add(m); }
+      for (const x of [-W2 / 2, W2 / 2]) { const m = part(new THREE.CylinderGeometry(.13, .13, D + .4, 10), c, [x, y + .13, 0]); m.rotation.x = Math.PI / 2; g.add(m); } }
+    sBox(g, W2 - .1, 1.6, D - .1, '#5a3a22', 0, 1, 0, { ink:0 });
+    const roofY = 1.9, half = D / 2 + .45, pitch = .6;
+    for (const s2 of [-1, 1]) { const r = part(new THREE.BoxGeometry(W2 + .7, .14, half / Math.cos(pitch) + .1), '#4f6a3a', [0, roofY + Math.tan(pitch) * half / 2, s2 * half / 2]); r.rotation.x = s2 * pitch; g.add(r); }
+    for (const x of [-W2 / 2, W2 / 2]) { const gb = new THREE.Shape(); gb.moveTo(-D / 2 - .1, 0); gb.lineTo(D / 2 + .1, 0); gb.lineTo(0, Math.tan(pitch) * (D / 2 + .1)); gb.lineTo(-D / 2 - .1, 0);
+      const m = part(new THREE.ShapeGeometry(gb), '#6a4628', [x, roofY - .05, 0], { ink:0, mo:{ side:THREE.DoubleSide } }); m.rotation.y = Math.PI / 2; g.add(m); }
+    sBox(g, .5, 2, .5, '#8a8478', W2 / 2 - .5, 2.1, bz + .4); const sm = glow('#d8d4cc', .6, .25); sm.position.set(W2 / 2 - .5, 3.3, bz + .4); g.add(sm);
+    sBox(g, .7, 1.3, .08, '#3f5a32', -.45, .85, fz + .15); sBall(g, .05, '#d8b04a', -.22, .85, fz + .21);
+    sBox(g, .56, .5, .06, '#ffd98a', .7, 1.1, fz + .15, { ink:0 }); sBox(g, .04, .5, .08, '#4a2e1a', .7, 1.1, fz + .19, { ink:0 }); const o = glow('#ffcf70', .8, .4); o.position.set(.7, 1.1, fz + .3); g.add(o);
+    sBox(g, 1, .14, .45, '#8a6440', -.45, .07, fz + .38);
+    for (let i = 0; i < 4; i++) sBox(g, .26, .07, .18, ['#8a2a2a', '#2a4a6a', '#c8a050', '#4a6a3a'][i], .75, .3 + i * .07, fz + .5, { rot:[0, i * .5, 0] });   // a stack of the good books by the step
+    return g; };
+  const lines = ['(Clover is on the step of a small new cabin, bat leaning by the door.) It\'s half the size of the old one. The couch didn\'t fit. I\'m not over it.', 'They chained the gate. Good. I checked the chain myself. Twice. Holdfast would be proud of me, and I hate that.',
+    'The gulls here are rude. I like them.', 'Don\'t look at me like that. I am not crying. It\'s the sea air.', 'Somebody has to live by the gate. It might as well be someone with a bat.'];
+  const model = () => { const g = buildPerson(CLOVER_LOOK); holdItem(g, 'bat'); return g; };
+  return [{ id:'clover_hut', x:52, y:13, dir:'down', name:'Clover\'s new cabin', model:hut, folk:false, real:true, scenery:true },
+    { id:'clover_coast', x:51, y:15, dir:'down', name:'Clover', model, folk:false, real:true, talk:() => sayAs('Clover', lines[(CL().line++) % lines.length]) }];
 }
 MAPS[CLOVER_ROOM].room.npcsFn = cloverPeople; MAPS[CLOVER_ROOM].set.push({ k:'rug', x:5, y:5.6 });
 { const base = REGION_NPCS.r_pinewind; REGION_NPCS.r_pinewind = () => [...base(),
