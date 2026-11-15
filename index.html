@@ -207,7 +207,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
   <div id="joy"><i class="t n"></i><i class="t e"></i><i class="t s"></i><i class="t w"></i><div id="joyKnob"></div></div>
   <div id="ab"><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
 </div>
-<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom and over-the-shoulder view: C · Look up / down: R / F</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
+<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom and over-the-shoulder view: C · Look up / down: R / F · Scroll to zoom</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
 <div id="fade"></div>
 <script type="module">
 import * as THREE from 'three';
@@ -4656,7 +4656,8 @@ for (const k in MAPS) if (MAPS[k].kind === 'inside') varyRoom(k);
 const worldScene = new THREE.Scene(), battleScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 140);
 const bcam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 140);
-const TP = { on:(() => { try { return localStorage.getItem('ia_view') === 'tp'; } catch (e) { return false; } })(), pitch:.1, live:false, dist:2.4 };
+const TP = { on:(() => { try { return localStorage.getItem('ia_view') === 'tp'; } catch (e) { return false; } })(), pitch:.1, live:false, dist:2.4, want:2.5 };
+const TP_DISTS = [4.2, 2.5, 1.5], TP_MIN = 1.1, TP_MAX = 6;   // over the shoulder: far, normal, close
 let activeScene = worldScene, activeCam = camera;
 function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp = innerWidth / innerHeight;
   for (const c of [camera, bcam]) { c.aspect = asp; c.fov = innerWidth < innerHeight ? 50 : 38; c.updateProjectionMatrix(); }
@@ -5003,21 +5004,24 @@ const CAM_ZOOMS = [1.85, 1.15, .86, .5]; let camZoom = 2;
 const TP_BLOCK = new Set(['#', 'H', 'D', 'W', 'X']);
 function setView(tp) { TP.on = !!tp; TP.pitch = .1; try { localStorage.setItem('ia_view', tp ? 'tp' : 'top'); } catch (e) {} resize(); if (typeof W !== 'undefined' && W.player) updateCamera(1, true); }
 const tpLook = (dyaw, dpitch) => { if (dyaw) { if (camFree == null) camFree = camYaw; camFree += dyaw; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; } if (dpitch) TP.pitch = Math.max(-.75, Math.min(1.05, TP.pitch + dpitch)); };
-function cycleZoom(d = 1) { camZoomV = null; const n = CAM_ZOOMS.length + 1, cur = TP.on ? CAM_ZOOMS.length : camZoom, nx = (cur + d + n) % n;
-  if (nx === CAM_ZOOMS.length) setView(true); else { camZoom = nx; if (TP.on) setView(false); }
-  toast(['Far view', 'Wide view', 'Standard view', 'Close view', 'Over the shoulder'][nx], nx === CAM_ZOOMS.length ? 'Drag to look around' : undefined); }
+// C / the zoom button steps through: Far, Wide, Standard, Close, then over the shoulder (far, normal, close), then back round to Far.
+function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ + TP_DISTS.length;
+  const tpI = TP_DISTS.reduce((b, v, i) => Math.abs(v - TP.want) < Math.abs(TP_DISTS[b] - TP.want) ? i : b, 0), cur = TP.on ? NZ + tpI : camZoom, nx = (cur + d + n) % n;
+  if (nx >= NZ) { TP.want = TP_DISTS[nx - NZ]; if (!TP.on) setView(true); } else { camZoom = nx; if (TP.on) setView(false); }
+  toast(nx >= NZ ? ['Over the shoulder: far', 'Over the shoulder', 'Over the shoulder: close'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx === NZ ? 'Drag to look around' : undefined); }
+const tpZoom = f => { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, TP.want * f)); };
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
 canvas.addEventListener('pointerdown', e => { if (scene !== 'world') return; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved = 0;
-  if (drag.pts.size === 2) { const [a, b] = [...drag.pts.values()]; drag.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); drag.zoom0 = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom]; } });
+  if (drag.pts.size === 2) { const [a, b] = [...drag.pts.values()]; drag.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); drag.zoom0 = TP.live ? TP.want : camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom]; } });
 addEventListener('pointermove', e => { const p = drag.pts.get(e.pointerId); if (!p || scene !== 'world') return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved += Math.abs(dx) + Math.abs(dy);
-  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0 && !TP.live) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
+  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0 && TP.live) TP.want = Math.max(TP_MIN, Math.min(TP_MAX, drag.zoom0 * drag.pinch0 / Math.max(20, d))); else if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
   if (TP.live) { tpLook(-dx * .008, -dy * .006); return; }
   if (camFree == null) camFree = camYaw; camFree -= dx * .011; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; });
 const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag.pinch0 = 0; };
 addEventListener('pointerup', dragEnd); addEventListener('pointercancel', dragEnd);
-addEventListener('wheel', e => { if (scene !== 'world' || TP.live) return; const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
+addEventListener('wheel', e => { if (scene !== 'world') return; if (TP.live) { tpZoom(e.deltaY < 0 ? 1 / 1.15 : 1.15); return; } const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
 const camFocus = new THREE.Vector3();
 let CAM_TILT = null;        // [dist, height] to override the usual angle (the lighthouse gallery looks out level, to the horizon)
 function updateCamera(dt, snap) {
@@ -5031,7 +5035,7 @@ function updateCamera(dt, snap) {
   if (tp) {
     const cp = Math.cos(TP.pitch), sp = Math.sin(TP.pitch), fx = -Math.sin(camYaw) * cp, fy = -sp, fz = -Math.cos(camYaw) * cp;   // where you're looking
     const pvx = camFocus.x + Math.cos(camYaw) * .38, pvy = camFocus.y + 1.12, pvz = camFocus.z - Math.sin(camYaw) * .38;            // just over the right shoulder
-    let dd = 2.5; for (let s = 1; s <= 8; s++) { const k = 2.5 * s / 8, qy = pvy - fy * k; if (qy < 3 && TP_BLOCK.has(tileAt(Math.round(pvx - fx * k), Math.round(pvz - fz * k)))) { dd = Math.max(.35, 2.5 * (s - 1) / 8 - .15); break; } }   // walls and trees push the camera in, not through
+    const W0 = TP.want; let dd = W0; for (let s = 1; s <= 12; s++) { const k = W0 * s / 12, qy = pvy - fy * k; if (qy < 3 && TP_BLOCK.has(tileAt(Math.round(pvx - fx * k), Math.round(pvz - fz * k)))) { dd = Math.max(.35, W0 * (s - 1) / 12 - .15); break; } }   // walls and trees push the camera in, not through
     TP.dist += (dd - TP.dist) * (dd < TP.dist ? 1 : 1 - Math.exp(-dt * 6));
     let cx = pvx - fx * TP.dist, cy = pvy - fy * TP.dist, cz = pvz - fz * TP.dist; const gy = groundY(Math.round(cx), Math.round(cz)) + .3; if (cy < gy) cy = gy;
     camera.position.set(cx, cy, cz); camera.lookAt(cx + fx * 8, cy + fy * 8, cz + fz * 8);
@@ -5304,7 +5308,7 @@ function pollPad(dt) {
   if (scene === 'world' && PAD.cam !== 'none' && sheetEl.classList.contains('hidden')) {   // not while a page is open: that stick is scrolling it
     const [ax, ay] = PAD.cam === 'left' ? [0, 1] : [2, 3]; let x = gp.axes[ax] || 0, y = gp.axes[ay] || 0;
     const dz = v => Math.abs(v) < PAD.dead ? 0 : (v - Math.sign(v) * PAD.dead) / (1 - PAD.dead);
-    x = dz(x) * (PAD.invX ? -1 : 1); y = dz(y) * (PAD.invY ? -1 : 1);
+    x = dz(x) * (PAD.invX ? -1 : 1); y = dz(y) * (TP.live ? (PAD.invLook ? -1 : 1) : (PAD.invY ? -1 : 1));   // over the shoulder the stick looks up and down; from above it zooms
     const moveUsesStick = (PAD.cam === 'left' && /left/.test(PAD.move)) || (PAD.cam === 'right' && /right/.test(PAD.move));
     if (!moveUsesStick && (x || y) && TP.live) tpLook(-x * dt * (1.6 + PAD.sens * .8), y * dt * (1.1 + PAD.sens * .5));
     else if (!moveUsesStick && (x || y)) {
@@ -5338,6 +5342,7 @@ async function controllerMenu() {
       { label:'View sensitivity', sub:'●'.repeat(PAD.sens) + '○'.repeat(5 - PAD.sens) },
       { label:'Invert view left / right', sub:PAD.invX ? 'On' : 'Off' },
       { label:'Invert zoom (stick up / down)', sub:PAD.invY ? 'On' : 'Off' },
+      { label:'Invert look up / down', sub:(PAD.invLook ? 'On' : 'Off') + ' · over the shoulder' },
       { label:'Stick dead zone', sub:Math.round(PAD.dead * 100) + '%' },
       { label:'Vibration', sub:PAD.rumble ? 'On' : 'Off' },
       ...PAD_ACTIONS.map(([k, n]) => ({ label:'Button: ' + n, sub:padName(PAD.map[k]) })),
@@ -5349,10 +5354,11 @@ async function controllerMenu() {
     else if (c === 3) PAD.sens = PAD.sens % 5 + 1;
     else if (c === 4) PAD.invX = !PAD.invX;
     else if (c === 5) PAD.invY = !PAD.invY;
-    else if (c === 6) PAD.dead = [.1, .15, .2, .25, .3, .4][([.1, .15, .2, .25, .3, .4].indexOf(PAD.dead) + 1) % 6];
-    else if (c === 7) { PAD.rumble = !PAD.rumble; padRumble(200, .8); }
-    else if (c >= 8 && c < 8 + PAD_ACTIONS.length) {
-      const [k, n] = PAD_ACTIONS[c - 8];
+    else if (c === 6) PAD.invLook = !PAD.invLook;
+    else if (c === 7) PAD.dead = [.1, .15, .2, .25, .3, .4][([.1, .15, .2, .25, .3, .4].indexOf(PAD.dead) + 1) % 6];
+    else if (c === 8) { PAD.rumble = !PAD.rumble; padRumble(200, .8); }
+    else if (c >= 9 && c < 9 + PAD_ACTIONS.length) {
+      const [k, n] = PAD_ACTIONS[c - 9];
       if (!gp) { await say('Connect a controller and press any button on it first.'); continue; }
       setDlg(`Press the button you want for "${n}"… (keyboard Esc to cancel)`, false);
       const i = await new Promise(res => { padState.capture = res; const esc = e => { if (e.key === 'Escape') { removeEventListener('keydown', esc, true); padState.capture = null; res(null); } }; addEventListener('keydown', esc, true); });
@@ -5361,7 +5367,7 @@ async function controllerMenu() {
       if (i != null) { for (const kk in PAD.map) if (PAD.map[kk] === i && kk !== k) PAD.map[kk] = PAD.map[k]; PAD.map[k] = i; sfx('tick'); }
       await wait(150);
     }
-    else if (c === 8 + PAD_ACTIONS.length) { Object.assign(PAD, JSON.parse(JSON.stringify(PAD_DEFAULT))); toast('Controller settings reset'); }
+    else if (c === 9 + PAD_ACTIONS.length) { Object.assign(PAD, JSON.parse(JSON.stringify(PAD_DEFAULT))); toast('Controller settings reset'); }
     savePad();
   }
 }
