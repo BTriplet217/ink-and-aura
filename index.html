@@ -1968,7 +1968,7 @@ function buildPerson(L) {
   }
   // clothes in layers, the way the travellers and townsfolk in the paintings are dressed: lapels, a waistcoat, a neckerchief, a shawl, a hem.
   // Chosen per person and kept for good; people who are already dressed up (coats, aprons, armour, robes, patterns) keep their own look.
-  if (!L.plain && !L.pattern && !L.tiedye && !L.snout && !['apron', 'armor', 'longcoat', 'poncho', 'cape', 'scarf', 'hood', 'veil'].some(k => gear.includes(k))) {
+  if (!L.plain && !L.kit && !L.pattern && !L.tiedye && !L.snout && !['apron', 'armor', 'longcoat', 'poncho', 'cape', 'scarf', 'hood', 'veil'].some(k => gear.includes(k))) {
     const cC = new THREE.Color(coat), dk = cC.clone().multiplyScalar(.58).getStyle(), lt = cC.clone().lerp(new THREE.Color('#fff3d6'), .4).getStyle(), acc = L.accent || cC.clone().offsetHSL(.45, -.05, .08).getStyle(), kind = (seed >> 7) % 5;
     const rAt = y => B.waist + (B.sh * .92 - B.waist) * ((y - .52) / .3);
     if (kind === 0 || kind === 3) for (const sx of [-1, 1]) {   // lapels, and a shirt showing between them
@@ -1992,13 +1992,14 @@ function buildPerson(L) {
       add(new THREE.CylinderGeometry(.018, .018, .1, 8), '#4a3424', [0, .02, 0], { to:sw }); add(new THREE.BoxGeometry(.15, .03, .04), '#8a7a5a', [0, -.04, 0], { to:sw });
       add(new THREE.BoxGeometry(.04, .58, .014), k === 'flamesword' ? '#c8b8a8' : '#d8dce4', [0, -.34, 0], { to:sw, ink:1.04 });
       if (k === 'flamesword') for (let i = 0; i < 7; i++) { const f = glow(i % 2 ? '#ff7a2a' : '#ffc04a', .16 + (i % 3) * .05, .8); f.position.set((i % 2 ? .025 : -.025), -.1 - i * .08, 0); sw.add(f); } } }
+  if (L.kit && typeof KITS !== 'undefined' && KITS[L.kit]) KITS[L.kit]({ add, inner, arms, hands, legs, B, L, rAt:y => B.waist + (B.sh * .92 - B.waist) * ((y - .52) / .3) });
   // Less cartoon, more sprite: a smaller head on the same body (everything from the chin up shrinks together),
   // plus tailoring details: lapels, a shirt at the neck, shoulder seams, and mitten hands with a thumb.
   { const HK = L.small ? .9 : .82, py = .86, box = new THREE.Box3();
     for (const o of inner.children.slice()) { if (o.isGroup && (legs.includes(o) || arms.includes(o))) continue; box.setFromObject(o); if (box.max.y < .95) continue;
       o.position.set(o.position.x * HK, py + (o.position.y - py) * HK, o.position.z * HK); o.scale.multiplyScalar(HK); }
     const dk = new THREE.Color(coat).multiplyScalar(.7).getStyle(), shirt = L.accent2 || '#efe6d2';
-    if (!gear.includes('armor') && !gear.includes('apron') && !L.pattern) { add(new THREE.BoxGeometry(.07, .12, .012), shirt, [0, .76, B.sh * .62 + .02], { rot:[.25, 0, 0] });
+    if (!L.kit && !gear.includes('armor') && !gear.includes('apron') && !L.pattern) { add(new THREE.BoxGeometry(.07, .12, .012), shirt, [0, .76, B.sh * .62 + .02], { rot:[.25, 0, 0] });
       for (const sx of [-1, 1]) add(new THREE.BoxGeometry(.05, .15, .012), dk, [sx * .04, .74, B.sh * .62 + .028], { rot:[.25, 0, sx * .35] }); }
     for (const sh of arms) add(new THREE.TorusGeometry(B.arm * 1.18, .008, 4, 14), dk, [0, -.02, 0], { to:sh, rot:[Math.PI / 2, 0, 0] });
     for (const [i, h] of hands.entries()) { const sx = i ? 1 : -1; add(new THREE.SphereGeometry(B.arm * .45, 8, 6), L.glove && sx > 0 ? L.glove : skin, [sx * -B.arm * .55, .01, B.arm * .35], { to:h, sc:[1, 1.3, 1] }); } }
@@ -3542,6 +3543,156 @@ function buildBurnt(h) {
   for (let i = 0; i < 3; i++) { const e = glow('#ff6a2a', .25, .5); e.position.set(cx + (i - 1) * .8, gy + .15, cz + (i % 2) * .6); g.add(e); }
   return g;
 }
+// =============================================================================
+//  KITS — the people drawn from Blaine's character art get the rest of their outfit here,
+//  piece by piece from the paintings: Tam, Lio, Brand, Morwen, Saffi, Clover, Ashlynn.
+//  A look names its kit (kit:'tam'); buildPerson calls it once the body, hair and gear are on.
+//  Body frame: waist y .53, shoulders .79, head .96; +z is the front.
+// =============================================================================
+const KITS = (() => {
+  const PI = Math.PI, Box = (a, b, c) => new THREE.BoxGeometry(a, b, c), Cyl = (a, b, h, n = 12, open) => new THREE.CylinderGeometry(a, b, h, n, 1, !!open), Sph = (r, a = 10, b = 8) => new THREE.SphereGeometry(r, a, b),
+    Tor = (r, t, arc = PI * 2) => new THREE.TorusGeometry(r, t, 8, 18, arc), Cone = (r, h, n = 6) => new THREE.ConeGeometry(r, h, n);
+  const LEA = '#5e4126', LEAD = '#3c2a18', LEAL = '#7a5a36', BRASS = '#a8843e', STEEL = '#8a8a90', DS = { side:THREE.DoubleSide };
+  // shared pieces
+  const scarf = (K, c, r = .1, t = .042, y = .83) => { K.add(Tor(r, t), c, [0, y, .008], { rot:[PI / 2, 0, 0], ink:1.05 }); K.add(Tor(r * .82, t * .8), new THREE.Color(c).multiplyScalar(.82).getStyle(), [0, y + .03, 0], { rot:[PI / 2 + .12, 0, 0], ink:0 }); };
+  const pouch = (K, x, z, y = .47, c = LEA, s = 1) => { const ry = Math.atan2(x, z); K.add(Box(.085 * s, .09 * s, .05 * s), c, [x, y, z], { rot:[0, ry, 0], ink:1.05 }); K.add(Box(.09 * s, .034 * s, .056 * s), LEAD, [x, y + .032 * s, z], { rot:[0, ry, 0] }); K.add(Box(.02, .02, .012), BRASS, [x + Math.sin(ry) * .03 * s, y + .012, z + Math.cos(ry) * .03 * s], { rot:[0, ry, 0] }); };
+  const belt = (K, y, c = LEA, tilt = 0, w = .04, r = null) => { const R = (r || K.B.waist) + .022; K.add(Cyl(R, R * 1.02, w, 18), c, [0, y, 0], { rot:[0, 0, tilt], ink:1.04 }); K.add(Box(.05, w * 1.15, .016), STEEL, [Math.sin(tilt) * .02, y, R + .004]); K.add(Box(.026, w * .6, .02), LEAD, [0, y, R + .008]); };
+  const vial = (K, x, z, y, c) => { K.add(Box(.006, .05, .006), LEAD, [x, y + .045, z]); K.add(Cyl(.016, .016, .05, 8), c, [x, y, z], { ink:1.05 }); K.add(Cyl(.012, .012, .014, 8), BRASS, [x, y + .03, z]); const o = glow(c, .16, .8); o.position.set(x, y, z + .01); K.inner.add(o); };
+  const strap = (K, tilt, c = LEA, w = .034) => { K.add(Box(w, .44, .014), c, [0, .675, K.rAt(.675) + .018], { rot:[.12, 0, tilt] }); K.add(Box(w, .44, .014), c, [0, .675, -K.rAt(.675) - .012], { rot:[-.12, 0, -tilt] }); K.add(Box(w * 1.3, .03, .018), BRASS, [Math.sin(-tilt) * .09, .675 + Math.cos(tilt) * .09, K.rAt(.76) + .024], { rot:[.12, 0, tilt] }); };
+  const freckles = (K, c, gold) => { const m = new THREE.MeshBasicMaterial({ color:c }), g2 = gold ? new THREE.MeshBasicMaterial({ color:gold }) : m;
+    for (const [x, y, k] of [[.07, .935, 0], [.092, .928, 1], [.082, .916, 0], [.03, .93, 0], [.055, .922, 1]]) for (const sx of [-1, 1]) { const d = new THREE.Mesh(Sph(.0028, 5, 4), k ? g2 : m); d.position.set(sx * x, y, .15 - x * .12); K.inner.add(d); } };
+  const bootCuff = (K, c, tall = .07, strapC = LEAD) => { for (const hip of K.legs) { const kn = hip.userData.knee, r = K.B.leg; K.add(Cyl(r * 1.36, r * 1.22, tall, 12), c, [0, -.045, 0], { to:kn, ink:1.06 }); K.add(Cyl(r * 1.4, r * 1.4, .014, 12), new THREE.Color(c).multiplyScalar(.7).getStyle(), [0, -.012, 0], { to:kn });
+      K.add(Cyl(r * 1.16, r * 1.16, .022, 12), strapC, [0, -.15, 0], { to:kn }); K.add(Box(.022, .026, .012), STEEL, [r * .7, -.15, r * .95], { to:kn }); } };
+  const bracer = (K, i, c, len = .12, band = LEAD) => { const el = K.arms[i].userData.el, r = K.B.arm; K.add(Cyl(r * 1.22, r * 1.08, len, 10), c, [0, -.115, 0], { to:el, ink:1.06 }); for (const y of [-.07, -.16]) K.add(Cyl(r * 1.27, r * 1.2, .018, 10), band, [0, y, 0], { to:el }); return el; };
+  const ragHem = (K, y, r, c, n = 11, len = .13, c2) => { for (let i = 0; i < n; i++) { const a = i / n * PI * 2 + .2, l = len * (.6 + ((i * 7) % 5) * .14); K.add(Cone(.05, l, 4), i % 2 && c2 ? c2 : c, [Math.sin(a) * r, y - l / 2, Math.cos(a) * r], { rot:[PI, a, 0], sc:[1.25, 1, .35], ink:0 }); } };
+
+  return {
+    // ── TAM: stocky artificer. Navy long coat open over a work shirt, big blue scarf with the hood bunched behind, crossed strap, two belts
+    //    crowded with pouches, tools and glowing vials, brass gauntlets lit blue, rolled grey sleeves, tall cuffed boots.
+    tam(K) { const blue = '#4aa8ff', B = K.B;
+      K.add(Box(.12, .27, .012), '#6e665a', [0, .665, K.rAt(.665) + .006], { rot:[.11, 0, 0] });                          // work shirt between the coat fronts
+      for (let i = 0; i < 4; i++) K.add(Sph(.008, 6, 5), '#3a342c', [0, .58 + i * .06, K.rAt(.58 + i * .06) + .014]);
+      for (const sx of [-1, 1]) { K.add(Box(.05, .3, .014), '#34466a', [sx * .085, .66, K.rAt(.66) + .012], { rot:[.11, 0, sx * .1] });    // coat fronts, a shade lighter at the edge
+        K.add(Box(.07, .055, .012), '#22304c', [sx * .13, .73, K.rAt(.73) - .006], { rot:[.1, sx * .5, 0] }); }                           // breast pockets
+      scarf(K, '#2c4c86', .112, .05); K.add(Sph(.1, 12, 9), '#26427a', [0, .85, -.12], { sc:[1.25, .8, .8], ink:1.05 });                 // scarf, and the hood down behind the neck
+      K.add(Box(.06, .2, .02), '#2c4c86', [.06, .74, K.rAt(.74) + .03], { rot:[.1, 0, -.2] });
+      strap(K, .6); belt(K, .535, LEA, 0, .045); belt(K, .47, LEAD, .13, .038);
+      const R = B.waist + .05; for (const a of [-1.1, -.55, .55, 1.1, 2.3, -2.3]) pouch(K, Math.sin(a) * R, Math.cos(a) * R, .455, a > 0 ? LEA : LEAL, a * a < .4 ? .85 : 1);
+      vial(K, .035, R + .01, .415, blue); vial(K, -.2, R * .55, .43, '#7ad0ff');
+      for (const [x, c] of [[-.05, STEEL], [-.08, BRASS], [.1, STEEL]]) K.add(Cyl(.008, .008, .12, 6), c, [x, .44, R - .005], { rot:[0, 0, x] });      // wrenches and drivers tucked in the belt
+      for (const i of [0, 1]) { const el = bracer(K, i, BRASS, .13, '#5a4424'); K.add(Box(.014, .055, .012), blue, [0, -.115, B.arm * 1.24], { to:el }); const o = glow(blue, .13, .85); o.position.set(0, -.115, B.arm * 1.3); el.add(o);
+        K.add(Cyl(B.arm * 1.2, B.arm * 1.12, .045, 10), '#8e8e88', [0, -.022, 0], { to:el });                                                  // rolled grey shirt sleeve
+        K.add(Sph(B.arm * 1.08, 10, 8), LEA, [0, 0, 0], { to:K.hands[i], sc:[1.05, 1.2, .9] }); }                                            // leather gloves
+      bootCuff(K, '#6a4c2e', .08);
+      for (const sx of [-1, 1]) K.add(Box(.012, .34, .012), '#1c2840', [sx * .12, .34, .262], { rot:[.2, 0, 0] });                            // coat skirt edges
+    },
+    // ── LIO: a small boy, part dragon. Tousled hair, two little curved horns, pointed ears, freckles with flecks of gold scale,
+    //    teal cowl with a tail of cloth over one shoulder, pale sage tunic under a dark vest, crossed straps, pouches, a blue charm, cuffed boots.
+    lio(K) { const B = K.B, teal = '#3f8a8e';
+      freckles(K, '#d09a74', '#d8b050');
+      for (const sx of [-1, 1]) { const m = new THREE.Mesh(Tor(.03, .005, PI * .8), new THREE.MeshBasicMaterial({ color:0xd8b050 })); m.position.set(sx * .075, .925, .148); m.rotation.z = sx > 0 ? 2.2 : -.6 + PI; K.inner.add(m); }   // a curl of gold scale on each cheek
+      scarf(K, teal, .105, .045); K.add(Box(.2, .26, .02), '#377c80', [.1, .68, -B.sh * .75], { rot:[.15, .2, -.12] }); K.add(Cone(.07, .12, 4), '#377c80', [.13, .52, -B.sh * .72], { rot:[PI, 0, 0], sc:[1.3, 1, .3] });   // cowl, and its tail down the back
+      K.add(new THREE.CylinderGeometry(B.sh * .95, B.waist + .012, .26, 14, 1, true, PI * .25, PI * 1.5), '#4e5058', [0, .665, 0], { ink:0, mo:DS });   // dark vest, open at the front
+      K.add(Cyl(B.waist + .014, B.hip * 1.3, .15, 14, true), '#a8b8a8', [0, .44, 0], { ink:1.05, mo:DS }); ragHem(K, .37, B.hip * 1.26, '#a8b8a8', 7, .07);                                                               // long tunic hem
+      strap(K, .62); strap(K, -.62); belt(K, .535, LEA, 0, .042); belt(K, .485, LEAD, -.14, .034);
+      const R = B.waist + .045; for (const a of [-.9, .85, 1.5]) pouch(K, Math.sin(a) * R, Math.cos(a) * R, .47, LEA, .9);
+      vial(K, .03, R + .012, .41, '#4aa8ff');
+      for (const i of [0, 1]) { bracer(K, i, '#4a4e58', .1, LEA); K.add(Sph(B.arm * 1.02, 10, 8), '#4a4e58', [0, .012, 0], { to:K.hands[i], sc:[1.05, .9, .9] }); }   // bracers and fingerless gloves
+      K.add(Sph(.07, 10, 8), '#7a8a9a', [-B.sh - .03, .8, 0], { sc:[1, .6, 1.1], ink:1.05 });                                                                          // a small shoulder guard
+      bootCuff(K, '#7a5a34', .09);
+    },
+    // ── BRAND: a wall of a man in blackened plate. Bald, heavy dark beard, eyes like coals with fire in the cracks of his skin, black cowl,
+    //    layered pauldrons and chest plates, vambraces, knee plates, a ragged black tabard, belts and a pouch, embers glowing through the armour.
+    brand(K) { const B = K.B, pl = '#34302e', plD = '#221f1e', plL = '#4c4744', fire = '#ff7a1e';
+      scarf(K, '#1c1a1a', .115, .055); K.add(Sph(.1, 12, 9), '#181616', [0, .84, -.11], { sc:[1.3, .8, .8] });
+      for (const sx of [-1, 1]) { for (let i = 0; i < 3; i++) K.add(Sph(.115 - i * .012, 12, 8), i % 2 ? plL : pl, [sx * (B.sh + .05 - i * .012), .83 - i * .045, 0], { sc:[1.05, .5, 1.15], rot:[0, 0, sx * -.35], ink:1.06 });   // three overlapping pauldron plates
+        K.add(Sph(.016, 6, 5), '#6a6460', [sx * (B.sh + .09), .8, .09]);
+        K.add(Box(.15, .12, .03), plL, [sx * .085, .72, K.rAt(.72) + .035], { rot:[-.05, sx * .25, sx * -.18], ink:1.05 }); K.add(Box(.13, .1, .03), pl, [sx * .07, .62, K.rAt(.62) + .04], { rot:[-.05, sx * .2, sx * -.1], ink:1.05 }); }   // chest and belly plates
+      K.add(Box(.03, .3, .02), plD, [0, .67, K.rAt(.67) + .05]); strap(K, -.55, '#2a221c', .04);
+      belt(K, .535, '#3a2c20', 0, .05); belt(K, .48, '#2a2018', -.12, .04); pouch(K, .2, .12, .46, '#3a2c20', 1.1); pouch(K, -.19, .13, .46, '#2e2218', .9);
+      K.add(Cyl(B.waist + .03, B.hip * 1.45, .2, 14, true), '#1a1818', [0, .4, 0], { ink:0, mo:DS }); ragHem(K, .3, B.hip * 1.42, '#1a1818', 12, .16, '#242020');                                   // tattered tabard
+      for (const i of [0, 1]) { const el = bracer(K, i, pl, .14, plD); K.add(Box(.05, .1, .02), plL, [0, -.11, B.arm * 1.2], { to:el }); K.add(Sph(B.arm * 1.5, 10, 8), pl, [0, .0, -.01], { to:el, sc:[1, .7, 1] });   // vambrace and elbow cop
+        K.add(Sph(B.arm * 1.02, 10, 8), '#1e1c1c', [0, .012, 0], { to:K.hands[i], sc:[1.05, .9, .9] }); }
+      for (const hip of K.legs) { const kn = hip.userData.knee; K.add(Sph(B.leg * 1.5, 10, 8), plL, [0, .0, B.leg * .6], { to:kn, sc:[1, 1.1, .8], ink:1.06 }); K.add(Cyl(B.leg * 1.3, B.leg * 1.25, .1, 10), pl, [0, -.09, 0], { to:kn, ink:1.05 });   // knee plates and greaves
+        K.add(Cyl(B.leg * 1.5, B.leg * 1.35, .08, 10), plD, [0, -.1, 0], { to:hip }); }
+      const ember = (x, y, z, s, to) => { const o = glow(fire, s, .9); o.position.set(x, y, z); (to || K.inner).add(o); const c = new THREE.Mesh(Box(.006, s * .35, .004), new THREE.MeshBasicMaterial({ color:0xffb04a })); c.position.set(x, y, z); c.rotation.z = x * 9; (to || K.inner).add(c); };
+      for (const sx of [-1, 1]) { ember(sx * .1, .985, .125, .06); ember(sx * .085, .935, .14, .05); }                                    // fire in the cracks round his eyes
+      ember(.02, 1.06, .12, .05); ember(0, -.08, K.B.arm * 1.1, .08, K.arms[1]); ember(.02, -.14, K.B.arm * 1.05, .06, K.arms[1]);       // and down one arm
+    },
+    // ── MORWEN: drow sorcerer. Lavender-blue skin, long wavy gold hair, long ears with violet drops, round glasses, a high-collared black robe
+    //    over violet, a silver spider brooch with an amethyst, bell sleeves, violet sash, belts, a spellbook, hanging crystals, a pointed, layered hem.
+    morwen(K) { const B = K.B, vio = '#7a4ab0', vioD = '#4a2a6e', blk = '#1e1a24', silver = '#c8c8d4';
+      K.add(Cyl(.075, .09, .07, 12, true), blk, [0, .845, 0], { mo:DS, ink:1.04 });                                                       // high collar
+      K.add(Box(.09, .2, .012), vioD, [0, .68, K.rAt(.68) + .006], { rot:[.12, 0, 0] });                                                  // violet bodice showing down the front
+      for (const sx of [-1, 1]) { K.add(Box(.012, .26, .012), '#8a8498', [sx * .05, .67, K.rAt(.67) + .012], { rot:[.12, 0, sx * .12] });   // pale embroidered edge
+        K.add(Cone(.014, .045, 5), '#b08ae0', [sx * .168, .9, .01], { rot:[PI, 0, 0] }); const o = glow('#b08ae0', .07, .7); o.position.set(sx * .168, .9, .02); K.inner.add(o); }   // amethyst drop earrings
+      { const bx = 0, by = .775, bz = K.rAt(.775) + .022; K.add(Sph(.022, 8, 6), silver, [bx, by, bz], { sc:[1, 1.2, .6] }); K.add(Sph(.013, 8, 6), '#a070e0', [bx, by - .004, bz + .012], { sc:[1, 1.3, .6] });
+        for (let i = 0; i < 8; i++) { const a = (i < 4 ? .5 + i * .45 : PI + .5 + (i - 4) * .45) - PI / 2 + .3; K.add(Box(.05, .005, .005), silver, [bx + Math.cos(a) * .035, by + Math.sin(a) * .03, bz], { rot:[0, 0, a] }); }
+        const o = glow('#a070e0', .1, .7); o.position.set(bx, by, bz + .02); K.inner.add(o); K.add(Tor(.075, .004, PI), silver, [0, .82, .04], { rot:[.5, 0, PI] }); }   // the spider brooch on its chain
+      for (const i of [0, 1]) { const el = K.arms[i].userData.el, r = B.arm; K.add(Cyl(r * 1.05, r * 2.6, .2, 12, true), blk, [0, -.11, 0], { to:el, mo:DS, ink:1.04 }); K.add(Cyl(r * 2.62, r * 2.7, .02, 12, true), vio, [0, -.205, 0], { to:el, mo:DS });   // bell sleeves, lined violet
+        K.add(Cyl(r * .95, r * .9, .05, 10), '#2a2630', [0, -.17, 0], { to:el }); K.add(Tor(r * 1.0, .006), '#c9a24a', [0, -.19, 0], { to:el, rot:[PI / 2, 0, 0] }); }                                                              // dark wrist wraps and a bangle
+      belt(K, .545, vio, 0, .05); K.add(Box(.05, .3, .012), vio, [-.06, .38, B.waist + .05], { rot:[.1, 0, .06] }); K.add(Box(.04, .22, .012), vioD, [-.02, .4, B.waist + .055], { rot:[.1, 0, -.05] });   // violet sash, tails hanging
+      belt(K, .5, LEA, .1, .03); belt(K, .47, LEAD, -.1, .026);
+      K.add(Box(.11, .14, .05), '#6a4a2a', [-.21, .42, .08], { rot:[0, -.5, .05], ink:1.05 }); K.add(Box(.115, .13, .012), '#d8c8a0', [-.21, .42, .055], { rot:[0, -.5, .05] }); K.add(Box(.03, .03, .012), BRASS, [-.19, .43, .115], { rot:[0, -.5, 0] });   // spellbook at the hip
+      for (const [x, c] of [[.1, '#b08ae0'], [.15, '#d8d0f0'], [.19, '#8a5ad0']]) { K.add(Box(.004, .06, .004), '#8a8498', [x, .43, B.waist + .03 - x * .2]); K.add(Cone(.012, .05, 5), c, [x, .385, B.waist + .03 - x * .2], { rot:[PI, 0, 0] }); const o = glow(c, .07, .6); o.position.set(x, .385, B.waist + .04 - x * .2); K.inner.add(o); }   // crystals on cords
+      ragHem(K, .23, B.hip * 1.9, '#24202c', 12, .15, '#3a2a52'); ragHem(K, .34, B.hip * 1.55, '#2c2836', 9, .12, vioD);                                                       // the robe's pointed, layered hem
+      for (let i = 0; i < 6; i++) { const a = i / 6 * PI * 2 + .5, r = B.hip * 1.55; const w = new THREE.Mesh(Tor(.035, .0025, PI * 1.6), new THREE.MeshBasicMaterial({ color:0x8a8498 })); w.position.set(Math.sin(a) * r, .33, Math.cos(a) * r); w.rotation.y = a; K.inner.add(w); }   // web embroidery
+      bootCuff(K, '#5a4630', .08);
+      for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) K.add(Sph(.034 - i * .004, 8, 6), i % 2 ? '#e2c474' : '#d2b05c', [sx * (.15 + i * .012), .8 - i * .075, .07 - i * .012], { ink:0, sc:[1, 1.5, .9] });   // waves of hair falling in front of each shoulder
+    },
+    // ── SAFFI: brass dragonborn ranger. Gold scales, jaw fins, curly hair pinned up, round glasses, a big green scarf, leafy shoulder ruffles
+    //    over tie-dye, sash and belts with pouches and beads, a quiver of green-fletched arrows, flowered baggy trousers bound at the shin.
+    saffi(K) { const B = K.B, grn = '#3f8f6a', grnD = '#2e6e52', gold = '#d8a840';
+      scarf(K, grn, .125, .06, .825); K.add(Box(.09, .2, .025), grnD, [-.07, .72, K.rAt(.72) + .04], { rot:[.1, 0, .25] });
+      for (const sx of [-1, 1]) { for (let i = 0; i < 6; i++) { const a = -1 + i * .4; K.add(Cone(.035, .11, 4), ['#6ab06a', '#c8c84a', '#4a9a8a', '#8ac86a'][i % 4], [sx * (B.sh + .03 + Math.abs(Math.cos(a)) * .03), .78 - Math.abs(a) * .02, Math.sin(a) * .1], { rot:[PI + Math.sin(a) * .5, 0, sx * .9], sc:[1.3, 1, .35], ink:0 }); }   // leafy ruffles at each shoulder
+        K.add(Cone(.022, .07, 4), gold, [sx * .15, .9, .04], { rot:[0, 0, sx * -1.9], sc:[1, 1, .4] }); K.add(Cone(.018, .05, 4), gold, [sx * .14, .87, .06], { rot:[0, 0, sx * -2.2], sc:[1, 1, .4] }); }                               // fins along the jaw
+      for (const [x, y] of [[.04, 1.04], [-.04, 1.04], [0, 1.0], [.1, .96], [-.1, .96], [.06, .9], [-.06, .9]]) K.add(Sph(.016, 6, 5), '#c0902e', [x, y, Math.sqrt(Math.max(.001, .0256 - x * x)) * .92], { sc:[1, 1, .35], ink:0 });      // scale pattern on the brow and cheeks
+      belt(K, .56, '#a8582a', 0, .04); belt(K, .52, grn, 0, .05); belt(K, .47, LEA, .1, .036);
+      const R = B.waist + .045; pouch(K, Math.sin(-1) * R, Math.cos(-1) * R, .455, LEA); pouch(K, Math.sin(1.05) * R, Math.cos(1.05) * R, .455, LEAL, .9); pouch(K, Math.sin(1.7) * R, Math.cos(1.7) * R, .46, LEA, .8);
+      for (let i = 0; i < 7; i++) K.add(Sph(.009, 6, 5), ['#4a9a8a', '#3a6ad0', '#e8d04a'][i % 3], [.05 + i * .004, .44 - i * .018, R + .005 - i * .003]);                                                                                // a string of beads
+      K.add(Cyl(B.waist + .02, B.hip * 1.25, .14, 14, true), '#8ac0a0', [0, .43, 0], { mo:DS, ink:0 }); ragHem(K, .37, B.hip * 1.22, '#c8d06a', 8, .1, '#6ab0a0');                                                                         // ragged tunic hem
+      K.add(Cyl(.06, .05, .38, 10), '#6b4528', [.1, .7, -B.sh * .85], { rot:[.1, 0, -.4], ink:1.05 }); K.add(Cyl(.064, .064, .03, 10), grn, [.14, .84, -B.sh * .87], { rot:[.1, 0, -.4] });
+      for (const k of [0, 1, 2, 3]) { K.add(Cyl(.005, .005, .14, 5), '#7a5a36', [.17 + k * .014, .93, -B.sh * .88 - (k % 2) * .02], { rot:[.1, 0, -.4] }); K.add(Cone(.02, .07, 4), k % 2 ? '#5a9a4a' : '#7ab85a', [.195 + k * .014, .99, -B.sh * .88 - (k % 2) * .02], { rot:[.1, 0, -.4], sc:[1, 1, .3] }); }   // quiver, green fletching
+      strap(K, -.6, LEA, .03);
+      for (const hip of K.legs) { const kn = hip.userData.knee, r = B.leg; for (const [dx, dz, c] of [[.6, .9, '#e8a83a'], [-.7, .6, '#d86a8a'], [.2, -1, '#e8d04a'], [-.3, 1.05, '#8a7ad0']]) K.add(Sph(.016, 6, 5), c, [dx * r * 1.4, -.1 - Math.abs(dx) * .06, dz * r * 1.4], { to:hip, sc:[1, 1, .4], ink:0 });   // flowers on the trousers
+        K.add(Cyl(r * 1.22, r * 1.15, .07, 10), grn, [0, -.04, 0], { to:kn, ink:1.05 }); for (let i = 0; i < 4; i++) K.add(Cone(.02, .05, 4), grnD, [Math.sin(i * 1.57) * r * 1.2, -.09, Math.cos(i * 1.57) * r * 1.2], { to:kn, rot:[PI, 0, 0], sc:[1, 1, .4], ink:0 }); }   // green wraps at the shin
+      for (const i of [0, 1]) bracer(K, i, grn, .09, LEA);
+    },
+    // ── CLOVER: hobbit-elf druid. Copper curls, pointed ears, freckles, a nose ring; a mossy cloak with a fur collar and silver clasp over a green dress
+    //    with a golden tree at the hem; two belts, pouches, a green bottle, a vial on a cord; barefoot.
+    clover(K) { const B = K.B, moss = '#4a5230', mossD = '#3a4226', fur = '#b8a888';
+      freckles(K, '#d89a78'); { const m = new THREE.Mesh(Tor(.009, .0028), new THREE.MeshBasicMaterial({ color:0xc8c8d4 })); m.position.set(.012, .918, .178); K.inner.add(m); }                                  // nose ring
+      const ck = new THREE.CylinderGeometry(B.sh * 1.12, B.hip * 2.15, .62, 18, 1, true, PI * .2, PI * 1.6); K.add(ck, moss, [0, .49, -.01], { mo:DS, ink:1.04 }); ragHem(K, .18, B.hip * 2.1, moss, 13, .15, mossD);   // the cloak, open at the front, ragged at the hem
+      for (let i = 0; i < 12; i++) { const a = i / 12 * PI * 2; K.add(Sph(.05, 8, 6), i % 2 ? fur : '#a89878', [Math.sin(a) * (B.sh * .95), .805 + (i % 3) * .006, Math.cos(a) * (B.sh * .8) - .01], { ink:0, sc:[1, .75, 1] }); }   // fur collar
+      K.add(Cyl(.03, .03, .012, 12), '#c8c8d4', [.01, .77, K.rAt(.77) + .05], { rot:[PI / 2 - .15, 0, 0] }); K.add(Sph(.011, 6, 5), '#8a8a94', [.01, .77, K.rAt(.77) + .058]);                                    // silver clasp
+      K.add(Tor(.07, .004, PI), '#6a8a4a', [0, .8, .05], { rot:[.6, 0, PI] }); K.add(Cyl(.011, .011, .04, 8), '#7ac06a', [0, .715, K.rAt(.715) + .03]); { const o = glow('#8ad07a', .08, .6); o.position.set(0, .715, K.rAt(.715) + .04); K.inner.add(o); }   // vial on a cord
+      for (const sx of [-1, 1]) K.add(Box(.006, .2, .006), mossD, [sx * .035, .66, K.rAt(.66) + .008], { rot:[.12, 0, 0] });                                                                                     // bodice seams
+      belt(K, .545, LEA, 0, .045); belt(K, .495, LEAD, -.12, .036); const R = B.waist + .045; pouch(K, Math.sin(.95) * R, Math.cos(.95) * R, .455, LEA, 1.05); pouch(K, Math.sin(-1) * R, Math.cos(-1) * R, .46, LEAL, .85);
+      K.add(Cyl(.02, .024, .06, 8), '#5a9a4a', [.07, .41, R + .01], { ink:1.05 }); K.add(Cyl(.009, .012, .025, 8), '#c9a24a', [.07, .45, R + .01]);                                                              // the green bottle
+      { const gm = new THREE.MeshBasicMaterial({ color:0xb89a4a }), z = B.hip * 1.62, tr = (w, h, x, y, rz) => { const m = new THREE.Mesh(Box(w, h, .004), gm); m.position.set(x, y, z - Math.abs(x) * .25); m.rotation.set(-.3, 0, rz); K.inner.add(m); };
+        tr(.012, .09, 0, .3, 0); for (const sx of [-1, 1]) { tr(.008, .06, sx * .022, .345, sx * -.7); tr(.007, .045, sx * .04, .325, sx * -1.1); tr(.006, .04, sx * .012, .365, sx * -.3); tr(.006, .03, sx * .02, .262, sx * 1); } }   // the golden tree at the hem
+      K.add(Cyl(B.hip * 1.75, B.hip * 1.84, .05, 18, true), '#7a6a3a', [0, .2, 0], { mo:DS, ink:0 });                                                                                                           // underskirt showing below
+    },
+    // ── ASHLYNN: ranger of the water. Two long braids tied with ribbon, round glasses, freckles, a blue scarf, a patchwork shawl in sunset colours
+    //    falling in ragged tails, orange shirt and sash, belts and satchels, blue vials, dark trousers in cuffed boots.
+    ashlynn(K) { const B = K.B, P = ['#e8a030', '#e8c85a', '#7aa0b8', '#d87a2a', '#c8b06a'];
+      freckles(K, '#d8a484');
+      scarf(K, '#5a86a8', .1, .042);
+      for (const sx of [-1, 1]) { for (let i = 0; i < 6; i++) K.add(Sph(.03 - i * .0022, 8, 6), i % 2 ? '#7a4a26' : '#8a5a30', [sx * (.135 - i * .004), .86 - i * .05, .075 + (i < 2 ? i * .012 : .024)], { ink:0, sc:[1, 1.25, 1] });   // braids down the front
+        K.add(Cyl(.02, .02, .014, 8), sx > 0 ? '#3a6ad0' : '#e8c84a', [sx * .128, .835, .095]); K.add(Cyl(.016, .016, .014, 8), sx > 0 ? '#e8c84a' : '#3a6ad0', [sx * .113, .585, .1]); K.add(Cone(.014, .04, 5), '#8a5a30', [sx * .112, .56, .1], { rot:[PI, 0, 0] }); }
+      for (let i = 0; i < 12; i++) { const a = i / 12 * PI * 2 + .26; if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < .5) continue; const len = .36 + ((i * 5) % 4) * .07, r = B.sh * 1.25;                                // the shawl's long ragged tails, open at the front
+        K.add(Cone(.075, len, 4), P[i % P.length], [Math.sin(a) * r, .74 - len / 2, Math.cos(a) * r - .01], { rot:[PI + Math.cos(a) * .12, a, Math.sin(a) * -.12], sc:[1.3, 1, .3], ink:0 }); }
+      K.add(Cyl(B.sh * .7, B.sh * 1.28, .13, 14, true), P[0], [0, .775, 0], { mo:DS, ink:1.04 }); K.add(Cyl(B.sh * 1.0, B.sh * 1.3, .05, 14, true), P[1], [0, .725, 0], { mo:DS, ink:0 });
+      for (let i = 0; i < 3; i++) K.add(Sph(.008, 6, 5), '#8a5a2a', [0, .6 + i * .055, K.rAt(.6 + i * .055) + .012]);
+      K.add(Cyl(B.waist + .02, B.waist + .026, .07, 16), '#e0702a', [0, .56, 0], { ink:1.04 }); K.add(Box(.05, .2, .012), '#d8662a', [.07, .45, B.waist + .04], { rot:[.1, 0, -.08] });                                          // orange sash and its tail
+      belt(K, .505, LEA, 0, .04); belt(K, .465, LEAD, .12, .032); const R = B.waist + .045; pouch(K, Math.sin(.95) * R, Math.cos(.95) * R, .44, LEA, 1.2); pouch(K, Math.sin(-1.05) * R, Math.cos(-1.05) * R, .44, LEAL, 1.05);
+      vial(K, -.03, R + .01, .4, '#3a6ad0'); vial(K, .04, R + .01, .385, '#4a8ae0'); strap(K, .6, LEA, .028);
+      K.add(Cyl(B.waist + .012, B.hip * 1.3, .13, 14, true), '#e8a83a', [0, .44, 0], { mo:DS, ink:0 }); ragHem(K, .38, B.hip * 1.27, '#e8a83a', 8, .08, '#d8862a');                                                            // shirt tails
+      bootCuff(K, '#7a5a34', .09);
+      for (const i of [0, 1]) { const el = K.arms[i].userData.el; K.add(Cyl(B.arm * 1.1, B.arm * 1.02, .06, 10), '#5a7a9a', [0, -.14, 0], { to:el }); }                                                                          // blue cuffs
+    }
+  };
+})();
 // =============================================================================
 //  MAPS — Vellum hub (the wheel) → 10 waytowns (mixed, low level) → 10 mood cities
 // =============================================================================
@@ -8273,20 +8424,20 @@ const DND_DOOR = (() => { const P = MAPS[TOWNS.JOY.id]; const k = Object.keys(P.
 // Built from Blaine's character art.
 const DND_LOOK = {
   // Mary: drow sorcerer. Lavender-blue skin, long blonde hair, pointed ears, thin glasses, black layered robe, purple sash, arms open.
-  morwen:{ coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#3a2a20', skin:'#8a8cc8', hair:'#a8905e', brow:'#7a6440',
-    hairStyle:'long', build:'slim', pose:'open', gear:['ears', 'glasses', 'satchel'] },
+  morwen:{ kit:'morwen', coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#4a3826', skin:'#8a8cc8', hair:'#d6b566', brow:'#a88a48', iris:'#3ac0b0',
+    hairStyle:'long', build:'avg', pose:'open', gear:['ears', 'glasses'] },
   // Shannon: brass dragonborn ranger. Gold scales, snout, curly brown hair up, glasses, teal scarf, tie-dye top and baggy trousers, tail. A dragon's muzzle and swept horns (no bow).
-  saffi:{ coat:'#7ab0a0', tiedye:['#f2c84a', '#e86a8a', '#8a6ad8', '#4ab0e0', '#6ac87a', '#f08a3a'], sleeve:'#e86a8a', legs:'#6a9a9a', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
+  saffi:{ kit:'saffi', coat:'#7ab0a0', tiedye:['#8ad07a', '#3aa89a', '#4a8ad0', '#e8d04a', '#8a7ad0', '#58b878'], sleeve:'#6ab89a', legs:'#3e6268', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
     accent:'#3a8a7a', build:'heavy', gear:['glasses', 'bun', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a', hornC:'#f0dca0' },
   // Liam: dragonborn/human kid. Tousled brown hair, little horns, pointed ears, teal scarf, grey-green tunic, satchel.
-  lio:{ coat:'#a8b8a8', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', hairStyle:'spiky', small:true, 
-    gear:['horns', 'ears', 'satchel'], hornC:'#d8c8a0' },
+  lio:{ kit:'lio', coat:'#a8b8a8', sleeve:'#b4c2b0', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', iris:'#8a6a3a', hairStyle:'spiky', small:true, pose:'hold', orb:'#4aa8ff',
+    gear:['horns', 'ears', 'satchel', 'gadget'], hornC:'#d8c8a0' },
   // Blaine: fire genasi paladin. Big, bald, dark beard, glowing ember eyes, black plate with cracks of fire.
-  brand:{ coat:'#2a2624', sleeve:'#2a2624', accent:'#1e1c1a', legs:'#1e1c1a', boot:'#1a1816', skin:'#a06a48', hair:'#1e1410', brow:'#1e1410', eyes:'#ff8a2a', hairStyle:'bald', build:'broad',
-    gear:['beard', 'armor'], armorC:'#3a3634', embers:true },
+  brand:{ kit:'brand', coat:'#2a2624', sleeve:'#2a2624', accent:'#1e1c1a', legs:'#1e1c1a', boot:'#1a1816', skin:'#a06a48', hair:'#1e1410', brow:'#1e1410', eyes:'#ff8a2a', hairStyle:'bald', build:'broad',
+    gear:['beard', 'armor', 'flamesword'], pose:'sword', armorC:'#3a3634', embers:true },
   // Tony: human artificer. Short dark hair, full beard, glasses, long navy coat, blue scarf, tool belt full of pouches, gauntlet.
-  tam:{ coat:'#2a3a5a', sleeve:'#2a3a5a', accent:'#2a5a8a', legs:'#2a2622', boot:'#4a3424', skin:'#d8a888', hair:'#1e1410', hairStyle:'short', build:'broad', glove:'#6a5a4a',
-    gear:['beard', 'glasses', 'longcoat', 'toolbelt'] }
+  tam:{ kit:'tam', pose:'hold', orb:'#4aa8ff', coat:'#2a3a5a', sleeve:'#2a3a5a', accent:'#2a5a8a', legs:'#2a2622', boot:'#5a4028', skin:'#d8a888', hair:'#1e1410', hairStyle:'short', build:'broad', glove:'#6a5a4a',
+    gear:['beard', 'glasses', 'longcoat', 'gadget'] }
 };
 const DND_NAME = { morwen:'Morwen', saffi:'Saffi', lio:'Lio', brand:'Brand', tam:'Tam' };
 // Seats: Morwen far end (north), Saffi right side with Lio beside her, Brand at the front end (south), Tam at the left end.
@@ -8634,8 +8785,8 @@ function buildHobbit(h) {
 
 // ---------------------------------------------------------------- CLOVER
 // Heather: half-hobbit, half-elf druid, small and fit. Wild red curls, pointed ears, freckles, moss-green dress and cloak with a fur collar, bare feet.
-const CLOVER_LOOK = { coat:'#545c34', sleeve:'#4a5230', skirt:'#545c34', legs:'#6a4a2c', boot:'#e2b08e', skin:'#f0c2a0', hair:'#8e2c14', brow:'#7a2810', hairStyle:'curlylong',
-  build:'slim', accent:'#a89a7a', accent2:'#3e4a2a', sash:'#6a4a2a', gear:['ears', 'cape', 'satchel'] };
+const CLOVER_LOOK = { kit:'clover', coat:'#545c34', sleeve:'#4a5230', skirt:'#545c34', legs:'#6a4a2c', boot:'#e2b08e', skin:'#f0c2a0', hair:'#8e2c14', brow:'#7a2810', hairStyle:'curlylong',
+  build:'avg', accent:'#a89a7a', accent2:'#3e4a2a', sash:'#6a4a2a', iris:'#6a8a5a', noBelt:true, gear:['ears'] };
 const CLOVER_ROOM = 'r_pinewind_in0';
 let CL_POS = null;          // [x, y, dir] while she's up off the couch
 const CL = () => (S.flags.clover = S.flags.clover || { met:0, sour:0, beat:0, line:0, eat:0 });
@@ -8735,8 +8886,8 @@ MAPS[CLOVER_ROOM].room.npcsFn = cloverPeople; MAPS[CLOVER_ROOM].set.push({ k:'ru
 // ---------------------------------------------------------------- ASHLYNN
 // Ashley: human ranger. Brown hair in two braids with ribbons, round glasses, freckles, a patchwork orange-and-gold poncho,
 // blue scarf, orange shirt and sash, belts of pouches, dark trousers, boots, and a long paddle with orange blades.
-const ASHLYNN_LOOK = { coat:'#d8862a', sleeve:'#e8a83a', accent:'#4a7aa0', sash:'#e0702a', legs:'#5a4a34', shorts:true, boot:'#6a4a2a', skin:'#f0c8a8',
-  hair:'#7a4a26', brow:'#5a3418', hairStyle:'short', build:'slim', noBelt:true, gear:['braids', 'glasses', 'paddle'] };
+const ASHLYNN_LOOK = { kit:'ashlynn', coat:'#d8862a', sleeve:'#e8a83a', accent:'#4a7aa0', sash:'#e0702a', legs:'#4a3e30', iris:'#6a7a4a', boot:'#6a4a2a', skin:'#f0c8a8',
+  hair:'#7a4a26', brow:'#5a3418', hairStyle:'short', build:'slim', noBelt:true, gear:['glasses', 'paddle'] };
 const MR = () => (S.flags.ashlynn = S.flags.ashlynn || { met:0, own:0, trips:0, line:0 });
 const ASHLYNN_SPOT = [33, 5], ASHLYNN_KAYAK = [32, 5], MY_KAYAK = [30, 5];
 let ASHLYNN_AWAY = -1, ASHLYNN_N = { v:-1, n:0 };
