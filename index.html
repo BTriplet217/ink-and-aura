@@ -1865,6 +1865,8 @@ function buildPerson(L) {
     add(new THREE.CylinderGeometry(B.leg * .9 * baggy, B.leg * .8, .1, 12), L.shorts ? skin : legsC, [0, -.04, 0], { to:knee, ink:1.1 });
     add(new THREE.CylinderGeometry(B.leg * 1.05, B.leg * 1.1, .12, 12), boot, [0, -.13, 0], { to:knee, ink:1.12 });
     add(new THREE.CylinderGeometry(B.leg * 1.14, B.leg * 1.12, .025, 12), new THREE.Color(boot).multiplyScalar(.7).getStyle(), [0, -.075, 0], { to:knee });
+    add(new THREE.CylinderGeometry(B.leg * 1.2, B.leg * 1.16, .035, 12), new THREE.Color(boot).lerp(new THREE.Color('#e8d4a8'), .28).getStyle(), [0, -.065, 0], { to:knee, ink:1.06 });   // turned-down boot cuff
+    add(new THREE.BoxGeometry(B.leg * .5, .012, .012), '#c9a24a', [0, -.13, B.leg * 1.1], { to:knee });   // buckle
     add(new THREE.BoxGeometry(B.leg * 2.15, .018, B.leg * 3.25), '#1e1712', [0, -.205, .03], { to:knee });
     add(new THREE.BoxGeometry(B.leg * 2.1, .05, B.leg * 3.2), boot, [0, -.185, .03], { to:knee });
     hip.userData.knee = knee; }
@@ -1898,6 +1900,7 @@ function buildPerson(L) {
     add(new THREE.CylinderGeometry(B.arm * .86, B.arm * .86, .03, 10), new THREE.Color(L.cuff && sx > 0 ? L.cuff : sleeve).lerp(new THREE.Color('#fff3d6'), .3).getStyle(), [0, -.17, 0], { to:el });
     const hand = new THREE.Group(); hand.position.set(0, -.2, 0); el.add(hand); hands.push(hand);
     add(new THREE.SphereGeometry(B.arm * .95, 10, 8), L.glove && sx > 0 ? L.glove : skin, [0, 0, 0], { to:hand, sc:[1, 1.15, .8] });
+    add(new THREE.SphereGeometry(B.arm * .42, 8, 6), L.glove && sx > 0 ? L.glove : skin, [-sx * B.arm * .5, .005, B.arm * .55], { to:hand, sc:[.8, 1.3, .8] });   // thumb
     sh.rotation.z = sx * .1; sh.userData.el = el; }
   const pose = L.pose || 'idle';
   if (pose === 'open') for (const [k, sh] of arms.entries()) { const sx = k ? 1 : -1; sh.rotation.set(-.25, 0, sx * .75); sh.userData.el.rotation.set(-.5, 0, sx * -.35); }
@@ -1909,8 +1912,11 @@ function buildPerson(L) {
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
   const fm = (geo, mat, x, y, z, sc, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sc) m.scale.set(...sc); m.rotation.z = rz; inner.add(m); return m; };
   const eyeC = L.eyes ? new THREE.MeshBasicMaterial({ color:new THREE.Color(L.eyes) }) : blk, fs = seed % 5;
+  const irisM = new THREE.MeshBasicMaterial({ color:L.iris || ['#6b4a2a', '#4a6a8a', '#5a7a4a', '#7a5a3a', '#55606e', '#3a2a1c', '#8a6a3a'][(seed >> 5) % 7] });
   for (const sx of [-1, 1]) { fm(new THREE.SphereGeometry(.022, 10, 8), wht, sx * .058, .962, .148, [1.05, .8, .4]); fm(new THREE.SphereGeometry(.014, 10, 8), eyeC, sx * .057, .961, .158, [.9, 1.15, .5]);
-    if (!L.eyes) fm(new THREE.SphereGeometry(.004, 6, 5), wht, sx * .057 + .005, .967, .165);
+    if (!L.eyes) { fm(new THREE.SphereGeometry(.0175, 10, 8), irisM, sx * .057, .961, .1545, [.95, 1.15, .5]);   // a coloured iris round the pupil
+      fm(new THREE.SphereGeometry(.005, 6, 5), wht, sx * .057 + .006, .968, .166); fm(new THREE.SphereGeometry(.0025, 5, 4), wht, sx * .057 - .005, .955, .166); }
+    fm(new THREE.BoxGeometry(.05, .009, .012), blk, sx * .059, .9795, .153, null, sx * -.1);   // upper lash line
     fm(new THREE.BoxGeometry(.04, .006, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * .058, .946, .156);   // lower lid line
     fm(new THREE.BoxGeometry(.046, .01, .012), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || (hair === 'bald' ? (L.hair || '#2a1a10') : L.hair || '#2a1a10')).multiplyScalar(.7) }), sx * .062, 1.008 + (fs % 2) * .005, .15, null, sx * [.12, -.18, .05, .25, -.08][fs]);
     fm(new THREE.SphereGeometry(.02, 8, 6), new THREE.MeshBasicMaterial({ color:0xd88a7a, transparent:true, opacity:.14 }), sx * .092, .918, .14, [1.3, .7, .3]); }
@@ -1950,6 +1956,31 @@ function buildPerson(L) {
     // soft curls framing the crown
     for (let i = 0; i < 9; i++) { const a = -1.1 + i / 8 * 2.2; add(ringlet(.1, .022), i % 2 ? hc2 : hc, [Math.sin(a) * .16, HY + .15, -Math.cos(a) * .16 + .03], { ink:0, rot:[Math.PI / 2 - .5, a, 0] }); } }
   if (hair === 'ponytail') add(new THREE.ConeGeometry(.06, .3, 8), hc, [0, HY - .02, -.2], { rot:[-2.6, 0, 0] });
+  // every head of hair gets a fringe of separate locks, a sheen where the light catches it, and darker hair underneath at the nape
+  if (hair !== 'bald' && hair !== 'curlylong' && !gear.includes('hood') && !gear.includes('veil') && !gear.includes('flamehair') && !L.snout) {
+    const hLt = new THREE.Color(hc).offsetHSL(0, .03, .1).getStyle(), hDk = new THREE.Color(hc).multiplyScalar(.7).getStyle(), hatted = L.hat || ['tophat', 'helmet', 'cap', 'bakerhat', 'bandana'].some(k => gear.includes(k));
+    if (hair !== 'curly') { const nL = 5, part0 = (seed >> 6) % 3 - 1;   // locks across the forehead, swept from the parting
+      for (let i = 0; i < nL; i++) { const u = (i - (nL - 1) / 2) / ((nL - 1) / 2), a = u * .95, len = .05 + .028 * (1 - Math.abs(u - part0 * .5)) + ((seed >> i) & 1) * .012;
+        add(new THREE.ConeGeometry(.034, len * 2, 5), i % 2 ? hc : hLt, [Math.sin(a) * .15, HY + .105 - len * .55, Math.cos(a) * .135], { rot:[Math.PI - .32, 0, (u - part0 * .6) * .55], ink:0, sc:[1.25, 1, .5] }); } }
+    if (!hatted) { const sheen = new THREE.Mesh(new THREE.TorusGeometry(.128, .011, 5, 22, Math.PI * .8), new THREE.MeshBasicMaterial({ color:hLt, transparent:true, opacity:.7 })); sheen.position.set(0, HY + .1, .0); sheen.rotation.set(Math.PI / 2 - .35, 0, Math.PI * .1); inner.add(sheen); }
+    if (hair === 'short' || hair === 'spiky' || hair === 'ponytail') add(new THREE.SphereGeometry(.15, 14, 8, 0, Math.PI * 2, Math.PI * .5, Math.PI * .22), hDk, [0, HY + .01, -.035], { ink:0, rot:[-.5, 0, 0] });   // short hair down the back of the head
+    if (hair === 'long' || hair === 'bob') for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(.03, .022, hair === 'long' ? .3 : .16, 6), hLt, [sx * .158, HY - (hair === 'long' ? .11 : .04), .05], { ink:0, rot:[0, 0, sx * -.06] });   // a lock falling in front of each shoulder
+  }
+  // clothes in layers, the way the travellers and townsfolk in the paintings are dressed: lapels, a waistcoat, a neckerchief, a shawl, a hem.
+  // Chosen per person and kept for good; people who are already dressed up (coats, aprons, armour, robes, patterns) keep their own look.
+  if (!L.plain && !L.pattern && !L.tiedye && !L.snout && !['apron', 'armor', 'longcoat', 'poncho', 'cape', 'scarf', 'hood', 'veil'].some(k => gear.includes(k))) {
+    const cC = new THREE.Color(coat), dk = cC.clone().multiplyScalar(.58).getStyle(), lt = cC.clone().lerp(new THREE.Color('#fff3d6'), .4).getStyle(), acc = L.accent || cC.clone().offsetHSL(.45, -.05, .08).getStyle(), kind = (seed >> 7) % 5;
+    const rAt = y => B.waist + (B.sh * .92 - B.waist) * ((y - .52) / .3);
+    if (kind === 0 || kind === 3) for (const sx of [-1, 1]) {   // lapels, and a shirt showing between them
+      add(new THREE.BoxGeometry(.05, .17, .012), lt, [sx * .045, .72, rAt(.72) + .004], { rot:[.12, 0, sx * .32] }); if (sx > 0) add(new THREE.BoxGeometry(.05, .14, .008), '#efe6d0', [0, .74, rAt(.74) + .001], { rot:[.12, 0, 0] }); }
+    if (kind === 1 || kind === 3) { const wc = new THREE.CylinderGeometry(B.sh * .93 + .006, B.waist + .008, .24, 16, 1, true, Math.PI * .22, Math.PI * 1.56); add(wc, dk, [0, .665, 0], { ink:0, mo:{ side:THREE.DoubleSide } });   // an open waistcoat
+      for (let i = 0; i < 2; i++) add(new THREE.SphereGeometry(.011, 6, 5), '#c9a24a', [.05, .6 + i * .07, rAt(.6 + i * .07) + .012]); }
+    if (kind === 2) { add(new THREE.TorusGeometry(.085, .028, 8, 16), acc, [0, .835, .005], { rot:[Math.PI / 2, 0, 0], ink:1.05 }); add(new THREE.ConeGeometry(.04, .09, 4), acc, [.03, .78, rAt(.78) + .012], { rot:[Math.PI, 0, .25], sc:[1, 1, .4] }); }   // a neckerchief, knotted at the front
+    if (kind === 4) { const sw = new THREE.CylinderGeometry(B.sh * .62, B.sh * 1.18, .15, 16, 1, true); add(sw, acc, [0, .775, 0], { ink:1.05, mo:{ side:THREE.DoubleSide } }); add(new THREE.CylinderGeometry(B.sh * 1.185, B.sh * 1.2, .02, 16, 1, true), new THREE.Color(acc).multiplyScalar(.7).getStyle(), [0, .705, 0], { mo:{ side:THREE.DoubleSide } }); }   // a shawl over the shoulders, with a darker border
+    if (!L.skirt) add(new THREE.CylinderGeometry(B.waist + .012, B.hip * 1.16, .09, 16, 1, true), coat, [0, .475, 0], { ink:1.05, mo:{ side:THREE.DoubleSide } });   // the coat's hem flaring over the hips
+    for (const sh of arms) add(new THREE.CylinderGeometry(B.arm * 1.08, B.arm * 1.08, .035, 10), dk, [0, -.02, 0], { to:sh.userData.el });   // a seam band above each elbow
+    if (L.skirt) { add(new THREE.CylinderGeometry(B.hip * 1.84, B.hip * 1.92, .03, 18, 1, true), new THREE.Color(L.skirt).lerp(new THREE.Color('#fff3d6'), .35).getStyle(), [0, .225, 0], { mo:{ side:THREE.DoubleSide } }); }   // a pale band at the skirt's hem
+  }
   if (L.hat) add(new THREE.ConeGeometry(.24, .26, 14), L.hat, [0, HY + .21, 0], { ink:1.08 });
   // gear (stout and tall are builds now; held things go in the hand)
   const held = gear.filter(k => ['orb', 'gadget', 'flamesword', 'paddle', 'bat', 'lanternstaff', 'basket'].includes(k) || (k === 'sword' && pose === 'sword'));
@@ -2235,18 +2266,18 @@ function manifDust(body, col, tier, mini, light) {
 const SETTINGS = { cine:(() => { try { return localStorage.getItem('ia_cine') !== '0'; } catch (e) { return true; } })() };
 //            shadow tint          light tint           colour contrast vignette bloom
 const GRADES = {
-  JOY:        [[1.00, .90, .78], [1.10, 1.03, .86], 1.14, 1.04, .20, .60],
-  HOPE:       [[.96, .92, 1.02], [1.08, 1.02, .93], 1.02,  .97, .18, .80],
-  CALM:       [[.84, .97, 1.02], [.97, 1.04, 1.01],  .92,  .95, .18, .55],
-  CONFIDENCE: [[1.02, .90, .74], [1.12, 1.05, .84], 1.10, 1.10, .22, .55],
-  SURPRISE:   [[.94, .94, 1.08], [1.06, 1.07, .90], 1.22, 1.06, .18, .65],
-  SADNESS:    [[.76, .87, 1.08], [.90, .97, 1.07],  .58,  .95, .40, .35],
-  FEAR:       [[.66, .72, .98], [.86, .93, 1.02],  .60, 1.14, .58, .30],
-  ANGER:      [[1.10, .70, .62], [1.15, .93, .78], 1.06, 1.17, .42, .65],
-  SHAME:      [[.96, .78, .88], [1.05, .93, .96],  .70,  .98, .50, .35],
-  DISGUST:    [[.84, .96, .66], [1.00, 1.06, .78],  .80, 1.04, .42, .35],
-  _:          [[.95, .93, 1.03], [1.07, 1.01, .90], 1.05, 1.03, .18, .50],   // a settled place, or nowhere in particular: warm light, cool shadow
-  RUIN:       [[.88, .88, .92], [.98, .98, 1.00],  .22, 1.06, .55, .15] };
+  JOY:        [[1.02, .86, .70], [1.12, 1.03, .83], 1.08, 1.06, .34, .80],
+  HOPE:       [[.96, .88, 1.04], [1.10, 1.02, .92], 1.06,  .98, .30, 1.10],
+  CALM:       [[.78, .96, 1.04], [.95, 1.05, 1.02],  .94,  .97, .32, .75],
+  CONFIDENCE: [[1.04, .86, .64], [1.13, 1.05, .81], 1.06, 1.12, .34, .75],
+  SURPRISE:   [[.90, .88, 1.14], [1.08, 1.08, .88], 1.16, 1.08, .30, .85],
+  SADNESS:    [[.66, .82, 1.10], [.86, .96, 1.08],  .50,  .98, .50, .45],
+  FEAR:       [[.52, .62, .96], [.80, .92, 1.04],  .52, 1.18, .66, .40],
+  ANGER:      [[1.14, .58, .50], [1.20, .90, .70], 1.12, 1.22, .50, .95],
+  SHAME:      [[.94, .68, .84], [1.06, .90, .96],  .62, 1.02, .58, .45],
+  DISGUST:    [[.78, .96, .54], [1.00, 1.08, .72],  .78, 1.08, .50, .45],
+  _:          [[.90, .85, 1.06], [1.09, 1.01, .86], 1.00, 1.05, .36, .70],   // a settled place, or nowhere in particular: golden light, violet shadow
+  RUIN:       [[.86, .86, .92], [.98, .98, 1.00],  .18, 1.10, .62, .20] };
 const post = (() => {
   const size = new THREE.Vector2(); renderer.getDrawingBufferSize(size);
   const SC = LOWPOWER ? .8 : 1, W0 = () => Math.max(2, Math.floor(size.x * SC)), H0 = () => Math.max(2, Math.floor(size.y * SC));
@@ -2263,22 +2294,28 @@ const post = (() => {
   const mat = new THREE.ShaderMaterial({
     uniforms:{ tColor:{ value:null }, tDepth:{ value:null }, tBloom:{ value:null }, res:{ value:size.clone() }, near:{ value:.1 }, far:{ value:140 }, focus:{ value:12 }, dof:{ value:1 }, maxC:{ value:1 },
       shadowT:{ value:new THREE.Vector3(1, 1, 1) }, lightT:{ value:new THREE.Vector3(1, 1, 1) }, sat:{ value:1 }, con:{ value:1 }, vig:{ value:.2 }, bloomK:{ value:.5 } },
-    vertexShader:VS, depthTest:false, depthWrite:false, defines:{ TAPS:LOWPOWER ? 10 : 20 },
+    vertexShader:VS, depthTest:false, depthWrite:false, defines:{ TAPS:LOWPOWER ? 10 : 22, AOP:LOWPOWER ? 4 : 8 },
     fragmentShader:`
       uniform sampler2D tColor, tDepth, tBloom; uniform vec2 res; uniform float near, far, focus, dof, maxC, sat, con, vig, bloomK; uniform vec3 shadowT, lightT; varying vec2 vUv;
       float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
-      float coc(float d){ float k = (d - focus) / focus; return clamp((abs(k) - .16) * (k < 0. ? 1.7 : 1.05) * dof, 0., maxC); }   // nearer than the hero blurs faster than farther
+      float coc(float d){ float k = (d - focus) / focus; return clamp((abs(k) - .13) * (k < 0. ? 2.2 : 1.35) * dof, 0., maxC); }   // nearer than the hero blurs faster than farther
       void main(){
         vec3 col = texture2D(tColor, vUv).rgb; float c0 = coc(lin(vUv));
-        if (c0 > .01) { vec3 acc = col * .6; float n = .6, rad = c0 * res.y * .011;
+        if (c0 > .01) { vec3 acc = col * .6; float n = .6, rad = c0 * res.y * .016;
           for (int i = 0; i < TAPS; i++) { float a = float(i) * 2.39996, r = sqrt((float(i) + .5) / float(TAPS)); vec2 uv = vUv + vec2(cos(a), sin(a)) * r * rad / res;
-            float w = .25 + coc(lin(uv)); acc += texture2D(tColor, uv).rgb * w; n += w; }   // sharp things don't smear into the blur
+            float w = .03 + smoothstep(0., c0 * .8, coc(lin(uv))); acc += texture2D(tColor, uv).rgb * w; n += w; }   // sharp things never smear into the blur behind them (no halos round people)
           col = mix(col, acc / n, min(1., c0 * 1.6)); }
-        col += texture2D(tBloom, vUv).rgb * bloomK;
+        // contact shadow: where surfaces meet (feet on the ground, a wall at the street, the gap under a table) the crease darkens
+        { float d0 = lin(vUv), occ = 0., R = clamp(.42 / d0, .0025, .06);
+          for (int i = 0; i < AOP; i++) { float a = float(i) * 2.39996 + 1.1, r = R * sqrt((float(i) + .5) / float(AOP)); vec2 o = vec2(cos(a), sin(a) * res.x / res.y) * r;
+            float dA = clamp(lin(vUv + o), d0 - .9, d0 + .9), dB = clamp(lin(vUv - o), d0 - .9, d0 + .9); occ += smoothstep(.012, .16, d0 - .5 * (dA + dB)); }
+          col *= 1. - .62 * (occ / float(AOP)) * (1. - smoothstep(40., 70., d0)); }
+        vec3 bl = texture2D(tBloom, vUv).rgb; col += bl * bloomK;
         float L = dot(col, vec3(.299, .587, .114));
         col = mix(vec3(L), col, sat);
         col *= mix(shadowT, lightT, smoothstep(.04, .72, L));
         col = (col - .3) * con + .3;
+        col = max(col, 0.); col = min(col, 1.); col = mix(col, col * col * (3. - 2. * col), .3);   // a soft film curve: deeper darks, rounder highlights
         float v = smoothstep(1.12, .32, length((vUv - .5) * vec2(1.1, 1.)));
         col *= mix(1. - vig, 1., v);
         gl_FragColor = vec4(clamp(col, 0., 1.), 1.);
@@ -2293,7 +2330,7 @@ const post = (() => {
     G.sh.lerp(tv.fromArray(g[0]), k); G.li.lerp(tv.fromArray(g[1]), k); G.sat += (g[2] - G.sat) * k; G.con += (g[3] - G.con) * k; G.vig += (g[4] - G.vig) * k; G.bl += (g[5] - G.bl) * k;
     const U = mat.uniforms, night = cam === camera && typeof NIGHT_K !== 'undefined' ? NIGHT_K : 0;
     U.shadowT.value.copy(G.sh); U.lightT.value.copy(G.li); U.sat.value = G.sat; U.con.value = G.con; U.vig.value = G.vig + night * .12; U.bloomK.value = G.bl * (1 + night * .9);
-    blur.uniforms.thr.value = .82 - night * .3;
+    blur.uniforms.thr.value = .78 - night * .3;
   }
   let focusD = 12;
   return {
@@ -4477,9 +4514,11 @@ function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp 
   if (asp < 1) { camera.fov = Math.min(64, Math.max(50, 2 * Math.atan(Math.tan(16 * Math.PI / 180) / asp) * 180 / Math.PI)); camera.updateProjectionMatrix(); }
   post.resize(); }
 addEventListener('resize', resize); resize();
+// Lighting for drama: less flat fill, a stronger warm key. Shadows read as shadows, and lit faces glow.
+const HEMI_BASE = .78, SUN_GAIN = 1.3;
 function setupLights(scene, span) {
-  const hemi = new THREE.HemisphereLight(0xfff4dc, 0x6b5a48, 1.2); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff0d0, 1.8); sun.position.set(-6, 14, 8); sun.castShadow = true; sun.shadow.mapSize.set(LOWPOWER ? 1024 : 2048, LOWPOWER ? 1024 : 2048);
+  const hemi = new THREE.HemisphereLight(0xfff4dc, 0x3c3654, HEMI_BASE); scene.add(hemi);   // dim, cool fill from below: shadows fall away into violet, and the sun does the work
+  const sun = new THREE.DirectionalLight(0xffe2b0, 1.8 * SUN_GAIN); sun.position.set(-6, 14, 8); sun.castShadow = true; sun.shadow.mapSize.set(LOWPOWER ? 1024 : 2048, LOWPOWER ? 1024 : 2048);
   const sc = sun.shadow.camera; sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.near = 1; sc.far = 60;
   sun.shadow.bias = -0.0012; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3; scene.add(sun, sun.target); return { hemi, sun };
 }
@@ -4501,6 +4540,11 @@ function vibeOf(id) {
     ground:C.ground.map((c, i) => mix(HUB_VIBE.ground[i], c, .45)), tall:C.tall.map((c, i) => mix(HUB_VIBE.tall[i], c, .5)), trees: ['dead','crystal','charred','mushroom'].includes(C.trees) ? 'round' : C.trees,
     treeC:C.treeC.map((c, i) => mix(HUB_VIBE.treeC[i], c, .5)), groundFog: C.groundFog, fogOp: C.fogOp * .45 });
 }
+const RAY_GEO = new THREE.PlaneGeometry(1, 1); let RAY_TEX = null;
+function rayTex() { if (RAY_TEX) return RAY_TEX; const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d');
+  const gx = g.createLinearGradient(0, 0, 64, 0); gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(.35, 'rgba(255,255,255,.7)'); gx.addColorStop(.5, 'rgba(255,255,255,1)'); gx.addColorStop(.65, 'rgba(255,255,255,.7)'); gx.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gx; g.fillRect(0, 0, 64, 128);
+  g.globalCompositeOperation = 'destination-in'; const gy = g.createLinearGradient(0, 0, 0, 128); gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(.25, 'rgba(0,0,0,1)'); gy.addColorStop(.7, 'rgba(0,0,0,.8)'); gy.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gy; g.fillRect(0, 0, 64, 128);
+  return (RAY_TEX = new THREE.CanvasTexture(c)); }
 let world = null;
 const W = { player:null, npcs:{}, minis:[], wilds:[], grass:null, grassData:[], ring:null, light:null, motes:null, parts:null, fog:[], heart:null, hg:null, water:null };
 const BASE = .3, SLAB_TOP = -.2;
@@ -4624,7 +4668,7 @@ function buildWorld(id) {
   world = new THREE.Group(); worldScene.add(world);
   const M = MAPS[id], V = worldVibe(id); fitLamps(M); applyOrders(id, M);
   worldScene.background.set(V.sky); worldScene.fog.color.set(V.fog); worldScene.fog.near = V.fogNear + 2; worldScene.fog.far = V.fogFar + 8; W.fogBase = [V.fogNear + 2, V.fogFar + 8];
-  worldLights.hemi.color.set(V.hemi); worldLights.sun.intensity = V.sun; tintSky(worldSky, V);
+  worldLights.hemi.color.set(V.hemi); worldLights.sun.intensity = V.sun * SUN_GAIN; tintSky(worldSky, V);
   W.baseSky = new THREE.Color(V.sky);
   W.hg = computeHeights(M);
   world.add(at(inkBox(M.w + 2.4, 1.6, M.h + 2.4, toon('#d9c6a0'), .05), (M.w - 1) / 2, SLAB_TOP - .8, (M.h - 1) / 2));
@@ -4715,6 +4759,10 @@ function buildWorld(id) {
   W.wilds = []; for (let k = 0; k < (M.kind === 'city' ? 7 : 5); k++) spawnWild();
   worldLights.sun.position.set((M.w - 1) / 2 - 8, 16, (M.h - 1) / 2 + 9); worldLights.sun.target.position.set((M.w - 1) / 2, 0, (M.h - 1) / 2);
   const span = Math.max(M.w, M.h) * .65, sc = worldLights.sun.shadow.camera; sc.left = sc.bottom = -span; sc.right = sc.top = span; sc.far = 70; sc.updateProjectionMatrix();
+  // shafts of light slanting down through the air, the way dusty sun does: big, soft, still (they never move or flicker)
+  if (M.kind !== 'inside' && !V.cave && M.kind !== 'still') { const rayC = new THREE.Color(V.hemi).lerp(new THREE.Color('#ffd9a0'), .5);
+    for (let k = 0; k < 7; k++) { const m = new THREE.Mesh(RAY_GEO, new THREE.MeshBasicMaterial({ map:rayTex(), color:rayC, transparent:true, opacity:.1 + hsh(k, 5, 3) * .08, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false }));
+      const x = 3 + hsh(k, 7, 1) * (M.w - 6), z = 3 + hsh(k, 9, 2) * (M.h - 6); m.position.set(x, 4.6, z); m.rotation.set(0, .5 + hsh(k, 3, 4) * .5, -.5); m.scale.set(2.2 + hsh(k, 1, 6) * 2.4, 12, 1); m.renderOrder = 6; world.add(m); (W.rays = W.rays || []).push(m); } }
   placePlayer(true);
   $('#place').textContent = M.name;
 }
@@ -9467,8 +9515,8 @@ function tickDay(dt) {
   // sky and fog: the town's own sky, washed toward the hour's colour (the aura tint is applied on top in the main loop)
   W.skyNow = new THREE.Color(V.sky).lerp(d.tint, d.tintK);
   const u = worldSky.material.uniforms; u.horizon.value.copy(W.skyNow); u.top.value.copy(W.skyNow).lerp(new THREE.Color(d.night > .5 ? '#2a3260' : '#fffaf0'), d.night > .5 ? .5 : .55 * (1 - d.tintK));
-  worldLights.sun.intensity = V.sun * d.sunK; worldLights.sun.color.copy(d.sunC);
-  worldLights.hemi.color.set(V.hemi).multiply(d.hemiC); worldLights.hemi.intensity = 1.2 * d.hemiK;
+  worldLights.sun.intensity = V.sun * SUN_GAIN * d.sunK; worldLights.sun.color.copy(d.sunC);
+  worldLights.hemi.color.set(V.hemi).multiply(d.hemiC); worldLights.hemi.intensity = HEMI_BASE * d.hemiK * (inside ? 1.35 : 1);
   // the sun (or moon) crosses the sky, so shadows swing and stretch through the day
   if (!inside && M) { const h = clockHour(), day = h >= 5 && h < 20.3, t = day ? (h - 5) / 15.3 : ((h + 24 - 20.3) % 24) / 8.7, a = Math.PI * (.12 + .76 * t), cx = (M.w - 1) / 2, cz = (M.h - 1) / 2;
     worldLights.sun.position.set(cx - Math.cos(a) * 16, 4 + Math.sin(a) * 14, cz + 9); worldLights.sun.target.position.set(cx, 0, cz); }
