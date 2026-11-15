@@ -5009,6 +5009,8 @@ function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ
   const tpI = TP_DISTS.reduce((b, v, i) => Math.abs(v - TP.want) < Math.abs(TP_DISTS[b] - TP.want) ? i : b, 0), cur = TP.on ? NZ + tpI : camZoom, nx = (cur + d + n) % n;
   if (nx >= NZ) { TP.want = TP_DISTS[nx - NZ]; if (!TP.on) setView(true); } else { camZoom = nx; if (TP.on) setView(false); }
   toast(nx >= NZ ? ['Over the shoulder: far', 'Over the shoulder', 'Over the shoulder: close'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx === NZ ? 'Drag to look around' : undefined); }
+function tpStep() { const D = [1.5, 2.5, 4.2], i = D.reduce((b, v, k) => Math.abs(v - TP.want) < Math.abs(D[b] - TP.want) ? k : b, 0), n = (i + 1) % 3;
+  TP.want = D[n]; sfx('tick'); toast(['Close', 'Normal', 'Far'][n]); }
 const tpZoom = f => { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, TP.want * f)); };
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
@@ -5294,7 +5296,9 @@ function pollPad(dt) {
   if (padState.capture) { const i = pressed.findIndex((p, k) => p && !padState.prev[k]); padState.prev = pressed; if (i >= 0) { const r = padState.capture; padState.capture = null; r(i); } return; }
   // buttons
   for (const [act] of PAD_ACTIONS) { const i = PAD.map[act]; if (i != null && edge(i)) { if (act === 'recenter') { if (scene === 'world') { camFree = null; camZoomV = null; camQ = 0; toast('View reset'); } } else press(act); } }
-  if (PAD.menu2 != null && edge(PAD.menu2) && !Object.values(PAD.map).includes(PAD.menu2)) press('menu');
+  // X: over the shoulder it steps the camera close → normal → far (the sticks stay free for moving and looking); anywhere else it opens the menu
+  if (PAD.menu2 != null && edge(PAD.menu2) && !Object.values(PAD.map).includes(PAD.menu2)) {
+    if (scene === 'world' && TP.live && !busy && !UI.dlg && !UI.cho && !UI.list) tpStep(); else press('menu'); }
   // directions (held for walking, edge + auto-repeat for menus)
   { const st = PAD.move === 'right' || PAD.move === 'dpad+right' ? [2, 3] : PAD.move === 'dpad' ? null : [0, 1];   // analog stick → any direction
     const ax = st ? gp.axes[st[0]] || 0 : 0, ay = st ? gp.axes[st[1]] || 0 : 0; if (Math.hypot(ax, ay) > .4) { JOY.gx = ax; JOY.gy = -ay; } else JOY.gx = JOY.gy = 0; }
