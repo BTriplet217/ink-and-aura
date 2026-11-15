@@ -207,7 +207,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
   <div id="joy"><i class="t n"></i><i class="t e"></i><i class="t s"></i><i class="t w"></i><div id="joyKnob"></div></div>
   <div id="ab"><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
 </div>
-<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom: C</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
+<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom and over-the-shoulder view: C · Look up / down: R / F</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
 <div id="fade"></div>
 <script type="module">
 import * as THREE from 'three';
@@ -2226,74 +2226,95 @@ function manifDust(body, col, tier, mini, light) {
 // =============================================================================
 //  PAINTED LOOK — ink edges from depth, paper grain, watercolour, tilt-shift
 // =============================================================================
-// The full-screen finish pass (pixel grid, blur, grade) is retired: the game renders straight to the screen.
-const SETTINGS = { paint:false };
+// CINEMATIC FINISH — a lens, not a filter. The scene is drawn at full sharpness, then:
+//   · depth of field: whatever is at the hero's distance is crisp, and the near foreground and the far distance go soft (a diorama through a real lens)
+//   · bloom: lamps, windows, glows and Manif auras bleed light into the air around them
+//   · a grade per place: each feeling tints the shadows and the light, and sets how much colour and contrast the world has
+//   · a vignette that closes in where the mood is heavy
+// No pixel grid, no dither, no outlines, nothing that flickers. It can be switched off in Menu → View.
+const SETTINGS = { cine:(() => { try { return localStorage.getItem('ia_cine') !== '0'; } catch (e) { return true; } })() };
+//            shadow tint          light tint           colour contrast vignette bloom
+const GRADES = {
+  JOY:        [[1.00, .90, .78], [1.10, 1.03, .86], 1.14, 1.04, .20, .60],
+  HOPE:       [[.96, .92, 1.02], [1.08, 1.02, .93], 1.02,  .97, .18, .80],
+  CALM:       [[.84, .97, 1.02], [.97, 1.04, 1.01],  .92,  .95, .18, .55],
+  CONFIDENCE: [[1.02, .90, .74], [1.12, 1.05, .84], 1.10, 1.10, .22, .55],
+  SURPRISE:   [[.94, .94, 1.08], [1.06, 1.07, .90], 1.22, 1.06, .18, .65],
+  SADNESS:    [[.76, .87, 1.08], [.90, .97, 1.07],  .58,  .95, .40, .35],
+  FEAR:       [[.66, .72, .98], [.86, .93, 1.02],  .60, 1.14, .58, .30],
+  ANGER:      [[1.10, .70, .62], [1.15, .93, .78], 1.06, 1.17, .42, .65],
+  SHAME:      [[.96, .78, .88], [1.05, .93, .96],  .70,  .98, .50, .35],
+  DISGUST:    [[.84, .96, .66], [1.00, 1.06, .78],  .80, 1.04, .42, .35],
+  _:          [[.95, .93, 1.03], [1.07, 1.01, .90], 1.05, 1.03, .18, .50],   // a settled place, or nowhere in particular: warm light, cool shadow
+  RUIN:       [[.88, .88, .92], [.98, .98, 1.00],  .22, 1.06, .55, .15] };
 const post = (() => {
-  const size = new THREE.Vector2();
-  renderer.getDrawingBufferSize(size);
-  // the scene renders straight into a small target (one texel per screen pixel-art pixel), then is scaled up crisp
-  const PIX = () => Math.max(2, Math.floor(size.y / 400)), lowW = () => Math.floor(size.x / PIX()), lowH = () => Math.floor(size.y / PIX());
-  const mk = () => { const dt = new THREE.DepthTexture(lowW(), lowH()); dt.type = THREE.UnsignedIntType; const r = new THREE.WebGLRenderTarget(lowW(), lowH(), { depthTexture:dt, samples: LOWPOWER ? 0 : 2, type:THREE.HalfFloatType, minFilter:THREE.NearestFilter, magFilter:THREE.NearestFilter }); return r; };
-  let rt = mk();
+  const size = new THREE.Vector2(); renderer.getDrawingBufferSize(size);
+  const SC = LOWPOWER ? .8 : 1, W0 = () => Math.max(2, Math.floor(size.x * SC)), H0 = () => Math.max(2, Math.floor(size.y * SC));
+  const mkScene = () => { const dt = new THREE.DepthTexture(W0(), H0()); dt.type = THREE.UnsignedIntType; return new THREE.WebGLRenderTarget(W0(), H0(), { depthTexture:dt, samples:LOWPOWER ? 0 : 4, type:THREE.HalfFloatType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter }); };
+  const mkHalf = () => new THREE.WebGLRenderTarget(Math.max(2, W0() >> 2), Math.max(2, H0() >> 2), { type:THREE.HalfFloatType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:false });
+  let rt = mkScene(), bA = mkHalf(), bB = mkHalf();
+  const VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }';
+  // bloom: keep only what is brighter than the threshold, then blur it wide, across and then down, at quarter size
+  const blur = new THREE.ShaderMaterial({ uniforms:{ tex:{ value:null }, dir:{ value:new THREE.Vector2() }, thr:{ value:.8 } }, vertexShader:VS, depthTest:false, depthWrite:false,
+    fragmentShader:`uniform sampler2D tex; uniform vec2 dir; uniform float thr; varying vec2 vUv;
+      void main(){ vec3 a = vec3(0.); float n = 0.;
+        for (int i = -6; i <= 6; i++) { float w = exp(-float(i * i) / 18.); vec3 c = texture2D(tex, vUv + dir * float(i)).rgb; if (thr > 0.) { float L = max(c.r, max(c.g, c.b)); c *= smoothstep(thr, thr + .35, L); } a += c * w; n += w; }
+        gl_FragColor = vec4(a / n, 1.); }` });
   const mat = new THREE.ShaderMaterial({
-    uniforms:{ night:{ value:0 }, tColor:{ value:rt.texture }, tDepth:{ value:rt.depthTexture }, res:{ value:size.clone() }, near:{ value:.1 }, far:{ value:140 }, time:{ value:0 }, paper:{ value:new THREE.Color('#f3e7c9') }, ink:{ value:new THREE.Color('#1b1512') }, tilt:{ value:1 }, focusY:{ value:.5 } },
-    vertexShader:'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+    uniforms:{ tColor:{ value:null }, tDepth:{ value:null }, tBloom:{ value:null }, res:{ value:size.clone() }, near:{ value:.1 }, far:{ value:140 }, focus:{ value:12 }, dof:{ value:1 }, maxC:{ value:1 },
+      shadowT:{ value:new THREE.Vector3(1, 1, 1) }, lightT:{ value:new THREE.Vector3(1, 1, 1) }, sat:{ value:1 }, con:{ value:1 }, vig:{ value:.2 }, bloomK:{ value:.5 } },
+    vertexShader:VS, depthTest:false, depthWrite:false, defines:{ TAPS:LOWPOWER ? 10 : 20 },
     fragmentShader:`
-      // HD-2D finish: the scene is snapped to a chunky pixel grid, outlined where depth breaks,
-      // graded warm with cool shadows, dithered, bloomed, and blurred top and bottom like a diorama.
-      uniform sampler2D tColor; uniform sampler2D tDepth; uniform vec2 res; uniform float near, far, time, tilt, focusY, night; uniform vec3 paper, ink; varying vec2 vUv;
+      uniform sampler2D tColor, tDepth, tBloom; uniform vec2 res; uniform float near, far, focus, dof, maxC, sat, con, vig, bloomK; uniform vec3 shadowT, lightT; varying vec2 vUv;
       float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
-      float luma(vec3 c){ return dot(c, vec3(.299, .587, .114)); }
-      float bayer(vec2 p){ vec2 q = mod(p, 4.); int i = int(q.x) + int(q.y) * 4;
-        float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
-        for (int k = 0; k < 16; k++) if (k == i) return m[k] / 16. - .47; return 0.; }
+      float coc(float d){ float k = (d - focus) / focus; return clamp((abs(k) - .16) * (k < 0. ? 1.7 : 1.05) * dof, 0., maxC); }   // nearer than the hero blurs faster than farther
       void main(){
-        float pix = max(2., floor(res.y / 400.));
-        vec2 lr = floor(res / pix), cell = floor(vUv * lr), uv = (cell + .5) / lr, lp = 1. / lr;
-        vec3 col = texture2D(tColor, uv).rgb;
-        // outline: depth breaks on the pixel grid (silhouettes of people, props, building edges)
-        float d0 = lin(uv), dl = lin(uv - vec2(lp.x, 0.)), dr = lin(uv + vec2(lp.x, 0.)), dd = lin(uv - vec2(0., lp.y)), du = lin(uv + vec2(0., lp.y));
-        float jump = max(max(dl, dr), max(dd, du)) - d0;
-        float edge = step(.06 * d0 + .25, jump) * (1. - smoothstep(55., 90., d0));
-        col = mix(col, col * vec3(.32, .26, .3), edge * .8);
-        // tilt-shift depth of field: foreground and far rows go soft, like the reference shots
-        float ts = smoothstep(.22, .55, abs(vUv.y - focusY)) * tilt;
-        if (ts > .02) { vec3 acc = col; float r = ts * 3.2; float n = 1.;
-          for (int i = 0; i < 12; i++) { float a = float(i) * 2.39996; vec2 o = vec2(cos(a), sin(a)) * r * sqrt(float(i + 1) / 12.) * lp * 1.6; acc += texture2D(tColor, (floor((vUv + o) * lr) + .5) / lr).rgb; n += 1.; }
-          col = mix(col, acc / n, clamp(ts * 1.3, 0., 1.)); }
-        // bloom: lights and bright glows bleed into their neighbours
-        vec3 bl = vec3(0.);
-        for (int i = 0; i < 10; i++) { float a = float(i) * 2.39996; vec2 o = vec2(cos(a), sin(a)) * (2. + float(i)) * lp; vec3 c = texture2D(tColor, uv + o).rgb; bl += max(c - (.72 - .3 * night), 0.); }
-        col += bl * (.16 + .22 * night);   // lamps and windows bloom more after dark
-        // grade: warm, slightly sepia highlights; cool violet shadows; a touch more contrast
-        float L = luma(col);
-        col = mix(col, vec3(L) * vec3(1.08, .98, .86), .14);
-        col = mix(col * vec3(.92, .9, 1.05), col * vec3(1.05, 1.0, .92), smoothstep(.15, .7, L));
-        col = (col - .5) * 1.06 + .5;
-        // ordered dither and a gentle colour step, so gradients band like pixel art
-        { vec3 pc = sqrt(max(col, 0.)); pc += bayer(cell) * (1. / 96.); pc = floor(pc * 40. + .5) / 40.; col = pc * pc; }   // gentle steps, in perceptual space so darks don't speckle
-        float v = smoothstep(1.1, .35, length((vUv - .5) * vec2(1.15, 1.)));
-        col *= mix(.72, 1., v);
+        vec3 col = texture2D(tColor, vUv).rgb; float c0 = coc(lin(vUv));
+        if (c0 > .01) { vec3 acc = col * .6; float n = .6, rad = c0 * res.y * .011;
+          for (int i = 0; i < TAPS; i++) { float a = float(i) * 2.39996, r = sqrt((float(i) + .5) / float(TAPS)); vec2 uv = vUv + vec2(cos(a), sin(a)) * r * rad / res;
+            float w = .25 + coc(lin(uv)); acc += texture2D(tColor, uv).rgb * w; n += w; }   // sharp things don't smear into the blur
+          col = mix(col, acc / n, min(1., c0 * 1.6)); }
+        col += texture2D(tBloom, vUv).rgb * bloomK;
+        float L = dot(col, vec3(.299, .587, .114));
+        col = mix(vec3(L), col, sat);
+        col *= mix(shadowT, lightT, smoothstep(.04, .72, L));
+        col = (col - .3) * con + .3;
+        float v = smoothstep(1.12, .32, length((vUv - .5) * vec2(1.1, 1.)));
+        col *= mix(1. - vig, 1., v);
         gl_FragColor = vec4(clamp(col, 0., 1.), 1.);
         #include <colorspace_fragment>
-      }`,
-    depthTest:false, depthWrite:false
-  });
+      }` });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat), qs = new THREE.Scene(), qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); quad.frustumCulled = false; qs.add(quad);
-  function resizePost() { renderer.getDrawingBufferSize(size); rt.dispose(); rt = mk(); mat.uniforms.tColor.value = rt.texture; mat.uniforms.tDepth.value = rt.depthTexture; mat.uniforms.res.value.copy(size); }
+  function resizePost() { renderer.getDrawingBufferSize(size); rt.dispose(); bA.dispose(); bB.dispose(); rt = mkScene(); bA = mkHalf(); bB = mkHalf(); mat.uniforms.res.value.set(W0(), H0()); }
+  const G = { sh:new THREE.Vector3(1, 1, 1), li:new THREE.Vector3(1, 1, 1), sat:1, con:1, vig:.2, bl:.5, init:false }, tv = new THREE.Vector3();
+  function grade(cam) {
+    let g = GRADES._; try { const F = typeof S !== 'undefined' && S && S.flags; if (F && F.ruin) g = GRADES.RUIN; else { const f = typeof moodFamily === 'function' && S && MAPS[S.map] ? moodFamily(S.map) : null; if (f && GRADES[f]) g = GRADES[f]; } } catch (e) {}
+    const k = G.init ? .04 : 1; G.init = true;   // the grade drifts from one place's mood to the next; it never snaps
+    G.sh.lerp(tv.fromArray(g[0]), k); G.li.lerp(tv.fromArray(g[1]), k); G.sat += (g[2] - G.sat) * k; G.con += (g[3] - G.con) * k; G.vig += (g[4] - G.vig) * k; G.bl += (g[5] - G.bl) * k;
+    const U = mat.uniforms, night = cam === camera && typeof NIGHT_K !== 'undefined' ? NIGHT_K : 0;
+    U.shadowT.value.copy(G.sh); U.lightT.value.copy(G.li); U.sat.value = G.sat; U.con.value = G.con; U.vig.value = G.vig + night * .12; U.bloomK.value = G.bl * (1 + night * .9);
+    blur.uniforms.thr.value = .82 - night * .3;
+  }
+  let focusD = 12;
   return {
     render(scene, cam, t) {
       WASH.time.value = t;
-      if (!SETTINGS.paint) { renderer.setRenderTarget(null); renderer.render(scene, cam); return; }
+      if (!SETTINGS.cine) { renderer.setRenderTarget(null); renderer.render(scene, cam); return; }
       renderer.setRenderTarget(rt); renderer.render(scene, cam);
-      WASH.time.value = t; mat.uniforms.night.value = cam === camera ? NIGHT_K : 0; mat.uniforms.near.value = cam.near; mat.uniforms.far.value = cam.far; mat.uniforms.time.value = t;
-      mat.uniforms.tilt.value = cam === camera ? 1 : .55; mat.uniforms.focusY.value = cam === camera ? .45 : .5;
+      // focus on the hero (or the middle of the arena); the lens eases to a new distance
+      let want = 12; try { want = cam === camera ? (typeof TP !== 'undefined' && TP.live ? 3.6 : cam.position.distanceTo(typeof camFocus !== 'undefined' && camFocus.init ? camFocus : cam.position) || 12) : cam.position.length(); } catch (e) {}
+      focusD += (want - focusD) * .12;
+      const U = mat.uniforms; U.near.value = cam.near; U.far.value = cam.far; U.focus.value = Math.max(1.5, focusD); const tpv = cam === camera && typeof TP !== 'undefined' && TP.live; U.dof.value = cam === camera ? (tpv ? .2 : 1) : .7; U.maxC.value = tpv ? .32 : 1;
+      grade(cam);
+      quad.material = blur; blur.uniforms.tex.value = rt.texture; blur.uniforms.dir.value.set(1.6 / bA.width, 0); const thr = blur.uniforms.thr.value; renderer.setRenderTarget(bA); renderer.render(qs, qc);
+      blur.uniforms.tex.value = bA.texture; blur.uniforms.dir.value.set(0, 1.6 / bA.height); blur.uniforms.thr.value = 0; renderer.setRenderTarget(bB); renderer.render(qs, qc); blur.uniforms.thr.value = thr;
+      quad.material = mat; U.tColor.value = rt.texture; U.tDepth.value = rt.depthTexture; U.tBloom.value = bB.texture;
       renderer.setRenderTarget(null); renderer.render(qs, qc);
     },
     resize: resizePost
   };
 })();
-function setPaint(on) { SETTINGS.paint = on; try { localStorage.setItem('ia_paint', on ? '1' : '0'); } catch (e) {} }
+function setCine(on) { SETTINGS.cine = on; try { localStorage.setItem('ia_cine', on ? '1' : '0'); } catch (e) {} }
 
 // sky dome: vertical gradient from horizon colour to a paler top
 function skyDome() {
@@ -4447,9 +4468,11 @@ for (const k in MAPS) if (MAPS[k].kind === 'inside') varyRoom(k);
 const worldScene = new THREE.Scene(), battleScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 140);
 const bcam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 140);
+const TP = { on:(() => { try { return localStorage.getItem('ia_view') === 'tp'; } catch (e) { return false; } })(), pitch:.1, live:false, dist:2.4 };
 let activeScene = worldScene, activeCam = camera;
 function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp = innerWidth / innerHeight;
   for (const c of [camera, bcam]) { c.aspect = asp; c.fov = innerWidth < innerHeight ? 50 : 38; c.updateProjectionMatrix(); }
+  if (typeof TP !== 'undefined' && TP.live) { camera.fov = asp < 1 ? 72 : 56; camera.updateProjectionMatrix(); post.resize(); return; }
   // on a tall phone screen the world view would be a narrow slot: open it out so you see about as far side to side as up and down
   if (asp < 1) { camera.fov = Math.min(64, Math.max(50, 2 * Math.atan(Math.tan(16 * Math.PI / 180) / asp) * 180 / Math.PI)); camera.updateProjectionMatrix(); }
   post.resize(); }
@@ -4776,18 +4799,26 @@ function placePlayer(snap) {
   if (snap) { camYaw = camQ * Math.PI / 2; updateCamera(1, true); }
 }
 const CAM_ZOOMS = [1.85, 1.15, .86, .5]; let camZoom = 2;
-function cycleZoom(d = 1) { camZoomV = null; camZoom = (camZoom + d + CAM_ZOOMS.length) % CAM_ZOOMS.length; toast(['Far view', 'Wide view', 'Standard view', 'Close view'][camZoom]); }
+// OVER THE SHOULDER — a second way to see the world: the camera sits just behind the hero's right shoulder and you look where you like
+// (drag, the camera stick, or Q / E and R / F). "Forward" is always away from the camera. TP.live is true only while that view is really in use.
+const TP_BLOCK = new Set(['#', 'H', 'D', 'W', 'X']);
+function setView(tp) { TP.on = !!tp; TP.pitch = .1; try { localStorage.setItem('ia_view', tp ? 'tp' : 'top'); } catch (e) {} resize(); if (typeof W !== 'undefined' && W.player) updateCamera(1, true); }
+const tpLook = (dyaw, dpitch) => { if (dyaw) { if (camFree == null) camFree = camYaw; camFree += dyaw; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; } if (dpitch) TP.pitch = Math.max(-.75, Math.min(1.05, TP.pitch + dpitch)); };
+function cycleZoom(d = 1) { camZoomV = null; const n = CAM_ZOOMS.length + 1, cur = TP.on ? CAM_ZOOMS.length : camZoom, nx = (cur + d + n) % n;
+  if (nx === CAM_ZOOMS.length) setView(true); else { camZoom = nx; if (TP.on) setView(false); }
+  toast(['Far view', 'Wide view', 'Standard view', 'Close view', 'Over the shoulder'][nx], nx === CAM_ZOOMS.length ? 'Drag to look around' : undefined); }
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
 canvas.addEventListener('pointerdown', e => { if (scene !== 'world') return; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved = 0;
   if (drag.pts.size === 2) { const [a, b] = [...drag.pts.values()]; drag.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); drag.zoom0 = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom]; } });
 addEventListener('pointermove', e => { const p = drag.pts.get(e.pointerId); if (!p || scene !== 'world') return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved += Math.abs(dx) + Math.abs(dy);
-  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
+  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0 && !TP.live) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
+  if (TP.live) { tpLook(-dx * .008, -dy * .006); return; }
   if (camFree == null) camFree = camYaw; camFree -= dx * .011; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; });
 const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag.pinch0 = 0; };
 addEventListener('pointerup', dragEnd); addEventListener('pointercancel', dragEnd);
-addEventListener('wheel', e => { if (scene !== 'world') return; const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
+addEventListener('wheel', e => { if (scene !== 'world' || TP.live) return; const n = Math.max(0, Math.min(CAM_ZOOMS.length - 1, camZoom + (e.deltaY < 0 ? 1 : -1))); if (n !== camZoom) { camZoom = n; camZoomV = null; } }, { passive:true });
 const camFocus = new THREE.Vector3();
 let CAM_TILT = null;        // [dist, height] to override the usual angle (the lighthouse gallery looks out level, to the horizon)
 function updateCamera(dt, snap) {
@@ -4795,8 +4826,19 @@ function updateCamera(dt, snap) {
   const portrait = innerWidth < innerHeight, z = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom], dist = (CAM_TILT ? CAM_TILT[0] : portrait ? 8.6 : 8.4) * z, ht = (CAM_TILT ? CAM_TILT[1] : portrait ? 12.2 : 8.6) * z;   // a steeper, more overhead view (between our old angle and the classic Pokémon one) so buildings hide less
   // the camera follows a smoothed point, not the hero's exact feet: little height steps between tiles
   // and the start/stop of each stride (sharpest when running) no longer jolt the view
+  const tp = TP.on && !CAM_TILT && scene === 'world'; if (tp !== TP.live) { TP.live = tp; resize(); }
   if (snap || !camFocus.init) { camFocus.copy(camTarget); camFocus.init = true; }
   else { const kxz = 1 - Math.exp(-dt * 10), ky = 1 - Math.exp(-dt * 3.5); camFocus.x += (camTarget.x - camFocus.x) * kxz; camFocus.z += (camTarget.z - camFocus.z) * kxz; camFocus.y += (camTarget.y - camFocus.y) * ky; }
+  if (tp) {
+    const cp = Math.cos(TP.pitch), sp = Math.sin(TP.pitch), fx = -Math.sin(camYaw) * cp, fy = -sp, fz = -Math.cos(camYaw) * cp;   // where you're looking
+    const pvx = camFocus.x + Math.cos(camYaw) * .38, pvy = camFocus.y + 1.12, pvz = camFocus.z - Math.sin(camYaw) * .38;            // just over the right shoulder
+    let dd = 2.5; for (let s = 1; s <= 8; s++) { const k = 2.5 * s / 8, qy = pvy - fy * k; if (qy < 3 && TP_BLOCK.has(tileAt(Math.round(pvx - fx * k), Math.round(pvz - fz * k)))) { dd = Math.max(.35, 2.5 * (s - 1) / 8 - .15); break; } }   // walls and trees push the camera in, not through
+    TP.dist += (dd - TP.dist) * (dd < TP.dist ? 1 : 1 - Math.exp(-dt * 6));
+    let cx = pvx - fx * TP.dist, cy = pvy - fy * TP.dist, cz = pvz - fz * TP.dist; const gy = groundY(Math.round(cx), Math.round(cz)) + .3; if (cy < gy) cy = gy;
+    camera.position.set(cx, cy, cz); camera.lookAt(cx + fx * 8, cy + fy * 8, cz + fz * 8);
+    if (W.fogBase) { worldScene.fog.near = W.fogBase[0] * .55; worldScene.fog.far = W.fogBase[1] * 1.15; }
+    worldSky.position.copy(camera.position); return;
+  }
   const desired = V3(camFocus.x + Math.sin(camYaw) * dist, camFocus.y + ht, camFocus.z + Math.cos(camYaw) * dist);
   if (snap) camera.position.copy(desired); else camera.position.lerp(desired, 1 - Math.exp(-dt * (freeing ? 22 : 7)));
   // impacts still nudge the view, but as a short, slow sway, never a fast judder
@@ -4945,6 +4987,8 @@ function press(b) {
   if (b === 'mute') { toggleMute(); return; }
   if (b === 'zoom') { if (scene === 'world') cycleZoom(1); else if (scene === 'tour' && TOUR.on) tourKey('zoom'); return; }
   if ((b === 'rotl' || b === 'rotr') && scene === 'tour' && TOUR.on) { tourTurn(b === 'rotl' ? -Math.PI / 4 : Math.PI / 4); return; }
+  if ((b === 'rotl' || b === 'rotr') && scene === 'world' && TP.live) { tpLook(b === 'rotl' ? Math.PI / 4 : -Math.PI / 4, 0); return; }
+  if (b === 'lookup' || b === 'lookdn') { if (scene === 'world' && TP.live) tpLook(0, b === 'lookup' ? -.2 : .2); return; }
   if (b === 'rotl' || b === 'rotr') { if (scene === 'world') { if (camFree != null) { camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; camYaw = camFree; camFree = null; } camQ = (camQ + (b === 'rotl' ? 1 : 3)) % 4; } return; }
   if (UI.sheetStatic && (b === 'up' || b === 'down')) { sheetEl.scrollTop += (b === 'up' ? -1 : 1) * 90; return; }
   if (selectHandler) return selectHandler(b);
@@ -4964,7 +5008,7 @@ function press(b) {
   }
 }
 const KEYS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', w:'up', s:'down', a:'left', d:'right', W:'up', S:'down', A:'left', D:'right',
-  z:'a', Z:'a', ' ':'a', Enter:'a', x:'b', X:'b', b:'b', B:'b', Escape:'esc', Backspace:'b', m:'menu', M:'menu', q:'rotl', Q:'rotl', e:'rotr', E:'rotr', c:'zoom', C:'zoom' };
+  z:'a', Z:'a', ' ':'a', Enter:'a', x:'b', X:'b', b:'b', B:'b', Escape:'esc', Backspace:'b', m:'menu', M:'menu', q:'rotl', Q:'rotl', e:'rotr', E:'rotr', c:'zoom', C:'zoom', r:'lookup', R:'lookup', f:'lookdn', F:'lookdn' };
 addEventListener('keydown', e => { if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); press(e.key === 'Enter' ? 'menu' : 'b'); } return; } const k = KEYS[e.key]; if (!k) return; e.preventDefault(); if (k in held) { if (!held[k]) lastDir = k; held[k] = 1; } press(k); });
 addEventListener('keyup', e => { const k = KEYS[e.key]; if (k in held) held[k] = 0; });
 addEventListener('blur', () => { for (const k in held) held[k] = 0; });
@@ -4984,6 +5028,9 @@ function moveVector() {
   return Math.hypot(x, y) < .3 ? null : [x, y];
 }
 function worldStep(v) {        // eight directions, turned to match the camera
+  if (TP.live) {   // over the shoulder: forward is exactly where the camera looks, snapped to the nearest of eight ways
+    const c = Math.cos(camYaw), s = Math.sin(camYaw), wx = v[0] * c - v[1] * s, wz = -v[0] * s - v[1] * c, o = ((Math.round(Math.atan2(wz, wx) / (Math.PI / 4)) % 8) + 8) % 8;
+    return [[1, 1, 0, -1, -1, -1, 0, 1][o], [0, 1, 1, 1, 0, -1, -1, -1][o], Math.abs(wz) >= Math.abs(wx) ? (wz > 0 ? 'down' : 'up') : (wx > 0 ? 'right' : 'left')]; }
   const o = ((Math.round(Math.atan2(v[1], v[0]) / (Math.PI / 4)) % 8) + 8) % 8, sx = [1, 1, 0, -1, -1, -1, 0, 1][o], sy = [0, 1, 1, 1, 0, -1, -1, -1][o];
   let dx = 0, dy = 0; const add = d => { const [a, b] = DIRS[worldDir(d)]; dx += a; dy += b; };
   if (sx) add(sx > 0 ? 'right' : 'left'); if (sy) add(sy > 0 ? 'up' : 'down');
@@ -5060,7 +5107,8 @@ function pollPad(dt) {
     const dz = v => Math.abs(v) < PAD.dead ? 0 : (v - Math.sign(v) * PAD.dead) / (1 - PAD.dead);
     x = dz(x) * (PAD.invX ? -1 : 1); y = dz(y) * (PAD.invY ? -1 : 1);
     const moveUsesStick = (PAD.cam === 'left' && /left/.test(PAD.move)) || (PAD.cam === 'right' && /right/.test(PAD.move));
-    if (!moveUsesStick && (x || y)) {
+    if (!moveUsesStick && (x || y) && TP.live) tpLook(-x * dt * (1.6 + PAD.sens * .8), y * dt * (1.1 + PAD.sens * .5));
+    else if (!moveUsesStick && (x || y)) {
       if (x) { if (camFree == null) camFree = camYaw; camFree -= x * dt * (1.4 + PAD.sens * .8); camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; }
       if (y) { if (camZoomV == null) camZoomV = CAM_ZOOMS[camZoom]; camZoomV = Math.max(.38, Math.min(1.9, camZoomV + y * dt * (.25 + PAD.sens * .12))); }
     }
@@ -5512,10 +5560,19 @@ async function blackout() {
 }
 
 // ---------------------------------------------------------------- menu -------
+async function viewMenu() {
+  for (;;) {
+    const c = await choose([{ label:'Camera', sub:TP.on ? 'Over the shoulder' : 'From above' }, { label:'Cinematic look', sub:SETTINGS.cine ? 'On: soft focus, glow, mood colour' : 'Off: plain' }, 'Back']);
+    if (c < 0 || c === 2) return;
+    if (c === 0) { setView(!TP.on); toast(TP.on ? 'Over the shoulder' : 'From above', TP.on ? 'Drag to look around' : undefined); }
+    if (c === 1) setCine(!SETTINGS.cine);
+  }
+}
 async function openMenu() {
   for (;;) {
-    const c = await choose(['Carried', 'Satchel', 'Codex', 'Aura', 'Journal', 'Save', { label:'Controller', sub:padState.connected ? 'Connected' : 'Settings' }, { label:'Bag', sub:`${S.marks || 0} Marks` }, { label:'Map', sub:'The whole world' }, 'Close'], { start: openMenu.last || 0 });
-    if (c < 0 || c === 9) return;
+    const c = await choose(['Carried', 'Satchel', 'Codex', 'Aura', 'Journal', 'Save', { label:'Controller', sub:padState.connected ? 'Connected' : 'Settings' }, { label:'Bag', sub:`${S.marks || 0} Marks` }, { label:'Map', sub:'The whole world' }, { label:'View', sub:TP.on ? 'Over the shoulder' : 'From above' }, 'Close'], { start: openMenu.last || 0 });
+    if (c < 0 || c === 10) return;
+    if (c === 9) { openMenu.last = 9; await viewMenu(); continue; }
     if (c === 8) { openMenu.last = 8; showSheet(worldMapSheet()); await say(mapLine()); closeSheet(); continue; }
     if (c === 6) { openMenu.last = 6; await controllerMenu(); continue; }
     if (c === 7) { openMenu.last = 7; await bagMenu(); continue; }
