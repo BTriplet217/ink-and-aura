@@ -2264,7 +2264,7 @@ function manifDust(body, col, tier, mini, light) {
 //   · a grade per place: each feeling tints the shadows and the light, and sets how much colour and contrast the world has
 //   · a vignette that closes in where the mood is heavy
 // No pixel grid, no dither, no outlines, nothing that flickers. It can be switched off in Menu → View.
-const SETTINGS = { cine:(() => { try { return localStorage.getItem('ia_cine') !== '0'; } catch (e) { return true; } })() };
+const SETTINGS = { cine:false };   // the lens pass is retired (its soft focus read as double vision on phones): the game draws straight to the screen, sharp
 //            shadow tint          light tint           colour contrast vignette bloom
 const GRADES = {
   JOY:        [[1.02, .86, .70], [1.12, 1.03, .83], 1.08, 1.06, .34, .80],
@@ -2352,7 +2352,7 @@ const post = (() => {
     resize: resizePost
   };
 })();
-function setCine(on) { SETTINGS.cine = on; try { localStorage.setItem('ia_cine', on ? '1' : '0'); } catch (e) {} }
+function setCine(on) {}
 
 // sky dome: vertical gradient from horizon colour to a paler top
 function skyDome() {
@@ -5761,10 +5761,9 @@ async function blackout() {
 // ---------------------------------------------------------------- menu -------
 async function viewMenu() {
   for (;;) {
-    const c = await choose([{ label:'Camera', sub:TP.on ? 'Over the shoulder' : 'From above' }, { label:'Cinematic look', sub:SETTINGS.cine ? 'On: soft focus, glow, mood colour' : 'Off: plain' }, 'Back']);
-    if (c < 0 || c === 2) return;
+    const c = await choose([{ label:'Camera', sub:TP.on ? 'Over the shoulder' : 'From above' }, 'Back']);
+    if (c < 0 || c === 1) return;
     if (c === 0) { setView(!TP.on); toast(TP.on ? 'Over the shoulder' : 'From above', TP.on ? 'Drag to look around' : undefined); }
-    if (c === 1) setCine(!SETTINGS.cine);
   }
 }
 async function openMenu() {
