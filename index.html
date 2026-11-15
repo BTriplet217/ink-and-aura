@@ -970,9 +970,6 @@ const STORIES = {
     { id:'a_farm', t:1, meet:`They took the farm. Took it with a piece of paper and a smile.`,
       r:[`Four generations on that land in {home}. My great-grandfather cleared it with an axe and a mule.`, `The Choir's lawyer came with papers and a constable. {Them} signed something drunk, they said. {Them} can't even write.`, `I watched them burn our barn to clear the plot. {Them} tried to stop them. The constable broke {their} jaw with his club and they laughed.`],
       hurt:`That all? The constable hit harder.`, low:`I'll burn their houses. I'll burn their papers. I'll burn THEM.`, plea:`Use me if you have to. Just aim me right.` },
-    { id:'a_belt', rel:[['mother','f'],['father','m'],['stepfather','m'],['stepmother','f'],['uncle','m'],['aunt','f']], t:1, meet:`I'm not afraid of you. I stopped being afraid the day I took the belt off {Them}.`,
-      r:[`My {who}. {Them} beat us every Saturday night for {n} years. Me, my brothers, my mother. Smiled in church on Sundays.`, `I was fifteen when I caught the belt mid-swing. {Them} looked so surprised. So small.`, `I beat him with his own buckle until {Them} stopped moving. {Them} lived. Never touched any of us again. Never looked at me again, either.`],
-      hurt:`Ha! I've taken worse from someone who loved me.`, low:`Never again. NEVER AGAIN. I swore it.`, plea:`When I'm angry I'm not afraid. Keep me for that.` },
     { id:'a_massacre', t:2, meet:`They burned the chapel with everyone inside. Everyone. And they sang while it burned.`,
       r:[`The Choir's men came to {home} at evensong. Barred the doors from outside. Forty-three people.`, `I was late. I was late because {Them} and I had argued. I heard the screaming from the end of the lane.`, `I pulled at the door until my hands blistered to the meat. When the roof came down the screaming stopped all at once. Like a hand closing.`],
       hurt:`Hit me. HIT ME. Make it hurt like the door handle.`, low:`I'll find every one who sang. I have their faces. I have every face.`, plea:`Put me out and something worse moves in.` },
@@ -1071,6 +1068,275 @@ function personaLine(m) {
   const P = personaOf(m);
   return `The echo of ${P.name} ${P.last}, ${/^[aeiou]/.test(P.job) ? 'an' : 'a'} ${P.job} from ${P.home}, who felt it about ${P.pos} ${P.who}, ${P.them}.`;
 }
+// =============================================================================
+//  MORE ECHOES — eight more stories for every family, so the pool is fourteen deep and
+//  Manifs you meet almost never share a story. Same shape and tokens as b3_echoes.js.
+// =============================================================================
+const ECHO_MORE = {
+  JOY: [
+    { id:'j_kite', t:0, meet:`The kite went up! First try! Do you know how rare that is?`,
+      r:[`{Them} and I built it from [an old shirt|brown paper and string|a torn umbrella] on the kitchen floor in {home}.`, `Everyone on the hill said the wind was wrong. {Them} said the wind is never wrong, only impatient.`, `It climbed so high we lost sight of it in the sun. We just stood there, holding the string, laughing at nothing.`],
+      hurt:`Hey! You'll tangle the line!`, low:`Don't let the string go slack. Please. I want to stay up there.`, plea:`Take me somewhere windy. I'll show you how high I go.` },
+    { id:'j_baby', rel:[['sister','f'],['brother','m'],['wife','f'],['husband','m'],['partner','x']], t:0, meet:`It's a girl! A little girl, with a voice like a kettle!`,
+      r:[`My {who} laboured all night. I paced the yard until the hens gave up on me.`, `When they let me in, {Them} was asleep with the baby on {their} chest, both of them snoring.`, `She grabbed my finger and wouldn't let go. I missed a whole day of work as a {job}. I'd miss a hundred.`],
+      hurt:`Shh! You'll wake her!`, low:`I can still hear her. I can still hear her, faintly.`, plea:`Keep me. I'm the first hour of a whole life.` },
+    { id:'j_dance', t:0, meet:`I danced! In front of everyone! And I didn't care who laughed!`,
+      r:[`I'd sat out every harvest dance in {home} for {n} years. Too shy. Too clumsy. Too everything.`, `Then {Them} held out a hand and said "you'll regret it more if you don't." So I stood up.`, `I stepped on {their} feet nine times. Nine. We counted. We danced until the fiddler's string broke.`],
+      hurt:`Ow! Mind my toes, I need them!`, low:`The music's getting quieter. Don't let it stop.`, plea:`Hold out your hand. Go on. You'll regret it more if you don't.` },
+    { id:'j_letter', t:1, meet:`{Theyre} alive! The letter came this morning! Alive!`,
+      r:[`My {who} went to the war at {place}. They sent back {their} coat and a note that said "missing."`, `For {n} months I set {their} place at the table and everyone looked at me like I was mad.`, `Then a letter, in {their} awful handwriting. "Coming home. Sorry about the coat." I read it until the ink wore through.`],
+      hurt:`No! I've only just got this back!`, low:`Don't take the letter. I can't go back to "missing."`, plea:`Let me stay. I'm the morning the post came.` },
+    { id:'j_cure', t:1, meet:`The fever broke! In the night! {Them} asked for soup!`,
+      r:[`The doctor in {home} said to make {Them} comfortable. Comfortable. That's what they say when there's nothing to do.`, `I sat by the bed for {n} nights. I told {Them} every story I knew, and then I made new ones up.`, `At dawn {Them} opened {their} eyes and said "you're terrible at endings." I laughed so hard I fell off the stool.`],
+      hurt:`Don't. Please. I sat up so long for this.`, low:`Is it coming back? Tell me it isn't coming back.`, plea:`Keep me close. I'm what it feels like when the worst doesn't happen.` },
+    { id:'j_home', t:1, meet:`I own it! The roof, the walls, the crooked door! All mine!`,
+      r:[`I rented in {home} for {n} years. Every winter the landlord found a new reason to raise it.`, `I worked double as a {job}. I sold my good boots. I ate a lot of turnips.`, `The day I got the key I sat on the bare floor and ate bread and cheese and cried into it. {Them} came round with a broom and a bottle.`],
+      hurt:`Get off my step!`, low:`It's still mine. It's still mine. Isn't it?`, plea:`Come in. Wipe your feet. Stay as long as you like.` },
+    { id:'j_reunion', t:2, meet:`We found each other. After the camps. After everything. We found each other.`,
+      r:[`They split the families at {place}. Women one way, men the other, children wherever there was room.`, `I asked every cart, every road, every stranger for {n} years. "Have you seen {Them}?" Nobody had.`, `Then at a market in {home}, a voice behind me said my name the way only {Them} ever said it. I didn't turn round for a long time. I was too afraid it wasn't real.`],
+      hurt:`Not again. Don't you dare split us again.`, low:`I'm holding on. I'm holding on so tight.`, plea:`Keep me. I'm proof that sometimes people come back.` },
+    { id:'j_survive2', t:2, meet:`I'm still here. They tried, and I'm still here, and the sun came up.`,
+      r:[`The Choir's men came to {home} in the night. They took everyone who wouldn't sign.`, `I hid in the well for two days with water to my chin. I could hear them looking.`, `When I climbed out, the birds were singing like nothing had happened. I laughed until I was sick. I was alive. I was ALIVE.`],
+      hurt:`You can't drown me. Better people have tried.`, low:`Just... let me see the sun one more time.`, plea:`Take me up into the light. That's all I ever want.` },
+  ],
+  HOPE: [
+    { id:'h_seed', t:0, meet:`I planted an apple seed. Just one. It'll be a tree when I'm old.`,
+      r:[`{Them} ate an apple on my step in {home} and spat the pips into the dirt.`, `I picked one out and planted it in a pot. Everyone said it'd never come true from seed.`, `There's a shoot now. Two leaves. I check it every morning before I've even put my boots on.`],
+      hurt:`Careful! It's only got two leaves!`, low:`Grow. Please grow. Just a little more.`, plea:`Keep me somewhere with a window. I'll keep growing.` },
+    { id:'h_audition', t:0, meet:`They said they'll write! The theatre in {place}! They'll write by spring!`,
+      r:[`I've sung in the kitchen since I was small. My {who} {Them} said I sounded like a gate.`, `I walked to {place} in borrowed shoes and sang for three people in the dark.`, `One of them wrote my name down. My name! On a list! I've been watching for the post ever since.`],
+      hurt:`Don't! I need my voice!`, low:`Maybe they forgot. Maybe they'll remember. Maybe.`, plea:`Wait with me for the post. It's nicer with two.` },
+    { id:'h_boat', t:0, meet:`I'm building a boat! In my yard! Miles from the sea!`,
+      r:[`I've never seen the sea. {Them} saw it once, and talked about it for {n} years.`, `Every plank costs me a week as a {job}. The neighbours in {home} think I've lost my mind.`, `When it's done, I'll drag it to the coast and push off and not look back for a while.`],
+      hurt:`Mind the hull! I've only got the one!`, low:`It's not finished. It can't be over before it's finished.`, plea:`Help me carry it to the water one day. Please.` },
+    { id:'h_letters2', rel:[['father','m'],['mother','f'],['brother','m'],['sister','f'],['son','m'],['daughter','f']], t:1, meet:`I wrote to {Them} again. That's {n} letters. This one might be the one.`,
+      r:[`My {who} and I haven't spoken since the funeral. We said things over the grave I'd give my hands to unsay.`, `I write every month. I tell {Them} about the weather in {home} and the price of flour. Nothing important. Just so {Them} knows I'm here.`, `Last month the letter didn't come back. It didn't come back. That means somebody opened it.`],
+      hurt:`Don't tear it! I haven't sent it yet!`, low:`If {Them} never writes back, at least {Them} knows I tried.`, plea:`Keep me with the letters. I'm the hand that keeps writing them.` },
+    { id:'h_walk', t:1, meet:`I walked to the end of the lane today. On my own two legs. Nobody thought I'd walk again.`,
+      r:[`The cart went over on the {place} road and my legs went under it. The surgeon in {home} shook his head.`, `{Them} came every day with the same stupid joke and made me stand at the bed rail until I cried.`, `Today, the end of the lane. Next month, the end of the street. Next year, I'm dancing at {their} wedding. I promised.`],
+      hurt:`I'll get back up. I always get back up now.`, low:`Just one more step. One more. One more.`, plea:`Walk with me. Slowly. I'm getting there.` },
+    { id:'h_school', t:1, meet:`I'm opening a school. One room, eight children, and all the books I could beg.`,
+      r:[`Nobody in {home} could read. Not the mayor, not the priest, not me until I was thirty.`, `{Them} taught me by candlelight from a seed catalogue, because it was the only book in the house.`, `Now eight children will learn their letters, and one day one of them will write something that changes everything. I know it.`],
+      hurt:`Not the books! Hit me, not the books!`, low:`If even one of them learns to read, it was worth it.`, plea:`Keep me. I'm a door that somebody left open.` },
+    { id:'h_tunnel', t:2, meet:`There's a way out. I've been digging for {n} months and there's a way out.`,
+      r:[`The Choir's work camp at {place}. They feed you thin soup and drain you every morning with the copper needles.`, `I dug with a spoon, at night, under my bunk. {Them} kept watch and coughed whenever the guards came near.`, `Last night my spoon went through into cold air. I could smell rain. Tomorrow we go, {Them} and me, together.`],
+      hurt:`Quiet! They'll hear you!`, low:`Tomorrow. It has to be tomorrow. Don't take tomorrow.`, plea:`Keep digging with me. Air's just there. I can smell it.` },
+    { id:'h_lamp', t:2, meet:`I keep a lamp in the window. In case {Them} finds the way back.`,
+      r:[`{Them} walked out into the grey years and never came home. Half of {home} did.`, `People tell me to stop. They say it's been {n} years and the lamp oil isn't cheap.`, `But if {Them} is out there, lost and numb and walking, the lamp is the one thing that might make {them} stop and wonder why it looks familiar.`],
+      hurt:`Don't knock the lamp over! Please!`, low:`I'll trim the wick. One more night. One more.`, plea:`If you see someone walking toward a light, tell them it's for them.` },
+  ],
+  CALM: [
+    { id:'c_rain', t:0, meet:`Listen. Rain on the roof. Nowhere to be until it stops.`,
+      r:[`I had a little room above the bakery in {home}. The roof was tin. Rain sounded like applause.`, `{Them} would come up with two buns and we'd sit by the window and not say a word for an hour.`, `It was the only hour of the week nobody needed anything from me.`],
+      hurt:`Shh. You're louder than the rain.`, low:`Let it keep raining. Just a while longer.`, plea:`Find me a tin roof and a wet afternoon. That's all I need.` },
+    { id:'c_fish', t:0, meet:`The float hasn't moved all morning. Perfect.`,
+      r:[`My {who} {Them} taught me to fish at the pond outside {home}. We never caught anything. That wasn't the point.`, `You sit, and you watch the float, and the whole world shrinks to a red dot on the water.`, `{Them} said fishing was for people who wanted an excuse to sit still. {Them} was right.`],
+      hurt:`Oh, you've scared the fish. Not that there were any.`, low:`Watch the float. Just watch the float.`, plea:`Take me somewhere with still water. I'll show you how to sit.` },
+    { id:'c_bread', t:0, meet:`The dough's rising. Can't rush it. Nothing to do but wait.`,
+      r:[`I'm a {job}, but on Sundays I bake. Just for me. Just for the quiet.`, `{Them} taught me. "Bread knows if you're hurrying," {Them} said. "So don't."`, `The kitchen gets warm and smells of yeast and the clock ticks and nothing at all needs deciding.`],
+      hurt:`You've knocked the bowl. Never mind. It'll rise again.`, low:`Slower. Everything slower.`, plea:`Keep me somewhere warm. Things rise if you let them.` },
+    { id:'c_forgive', t:1, meet:`I forgave {Them}. I didn't know I could. It felt like putting down a sack of stones.`,
+      r:[`My {who} cheated me out of the family land in {home}. Lied to the magistrate. Laughed about it at the inn.`, `I carried it for {n} years. I rehearsed what I'd say. I dreamed about it.`, `Then I saw {Them} at the market, old and stooped and alone, and it just... went. I said hello. {Them} cried.`],
+      hurt:`I'm not angry. Even at you.`, low:`Don't make me pick it back up. I've only just put it down.`, plea:`Keep me. I'm the moment the weight came off.` },
+    { id:'c_hospice', t:1, meet:`It's all right. I'm not frightened. The window's open and I can hear the sea.`,
+      r:[`I nursed in the house on the cliffs above {home} for {n} years. People came there to finish.`, `{Them} was my last. {Them} held my hand and asked me to describe the sea, because {their} eyes had gone.`, `So I did. Grey, then silver, then gold where the sun hit it. {Them} smiled and said "that'll do," and went, easy as a tide going out.`],
+      hurt:`Gently. Everything gently, here.`, low:`Describe the sea to me. Grey, then silver, then gold.`, plea:`Sit with me at the end of things. I make it easier.` },
+    { id:'c_peace', t:1, meet:`The war's over. They signed it this morning. Nobody else has to go.`,
+      r:[`I'm a {job}, but for {n} years I carried stretchers at {place}.`, `{Them} carried the other end. We never talked. We didn't need to. We just walked in step.`, `When the bells rang we put the stretcher down in the mud and sat on it and didn't say anything at all. It was the quietest I've ever been inside.`],
+      hurt:`No. It's over. It's over, I said.`, low:`Let the bells keep ringing. Just a little longer.`, plea:`Keep me. I'm the first quiet after a long noise.` },
+    { id:'c_snow', t:2, meet:`It's snowing on all of them. Soft. Like a blanket. That's kind of it.`,
+      r:[`The plague took {home} in a month. I was the {job} who stayed to bury them.`, `I dug until my hands bled. {Them} was the last. I laid {them} down and couldn't lift the spade again.`, `Then the snow started, and it covered all of them, every mound, until the whole field was white and smooth and nobody looked like they were in pain anymore.`],
+      hurt:`Shh. Don't wake them.`, low:`Let the snow cover me too. It's warm under there. It's quiet.`, plea:`Keep me. I'm the snow. I make it look peaceful.` },
+    { id:'c_cell', t:2, meet:`They can lock the door. They can't lock in what I think. That's mine.`,
+      r:[`The Choir held me in the cells under {place} for {n} months. No window. One meal.`, `{Them} was in the next cell. We tapped to each other on the pipe. Long, short, long. "Breathe."`, `I learned to sit so still I could hear my own heart. They came to drain me and found nothing to take. I was too calm to bottle.`],
+      hurt:`Do what you like. I'm somewhere else.`, low:`Long, short, long. Breathe. Long, short, long.`, plea:`Keep me. When it's dark and small, I'm the part that stays still.` },
+  ],
+  CONFIDENCE: [
+    { id:'cf_speech2', t:0, meet:`I stood up at the town meeting and said my piece. Out loud. In front of everyone.`,
+      r:[`In {home} you don't speak at the meeting unless your family's been there a hundred years. Mine had been there {n}.`, `My knees were knocking. {Them} sat in the front row and nodded at me, very slowly, the whole time.`, `When I finished, the hall was quiet. Then the old miller stood up and said "she's right." And they voted my way.`],
+      hurt:`Sit down. I have the floor.`, low:`I said it. They heard me. That's enough.`, plea:`Keep me. I'm what you need when your knees are knocking.` },
+    { id:'cf_bridge', t:0, meet:`My bridge is still standing! Through the flood! Not a stone moved!`,
+      r:[`I'm a {job} by trade, but I'd always wanted to build a bridge. Just one.`, `{Them} drew the arch with me on the back of a door. The council in {home} laughed at our sums.`, `Then the spring flood took every other crossing for miles. Ours just stood there, with the water roaring under it, like it was bored.`],
+      hurt:`Go on. I'm load-bearing.`, low:`Not a stone moved. Not one.`, plea:`Take me. I'll hold. I always hold.` },
+    { id:'cf_race2', t:0, meet:`I won the race! I was last for six laps and first on the seventh!`,
+      r:[`The fair at {place} has a race every year. My {who} {Them} said I ran like a chicken.`, `I trained every morning before work. Round the duck pond in {home}. The ducks got very tired of me.`, `On the last lap I just knew. I didn't think. My legs knew. I crossed the line and fell in the hay and laughed.`],
+      hurt:`You're slow. I'm fast. Catch me!`, low:`One more lap. I've always got one more lap.`, plea:`Run with me. You'll be faster than you think.` },
+    { id:'cf_duel2', t:1, meet:`I told the Choir recruiter no. To his face. In the square.`,
+      r:[`They come to {home} every autumn. Copper badges, kind voices. Half my friends signed.`, `{Them} signed. My {who}. Came back two months later with eyes like glass.`, `So when the recruiter put his hand on my shoulder, I took it off and said "No," loud enough for the whole square. He smiled. I didn't. He left.`],
+      hurt:`No. That's my answer. That's always my answer.`, low:`I won't sign. I won't. I WON'T.`, plea:`Keep me. I'm the word "no" when everyone else says yes.` },
+    { id:'cf_ship', t:1, meet:`I brought her in. Through the storm. Every soul alive.`,
+      r:[`I was second mate on a trader out of {place}. The captain went overboard in the first hour.`, `Everyone looked at me. I was twenty-two. I'd never held the wheel in weather like that.`, `{Them} lashed me to it and stood beside me all night and said "you've got this" every time a wave came over. I had it. I brought her in.`],
+      hurt:`I've had worse at sea. Much worse.`, low:`Hold the wheel. Hold it. Every soul alive.`, plea:`Keep me at the wheel. I know the way in.` },
+    { id:'cf_court', t:1, meet:`I won. Against the mill owner. In his own magistrate's court.`,
+      r:[`The mill in {home} dumped its dye in the river and the river killed my {who}'s cattle.`, `No lawyer would take it. So I read the law myself, every night for {n} months, by candle.`, `I stood up in court in my best coat and argued it myself. The magistrate kept looking for a reason to rule against me. I didn't give him one.`],
+      hurt:`Objection. I won't be pushed.`, low:`I read every page. I was right. I WAS right.`, plea:`Keep me. I'm what it feels like to know you're right and prove it.` },
+    { id:'cf_stand', t:2, meet:`I held the door. They didn't get past me. Not one of them.`,
+      r:[`When the Choir's men came to {home}, the children were in the schoolhouse.`, `I'm a {job}. I'd never fought anyone. I picked up the bar from the door and stood in it.`, `They broke my arm and three of my ribs. I didn't move. {Them} got the children out the back while I stood there. Every single child.`],
+      hurt:`Is that all? I've held a door against worse.`, low:`I'm still standing. I'm still... standing.`, plea:`Put me in a doorway. Nothing gets through.` },
+    { id:'cf_crown', t:2, meet:`They crowned the wrong one. So I took it off his head.`,
+      r:[`The old lord of {place} died and his nephew took the hall. A cruel, soft man. Everyone knew.`, `{Them} and I were stewards. We'd kept that hall running for {n} years while the family drank.`, `At the feast I walked up in front of everyone and lifted the circlet off his head and set it on the table. Nobody stopped me. Nobody even breathed.`],
+      hurt:`You don't frighten me. I've faced a hall full of swords.`, low:`Somebody had to. Somebody had to do it.`, plea:`Keep me. I'm the nerve to walk up the hall.` },
+  ],
+  SURPRISE: [
+    { id:'su_twins', t:0, meet:`Twins! TWINS! Nobody said anything about twins!`,
+      r:[`My {who} {Them} was expecting one baby. One. We'd made one cradle.`, `The midwife in {home} said "oh" in a voice I've never heard a midwife use.`, `Two of them, both bald, both furious. I had to go and borrow a drawer from next door.`],
+      hurt:`Whoa! What was that?!`, low:`Wait, there's MORE? There's always more!`, plea:`Stay with me. You never know what's coming next.` },
+    { id:'su_party', t:0, meet:`They threw me a party! Me! I thought everyone had forgotten!`,
+      r:[`I'd turned forty in {home} and nobody said a word all day. Not even {Them}.`, `I came home and the lamps were out and I thought, well, that's that.`, `Then the whole street jumped out of my kitchen with a cake shaped like a {job}'s tool. I screamed. Actually screamed. I dropped my shopping.`],
+      hurt:`Ahh! Don't jump out at me!`, low:`Is there another one? Behind the door? Is there?`, plea:`Keep me. I'm the lamps coming on all at once.` },
+    { id:'su_fish', t:0, meet:`I caught a fish with a ring in it! A gold ring! In a fish!`,
+      r:[`Plain trout, from the river below {home}. I was gutting it for supper.`, `And there, in its belly, a gold ring with letters inside. Old letters. A name.`, `{Them} and I spent {n} days asking around. It belonged to a woman's grandmother. She'd lost it off a bridge sixty years before. She sat down in the road and wept.`],
+      hurt:`Ow! What's in YOUR belly?`, low:`Sixty years. In a fish. Can you believe it?`, plea:`Take me. I'm the ring in the fish.` },
+    { id:'su_will', t:1, meet:`{Them} left everything to me. Me! We hadn't spoken in {n} years!`,
+      r:[`My {who}. We fell out over a fence, of all things. A fence in {home}.`, `I didn't go to the funeral. I thought I wasn't wanted.`, `Then the lawyer read the will, and it was all mine, the house and the orchard and a letter that said "the fence was my fault."`],
+      hurt:`What? What did you just do?`, low:`If I'd known. If I'd only known.`, plea:`Keep me. I'm the letter nobody expected.` },
+    { id:'su_mother', rel:[['mother','f']], t:1, meet:`The woman at the inn has my eyes. My {who}. The one they told me was dead.`,
+      r:[`I grew up in the orphan house at {place}. They told me my {who} {Them} died when I was born.`, `I'm a {job} now. I stopped at an inn in {home}, and the woman serving had my eyes and my crooked thumb.`, `She dropped the tray. We both knew. Neither of us could say anything at all for the longest time.`],
+      hurt:`Wait. Don't. I've only just found—`, low:`My eyes. She has my eyes.`, plea:`Keep me. I'm the moment you see your own face on someone else.` },
+    { id:'su_door', t:1, meet:`There's a door in my cellar. Behind the wall. I've lived here {n} years!`,
+      r:[`The wall in the cellar always sounded hollow. I'm a {job}, I know hollow.`, `{Them} and I took a hammer to it one wet afternoon, just to settle the argument.`, `Behind it, a little room. A cot. A candle. Letters from someone hiding from the war at {place}, a hundred years ago. They'd been there the whole time.`],
+      hurt:`Ah! There's always something behind the wall!`, low:`Who were they? Who WERE they?`, plea:`Keep me. I'm the hollow wall.` },
+    { id:'su_alive', t:2, meet:`{Them} isn't dead. I buried an empty coffin. {Them} isn't dead!`,
+      r:[`They said my {who} drowned off {place}. They never found the body. I buried an empty box.`, `I mourned for {n} years. Wore black. Kept {their} chair.`, `Then a stranger knocked on my door with {their} face, older and thinner, and said "they made me forget, but I remembered the door."`],
+      hurt:`You're not real. None of this is real.`, low:`I mourned for nothing. I mourned for NOTHING.`, plea:`Keep me. I don't know if I'm joy or grief. I'm both. I'm shock.` },
+    { id:'su_choir', t:2, meet:`My {who}. In grey sleeves. Singing for the Choir.`,
+      r:[`{Them} left {home} for work in {place}. Wrote every week. Then stopped.`, `I went looking. I found the Choir's hall, and the singers, all in grey.`, `And there in the front row, singing with that empty smile, was {Them}. {Them} looked straight at me and didn't know me at all.`],
+      hurt:`No. No, that's not {their} face.`, low:`{Them} didn't know me. {Them} looked right at me.`, plea:`Keep me. Somebody has to remember what {Them} was like before.` },
+  ],
+  SADNESS: [
+    { id:'sd_shoes', t:0, meet:`I found {their} little shoes in the attic. I didn't know I still had them.`,
+      r:[`My {who} {Them} is grown now. Lives in {place}. Writes when {Them} remembers.`, `But the shoes were in a box under the blankets. Red, with the buckle {Them} could never do up.`, `I sat on the attic floor in {home} and held them in one hand. They fitted in one hand.`],
+      hurt:`Oh. Careful. They're very small.`, low:`Everything gets so big and so far away.`, plea:`Keep me in a box somewhere safe. Take me out sometimes.` },
+    { id:'sd_tree', t:0, meet:`They cut down the oak. The one in the square. It was older than the town.`,
+      r:[`I proposed to {Them} under it. My parents met under it. Everyone in {home} has a story about it.`, `The council said it was rotten. Dangerous. Had to go.`, `I stood and watched them saw. It took all day. When it fell, the sound went right through the ground and up my legs.`],
+      hurt:`It's already gone. You can't make it worse.`, low:`Just a stump now. Just a stump.`, plea:`Keep me. I remember where the shade was.` },
+    { id:'sd_friend', t:0, meet:`{Them} moved away. To {place}. It's only a day's ride. It might as well be the moon.`,
+      r:[`We've been friends since we were six, in {home}. Every day. Every single day.`, `{Them} got a post as a {job} somewhere better. I helped pack the cart. I was cheerful. I was so cheerful.`, `Then the cart turned the corner and I went home and sat on the bed and didn't get up for a long while.`],
+      hurt:`I know, I know. I should be happy for {them}.`, low:`Every day. Every single day, and now none.`, plea:`Walk the long way home with me. Like we used to.` },
+    { id:'sd_mill', t:1, meet:`The mill closed. Four generations. I'm the one who turned the key.`,
+      r:[`My great-grandfather built it in {home}. Then my grandfather. Then my {who} {Them}. Then me.`, `The new mills in {place} do it cheaper. Faster. Nobody wants our flour.`, `I let the men go one by one. Some of them had worked there longer than I'd been alive. Then I turned the key and the wheel stopped, and the river went on without it.`],
+      hurt:`I've let everyone down already. Go on.`, low:`Four generations. And I'm the one.`, plea:`Keep me. I'm the sound a wheel makes when it stops.` },
+    { id:'sd_lost', t:1, meet:`I don't remember {their} voice anymore. I've tried so hard.`,
+      r:[`My {who} {Them} died {n} years ago in {home}. I thought I'd remember everything forever.`, `First I lost the smell of {their} coat. Then the way {Them} laughed. Then the sound of my name in {their} mouth.`, `I lie awake trying to hear it. I get close. It's like trying to catch smoke.`],
+      hurt:`Don't. I'm losing enough already.`, low:`What did {Them} sound like? What did {Them} SOUND like?`, plea:`Keep me. I'm the last of what I remember. Don't let me fade.` },
+    { id:'sd_field', t:1, meet:`The rain came three weeks too late. The whole harvest. Gone.`,
+      r:[`We had one field outside {home}. Barley. Everything we owned went into it.`, `It didn't rain all summer. {Them} carried water from the river every night till {their} shoulders bled.`, `Then, the week after the barley died, it rained for a month. We stood in the doorway and watched it fall on nothing.`],
+      hurt:`Go on. Everything else has gone.`, low:`Three weeks. Just three weeks.`, plea:`Keep me. I know what it is to have done everything right and lose anyway.` },
+    { id:'sd_ward', t:2, meet:`I sang to them. All of them. Every child on the ward. Until there were none left to sing to.`,
+      r:[`The coughing sickness came to {home} in the winter and went for the children first.`, `I was the {job}, but I sat on the fever ward because nobody else would. {Them} was in the first bed.`, `I sang the same three songs, over and over, all winter. One by one the beds went quiet. I sang to the last one alone, in the dark.`],
+      hurt:`Please. I've no songs left.`, low:`One more verse. Just one more. For the last bed.`, plea:`Keep me. I'm the song nobody was left to hear.` },
+    { id:'sd_wait', t:2, meet:`I still go to the station. Every evening. In case {Them} is on the last train.`,
+      r:[`{Them} went to work in the Choir's clinic at {place}. Good money, they said. Easy work.`, `{Their} letters got shorter. Then they stopped. Then a man in grey came and said {Them} had "chosen peace."`, `I don't believe it. So I go to the station in {home} every evening and stand by the gate until the last train's gone. It's been {n} years.`],
+      hurt:`I'll miss the train. Let me go.`, low:`Maybe tomorrow. Maybe the last train tomorrow.`, plea:`Wait with me at the gate. It's warmer with two.` },
+  ],
+  FEAR: [
+    { id:'f_well', t:0, meet:`Something's in the well. I heard it breathing.`,
+      r:[`The old well behind our house in {home} has been dry for {n} years.`, `I went out at night for the cat and heard it. Slow. Wet. Breathing.`, `{Them} said it was the wind. It wasn't the wind. The wind doesn't stop when you stop.`],
+      hurt:`Is that it? Is that IT?`, low:`Don't look down. Don't ever look down.`, plea:`Keep me away from wells. Please. Any well.` },
+    { id:'f_exam', t:0, meet:`It's tomorrow. The guild examination. And I can't remember anything.`,
+      r:[`I've studied to be a {job} for {n} years. {Them} drilled me every night.`, `Tonight I opened the book and every page looked like it was in another language.`, `My hands won't stop shaking. I've been sick twice. What if I freeze? What if they laugh? What if I'm not good enough and everyone finds out?`],
+      hurt:`See? See? I knew something bad would happen!`, low:`I can't. I can't. I can't do it.`, plea:`Tell me it'll be all right. Even if you don't know.` },
+    { id:'f_dog', t:0, meet:`The big dog's loose again. On the lane. My lane. The only lane.`,
+      r:[`There's a dog at the farm in {home} the size of a pony. All teeth.`, `When I was six it got me by the arm. I've got the marks still.`, `{Them} laughs at me for walking the long way round, through the bog, in the rain. I'd walk through a river.`],
+      hurt:`Get it off! Get it off me!`, low:`It's coming. I can hear it. It's coming.`, plea:`Walk the lane with me. Just to the end. Please.` },
+    { id:'f_sea', t:1, meet:`The boat's late. {Them}'s boat. Three days late.`,
+      r:[`My {who} {Them} fishes out of {place}. Has done for {n} years.`, `There was weather on the third night. I watched the sea from the cliff until I couldn't feel my hands.`, `Every time the door goes I think it's {Them}. Every time it's someone else, I think it's someone come to tell me.`],
+      hurt:`Is that the door? Is someone at the door?`, low:`Three days. Three days. What if it's four.`, plea:`Watch the sea with me. Tell me if you see a sail.` },
+    { id:'f_lump', t:1, meet:`There's something under my skin. Here. It wasn't there last month.`,
+      r:[`I found it washing. Small. Hard. It doesn't hurt.`, `My {who} {Them} had one, years ago, in {home}. It took {them} by spring.`, `I haven't told anyone. If I don't say it out loud, it might not be real. I just keep touching it to see if it's still there.`],
+      hurt:`Don't touch it! Don't touch it!`, low:`I should tell someone. I can't. I can't.`, plea:`Keep me close. I'm the thing you don't want to know yet.` },
+    { id:'f_crowd', t:1, meet:`So many people. So many. I can't find the way out.`,
+      r:[`It was the fair at {place}. Everyone in the whole valley. I'd never been in a crowd like it.`, `I let go of {their} hand for a moment, to point at something. Just a moment.`, `Then the crowd moved, all at once, like water, and I couldn't see {Them}, and I couldn't breathe, and every face was a stranger's face.`],
+      hurt:`Too close! Too close! Back up!`, low:`Where are you? Where ARE you?`, plea:`Hold my hand. Don't let go, whatever happens.` },
+    { id:'f_knock', t:2, meet:`The knock comes at three in the morning. Three knocks. Always three.`,
+      r:[`The Choir's men in {home} come at night. Three knocks, and they take someone, and that someone comes back calm.`, `They took {Them}, my {who}, last winter. {Them} came back smiling and never smiled again after.`, `Now I don't sleep. I sit up in the dark and wait for three knocks. When the wind rattles the door I stop breathing.`],
+      hurt:`Was that a knock? Was that THREE?`, low:`Don't answer it. Whatever happens, don't answer it.`, plea:`Sit up with me. Don't let me be alone when it comes.` },
+    { id:'f_dark', t:2, meet:`They left me in the dark. I don't know how long. I counted my heartbeats.`,
+      r:[`The mine at {place} came down. I was the {job}, down there by mistake, fetching a lamp.`, `{Them} was ten feet away. I could hear {them} for the first day. Then I couldn't.`, `I counted my heartbeats in the black. Forty thousand, I think. When they dug me out the light hurt so much I screamed.`],
+      hurt:`No light! Don't take the light!`, low:`Forty thousand and one. Forty thousand and two.`, plea:`Keep a lamp lit for me. Always. Please.` },
+  ],
+  ANGER: [
+    { id:'a_fence', t:0, meet:`My neighbour moved the fence. Again. Two feet onto my side!`,
+      r:[`{Them} has lived next door in {home} for {n} years and every spring the fence wanders.`, `I measured it. With a rule. I wrote it in a book. I showed the magistrate.`, `{Them} smiled and said "must be the frost." The frost! The frost doesn't carry a mallet!`],
+      hurt:`Oh, you want to fight about it too? Join the queue!`, low:`Two feet. TWO FEET.`, plea:`Keep me. Someone has to keep an eye on that fence.` },
+    { id:'a_cheat2', t:0, meet:`He cheated! At cards! In front of everyone and they all let him!`,
+      r:[`Every Friday at the inn in {home} we play. Small stakes. For fun.`, `{Them} had a third queen. A THIRD queen. In a deck with four.`, `I said so, and everyone looked at their drinks. Nobody backed me. I paid up and walked home in the rain and I've been furious ever since.`],
+      hurt:`Oh, cheating now, are we? Typical!`, low:`A THIRD queen. I SAW it.`, plea:`Keep me. I'm the one who says it out loud.` },
+    { id:'a_broke', t:0, meet:`They broke it. My good cart. And laughed.`,
+      r:[`I'm a {job}. That cart was the only thing I owned outright. I'd saved {n} years for it.`, `Some lads from {place} borrowed it for a race without asking and drove it into the ditch.`, `{Them} brought back the wheel. Just the wheel. And said sorry with a grin on {their} face.`],
+      hurt:`Go on, break something else! Everyone else does!`, low:`I'd saved so long. So long.`, plea:`Keep me. I'm what you feel when nobody pays for what they broke.` },
+    { id:'a_belt', rel:[['landlord','x'],['employer','x'],['foreman','x'],['master','x']], t:1, meet:`{Them} put my family out in the snow over three weeks' rent. Three weeks!`,
+      r:[`My {who}. We'd paid on time for {n} years. Then my [father|mother] fell sick and we came up three weeks short.`, `{Them} had the bailiffs carry our beds into the street while the neighbours in {home} watched. My little sister sat on hers in the snow.`, `I stood in {their} doorway every morning for a month and said it to {their} face. Every single morning. In the end {Them} moved away.`],
+      hurt:`Go on, then. I've stood in the snow. You don't scare me.`, low:`Three weeks. THREE WEEKS. I won't forget it.`, plea:`Someone has to stay angry about it. Let it be me. Keep me.` },
+    { id:'a_stolen', t:1, meet:`They took the credit. My design. My name scratched off and theirs on top.`,
+      r:[`I'm a {job}, but I'd spent {n} years on a pump that would clear the flooded mines at {place}.`, `{Them} was my partner. I trusted {them} with the drawings.`, `At the guild hall {Them} stood up and presented it as {their} own. When I stood up to object they had me walked out.`],
+      hurt:`Take THAT too, then! Take everything!`, low:`It was mine. It was MINE.`, plea:`Keep me. I remember whose it really was.` },
+    { id:'a_judge', t:1, meet:`They let him go. The judge let him go, because his father owns the bank.`,
+      r:[`{Them} drove a carriage drunk through the market in {home} and ran down a child. My {who}'s child.`, `Everyone saw. Thirty witnesses. The magistrate called it an accident.`, `{Them} paid a fine smaller than my month's wage and was home for supper. I watched {them} laugh on the court steps.`],
+      hurt:`Hit me, then. I'll still be angry tomorrow.`, low:`Thirty witnesses. THIRTY.`, plea:`Keep me burning. Somebody has to.` },
+    { id:'a_mine', t:2, meet:`They knew the roof would fall. They KNEW. And they sent us down anyway.`,
+      r:[`The owners of the pit at {place} had a surveyor's report. "Unsafe. Close it."`, `They hid it in a drawer and sent down the morning shift. {Them} was on the morning shift. {n} men were.`, `I found the report after. In the office. Signed and dated a month before. I took it to every newspaper in the Welkin and not one would print it.`],
+      hurt:`You think that hurts? I dug out forty men with my hands.`, low:`They knew. They KNEW.`, plea:`Keep me. I won't let them forget a single name.` },
+    { id:'a_choir', t:2, meet:`They drained my {who} and sold it back to me in a bottle. In a BOTTLE.`,
+      r:[`{Them} went into the Choir's clinic in {home} for "rest." Came out quiet. Smiling. Empty.`, `A month later a man at the market in {place} sold me a phial. "Grief," the label said. "Fine quality."`, `I opened it and it was {their} grief. I knew it. I knew it the way you know a voice. They'd taken it out of {them} and put a price on it.`],
+      hurt:`You'll have to do better. They already took everything.`, low:`In a BOTTLE. With a LABEL.`, plea:`Keep me. I'm what they couldn't drain out of me.` },
+  ],
+  SHAME: [
+    { id:'sh_fall', t:0, meet:`I fell over. On stage. In front of the whole town.`,
+      r:[`The spring pageant in {home}. I was the dawn. I had a gold sash and one line.`, `I tripped on the hem and went face-first into the front row. Into {Them}'s lap, actually.`, `Everyone laughed. I said my line from the floor. Nobody heard it. People still call me "the dawn" and grin.`],
+      hurt:`Oh, please, don't look at me.`, low:`Everyone saw. EVERYONE.`, plea:`Keep me where nobody can see. Please.` },
+    { id:'sh_name', t:0, meet:`I called {Them} by the wrong name. For {n} years.`,
+      r:[`My neighbour in {home}. Lovely. Waves every morning. I'd said "morning, Ada" since the day I moved in.`, `Yesterday the post came for {Them}. Not Ada. Not even close.`, `{Them} never once corrected me. Just smiled and waved. For {n} years. I want to move to {place} and change my own name.`],
+      hurt:`I deserve that. I really do.`, low:`{n} YEARS. Every morning.`, plea:`Keep me. I'll never call anyone the wrong name again.` },
+    { id:'sh_broke', t:0, meet:`I broke the vase. The good one. And I let the cat take the blame.`,
+      r:[`It was {their} mother's vase, on the shelf in {home}. My {who} {Them} loved it more than me, I sometimes thought.`, `I knocked it with my elbow reaching for a cup. It went everywhere.`, `When {Them} came in I said "that cat." {Them} cried and shut the cat out for a week. The cat looked at me through the window. The cat knew.`],
+      hurt:`I know. I know. I'm awful.`, low:`It was me. It was me. The cat knew.`, plea:`Keep me. Maybe one day I'll tell {Them}.` },
+    { id:'sh_coward2', t:1, meet:`I ran. When the fire started. I ran and left them.`,
+      r:[`The inn at {place} caught in the night. I was a guest. I smelled the smoke first.`, `I could have banged on every door on my way down. I could have shouted. I didn't. I just ran.`, `Two people didn't get out. {Them} was one. The inquest said nobody could have known. I knew. I smelled it first.`],
+      hurt:`Yes. Hit me. I should have been the one.`, low:`I smelled it first. I smelled it FIRST.`, plea:`Don't look at me. Just keep me.` },
+    { id:'sh_drink', t:1, meet:`I said things at my {who}'s wedding. Drunk. Things nobody can unhear.`,
+      r:[`I got up to give the toast in {home}. I'd had a lot. A LOT.`, `I said the groom had courted three girls that year. I named them. Two of them were at the tables.`, `{Them} hasn't spoken to me since. {n} years. I gave up drink the next morning. It's the only good thing that came of it.`],
+      hurt:`I know what I am. You don't need to tell me.`, low:`If I could take back one night. Just one.`, plea:`Keep me. I'm the reason I don't drink anymore.` },
+    { id:'sh_debt', t:1, meet:`I've been lying to everyone. There's no money. There hasn't been for {n} years.`,
+      r:[`I'm a {job}, and everyone in {home} thinks I'm doing well. New coat. New hat. Dinners.`, `It's all borrowed. Every coin. From three lenders in {place} who don't know about each other.`, `{Them} trusts me with the household books. {Them} thinks we're saving for a house. We're not saving for anything. We're drowning.`],
+      hurt:`Go on. Find me out. Everyone will.`, low:`One more month. I just need one more month.`, plea:`Keep me quiet. Please. Just a little while longer.` },
+    { id:'sh_signed', t:2, meet:`I signed {their} name on the list. {Them} didn't know. I did it for the money.`,
+      r:[`The Choir's recruiters in {home} paid a silver mark for every name. "Volunteers for rest."`, `My {who} {Them} was sad that winter. Very sad. I told myself it would help.`, `I signed. They came for {them} at dawn. {Them} came back smiling and empty, and I spent the silver on coal, and I've been warm ever since, and I can't bear it.`],
+      hurt:`Yes. More. I want it to hurt more.`, low:`I did it for coal. For COAL.`, plea:`Keep me where I can't hurt anyone else.` },
+    { id:'sh_watched', t:2, meet:`I watched. I didn't stop it. I just watched.`,
+      r:[`In the square at {place}, a crowd turned on a stranger they said was a Choir spy.`, `I knew {Them}. I knew {Them} wasn't. {Them} sold me bread every morning.`, `I could have said so. I opened my mouth. Nothing came out. I stood at the back and watched until it was over, and then I went home and ate {their} bread.`],
+      hurt:`Hit me. Nobody else ever will.`, low:`I opened my mouth. I OPENED my mouth.`, plea:`Keep me. I'll never stand at the back again.` },
+  ],
+  DISGUST: [
+    { id:'dg_soup', t:0, meet:`There was a toenail in my soup. A TOENAIL. At my own mother-in-law's table.`,
+      r:[`Sunday dinner in {home}. {Them} had made {their} famous leek soup. Famous!`, `Third spoonful. Crunch. I looked down.`, `I swallowed it. I swallowed the soup, not the toenail, I'm not an animal. I smiled and said "lovely." I've never eaten leeks since.`],
+      hurt:`Ugh! Get OFF me!`, low:`Crunch. I can still hear the crunch.`, plea:`Keep me away from soup. Any soup.` },
+    { id:'dg_rich', t:0, meet:`They threw bread to the ducks. Good bread. In front of hungry children.`,
+      r:[`A carriage stopped by the pond in {home}. A family in silk got out with a whole loaf.`, `The street children stood right there at the fence, watching. {Them} was one of them. My {who}.`, `The lady laughed and threw the whole loaf in, bit by bit. The ducks didn't even finish it.`],
+      hurt:`Don't touch me with those soft hands.`, low:`The DUCKS didn't even finish it.`, plea:`Keep me. I see what they do and I won't pretend I don't.` },
+    { id:'dg_inn', t:0, meet:`The bed at the inn was MOVING. Moving! On its own!`,
+      r:[`I'm a {job}. I travel. I've slept in barns and ditches. I'm not fussy.`, `The inn at {place} had a nice sign and a nice landlady and a mattress that rustled when nobody was on it.`, `I pulled back the blanket and it was... alive. I slept on the stable floor with the horses. {Them} still makes jokes about it.`],
+      hurt:`Get it off! Get it OFF!`, low:`I can still feel them. Crawling.`, plea:`Keep me clean. Keep me so clean.` },
+    { id:'dg_lie', t:1, meet:`{Them} said {Them} loved me, and wrote the same letter to four others.`,
+      r:[`We were promised in {home}. {n} months. Letters every week, so sweet I kept them under my pillow.`, `Then a girl from {place} showed me hers. Word for word. Same poem. Same pressed flower.`, `There were four of us. {Them} had copied it out four times, every week, and got the flowers from the same bush.`],
+      hurt:`Don't. Your hands are dirty.`, low:`The same flower. The SAME flower.`, plea:`Keep me. I'll smell a lie before it opens its mouth.` },
+    { id:'dg_charity', t:1, meet:`They raised money for the orphans and spent it on a summer house.`,
+      r:[`The great families of {place} held a ball every winter "for the orphans of {home}."`, `I was a {job} on the estate. I saw the books. I saw the new summer house go up by the lake.`, `When I asked, {Them} patted my hand and said "the orphans enjoy hearing about it." The orphans got a hymnbook each.`],
+      hurt:`Ugh. Don't. You'd fit right in with them.`, low:`A hymnbook. Each.`, plea:`Keep me. I can smell it on people, that kind of rot.` },
+    { id:'dg_rat', t:1, meet:`The meat-pie man in the market. I saw what went in the pies.`,
+      r:[`I worked nights as a {job} near his back door in {home}.`, `I saw the sacks come in. I saw what was in the sacks. Tails. Lots of tails.`, `I told the watch. {Them}, the pie man, gave them a free pie each. They ate it in front of me. They're still selling.`],
+      hurt:`Get away! You smell like the market!`, low:`Tails. So many tails.`, plea:`Keep me. I'll never eat anything I didn't watch being made.` },
+    { id:'dg_clinic', t:2, meet:`I worked in the Choir's clinic. I cleaned the copper needles.`,
+      r:[`Good pay, in {place}. Clean work, they said. Just scrubbing.`, `The needles came back to me sticky. Not with blood. With feeling. You could smell it. Grief smells like iron. Joy smells like oranges. All of it in my sink.`, `One day the needles came with {their} name on the tag. My {who}. I scrubbed them anyway. I scrubbed them, and then I was sick, and then I walked out and never stopped walking.`],
+      hurt:`Don't touch me. I'm not clean. I'll never be clean.`, low:`Iron and oranges. Iron and oranges.`, plea:`Keep me. I'm what the job left on me.` },
+    { id:'dg_feast', t:2, meet:`They feasted. While the town starved outside the gates, they feasted.`,
+      r:[`The famine winter at {home}. The lord's granary was full. The gates were locked.`, `I was a {job} in the kitchen. I carried in roast after roast. I could see the crowd through the window, thin as rakes.`, `{Them} sat at the high table and tossed a bone to the hounds and said "they'll manage." The hounds were fatter than the children.`],
+      hurt:`Go on. You're no better than them.`, low:`The hounds were FATTER.`, plea:`Keep me. I won't let anyone forget who ate.` },
+  ],
+};
+// Fold them in. A story with an id already in the pool replaces it (a_belt has been rewritten), so old saves pick up the new telling.
+for (const f of Object.keys(ECHO_MORE)) { const L = STORIES[f] = STORIES[f] || [];
+  for (const s of ECHO_MORE[f]) { const i = L.findIndex(x => x.id === s.id); if (i >= 0) L[i] = s; else L.push(s); } }
 
 // ── Shades: every Manif is its own feeling, and counts as itself in the ending ──
 // Names for each family's three intensities.
@@ -5543,8 +5809,21 @@ async function angryShove(e) {
   const g = W.npcs[e.id]; npcFace[e.id] = OPPD[S.dir] || 'down'; sfx('bighit'); MOOD.shake = Math.max(MOOD.shake, .25);
   const dx = Math.sign(S.x - e.x), dy = Math.sign(S.y - e.y), nx = S.x + dx, ny = S.y + dy;
   if (walkable(nx, ny)) { const x0 = S.x, y0 = S.y; await tween(220, k => { S.x = x0 + dx * k; S.y = y0 + dy * k; }); S.x = nx; S.y = ny; }
-  await say((e.name ? e.name + ': ' : '') + pickA(['Watch where you\'re going!', 'Back OFF. I\'m not in the mood.', 'You looking at me? Keep walking.', 'Move! Some of us have places to be!', 'Get out of my way before I make you.']));
-  delete npcFace[e.id];
+  await say((e.name ? e.name + ': ' : '') + deal('shove', ['Watch where you\'re going!', 'Back OFF. I\'m not in the mood.', 'You looking at me? Keep walking.', 'Move! Some of us have places to be!', 'Get out of my way before I make you.', 'Out of the road, idiot!', 'Do that again and see what happens.', 'Mind yourself!']));
+  delete npcFace[e.id]; (MOOD.grudge = MOOD.grudge || {})[e.id] = 1;   // that's all they say; walk up to them again and it comes to blows
+}
+// Go back to someone who shoved you and it gets physical: either they come at you with their own Manif, or they hit you and you choose whether to answer.
+async function grudgeFight(e) {
+  const who = e.name || 'They', sayE = l => say((e.name ? e.name + ': ' : '') + l), fam = moodFamily(S.map) || 'ANGER';
+  const foe = () => { const lv = Math.max(4, strongest() - 2 + Math.floor(Math.random() * 3)); return newManif(spAt(fam, lv >= 30 ? 2 : lv >= 15 ? 1 : 0, e.id.length), lv); };
+  const fight = async () => { const r = await battle(foe(), { owner:e.name || 'the stranger' }); if (r === 'blackout') await blackout(); };
+  if (!S.party.some(m => m.hp > 0) || Math.random() < .5) {
+    npcFace[e.id] = OPPD[S.dir] || 'down'; sfx('bighit'); MOOD.shake = Math.max(MOOD.shake, .4);
+    await say(deal('punch', ['(They don\'t say a word. They just hit you, hard, in the face.)', '(A fist catches you on the jaw and the street tilts.)', '(They punch you in the stomach and you fold over.)', '(They swing before you can open your mouth. Your ear rings.)']));
+    delete npcFace[e.id]; if (!S.party.some(m => m.hp > 0)) return;
+    const c = await ask('(Your face is hot. Your Manifs are bristling.)', ['Fight back', 'Walk away']); if (c === 0) await fight(); return; }
+  await sayE(deal('grudge', ['You again? Right. You want it that badly, you can have it.', 'I warned you. Now we do this properly.', 'Back for more? Fine. Let\'s settle it.', 'You\'ve got some nerve. Come on, then.']));
+  await fight();
 }
 // only Anger and Disgust look dangerous; a deep Sadness or Fear makes people sorry for you, not scared of you
 const fierceDark = () => S.party.find(m => tierOfSp(m.sp) >= 2 && HOSTILE_FAMS.includes(typeOf(m)));
@@ -5614,9 +5893,26 @@ function tickMood(dt, t) {
     else setEmote(g, null, false);
   }
 }
+// First words in a town whose Heart is still raging or weeping. Dealt from a shuffled deck, so nobody on the street says what their neighbour just said.
+const VENT = {
+  SADNESS:['(They don\'t look up.) Oh. Hi. Sorry. I don\'t really... I don\'t have much to say today. Or most days.', '(A long breath.) Everything takes so long now. Getting up. Getting dressed. Talking. Sorry.',
+    'I keep thinking it\'ll lift. It doesn\'t lift.', '(They\'re crying, quietly, and don\'t seem to notice.) What did you need?', 'It\'s raining again. It\'s always raining. I stopped carrying an umbrella. What\'s the point.',
+    'I made two cups of tea this morning. Habit. There hasn\'t been anyone to drink the second one for a while.', '(They\'re holding a letter they haven\'t opened.) I know what it says. I just don\'t want it to be true yet.',
+    'Sorry, I was miles away. I\'m always miles away lately.', 'Do you ever wake up already tired? Like you\'ve been carrying something all night?', '(They smile, but it doesn\'t get as far as their eyes.) I\'m fine. Really. Everyone keeps asking.',
+    'I used to sing when I worked. I tried yesterday and nothing came out.', '(They\'re sitting on the step as if they forgot where they were going.) I was on my way somewhere. It\'ll come back to me.',
+    'My garden\'s gone to weeds. I go out to fix it and just stand there.', 'Everyone here walks slower than they used to. Have you noticed? Like the air\'s gone heavy.', 'Sorry. I\'m not good company. I haven\'t been for a long time.',
+    'I keep the curtains shut now. The light makes it worse, somehow.'],
+  ANGER:['WHAT. What do you want?', 'Make it quick. I\'ve had it up to here with everyone today.', '(They jab a finger at your chest.) You\'re not from here. I can tell. Nobody from here smiles like that.',
+    'Don\'t. Just don\'t. Whatever it is, the answer\'s no.', 'Everyone in this place is an idiot. Present company probably included.', 'My neighbour moved my fence a foot. A FOOT. I\'ve been out here since dawn deciding what to do about it.',
+    '(They\'re grinding their teeth.) If one more person asks me if I\'m all right, I\'ll put them through a window.', 'You\'re standing in my light.', 'I lost a whole morning\'s work because some fool knocked the bench. A whole morning!',
+    'Oh, wonderful. Another stranger. Do you want something, or are you just here to breathe my air?', '(They kick a loose cobble down the street.) Sorry. No. I\'m not sorry. What is it?',
+    'The smith\'s been hammering since four. Four! I\'ve been awake since four, thinking about what I\'d like to hammer.', 'I\'m not shouting. THIS is shouting. That was talking.',
+    'Everything in this town is broken, and nobody fixes anything, and everyone just shouts about it. Including me. Especially me.', '(They\'re red to the ears.) Don\'t look at me like that. I know exactly how I look.',
+    'If you\'re selling something, keep walking. If you\'re lost, keep walking. If you\'re neither, keep walking anyway.'] };
 // What they say first, depending on what's happening. Returns 'refuse' if they won't talk at all.
 async function moodPreTalk(e) {
   if (!isFolk(e) || isChild(e)) return;
+  if (MOOD.grudge && MOOD.grudge[e.id]) { delete MOOD.grudge[e.id]; await grudgeFight(e); return 'refuse'; }
   const sayE = l => say((e.name ? e.name + ': ' : '') + l);
   const mood = mapMood(S.map);
   if (playerThreat() && canRun(e)) { const m = fierceDark();
@@ -5624,8 +5920,7 @@ async function moodPreTalk(e) {
   if (MOOD.tremorT > 0) { await sayE(mood === 'dread' ? pickA(['Did you feel that?! It\'s under the Archive. Under all of us.', 'Everyone\'s staying close to home. You should too, {name}.']) : pickA(['Did you feel that?! The Heart\'s getting worse every day.', 'Get inside! It always comes in twos!', '(They grab your sleeve.) Was that the shrine? Was that the shrine again?'])); return; }
   const key = e.id, famT = moodFamily(S.map);
   if (famT && isFolk(e) && !isChild(e) && !(MOOD.vented = MOOD.vented || {})[key]) { MOOD.vented[key] = 1;
-    if (famT === 'SADNESS') { await sayE(pickA(['(They don\'t look up.) Oh. Hi. Sorry. I don\'t really... I don\'t have much to say today. Or most days.', '(A long breath.) Everything takes so long now. Getting up. Getting dressed. Talking. Sorry.', 'I keep thinking it\'ll lift. It doesn\'t lift.', '(They\'re crying, quietly, and don\'t seem to notice.) What did you need?', 'It\'s raining again. It\'s always raining. I stopped carrying an umbrella. What\'s the point.'])); return; }
-    if (famT === 'ANGER') { await sayE(pickA(['WHAT. What do you want?', 'Make it quick. I\'ve had it up to here with everyone today.', '(They jab a finger at your chest.) You\'re not from here. I can tell. Nobody from here smiles like that.', 'Don\'t. Just don\'t. Whatever it is, the answer\'s no.', 'Everyone in this city is an idiot. Present company probably included.'])); return; } }
+    if (VENT[famT]) { await sayE(deal('vent_' + famT, VENT[famT])); return; } }
   if (!playerThreat() && isFolk(e) && !isChild(e) && fierceDark() && !(MOOD.eyed = MOOD.eyed || {})[key] && Math.random() < .45) { MOOD.eyed[key] = 1; const m = fierceDark();
     await sayVoice(e, m); return; }
   if (savedHere() && wouldSnub(e)) return;   // the ungrateful don't thank you first (auraPreTalk deals with them)
@@ -10396,7 +10691,7 @@ const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 // the HUD asks every frame: only recompute when what you carry changes
 let AT_KEY = null, AT_VAL = '';
-function auraTitleCached() { const k = S.party.map(m => m.sp + m.lvl + ':' + (m.keptAt || 0)).join(','); if (k !== AT_KEY) { AT_KEY = k; AT_VAL = auraStory().title; } return AT_VAL; }
+function auraTitleCached() { const k = S.party.length + '|' + S.party.map(m => m && (m.sp + m.lvl + ':' + (m.keptAt || 0) + (m.nick || ''))).join(','); if (k !== AT_KEY) { AT_KEY = k; AT_VAL = auraStory().title; } return AT_VAL; }
 
 // ---------------------------------------------------------------- portraits
 // A still picture of a Manif for its summary page: rendered once per kind into a small offscreen
@@ -10428,16 +10723,26 @@ function manifPortrait(sp, size = 220) {
 //  lives and where it was let go.
 // =============================================================================
 const COMP_BRIEF = {
-  JOY:['Don\'t mind my {M}. It\'s about {their} {who}, {them}. Good news, for once.', 'That\'s my {M}. Ask it, if you like. It won\'t shut up about {them}.'],
-  HOPE:['My {M}\'s been like that since {them} wrote. Don\'t ask. I\'ll jinx it.', 'It\'s about {their} {who}. I\'m not saying more till I know.'],
-  CALM:['That\'s my {M}. It\'s been steady since I made my peace with {them}.', 'Leave my {M} be. It took me a long time to get it that quiet.'],
-  CONFIDENCE:['My {M}? That\'s from standing up to {their} {who}. About time too.', 'It\'s been with me since {them}. I\'m not ashamed of it.'],
-  SURPRISE:['My {M} turned up the day {them} told me. I still haven\'t got over it.', 'Ask it. I can\'t even explain it, and it was my {who}.'],
-  SADNESS:['That\'s my {M}. It\'s about {their} {who}. I don\'t talk about it.', '(They put a hand near their {M}, not quite touching it.) {Them}. That\'s all.'],
-  FEAR:['My {M} won\'t settle. Not since {them}. Don\'t look at it too long.', 'It\'s nothing. It\'s {their} {who}. It\'s nothing.'],
-  ANGER:['Don\'t. My {M}\'s about {their} {who}, {them}, and I\'m not getting into it.', '(Their jaw goes tight.) Ask the {M}. I\'ve said all I\'m saying about {them}.'],
-  SHAME:['(They step in front of their {M}.) It\'s mine. It\'s about {them}. Please don\'t.', 'You can see it, can\'t you. It\'s about {their} {who}. I\'d rather you didn\'t ask.'],
-  DISGUST:['My {M}? That\'s {them}. You\'d feel it too if you knew.', 'Ask it, if you want the whole sorry thing about {their} {who}. I\'m done with it.'] };
+  JOY:['Don\'t mind my {M}. It\'s about {their} {who}, {them}. Good news, for once.', 'That\'s my {M}. Ask it, if you like. It won\'t shut up about {them}.', 'Ha! You\'ve spotted my {M}. Blame {their} {who}. Best thing that\'s happened in years.',
+    'My {M}\'s been bouncing like that since {them}. I\'ve given up trying to calm it down.', '(They grin before you\'ve said a word.) Yes, it\'s a {M}. Yes, it\'s about {them}. Yes, I\'m still smiling.', 'Go on, ask it about {their} {who}. I could do with hearing it again.'],
+  HOPE:['My {M}\'s been like that since {them} wrote. Don\'t ask. I\'ll jinx it.', 'It\'s about {their} {who}. I\'m not saying more till I know.', 'That {M} of mine keeps looking at the road. Waiting on {them}, same as me.',
+    '(They touch wood.) It\'s a {M}. It\'s about {them}. Don\'t say anything that\'ll spoil it.', 'My {M}? It\'s the bit of me that still thinks {their} {who} will come through.', 'Ask it if you like. It\'s braver about {them} than I am.'],
+  CALM:['That\'s my {M}. It\'s been steady since I made my peace with {them}.', 'Leave my {M} be. It took me a long time to get it that quiet.', 'My {M} came after {their} {who}, {them}. It\'s the only thing that sleeps well in my house.',
+    '(They breathe out, slow.) That\'s my {M}. It\'s about {them}. It\'s all right now.', 'It sits with me in the evenings, my {M}. Since {them}. Ask it, if you\'re patient.', 'Don\'t rush my {M}. It\'s about {their} {who}, and it takes its time.'],
+  CONFIDENCE:['My {M}? That\'s from standing up to {their} {who}. About time too.', 'It\'s been with me since {them}. I\'m not ashamed of it.', 'That {M} stood up the day {their} {who} tried to push me about. So did I.',
+    '(They square their shoulders.) My {M}. It\'s about {them}. Ask it, it\'ll tell you straight.', 'My {M} doesn\'t back down. Learnt it from me, after {them}.', 'You want the story of my {M}? It starts with {their} {who} and ends with me winning.'],
+  SURPRISE:['My {M} turned up the day {them} told me. I still haven\'t got over it.', 'Ask it. I can\'t even explain it, and it was my {who}.', 'My {M} still jumps every time someone says {them}. So do I.',
+    '(They laugh, a bit wildly.) That {M}? {Them}. Out of nowhere. Ask it, I still can\'t say it.', 'I\'ve had my {M} since {their} {who} turned my whole life upside down in an afternoon.', 'Don\'t startle it. My {M}\'s been jumpy since {them}.'],
+  SADNESS:['That\'s my {M}. It\'s about {their} {who}. I don\'t talk about it.', '(They put a hand near their {M}, not quite touching it.) {Them}. That\'s all.', 'My {M} follows me everywhere. Since {them}. I don\'t mind as much as I used to.',
+    '(They look at it, and then away.) It\'s {their} {who}. The {M} remembers more than I let myself.', 'You can ask my {M}. I can\'t. Not about {them}.', 'It came after {them}. My {M}. It stays when everyone else has gone home.'],
+  FEAR:['My {M} won\'t settle. Not since {them}. Don\'t look at it too long.', 'It\'s nothing. It\'s {their} {who}. It\'s nothing.', '(They glance over their shoulder.) My {M}\'s about {them}. Keep your voice down.',
+    'That {M} of mine shakes at night. Since {their} {who}. I don\'t sleep much either.', 'Please don\'t ask about {them}. Ask the {M}, if you must. I can\'t.', 'My {M} knows something about {their} {who} I\'m trying not to think about.'],
+  ANGER:['Don\'t. My {M}\'s about {their} {who}, {them}, and I\'m not getting into it.', '(Their jaw goes tight.) Ask the {M}. I\'ve said all I\'m saying about {them}.', 'My {M}\'s got a temper. Earned it, after {them}.',
+    'You want to know about my {M}? Ask {their} {who}. Oh, wait. You can\'t. {Them} won\'t face anyone.', '(They crack their knuckles.) That {M}\'s about {them}. Don\'t get me started.', 'It\'s been spitting since {their} {who}. My {M}. I let it.'],
+  SHAME:['(They step in front of their {M}.) It\'s mine. It\'s about {them}. Please don\'t.', 'You can see it, can\'t you. It\'s about {their} {who}. I\'d rather you didn\'t ask.', '(They go red.) My {M}. It\'s about {them}. Could you not look at it?',
+    'I know what it looks like. My {M}. It\'s about what I did to {their} {who}.', 'Don\'t ask it about {them}. It\'ll tell you the truth, and I\'d rather it didn\'t.', '(They tug their collar up.) That {M} follows me. It\'s about {them}. I deserve it.'],
+  DISGUST:['My {M}? That\'s {them}. You\'d feel it too if you knew.', 'Ask it, if you want the whole sorry thing about {their} {who}. I\'m done with it.', '(Their lip curls.) My {M}. It\'s about {them}. Don\'t get it on you.',
+    'My {M} came the day I saw what {their} {who} really was.', 'That {M} turns its nose up at everyone now. Since {them}. Can\'t blame it.', 'Ask the {M} about {them}. I can\'t say the name without spitting.'] };
 // the person's own name, if they have one (job titles like "Notice clerk" aren't names)
 function ownerName(map, e) { const M = MAPS[map], t = M && M.vibe;
   if ((e.id === 'keeper' || e.id === 'local') && t) { if (M.kind === 'way') return e.id === 'keeper' ? WAYTOWNS[t].keeper : WAYTOWNS[t].local; if (M.kind === 'city') return e.id === 'keeper' ? TOWNS[t].keeper.name : TOWNS[t].local.name; }
@@ -10493,7 +10798,8 @@ async function compMention(e) {
   let h = 0; for (const ch of e.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const P = c.pn, fam = SPECIES[c.sp].type, arr = COMP_BRIEF[fam] || COMP_BRIEF.CALM, cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   if (h % 5 === 0) return;                                            // some people don't mention it at all
-  const t = arr[h % arr.length].replace(/\{M\}/g, SPECIES[c.sp].name).replace(/\{their\}/g, 'my').replace(/\{who\}/g, P.who).replace(/\{them\}/g, P.them).replace(/\{Them\}/g, cap(P.them));
+  if (c.brief == null) c.brief = deal('brief_' + fam, arr.map((_, k) => k));   // dealt, so people with the same kind of Manif don't say the same thing
+  const t = arr[c.brief % arr.length].replace(/\{M\}/g, SPECIES[c.sp].name).replace(/\{their\}/g, 'my').replace(/\{who\}/g, P.who).replace(/\{them\}/g, P.them).replace(/\{Them\}/g, cap(P.them));
   await say((e.name ? e.name + ': ' : '') + t);
 }
 
@@ -11040,7 +11346,8 @@ async function talkHush() {
 // =============================================================================
 const INK_GEO = new THREE.SphereGeometry(.035, 8, 6), INK_POOL = new THREE.CircleGeometry(.5, 14);
 const INK_FLOOR = .3;
-function inkColor(type) { return new THREE.Color('#8a0a14').lerp(new THREE.Color(TYPES[type] ? TYPES[type].c : '#8a0a14'), .12); }
+// A Manif bleeds the colour of what it is: Joy bleeds orange, Sadness blue, Disgust green. Darkened a little so it reads as wet, not paint.
+function inkColor(type) { const c = new THREE.Color(TYPES[type] ? TYPES[type].c : '#8a0a14'); return c.lerp(new THREE.Color('#140806'), .28); }
 async function inkSpray(at, type, n = 14, force = 1) {
   if (!B) return;
   const col = inkColor(type), mat = new THREE.MeshBasicMaterial({ color:col }), drops = [];
@@ -11068,9 +11375,12 @@ function splatTex(i) {
 const SPLAT_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 function splatMesh(size, col, op = .9, seed = 0) { const m = new THREE.Mesh(SPLAT_GEO, new THREE.MeshBasicMaterial({ color:col, map:splatTex(seed), transparent:true, opacity:op, depthWrite:false, alphaTest:.05 }));
   m.scale.set(size, 1, size * (.85 + (seed % 5) * .07)); m.rotation.y = seed * 1.7; return m; }
+const ARENA_R = 4.1;   // the platform's top edge is 4.25 from centre: stains stay inside it
 function inkStain(p, col, s) {
-  if (!B || (B.stains = (B.stains || 0) + 1) > 160) return;
-  const m = splatMesh(s * rnd(2.2, 3.6), col, .92, B.stains * 7 + Math.floor(Math.random() * 8));
+  if (!B) return; const d = Math.hypot(p.x, p.z); if (d > ARENA_R - .1) return;   // drops that sail off the edge are lost over the side
+  let size = s * rnd(2.2, 3.6); size = Math.min(size, (ARENA_R - d) * 1.6); if (size < .12) return;   // a splat near the rim is shrunk so it never hangs off
+  if ((B.stains = (B.stains || 0) + 1) > 160) return;
+  const m = splatMesh(size, col, .92, B.stains * 7 + Math.floor(Math.random() * 8));
   m.position.set(p.x, INK_FLOOR + .012 + B.stains * .0004, p.z); battleScene.add(m);
 }
 function shakeB(k) { if (B) B.shake = Math.max(B.shake || 0, k); }
@@ -11510,6 +11820,9 @@ function loopBody(now) {
   if ((scene === 'world' || scene === 'title' || scene === 'intro' || scene === 'tour') && world) updateWorld(dt, t);
   if (scene === 'battle' && B) updateBattle(dt, t);
   if (scene === 'world' && world) rideTick(dt);
+  // the aura pill gets its own guarded step, so a hiccup anywhere in the world update can't leave it showing an old title
+  if (scene === 'world' && S) { try { const tid = visTier(), hud = $('#aura'), txt = 'Aura: ' + (S.veil > 0 ? tierName(tid) : auraTitleCached()), lab = hud.querySelector('.lab');
+    if (lab.textContent !== txt) lab.textContent = txt; hud.style.color = TIERC[tid]; } catch (err) {} }
   post.render(activeScene, activeCam, t);
 }
 function updateWorld(dt, t) {
@@ -11567,7 +11880,7 @@ function updateWorld(dt, t) {
     m.life -= dt * .7; m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vx * dt * .5; arr[i * 3] = m.x; arr[i * 3 + 1] = m.y; arr[i * 3 + 2] = m.z;
   });
   W.motes.geometry.attributes.position.needsUpdate = true;
-  if (scene === 'world') { const hud = $('#aura'); hud.style.color = TIERC[tid]; hud.querySelector('.lab').textContent = 'Aura: ' + (S.veil > 0 ? tierName(tid) : auraTitleCached()); if (!RIDE.on) { camTarget.set(px, py, pz); updateCamera(dt); } }   // while riding, rideTick alone moves the camera (two targets fought and shook the screen)
+  if (scene === 'world') { if (!RIDE.on) { camTarget.set(px, py, pz); updateCamera(dt); } }   // while riding, rideTick alone moves the camera (two targets fought and shook the screen)
   else if (scene === 'tour' && TOUR.on) tourCam(dt);
   else { const a = t * .1, cx = (M.w - 1) / 2, cz = (M.h - 1) / 2; camera.position.set(cx + Math.sin(a) * 16, 9, cz + Math.cos(a) * 16); camera.lookAt(cx, 0, cz); worldSky.position.copy(camera.position); }
 }
