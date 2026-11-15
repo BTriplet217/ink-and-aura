@@ -98,7 +98,9 @@ body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #dpad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:3px}
 .k{background:rgba(27,21,18,.72);border:2px solid rgba(232,184,74,.35);color:var(--gold);border-radius:12px;font:800 17px 'Nunito Sans';display:flex;align-items:center;justify-content:center;touch-action:none}
 .k.on{background:rgba(74,58,46,.9)}
-#ab{display:flex;gap:14px;align-items:center;margin-bottom:24px}
+#ab{display:flex;gap:14px;align-items:center;margin-bottom:24px;position:relative}
+#kDist{display:none;position:absolute;right:0;bottom:calc(100% + 12px);height:38px;padding:0 14px;border-radius:19px;font-size:14px}
+body.tplive #kDist{display:flex}
 .k.round{width:66px;height:66px;border-radius:50%;font-size:20px}
 body.running #pad .k[data-k="b"]{background:rgba(232,184,74,.55);color:var(--ink);box-shadow:0 0 12px rgba(232,184,74,.6)}
 #kA{background:rgba(232,184,74,.92);color:var(--ink);border-color:var(--gold2)}
@@ -205,7 +207,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 <div id="bottom"><div id="chorus" class="hidden"></div><div id="cho" class="hidden"></div><div id="dlg" class="card hidden"><span class="who"></span><span class="txt"></span><span class="nxt">▼</span></div></div>
 <div id="pad">
   <div id="joy"><i class="t n"></i><i class="t e"></i><i class="t s"></i><i class="t w"></i><div id="joyKnob"></div></div>
-  <div id="ab"><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
+  <div id="ab"><div class="k" id="kDist" data-k="tpdist">Normal</div><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
 </div>
 <div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom and over-the-shoulder view: C · Look up / down: R / F · Scroll to zoom</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
 <div id="fade"></div>
@@ -5007,18 +5009,20 @@ const tpLook = (dyaw, dpitch) => { if (dyaw) { if (camFree == null) camFree = ca
 // C / the zoom button steps through: Far, Wide, Standard, Close, then over the shoulder (far, normal, close), then back round to Far.
 function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ + TP_DISTS.length;
   const tpI = TP_DISTS.reduce((b, v, i) => Math.abs(v - TP.want) < Math.abs(TP_DISTS[b] - TP.want) ? i : b, 0), cur = TP.on ? NZ + tpI : camZoom, nx = (cur + d + n) % n;
-  if (nx >= NZ) { TP.want = TP_DISTS[nx - NZ]; if (!TP.on) setView(true); } else { camZoom = nx; if (TP.on) setView(false); }
+  if (nx >= NZ) { TP.want = TP_DISTS[nx - NZ]; tpLabel(); if (!TP.on) setView(true); } else { camZoom = nx; if (TP.on) setView(false); }
   toast(nx >= NZ ? ['Over the shoulder: far', 'Over the shoulder', 'Over the shoulder: close'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx === NZ ? 'Drag to look around' : undefined); }
 function tpStep() { const D = [1.5, 2.5, 4.2], i = D.reduce((b, v, k) => Math.abs(v - TP.want) < Math.abs(D[b] - TP.want) ? k : b, 0), n = (i + 1) % 3;
-  TP.want = D[n]; sfx('tick'); toast(['Close', 'Normal', 'Far'][n]); }
-const tpZoom = f => { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, TP.want * f)); };
+  TP.want = D[n]; sfx('tick'); toast(['Close', 'Normal', 'Far'][n]); tpLabel(); }
+// the on-screen distance button (phones): shows where you are now, tap for the next
+function tpLabel() { const el = document.getElementById('kDist'); if (!el) return; const D = [1.5, 2.5, 4.2], i = D.reduce((b, v, k) => Math.abs(v - TP.want) < Math.abs(D[b] - TP.want) ? k : b, 0); el.textContent = '◉ ' + ['Close', 'Normal', 'Far'][i]; }
+const tpZoom = f => { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, TP.want * f)); tpLabel(); };
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
 canvas.addEventListener('pointerdown', e => { if (scene !== 'world') return; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved = 0;
   if (drag.pts.size === 2) { const [a, b] = [...drag.pts.values()]; drag.pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); drag.zoom0 = TP.live ? TP.want : camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom]; } });
 addEventListener('pointermove', e => { const p = drag.pts.get(e.pointerId); if (!p || scene !== 'world') return;
   const dx = e.clientX - p[0], dy = e.clientY - p[1]; drag.pts.set(e.pointerId, [e.clientX, e.clientY]); drag.moved += Math.abs(dx) + Math.abs(dy);
-  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0 && TP.live) TP.want = Math.max(TP_MIN, Math.min(TP_MAX, drag.zoom0 * drag.pinch0 / Math.max(20, d))); else if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
+  if (drag.pts.size >= 2) { const [a, b] = [...drag.pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (drag.pinch0 > 0 && TP.live) { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, drag.zoom0 * drag.pinch0 / Math.max(20, d))); tpLabel(); } else if (drag.pinch0 > 0) { camZoomV = Math.max(.38, Math.min(1.9, drag.zoom0 * drag.pinch0 / Math.max(20, d))); } return; }
   if (TP.live) { tpLook(-dx * .008, -dy * .006); return; }
   if (camFree == null) camFree = camYaw; camFree -= dx * .011; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; });
 const dragEnd = e => { drag.pts.delete(e.pointerId); if (drag.pts.size < 2) drag.pinch0 = 0; };
@@ -5031,7 +5035,7 @@ function updateCamera(dt, snap) {
   const portrait = innerWidth < innerHeight, z = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom], dist = (CAM_TILT ? CAM_TILT[0] : portrait ? 8.6 : 8.4) * z, ht = (CAM_TILT ? CAM_TILT[1] : portrait ? 12.2 : 8.6) * z;   // a steeper, more overhead view (between our old angle and the classic Pokémon one) so buildings hide less
   // the camera follows a smoothed point, not the hero's exact feet: little height steps between tiles
   // and the start/stop of each stride (sharpest when running) no longer jolt the view
-  const tp = TP.on && !CAM_TILT && scene === 'world'; if (tp !== TP.live) { TP.live = tp; resize(); }
+  const tp = TP.on && !CAM_TILT && scene === 'world'; if (tp !== TP.live) { TP.live = tp; document.body.classList.toggle('tplive', tp); tpLabel(); resize(); }
   if (snap || !camFocus.init) { camFocus.copy(camTarget); camFocus.init = true; }
   else { const kxz = 1 - Math.exp(-dt * 10), ky = 1 - Math.exp(-dt * 3.5); camFocus.x += (camTarget.x - camFocus.x) * kxz; camFocus.z += (camTarget.z - camFocus.z) * kxz; camFocus.y += (camTarget.y - camFocus.y) * ky; }
   if (tp) {
@@ -5193,6 +5197,7 @@ function press(b) {
   if (b === 'zoom') { if (scene === 'world') cycleZoom(1); else if (scene === 'tour' && TOUR.on) tourKey('zoom'); return; }
   if ((b === 'rotl' || b === 'rotr') && scene === 'tour' && TOUR.on) { tourTurn(b === 'rotl' ? -Math.PI / 4 : Math.PI / 4); return; }
   if ((b === 'rotl' || b === 'rotr') && scene === 'world' && TP.live) { tpLook(b === 'rotl' ? Math.PI / 4 : -Math.PI / 4, 0); return; }
+  if (b === 'tpdist') { if (scene === 'world' && TP.live && !UI.dlg && !UI.cho && !UI.list) tpStep(); return; }
   if (b === 'lookup' || b === 'lookdn') { if (scene === 'world' && TP.live) tpLook(0, b === 'lookup' ? -.2 : .2); return; }
   if (b === 'rotl' || b === 'rotr') { if (scene === 'world') { if (camFree != null) { camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; camYaw = camFree; camFree = null; } camQ = (camQ + (b === 'rotl' ? 1 : 3)) % 4; } return; }
   if (UI.sheetStatic && (b === 'up' || b === 'down')) { sheetEl.scrollTop += (b === 'up' ? -1 : 1) * 90; return; }
