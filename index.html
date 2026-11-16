@@ -11821,7 +11821,11 @@ function dressField() {
     g.setAttribute('position', new THREE.BufferAttribute(P, 3)); const r = add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color:0xc8d8ec, transparent:true, opacity:.55, depthWrite:false }))); r.userData.rain = 1;
     disc(4.15, 0x5a6a80, .28); for (let i = 0; i < 12; i++) { const a = rnd(0, 6.3), rr = rnd(.4, 3.7), ring = add(new THREE.Mesh(new THREE.RingGeometry(.05, .08, 20), new THREE.MeshBasicMaterial({ color:0xd8e4f0, transparent:true, opacity:.5, depthWrite:false })));
       ring.rotation.x = -Math.PI / 2; ring.position.set(Math.cos(a) * rr, .34, Math.sin(a) * rr); ring.userData.ripple = rnd(0, 1); } }
-  if (t === 'FEAR') { disc(4.2, 0x05060a, .55); pts(140, 0x8a9ab8, .045, .5, [8, .5, 5, 7, 4], 'drift'); }   // near-black, with a little cold dust hanging in the dark
+  if (t === 'FEAR') { disc(4.2, 0x05060a, .55); pts(140, 0x8a9ab8, .045, .5, [8, .5, 5, 7, 4], 'drift');   // near-black, with a little cold dust hanging in the dark
+    // the one thing you can see clearly in the dark is the fear itself: its aura burns a little brighter, and lights it from below
+    const fc = TYPES.FEAR.c, a1 = add(glow(fc, 3.4, .7)); a1.position.copy(FOE_POS).add(V3(0, .9, 0)); a1.userData.breathe = .7;
+    const a2 = add(glow('#c8b0ff', 1.4, .35)); a2.position.copy(FOE_POS).add(V3(0, .8, .2)); a2.userData.breathe = .35;
+    const pl = add(new THREE.PointLight(new THREE.Color(fc).lerp(new THREE.Color('#ffffff'), .35), 5, 7, 1.2)); pl.position.copy(FOE_POS).add(V3(0, .6, 1.4)); pl.userData.breatheL = 5; }
   if (t === 'CALM') { disc(4.15, 0x8ac8d8, .45); for (let i = 0; i < 6; i++) { const ring = add(new THREE.Mesh(new THREE.RingGeometry(.2, .24, 40), new THREE.MeshBasicMaterial({ color:0xe8f8ff, transparent:true, opacity:.5, depthWrite:false })));
       ring.rotation.x = -Math.PI / 2; ring.position.set(rnd(-2.5, 2.5), .345, rnd(-2.5, 2.5)); ring.userData.ripple = i / 6; ring.userData.big = 1; }
     pts(60, 0xe8f8ff, .06, .5, [6, .4, 2.5, 5, 4], 'drift'); }
@@ -11857,6 +11861,8 @@ function fieldTick(dt) {
     else if (d.drift || d.flies) { const P = o.geometry.attributes.position, k = d.flies ? 1.2 : .15; for (let i = 0; i < P.count; i++) { P.setX(i, P.getX(i) + Math.sin(T * (d.flies ? 3 : .5) + i * 1.7) * dt * k); P.setY(i, P.getY(i) + Math.cos(T * (d.flies ? 2.6 : .4) + i) * dt * k * .6); } P.needsUpdate = true; }
     else if (d.ripple != null) { const k = ((T * (d.big ? .25 : .7) + d.ripple) % 1); o.scale.setScalar(.4 + k * (d.big ? 6 : 3)); o.material.opacity = (1 - k) * .5; }
     else if (d.spin) { o.rotation.y += dt * d.spin; o.rotation.x += dt * d.spin * .5; o.position.y += Math.sin(T + d.spin * 9) * dt * .15; }
+    else if (d.breathe) o.material.opacity = d.breathe * (.85 + Math.sin(T * 1.1) * .15);   // a slow breath, never a flicker
+    else if (d.breatheL) o.intensity = d.breatheL * (.88 + Math.sin(T * 1.1) * .12);
     else if (d.mist != null) { o.position.x += Math.sin(T * .2 + d.mist) * dt * .2; o.material.opacity = .28 + Math.sin(T * .3 + d.mist) * .06; } }
 }
 // once a turn, before anyone acts
