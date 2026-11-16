@@ -11777,7 +11777,7 @@ const FIELDS = {
   SURPRISE:  { name:'Shifting', say:'The arena won\'t hold still. The ground tilts and turns under your Chorus.', note:'your Chorus may swap places each turn' },
   SADNESS:   { name:'Rain', say:'Rain starts falling on the arena, steady and grey. Everyone moves slower in it.', note:'your Chorus is slower' },
   FEAR:      { name:'Darkness', say:'The lights go down. You can barely see it now.', note:'some of your strikes miss in the dark' },
-  ANGER:     { name:'Cracked ground', say:'The floor of the arena splits, and heat pours up through the cracks.', note:'the cracks burn everyone a little each turn' },
+  ANGER:     { name:'Wildfire', say:'The sky goes red and the air fills with sparks. The heat is everywhere.', note:'the heat burns everyone a little each turn' },
   SHAME:     { name:'Watched', say:'The arena fills with faces you can\'t quite make out, all watching.', note:'you hit softer until it trusts you (Understanding 50%+)' },
   DISGUST:   { name:'Rot', say:'Something festers in the ground. Wounds don\'t close here.', note:'hurt Manifs on both sides keep bleeding' } };
 const field = () => B && !B.final ? FIELDS[typeOf(B.foe)] : null;
@@ -11829,8 +11829,7 @@ function dressField() {
   if (t === 'CALM') { disc(4.15, 0x8ac8d8, .45); for (let i = 0; i < 6; i++) { const ring = add(new THREE.Mesh(new THREE.RingGeometry(.2, .24, 40), new THREE.MeshBasicMaterial({ color:0xe8f8ff, transparent:true, opacity:.5, depthWrite:false })));
       ring.rotation.x = -Math.PI / 2; ring.position.set(rnd(-2.5, 2.5), .345, rnd(-2.5, 2.5)); ring.userData.ripple = i / 6; ring.userData.big = 1; }
     pts(60, 0xe8f8ff, .06, .5, [6, .4, 2.5, 5, 4], 'drift'); }
-  if (t === 'ANGER') { for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + rnd(0, .3), r = rnd(.8, 3.8), c = add(new THREE.Mesh(new THREE.BoxGeometry(rnd(.6, 1.6), .025, rnd(.05, .1)), new THREE.MeshBasicMaterial({ color:0xff6a1e })));
-      c.position.set(Math.cos(a) * r, .335, Math.sin(a) * r); c.rotation.y = rnd(0, 3); const o = add(glow('#ff6a1e', .7, .55)); o.position.set(c.position.x, .5, c.position.z); }
+  if (t === 'ANGER') {   // a red sky and sparks rising: no cracks in the floor
     pts(260, 0xffa04a, .07, .85, [4, .3, 6, 4, 4], 'embers', true); }
   if (t === 'HOPE') { const o = add(glow('#ffd8a0', 9, .4)); o.position.set(0, 3, -9); pts(120, 0xfff0c8, .07, .7, [7, .5, 6, 6, 4], 'drift', true);
     for (let k = 0; k < 4; k++) { const ray = add(new THREE.Mesh(new THREE.PlaneGeometry(1.4, 12), new THREE.MeshBasicMaterial({ color:0xffe0a8, transparent:true, opacity:.1, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending }))); ray.position.set(-3 + k * 2, 5, -4); ray.rotation.z = -.35; } }
@@ -11870,7 +11869,7 @@ async function fieldTurn() {
   const f = B && !B.final ? typeOf(B.foe) : null; if (!f || B.turn < 2) return; const K = fieldK();
   if (f === 'HOPE') { let any = 0; for (const m of chorusActive()) { const h = Math.min(maxHp(m) - m.hp, Math.ceil(maxHp(m) * .05 * K)); if (h > 0) { m.hp += h; any = 1; floatText(modelOf(m).position.clone().add(V3(0, .8, 0)), '+' + h, 'heal'); } } if (any) { renderBHUD(); await say('The dawn light mends your Chorus a little.'); } }
   if (f === 'ANGER') { for (const m of chorusActive()) { const d = Math.max(1, Math.round(maxHp(m) * .04 * K)); m.hp = Math.max(1, m.hp - d); floatText(modelOf(m).position.clone().add(V3(0, .8, 0)), d); }
-    const d = Math.max(1, Math.round(B.foeMax * .03 * K)); if (B.foe.hp > d) B.foe.hp -= d; renderBHUD(); sfx('hurt'); await say('Heat bursts up through the cracks and scorches everyone on the arena.'); }
+    const d = Math.max(1, Math.round(B.foeMax * .03 * K)); if (B.foe.hp > d) B.foe.hp -= d; renderBHUD(); sfx('hurt'); await say('A wave of heat rolls over the arena and scorches everyone on it.'); }
   if (f === 'DISGUST') { let any = 0; for (const m of chorusActive()) if (m.hp < maxHp(m) / 2) { const d = Math.max(1, Math.round(maxHp(m) * .04 * K)); m.hp = Math.max(1, m.hp - d); floatText(modelOf(m).position.clone().add(V3(0, .8, 0)), d, 'wound'); any = 1; }
     if (B.foe.hp < B.foeMax / 2) { const d = Math.max(1, Math.round(B.foeMax * .04 * K)); B.foe.hp = Math.max(1, B.foe.hp - d); any = 1; } if (any) { renderBHUD(); await say('The rot gets into open wounds. They keep bleeding.'); } }
   if (f === 'SURPRISE' && B.chorus.length > 1 && Math.random() < .45 * K) { const i = Math.floor(Math.random() * (B.chorus.length - 1)), a = B.chorus[i], b = B.chorus[i + 1];
