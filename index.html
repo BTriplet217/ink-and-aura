@@ -11792,25 +11792,73 @@ function fieldPow(m, isFirst) {
 const fieldMiss = m => B && !B.final && typeOf(B.foe) === 'FEAR' && m !== B.foe && Math.random() < .12 * fieldK();
 const fieldSpd = () => B && !B.final && typeOf(B.foe) === 'SADNESS' ? 1 - .25 * fieldK() : 1;
 const fieldReach = () => B && !B.final && typeOf(B.foe) === 'JOY' ? 1 + .25 * fieldK() : 1;
-// visual: tint and dress the arena so you can see what kind of ground it is
+// What the arena looks like: the sky, the fog, the light and the air all change to match what the arena says it is.
+// Everything moves slowly and nothing flashes.
+const FIELD_LOOK = {
+  //           horizon     top         fog         fogNear fogFar  sun  hemi  sunColour
+  JOY:        ['#ffe8b0', '#fff6dc', '#ffeec4', 16, 40, 1.25, 1.25, '#fff0c8'],
+  HOPE:       ['#f2b47a', '#9ab0d8', '#f0c89a', 14, 38, 1.1, 1.0, '#ffc890'],
+  CALM:       ['#a8d0d4', '#e0f0f0', '#b8d8dc', 12, 34, .85, 1.05, '#e8f8ff'],
+  CONFIDENCE: ['#3a3028', '#2a241e', '#3a3028', 9, 26, 1.0, .45, '#fff0c0'],
+  SURPRISE:   ['#c8b8f0', '#f0e0ff', '#d8c8f4', 13, 36, 1.0, 1.0, '#ffffff'],
+  SADNESS:    ['#6a7a8c', '#8a98a8', '#6e7c8c', 6, 22, .45, .7, '#b8c8d8'],
+  FEAR:       ['#141820', '#0a0c12', '#12161e', 4, 15, .22, .3, '#8a9ab8'],
+  ANGER:      ['#5a1a10', '#2a0a06', '#4a1810', 7, 24, .9, .6, '#ff8a4a'],
+  SHAME:      ['#4a3a48', '#2a2230', '#40343e', 6, 20, .55, .6, '#d8b8c8'],
+  DISGUST:    ['#6a7040', '#8a8c5a', '#6c7244', 6, 22, .65, .75, '#d8e0a0'] };
 function dressField() {
-  const f = field(); if (!f) return; const t = typeOf(B.foe), add = o => { battleScene.add(o); (B.fieldFx = B.fieldFx || []).push(o); };
-  if (t === 'FEAR') { battleLights.sun.intensity *= .45; battleLights.hemi.intensity *= .55; }
-  if (t === 'SADNESS') { const g = new THREE.BufferGeometry(), N = 500, P = new Float32Array(N * 3); for (let i = 0; i < N; i++) { P[i * 3] = rnd(-7, 7); P[i * 3 + 1] = rnd(0, 8); P[i * 3 + 2] = rnd(-6, 5); }
-    g.setAttribute('position', new THREE.BufferAttribute(P, 3)); const pts = new THREE.Points(g, new THREE.PointsMaterial({ color:0xb8c8e0, size:.05, transparent:true, opacity:.55, depthWrite:false })); pts.userData.rain = 1; add(pts); }
-  if (t === 'CALM') { const w = new THREE.Mesh(new THREE.CircleGeometry(4.15, 48), new THREE.MeshBasicMaterial({ color:0x8ac8d0, transparent:true, opacity:.22, depthWrite:false })); w.rotation.x = -Math.PI / 2; w.position.y = .33; add(w); }
-  if (t === 'ANGER') for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .3, r = rnd(1, 3.6), c = new THREE.Mesh(new THREE.BoxGeometry(rnd(.6, 1.4), .02, .06), new THREE.MeshBasicMaterial({ color:0xff6a1e }));
-    c.position.set(Math.cos(a) * r, .32, Math.sin(a) * r); c.rotation.y = rnd(0, 3); add(c); const o = glow('#ff7a2a', .5, .5); o.position.copy(c.position); add(o); }
-  if (t === 'HOPE') { const o = glow('#ffe2a0', 6, .35); o.position.set(0, 6, -4); add(o); battleLights.sun.intensity *= 1.15; }
-  if (t === 'JOY') { battleLights.hemi.intensity *= 1.2; }
-  if (t === 'DISGUST') for (let i = 0; i < 7; i++) { const p = new THREE.Mesh(new THREE.CircleGeometry(rnd(.3, .7), 14), new THREE.MeshBasicMaterial({ color:0x6a7a2a, transparent:true, opacity:.5, depthWrite:false }));
-    p.rotation.x = -Math.PI / 2; const a = rnd(0, 6.3), r = rnd(.5, 3.6); p.position.set(Math.cos(a) * r, .325, Math.sin(a) * r); add(p); }
-  if (t === 'SHAME') for (let i = 0; i < 10; i++) { const a = -Math.PI * .9 + i / 9 * Math.PI * .8, s = new THREE.Mesh(new THREE.SphereGeometry(.35, 10, 8), new THREE.MeshBasicMaterial({ color:0x2a2028, transparent:true, opacity:.5 }));
-    s.position.set(Math.cos(a) * 6.5, 1.6 + Math.sin(i) * .3, Math.sin(a) * 6.5); s.scale.set(1, 1.3, 1); add(s); }
-  if (t === 'CONFIDENCE') { const sp = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.6, 9, 24, 1, true), new THREE.MeshBasicMaterial({ color:0xfff0c0, transparent:true, opacity:.08, depthWrite:false, side:THREE.DoubleSide })); sp.position.set(0, 4.8, 0); add(sp); }
+  const f = field(); if (!f) return; const t = typeOf(B.foe), add = o => { battleScene.add(o); (B.fieldFx = B.fieldFx || []).push(o); return o; }, L = FIELD_LOOK[t];
+  B.fieldSave = { fog:[battleScene.fog.color.clone(), battleScene.fog.near, battleScene.fog.far], bg:battleScene.background.clone(), sunC:battleLights.sun.color.clone(), hemiC:battleLights.hemi.color.clone(),
+    sky:[battleSky.material.uniforms.horizon.value.clone(), battleSky.material.uniforms.top.value.clone()], arenaRot:arena.rotation.clone() };
+  const u = battleSky.material.uniforms; u.horizon.value.set(L[0]); u.top.value.set(L[1]); battleScene.background.set(L[0]);
+  battleScene.fog.color.set(L[2]); battleScene.fog.near = L[3]; battleScene.fog.far = L[4];
+  battleLights.sun.intensity *= L[5]; battleLights.hemi.intensity *= L[6]; battleLights.sun.color.set(L[7]); battleLights.hemi.color.lerp(new THREE.Color(L[2]), .5);
+  const pts = (n, col, size, op, area, tag, blend) => { const g = new THREE.BufferGeometry(), P = new Float32Array(n * 3); for (let i = 0; i < n; i++) { P[i * 3] = rnd(-area[0], area[0]); P[i * 3 + 1] = rnd(area[1], area[2]); P[i * 3 + 2] = rnd(-area[3], area[4]); }
+    g.setAttribute('position', new THREE.BufferAttribute(P, 3)); const o = new THREE.Points(g, new THREE.PointsMaterial({ color:col, size, transparent:true, opacity:op, depthWrite:false, blending:blend ? THREE.AdditiveBlending : THREE.NormalBlending })); o.userData[tag] = 1; return add(o); };
+  const disc = (r, col, op, y = .33) => { const m = add(new THREE.Mesh(new THREE.CircleGeometry(r, 48), new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:op, depthWrite:false }))); m.rotation.x = -Math.PI / 2; m.position.y = y; return m; };
+  if (t === 'SADNESS') {   // real rain: long streaks falling, puddles on the floor, rings where it lands
+    const g = new THREE.BufferGeometry(), N = 900, P = new Float32Array(N * 6); for (let i = 0; i < N; i++) { const x = rnd(-9, 9), y = rnd(0, 10), z = rnd(-8, 6); P.set([x, y, z, x + .04, y - .45, z], i * 6); }
+    g.setAttribute('position', new THREE.BufferAttribute(P, 3)); const r = add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color:0xc8d8ec, transparent:true, opacity:.55, depthWrite:false }))); r.userData.rain = 1;
+    disc(4.15, 0x5a6a80, .28); for (let i = 0; i < 12; i++) { const a = rnd(0, 6.3), rr = rnd(.4, 3.7), ring = add(new THREE.Mesh(new THREE.RingGeometry(.05, .08, 20), new THREE.MeshBasicMaterial({ color:0xd8e4f0, transparent:true, opacity:.5, depthWrite:false })));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(Math.cos(a) * rr, .34, Math.sin(a) * rr); ring.userData.ripple = rnd(0, 1); } }
+  if (t === 'FEAR') { disc(4.2, 0x05060a, .55); pts(140, 0x8a9ab8, .045, .5, [8, .5, 5, 7, 4], 'drift'); }   // near-black, with a little cold dust hanging in the dark
+  if (t === 'CALM') { disc(4.15, 0x8ac8d8, .45); for (let i = 0; i < 6; i++) { const ring = add(new THREE.Mesh(new THREE.RingGeometry(.2, .24, 40), new THREE.MeshBasicMaterial({ color:0xe8f8ff, transparent:true, opacity:.5, depthWrite:false })));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(rnd(-2.5, 2.5), .345, rnd(-2.5, 2.5)); ring.userData.ripple = i / 6; ring.userData.big = 1; }
+    pts(60, 0xe8f8ff, .06, .5, [6, .4, 2.5, 5, 4], 'drift'); }
+  if (t === 'ANGER') { for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + rnd(0, .3), r = rnd(.8, 3.8), c = add(new THREE.Mesh(new THREE.BoxGeometry(rnd(.6, 1.6), .025, rnd(.05, .1)), new THREE.MeshBasicMaterial({ color:0xff6a1e })));
+      c.position.set(Math.cos(a) * r, .335, Math.sin(a) * r); c.rotation.y = rnd(0, 3); const o = add(glow('#ff6a1e', .7, .55)); o.position.set(c.position.x, .5, c.position.z); }
+    pts(260, 0xffa04a, .07, .85, [4, .3, 6, 4, 4], 'embers', true); }
+  if (t === 'HOPE') { const o = add(glow('#ffd8a0', 9, .4)); o.position.set(0, 3, -9); pts(120, 0xfff0c8, .07, .7, [7, .5, 6, 6, 4], 'drift', true);
+    for (let k = 0; k < 4; k++) { const ray = add(new THREE.Mesh(new THREE.PlaneGeometry(1.4, 12), new THREE.MeshBasicMaterial({ color:0xffe0a8, transparent:true, opacity:.1, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending }))); ray.position.set(-3 + k * 2, 5, -4); ray.rotation.z = -.35; } }
+  if (t === 'JOY') { pts(220, 0xfff0a0, .08, .85, [7, .4, 7, 6, 5], 'drift', true); disc(4.15, 0xfff2c0, .2); }
+  if (t === 'SURPRISE') { pts(160, 0xe8d8ff, .07, .8, [7, .4, 7, 6, 5], 'drift', true); for (let i = 0; i < 9; i++) { const c = add(new THREE.Mesh(new THREE.OctahedronGeometry(rnd(.12, .28)), new THREE.MeshStandardMaterial({ color:0xc8b8f0, emissive:0x6a5aa0, emissiveIntensity:.4 })));
+      c.position.set(rnd(-5, 5), rnd(1.5, 4.5), rnd(-5, 1)); c.userData.spin = rnd(.3, .9); } B.tilt = 1; }
+  if (t === 'SHAME') { for (let i = 0; i < 18; i++) { const a = -Math.PI * .95 + i / 17 * Math.PI * .9, r = 6.2 + (i % 3) * .5, y = 1.4 + (i % 2) * .5, s = add(new THREE.Group());   // a crowd of dark figures round the edge, all looking in
+      s.add(new THREE.Mesh(new THREE.SphereGeometry(.32, 10, 8), new THREE.MeshBasicMaterial({ color:0x1a1418 }))); const body = new THREE.Mesh(new THREE.CylinderGeometry(.25, .45, 1.2, 10), new THREE.MeshBasicMaterial({ color:0x1a1418 })); body.position.y = -.8; s.add(body);
+      for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(.035, 6, 5), new THREE.MeshBasicMaterial({ color:0xe8d8e0 })); e.position.set(sx * .1, .04, .3); s.add(e); }
+      s.position.set(Math.cos(a) * r, y, Math.sin(a) * r); s.lookAt(0, y, 0); } }
+  if (t === 'CONFIDENCE') { const sp = add(new THREE.Mesh(new THREE.CylinderGeometry(1.6, 3.2, 11, 32, 1, true), new THREE.MeshBasicMaterial({ color:0xfff0c0, transparent:true, opacity:.14, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending }))); sp.position.set(0, 5.6, .2);
+    disc(3.1, 0xfff4d0, .35, .335); pts(80, 0xfff0c0, .05, .6, [2.5, .5, 8, 2.5, 2.5], 'drift', true); }
+  if (t === 'DISGUST') { for (let i = 0; i < 10; i++) { const p = disc(rnd(.3, .8), 0x5a6a20, .55, .33 + i * .0005); const a = rnd(0, 6.3), r = rnd(.5, 3.6); p.position.x = Math.cos(a) * r; p.position.z = Math.sin(a) * r; }
+    for (let k = 0; k < 8; k++) { const m = add(new THREE.Sprite(new THREE.SpriteMaterial({ map:fogTex, color:0x9aa858, transparent:true, opacity:.35, depthWrite:false }))); m.scale.set(5, 1.6, 1); m.position.set(rnd(-5, 5), .7, rnd(-4, 3)); m.userData.mist = rnd(0, 6); }
+    pts(70, 0x2a2a1a, .06, .9, [4, .4, 2.5, 4, 3], 'flies'); }
 }
-function undressField() { for (const o of (B && B.fieldFx) || []) { battleScene.remove(o); } }
-function fieldTick(dt) { for (const o of (B && B.fieldFx) || []) if (o.userData.rain) { const P = o.geometry.attributes.position; for (let i = 0; i < P.count; i++) { let y = P.getY(i) - dt * 7; if (y < .3) y = 8; P.setY(i, y); } P.needsUpdate = true; } }
+function undressField() {
+  for (const o of (B && B.fieldFx) || []) battleScene.remove(o);
+  const F = B && B.fieldSave; if (!F) return; battleScene.fog.color.copy(F.fog[0]); battleScene.fog.near = F.fog[1]; battleScene.fog.far = F.fog[2]; battleScene.background.copy(F.bg);
+  battleLights.sun.color.copy(F.sunC); battleLights.hemi.color.copy(F.hemiC); battleSky.material.uniforms.horizon.value.copy(F.sky[0]); battleSky.material.uniforms.top.value.copy(F.sky[1]); arena.rotation.copy(F.arenaRot);
+}
+function fieldTick(dt) {
+  if (!B || !B.fieldFx) return; const T = performance.now() / 1000;
+  if (B.tilt) { arena.rotation.x = Math.sin(T * .5) * .035; arena.rotation.z = Math.sin(T * .37) * .035; }   // the Shifting arena rocks, slowly
+  for (const o of B.fieldFx) { const d = o.userData;
+    if (d.rain) { const P = o.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { let y = P.getY(i) - dt * 9; if (y < .3) y += 10; P.setY(i, y); P.setY(i + 1, y - .45); } P.needsUpdate = true; }
+    else if (d.embers) { const P = o.geometry.attributes.position; for (let i = 0; i < P.count; i++) { let y = P.getY(i) + dt * (.6 + (i % 5) * .15); if (y > 6) y = .3; P.setY(i, y); P.setX(i, P.getX(i) + Math.sin(T + i) * dt * .1); } P.needsUpdate = true; }
+    else if (d.drift || d.flies) { const P = o.geometry.attributes.position, k = d.flies ? 1.2 : .15; for (let i = 0; i < P.count; i++) { P.setX(i, P.getX(i) + Math.sin(T * (d.flies ? 3 : .5) + i * 1.7) * dt * k); P.setY(i, P.getY(i) + Math.cos(T * (d.flies ? 2.6 : .4) + i) * dt * k * .6); } P.needsUpdate = true; }
+    else if (d.ripple != null) { const k = ((T * (d.big ? .25 : .7) + d.ripple) % 1); o.scale.setScalar(.4 + k * (d.big ? 6 : 3)); o.material.opacity = (1 - k) * .5; }
+    else if (d.spin) { o.rotation.y += dt * d.spin; o.rotation.x += dt * d.spin * .5; o.position.y += Math.sin(T + d.spin * 9) * dt * .15; }
+    else if (d.mist != null) { o.position.x += Math.sin(T * .2 + d.mist) * dt * .2; o.material.opacity = .28 + Math.sin(T * .3 + d.mist) * .06; } }
+}
 // once a turn, before anyone acts
 async function fieldTurn() {
   const f = B && !B.final ? typeOf(B.foe) : null; if (!f || B.turn < 2) return; const K = fieldK();
