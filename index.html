@@ -8456,12 +8456,50 @@ const DND_SEAT = { morwen:[3, 2, 'down'], saffi:[5, 4, 'left'], lio:[5, 5, 'left
 const DND_HIDE = [5, 3, 'left'];          // tucked in between Morwen and Saffi, half behind them
 // Tam's character is a cop in the campaign (an artificer in the city watch), not a troublemaker.
 // Lio doesn't play: he's there because his mum and dad are.
+// What they talk about at the table: only what's happening in the campaign, never who they're playing.
+// A plain string is that person's own line; a list of [who, line] pairs is a little exchange round the table.
 const DND_FUN = {
-  morwen:['The cave mouth yawns before you. Roll perception. No, Brand, you can\'t seduce the cave.', 'I spent three weeks on this dungeon and you went round it. Round it. Like a puddle.', 'Lio, sweetie, those are my dice. You can be in charge of the snack bowl. That\'s a very important job.'],
-  saffi:['I rolled a one. On a stealth check. In a library. I sneezed on the lich.', 'My ranger has a wolf companion. The wolf has better stats than me, honestly.', 'Lio\'s not playing, he\'s supervising. He\'s very strict about snack breaks.'],
-  brand:['I cast Smite. On the door. The door was the boss, I\'m telling you, it had a face!', 'My oath says protect the innocent. Tam\'s badge says the same thing, just with more paperwork.', 'Paladin rule one: if it\'s on fire, I\'m probably fine. Rule two: Tam will still write me a ticket for it.'],
-  tam:['Artificer, city watch. I built my own badge. It lights up. It does not need to light up.', 'I have to read the mimic its rights first. It\'s procedure. Yes, even the chest.', 'Brand, that\'s the third door you\'ve smitten tonight without a warrant.'],
-  lio:['I\'m not playing. I\'m watching. Watching is a job.', 'I\'m allowed to stay up till the boss fight. It\'s a rule. Mum said.', 'Rawr. That\'s dragon for hello. It\'s also dragon for I want a biscuit.']
+  morwen:[
+    'Okay. You\'re back at the edge of the swamp. It smells exactly how you remember. Tam, put your hand down, you can\'t opt out of the swamp.',
+    'The note on the altar is written in an old, looping cursive. Brand, you can ask for help. Brand. Brand, you\'ve been squinting at it for ten minutes.',
+    'Quick recap. The boss is dead, the vault is open, the library is still standing, and I would like it to stay that way.',
+    [['Morwen', 'You find a little brown mushroom growing out of a skull. Nobody is going to—'], ['Brand', 'I eat it.'], ['Morwen', 'Of course you do. Roll a constitution save.'], ['Brand', '...Is a four good?'], ['Morwen', 'You see yourself from behind. Then you see yourself from the side. Then you hit yourself with a stick.']],
+    'Reminder that you all walked straight past Dana. She was tied to a post. She was waving. She had a sign.',
+    'The shopkeeper swears the tea set is hand-carved. Roll insight. ...It has a sticker on the bottom.',
+    'The owl got his cape. He has not stopped posing in it. He looks at every window he passes.',
+    'The sludge golem bursts. Everyone in a ten-foot radius is now covered in it. Yes, Tam, that includes you. Especially you.',
+  ],
+  saffi:[
+    [['Saffi', 'Okay, hear me out. We burn the library.'], ['Tam', 'We are not burning the library.'], ['Saffi', 'It\'s full of evil books!'], ['Tam', 'It\'s full of the evidence we need. And the librarian. Who is alive. And nice.'], ['Saffi', '...Fine. But I\'m keeping a match in my hand.']],
+    [['Saffi', 'What if we burned just the restricted section?'], ['Tam', 'The restricted section is the load-bearing section, Saffi.'], ['Saffi', 'So it\'d go faster.'], ['Tam', 'No.']],
+    'Atomic glitter bomb. Right in the middle of them. I don\'t care that it\'s a support spell, it\'s my weapon now.',
+    'I know the egg is rotten. That\'s the point. It\'s a grenade now. A smell grenade. Tam, stop making that face.',
+    [['Morwen', 'So. The boss is down. What\'s your next move?'], ['Saffi', 'Burn it to the ground.'], ['Morwen', 'The whole castle?'], ['Saffi', 'The whole castle.'], ['Brand', 'I\'m in.'], ['Lio', 'Me too!'], ['Saffi', '(Saffi is beaming.) Everybody agreed. Nobody ever agrees. This is the best night of my life.']],
+    'Did we ever go back for Dana? ...We didn\'t go back for Dana, did we.',
+    'I glitter-bombed the throne room. There will be glitter in that castle for three hundred years. Archaeologists will find it.',
+  ],
+  brand:[
+    'Hang on. I can read this. It says... "Beware the... loopy... L." That\'s an L. That\'s definitely an L. Nobody help me.',
+    'Morwen, why is every important letter in this campaign written in cursive. Is it a curse? Is that where the word comes from?',
+    'The egg hatched! Oh. Oh no. It\'s not... it\'s not moving. It\'s been in my backpack since spring, hasn\'t it.',
+    [['Brand', 'My egg finally hatched.'], ['Morwen', 'It\'s been dead for months, Brand. It\'s been rotting in your backpack.'], ['Brand', '...'], ['Saffi', 'Can I have it?'], ['Tam', 'Absolutely not.'], ['Saffi', 'For science.'], ['Tam', 'It is NOT for science.']],
+    'I ate the mystery mushroom. I would do it again. I saw three of me and one of them owed me money.',
+    'We rescued everybody! Well. Everybody except Dana. Dana\'s fine. Dana\'s probably fine.',
+  ],
+  tam:[
+    'Not the swamp. Anything but the swamp. I just got the smell out of my boots.',
+    [['Tam', 'Why does every road on this map go through the swamp.'], ['Morwen', 'It\'s a very central swamp.'], ['Tam', 'I hate it here.']],
+    [['Saffi', 'I\'ve got the rotten egg in a sling. On three.'], ['Tam', 'Do NOT throw the egg in an enclosed space.'], ['Saffi', 'Three!'], ['Tam', 'That was ONE.'], ['Morwen', 'Everybody roll constitution. Except Saffi. Saffi\'s fine. Saffi\'s used to it.']],
+    'For the record, I said no to the library, I said no to the castle, and I said no to the egg. I\'d like that written down somewhere.',
+    'We have the evidence. We have the key. We have a plan. Can we please, for once, just follow the plan.',
+    'Still covered in sludge. It\'s in my ears. I can hear it.',
+  ],
+  lio:[
+    'Is it the boss fight yet? Mum said I can stay up for the boss fight.',
+    'I\'m on snack duty. Brand already had four. I\'m writing it down.',
+    'Did anyone go back for Dana? Somebody should go back for Dana.',
+    'I want Saffi to burn something. Just a small thing. A little bit.',
+  ]
 };
 const DND_ROAST = {
   morwen:'Oh look, it\'s the plot twist nobody asked for. You\'re lucky my campaign has redemption arcs.',
@@ -8490,7 +8528,8 @@ async function dndTalk(k) {
     await say('(Morwen gives you a spiral fossil, coiled like a staircase. It\'s warm from the table lamp.)'); S.items.hearth = (S.items.hearth || 0) + 1; return; }
   if (k === 'lio' && !S.flags.dndEgg) { S.flags.dndEgg = 1; S.items.lioEgg = 1; S.flags.eggStart = S.steps; await sayAs(n, 'This is my egg. It\'s a dragon egg. It might be a dragon. It might be anything. There\'s only one. You have to keep it in your bag and take it on a really, REALLY long walk, and then it hatches. Like three thousand steps. I counted.');
     await say('(Lio puts a speckled egg in your hands, very carefully, with both of his. It is the size of a fist and faintly humming. You tuck it into your Bag.)'); return; }
-  const deck = DND_FUN[k], i = (S.flags['dndLine_' + k] || 0); S.flags['dndLine_' + k] = i + 1; return sayAs(n, deck[i % deck.length]);
+  const deck = DND_FUN[k], i = (S.flags['dndLine_' + k] || 0); S.flags['dndLine_' + k] = i + 1; const L = deck[i % deck.length];
+  if (typeof L === 'string') return sayAs(n, L); for (const [who, t] of L) await sayAs(who, t);
 }
 async function dndGoodbye() { return sayAs('Morwen', 'Sorry, we\'re mid-session. Could you head out?'); }
 // ---------------------------------------------------------------- choreography
@@ -9362,10 +9401,10 @@ async function ashlynnTender() {
 // ---------------------------------------------------------------- The Dragon's Table (Mary, Shannon, Blaine, Tony, Liam)
 // Good people at the core: a hurting guest gets pulled up a chair, not shown the door.
 const DND_TENDER = {
-  morwen:{ SADNESS:'You don\'t have to play. You can be the tavern NPC tonight. The tavern NPC just gets snacks and listens.', FEAR:'Nothing in this room rolls initiative unless I say so. And I\'m saying no.', SHAME:'Every single person at this table has done something truly stupid. Tam once arrested a door.' },
-  saffi:{ SADNESS:'Here, sit by me. Take the good chair. Lio, baby, get them a cookie.', FEAR:'Hey. Look at me. You\'re safe here. I\'ve got a bow and a very large tail.', SHAME:'Oh, honey. Whatever it is, it isn\'t the end of your story. I\'ve read your story. Well. I haven\'t. But I can tell.' },
-  brand:{ SADNESS:'Oath of Devotion, clause one: nobody sits sad at my table. Clause two: snacks.', FEAR:'I am literally on fire. Nothing is getting past me. Stand behind the fire guy.', SHAME:'I smote a door tonight. Twice. We\'re all just doing our best here.' },
-  tam:{ SADNESS:'I made a thing. It\'s a lamp. It doesn\'t do anything else, it\'s just warm. Here. Keep it.', FEAR:'Anyone bothering you? Give me a name. I\'m on duty. Sort of. I\'m always sort of on duty.', SHAME:'In the watch we\'ve got a saying: you\'re not what you did, you\'re what you do next.' },
+  morwen:{ SADNESS:'You don\'t have to play. Sit in. We\'re just about to go back to the swamp, and honestly, watching Tam suffer is half the fun.', FEAR:'Nothing in this room rolls initiative unless I say so. And I\'m saying no. Tonight is a shopping episode.', SHAME:'Every single person at this table walked straight past a woman tied to a post. Dana. Her name was Dana. You\'re fine.' },
+  saffi:{ SADNESS:'Here, sit by me. Take the good chair. Lio, baby, get them a cookie.', FEAR:'Hey. Look at me. You\'re safe here. If anything comes through that door, it gets the atomic glitter bomb.', SHAME:'Oh, honey. I tried to burn down a library tonight. Twice. Whatever you did, you\'re in good company.' },
+  brand:{ SADNESS:'Sit down, sit down. You can help me read this letter. It\'s in cursive. I need all the help I can get. Don\'t tell the others I said that.', FEAR:'Nothing gets past this table. We beat the boss tonight. We can take whatever\'s bothering you.', SHAME:'I hatched an egg that had been dead since spring. In front of everyone. We\'re all just doing our best here.' },
+  tam:{ SADNESS:'I made a thing. It\'s a lamp. It doesn\'t do anything else, it\'s just warm. Here. Keep it.', FEAR:'Anyone bothering you? Give me a name. I\'ll put it in my notes, right under "do not go back to the swamp".', SHAME:'Tonight I was hit by a rotten egg I specifically said not to throw. You\'re not what happened to you. You\'re what you do next.' },
   lio:{ SADNESS:'(Lio climbs down and puts his d20 in your hand.) You can hold it. It\'s lucky. It only rolls ones for me, but it might work for you.', FEAR:'Dragons aren\'t scared of anything. I\'m part dragon. I\'ll stand here.', SHAME:'Mum says everybody does dumb stuff. I put a bean in my ear once. A big one.' }
 };
 async function dndTender(k) {
