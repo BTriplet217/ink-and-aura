@@ -1859,7 +1859,7 @@ function buildPerson(L) {
   const coat = L.coat || '#777', legsC = L.legs || '#2c221c', boot = L.boot || '#3a2a20', sleeve = L.sleeve || coat, skin = L.skin || '#e0b48a';
   const add = (geo, c, pos, o = {}) => { const m = part(geo, c, pos, o); if (o.rot) m.rotation.set(...o.rot); if (o.sc) m.scale.set(...o.sc); (o.to || inner).add(m); return m; };
   // legs (hip pivots at y .46)
-  const legs = [], baggy = L.baggy ? 1.45 : 1;
+  const legs = [], baggy = L.baggy ? (typeof L.baggy === 'number' ? L.baggy : 1.45) : 1;
   for (const sx of [-1, 1]) { const hip = new THREE.Group(); hip.position.set(sx * B.hip * .55, .46, 0); inner.add(hip); legs.push(hip);
     if (L.shorts) { add(new THREE.CylinderGeometry(B.leg * 1.25, B.leg * 1.2, .12, 12), legsC, [0, -.06, 0], { to:hip, ink:1.1 }); add(new THREE.CylinderGeometry(B.leg * .92, B.leg * .9, .15, 12), skin, [0, -.18, 0], { to:hip, ink:1.1 }); }
     else add(new THREE.CylinderGeometry(B.leg * baggy, B.leg * .9 * baggy, .26, 12), legsC, [0, -.13, 0], { to:hip, ink:1.1 });
@@ -3643,8 +3643,8 @@ const KITS = (() => {
     // ── SAFFI: brass dragonborn ranger. Gold scales, jaw fins, curly hair pinned up, round glasses, a big green scarf, leafy shoulder ruffles
     //    over tie-dye, sash and belts with pouches and beads, a quiver of green-fletched arrows, flowered baggy trousers bound at the shin.
     saffi(K) { const B = K.B, grn = '#3f8f6a', grnD = '#2e6e52', gold = '#d8a840';
-      scarf(K, grn, .125, .06, .825); K.add(Box(.09, .2, .025), grnD, [-.07, .72, K.rAt(.72) + .04], { rot:[.1, 0, .25] });
-      for (const sx of [-1, 1]) { for (let i = 0; i < 6; i++) { const a = -1 + i * .4; K.add(Cone(.035, .11, 4), ['#6ab06a', '#c8c84a', '#4a9a8a', '#8ac86a'][i % 4], [sx * (B.sh + .03 + Math.abs(Math.cos(a)) * .03), .78 - Math.abs(a) * .02, Math.sin(a) * .1], { rot:[PI + Math.sin(a) * .5, 0, sx * .9], sc:[1.3, 1, .35], ink:0 }); }   // leafy ruffles at each shoulder
+      scarf(K, grn, .11, .05, .825); K.add(Box(.09, .2, .025), grnD, [-.07, .72, K.rAt(.72) + .04], { rot:[.1, 0, .25] });
+      for (const sx of [-1, 1]) { for (let i = 0; i < 6; i++) { const a = -1 + i * .4; K.add(Cone(.035, .11, 4), ['#6ab06a', '#c8c84a', '#4a9a8a', '#8ac86a'][i % 4], [sx * (B.sh + .005 + Math.abs(Math.cos(a)) * .015), .78 - Math.abs(a) * .02, Math.sin(a) * .1], { rot:[PI + Math.sin(a) * .5, 0, sx * .7], sc:[1, .85, .3], ink:0 }); }   // leafy ruffles at each shoulder
         K.add(Cone(.022, .07, 4), gold, [sx * .15, .9, .04], { rot:[0, 0, sx * -1.9], sc:[1, 1, .4] }); K.add(Cone(.018, .05, 4), gold, [sx * .14, .87, .06], { rot:[0, 0, sx * -2.2], sc:[1, 1, .4] }); }                               // fins along the jaw
       for (const [x, y] of [[.04, 1.04], [-.04, 1.04], [0, 1.0], [.1, .96], [-.1, .96], [.06, .9], [-.06, .9]]) K.add(Sph(.016, 6, 5), '#c0902e', [x, y, Math.sqrt(Math.max(.001, .0256 - x * x)) * .92], { sc:[1, 1, .35], ink:0 });      // scale pattern on the brow and cheeks
       belt(K, .56, '#a8582a', 0, .04); belt(K, .52, grn, 0, .05); belt(K, .47, LEA, .1, .036);
@@ -8437,8 +8437,8 @@ const DND_LOOK = {
   morwen:{ kit:'morwen', face:'content', coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#4a3826', skin:'#8a8cc8', hair:'#7e6c5c', brow:'#5e4e40', iris:'#3ac0b0',
     hairStyle:'long', build:'avg', pose:'open', gear:['ears', 'glasses'] },
   // Shannon: brass dragonborn ranger. Gold scales, snout, curly brown hair up, glasses, teal scarf, tie-dye top and baggy trousers, tail. A dragon's muzzle and swept horns (no bow).
-  saffi:{ kit:'saffi', face:'content', coat:'#7ab0a0', tiedye:['#8ad07a', '#3aa89a', '#4a8ad0', '#e8d04a', '#8a7ad0', '#58b878'], sleeve:'#6ab89a', legs:'#3e6268', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
-    accent:'#3a8a7a', build:'heavy', gear:['glasses', 'bun', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a', hornC:'#f0dca0' },
+  saffi:{ kit:'saffi', face:'content', coat:'#7ab0a0', tiedye:['#8ad07a', '#3aa89a', '#4a8ad0', '#e8d04a', '#8a7ad0', '#58b878'], sleeve:'#6ab89a', legs:'#3e6268', baggy:1.12, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
+    accent:'#3a8a7a', build:'avg', gear:['glasses', 'bun', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a', hornC:'#f0dca0' },
   // Liam: dragonborn/human kid. Tousled brown hair, little horns, pointed ears, teal scarf, grey-green tunic, satchel.
   lio:{ kit:'lio', face:'content', coat:'#a8b8a8', sleeve:'#b4c2b0', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', iris:'#8a6a3a', hairStyle:'spiky', small:true,
     gear:['horns', 'ears'], hornC:'#d8c8a0' },
