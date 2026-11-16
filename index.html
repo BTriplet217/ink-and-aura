@@ -8498,13 +8498,13 @@ const DND_FUN = {
 };
 const DND_ROAST = {
   morwen:'Oh look, it\'s the plot twist nobody asked for. You\'re lucky my campaign has redemption arcs.',
-  saffi:'Last time you were here I had to put my kid behind me. I\'ve got my eye on you, and my eye has advantage.',
+  saffi:'Last time you were here I had to put my kid behind me. I\'ve got my eye on you, and my eye doesn\'t miss.',
   brand:'Hey, it\'s the guy we threw out! Good to see you on the right side of the door this time. Ha. HA.',
   tam:'Built a little alarm for the door after you. It plays "Positive Vibes Only" on a kazoo. You\'re welcome.'
 };
 // Real-people rule: anyone based on a real person is marked real:true. They never die or go numb; in the ruin they have left.
 function dndPeople() {
-  if (S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the empty table, held down with a d20.) "Packed up the campaign and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Don\'t wait up. Session\'s paused, not cancelled. — M."') }];
+  if (S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the empty table, held down with a die.) "Packed up the campaign and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Don\'t wait up. Session\'s paused, not cancelled. — M."') }];
   const hide = S.flags.dndHide && !(S.flags.dndTrust >= 3);
   return ['morwen', 'saffi', 'lio', 'brand', 'tam'].map(k => { const [x, y, dir] = DND_POS[k] || (k === 'lio' && hide ? DND_HIDE : DND_SEAT[k]);
     return { id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => dndTalk(k) }; });
@@ -8516,7 +8516,7 @@ async function dndTalk(k) {
   if (s === 'light' && S.flags.dndKicked && !(S.flags['dndRoast_' + k]) && k !== 'lio') { S.flags['dndRoast_' + k] = 1; return sayAs(n, DND_ROAST[k]); }
   if (s === 'light' && k === 'lio' && S.flags.dndHide && !(S.flags.dndTrust >= 3)) {
     S.flags.dndTrust = (S.flags.dndTrust || 0) + 1;
-    if (S.flags.dndTrust < 3) return say(['(Lio peeks out from behind Saffi\'s tail, sees you, and ducks back.)', '(Lio peeks out again. He holds up a d20, very slowly, like a peace offering, then hides again.)'][S.flags.dndTrust - 1]);
+    if (S.flags.dndTrust < 3) return say(['(Lio peeks out from behind Saffi, sees you, and ducks back.)', '(Lio peeks out again. He holds up a big twenty-sided die, very slowly, like a peace offering, then hides again.)'][S.flags.dndTrust - 1]);
     await say('(Lio comes all the way out from behind his grown-ups. He looks at you for a long moment.)'); await sayAs('Lio', 'Okay. You\'re nice now. I can tell. Dragons can tell.');
   }
   if (k === 'morwen' && !S.flags.dndFossil) { S.flags.dndFossil = 1; await sayAs(n, 'Before you go: I use this as a mini for the ancient ammonite god. Long story. Campaign three. Here. It looks better on you.');
@@ -8571,7 +8571,7 @@ DOOR_GUARD[DND_ID] = async () => {
   if (lock && s !== 'light') { await say(lock === 'evil' ? '(Through the door, someone calls out: "Sorry, we\'re just a bunch of nerds that can\'t be bothered by your kind.")' : '(A hand-lettered sign is taped to the door: POSITIVE VIBES ONLY.)'); return false; }
   if (lock && s === 'light') { S.flags.dndLock = 0; S.flags.dndKicked = 1; }
   for (const k in DND_POS) delete DND_POS[k];
-  if (s === 'light') { return once('dndFirst') ? async () => { await sayAs('Morwen', 'Oh! A new player? Pull up a chair. We\'re fighting a mimic. Well. Tam\'s trying to arrest a mimic. It\'s going about as well as you\'d think.'); } : true; }
+  if (s === 'light') { return once('dndFirst') ? async () => { await sayAs('Morwen', 'Oh! A new player? Pull up a chair. You\'ve walked in at a good bit. They\'re back at the edge of the swamp, and Tam is refusing to go in. Again.'); } : true; }
   return s === 'shadow' ? dndThrowOut : dndAskLeave;
 };
 // Inside: Tam and Brand come round the table to you (you're just inside the door at 6,8), take an arm each, and walk you out.
@@ -8586,7 +8586,7 @@ async function dndAskLeave() {
   await sayAs('Morwen', 'Hey. Um. We\'re mid-session. Could you head out? Sorry. Vibes.');
   const c = await ask('Four grown-ups and a kid look at you over a table covered in dice.', ['Leave', 'Stay']);
   const [dx, dy] = DND_DOOR;
-  if (c !== 1) { await say('You back out the door. Behind you, someone rolls a d20 and the whole table groans.'); return toOutside(dx, dy + 1); }
+  if (c !== 1) { await say('You back out the door. Behind you, someone rolls the big die and the whole table groans.'); return toOutside(dx, dy + 1); }
   await sayAs('Brand', 'Okay. Okay okay okay. Tam?'); await sayAs('Tam', 'Yep.');
   await say('Tam and Brand get up and come round the table, very politely, like a pair of bouncers who are also apologising.');
   await grabAndWalk(false);
@@ -8669,10 +8669,10 @@ SET.blank = () => new THREE.Group();
 // The golden d20 in the middle of the map is the table's own die: anyone welcome at the table can roll it, once a visit.
 const dndWelcome = () => { const s = auraSide(); return s === 'light' || s === 'hurt'; };
 async function dndBoard() {
-  await say('(The campaign map: a cave mouth drawn in brown ink, five painted minis crowded round it, and a sixth mini off to one side that looks a lot like you. In the middle sits a big golden d20.)');
+  await say('(The campaign map: a cave mouth drawn in brown ink, five painted minis crowded round it, and a sixth mini off to one side that looks a lot like you. In the middle sits a big golden die.)');
   if (!dndWelcome()) return say('(Nobody offers you the die.)');
   if (S.flags.dndRolled === MAP_VISIT) return sayAs('Morwen', 'One roll per visit. Them\'s the rules. I made them up just now, but they\'re the rules.');
-  const c = await ask('Morwen: Go on. Roll the gold one. See what the cave thinks of you.', ['Roll the d20', 'Not yet']); if (c !== 0) return;
+  const c = await ask('Morwen: Go on. Roll the gold one. See what the cave thinks of you.', ['Roll the die', 'Not yet']); if (c !== 0) return;
   S.flags.dndRolled = MAP_VISIT; sfx('tick'); await say('(The golden die clatters across the map, bounces off the cave, and settles.)');
   const r = 1 + Math.floor(Math.random() * 20); await say(`(It lands on ${r}.)`);
   if (r === 20) { await sayAs('Brand', 'NAT TWENTY! NAT TWENTY!'); await say('(The whole table is on its feet. Lio is jumping. Tam is filming it on a little brass contraption.)');
@@ -8685,7 +8685,7 @@ async function dndBoard() {
 const DND_CORK = ['(A corkboard between the shelves, labelled THE WALL OF FALLEN CHARACTERS in Morwen\'s handwriting. Index cards are pinned all over it.)',
   '"SIR REGINALD BOLT, paladin. Smote a dragon. Was not a dragon. Was his landlord." (In Brand\'s writing.)',
   '"GRIMBLE, bard. Talked a lich into retirement. Then talked it back out." (Saffi drew a little skull wearing sunglasses.)',
-  '"OFFICER PRATT, city watch. Tried to read a mimic its rights. The mimic did not have the right to remain silent." (Tam has underlined "procedure" three times.)',
+  '"OFFICER PRATT. Went into the swamp first, as a favour to Tam. Was not seen again." (Tam has written underneath: "This is why I don\'t go in the swamp.")',
   '"MR. SPARKLES, dragon. Was a horse with a hat." (In crayon. Very large. Lio\'s.)'];
 async function dndCork() { S.flags.dndCork = ((S.flags.dndCork || 0) % (DND_CORK.length - 1)) + 1; await say(DND_CORK[0]); await say(DND_CORK[S.flags.dndCork]); }
 async function dndPiano() { sfx('settle'); await say('(You press a key. It is badly out of tune in a way that sounds deliberate.)');
@@ -8700,9 +8700,9 @@ async function dndFort() { await say('(Blankets draped over two chairs, a string
   healAll(); await say('(You crawl in. It is ridiculously cosy. Lio hands you a cushion and tells you a long story about a dragon who was scared of the dark, so the other dragons made him a lamp.)');
   await say('(When you crawl back out, everything you carry is composed again.)'); }
 // the costume trunk: hats for every occasion, none of them for this one
-const DND_HATS = [['a wizard hat with a moon on it', 'Morwen', 'Ooh. Very arcane. You get advantage on looking mysterious.'], ['a paladin helmet three sizes too big', 'Brand', 'That\'s mine! It fits me fine. My head is very big. With courage.'],
-  ['a fake dragon tail on a belt', 'Saffi', 'Oh, I love that. Now we match. Swish it. No, more swish.'], ['a cardboard police badge', 'Tam', 'That\'s an unofficial badge, but I\'ll allow it. You\'re deputised. Don\'t arrest any doors.'],
-  ['a crown made of paper and glitter', 'Lio', 'That\'s my crown! ...You can borrow it. You have to give it back though. That\'s the law.']];
+const DND_HATS = [['a wizard hat with a moon on it', 'Morwen', 'Ooh. Very mysterious. Now you have to read the cursive letters for us.'], ['a dented helmet three sizes too big', 'Brand', 'That\'s mine! It fits me fine. I wore it into the swamp. Smell it. Actually, don\'t.'],
+  ['a cape with a little owl stitched on it', 'Saffi', 'The owl\'s cape! He\'ll be furious. Swish it. No, more swish.'], ['a pair of swamp waders', 'Tam', 'Those are mine and I am never wearing them again. You can have them. Please take them.'],
+  ['a crown made of paper and glitter', 'Lio', 'That\'s my crown! ...You can borrow it. It\'s got glitter-bomb glitter on it. It never comes off.']];
 async function dndTrunk() { await say('(A battered trunk with DRESS-UP stencilled on the lid. Inside: capes, hats, a lot of glitter.)');
   const h = DND_HATS[(S.flags.dndHat = ((S.flags.dndHat || 0) + 1) % DND_HATS.length)]; await say(`(You try on ${h[0]}.)`);
   if (dndWelcome()) await sayAs(h[1], h[2]); else await say('(Nobody comments. Somehow that\'s worse.)'); }
