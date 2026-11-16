@@ -1823,7 +1823,7 @@ const BUILDS = {
   heavy: { sh:.22, hip:.21, waist:.23, leg:.07, arm:.055, hy:.98 },
   tall:  { sh:.18, hip:.14, waist:.14, leg:.052, arm:.043, hy:1.14 }
 };
-const HAIRS = ['short', 'short', 'long', 'bob', 'curly', 'ponytail', 'spiky', 'bald'];
+const HAIRS = ['short', 'short', 'long', 'bob', 'curly', 'ponytail', 'spiky', 'short'];   // nobody is bald by chance (Brand is bald on purpose)
 // a spiral tie-dye print: bright bands swirling out from the middle of the chest, soft-edged where the dyes ran
 const TIEDYE = {};
 function tieDyeTex(cols) { const k = cols.join(); if (TIEDYE[k]) return TIEDYE[k];
@@ -1855,7 +1855,7 @@ function buildPerson(L) {
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const seed = personSeed(L), gear = (L.gear || []).slice();
   let build = L.build || (gear.includes('stout') ? 'heavy' : gear.includes('tall') ? 'tall' : ['slim', 'avg', 'avg', 'broad', 'heavy', 'avg', 'slim'][seed % 7]);
-  const B = BUILDS[build] || BUILDS.avg, hair = L.hairStyle || (gear.includes('bun') ? 'short' : HAIRS[(seed >> 3) % HAIRS.length]);
+  const B = BUILDS[build] || BUILDS.avg, hair = L.hairStyle || (gear.includes('bun') ? 'short' : HAIRS[(seed >>> 3) % HAIRS.length]);
   const coat = L.coat || '#777', legsC = L.legs || '#2c221c', boot = L.boot || '#3a2a20', sleeve = L.sleeve || coat, skin = L.skin || '#e0b48a';
   const add = (geo, c, pos, o = {}) => { const m = part(geo, c, pos, o); if (o.rot) m.rotation.set(...o.rot); if (o.sc) m.scale.set(...o.sc); (o.to || inner).add(m); return m; };
   // legs (hip pivots at y .46)
@@ -1886,10 +1886,10 @@ function buildPerson(L) {
   { const dk = new THREE.Color(coat).multiplyScalar(.6).getStyle(), lt = new THREE.Color(coat).lerp(new THREE.Color('#fff3d6'), .35).getStyle(), metal = (seed % 3) ? '#c9a24a' : '#a8a8b0';
     if (!L.noBelt) { add(new THREE.BoxGeometry(.06, .045, .02), metal, [0, .53, B.waist + .008]);
     add(new THREE.BoxGeometry(.03, .022, .022), new THREE.Color(L.sash || coat).multiplyScalar(.45).getStyle(), [0, .53, B.waist + .012]); }
-    if (!L.pattern && !gear.includes('apron') && !gear.includes('armor')) for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.012, 6, 5), (seed >> 2) % 2 ? lt : metal, [0, .6 + i * .07, B.waist + (B.sh * .92 - B.waist) * (.1 + i * .33) + .012]);
+    if (!L.pattern && !gear.includes('apron') && !gear.includes('armor')) for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.012, 6, 5), (seed >>> 2) % 2 ? lt : metal, [0, .6 + i * .07, B.waist + (B.sh * .92 - B.waist) * (.1 + i * .33) + .012]);
     add(new THREE.BoxGeometry(.006, .26, .006), dk, [0, .67, B.waist + (B.sh * .92 - B.waist) * .5 + .006]);
     add(new THREE.CylinderGeometry(B.waist + .006, B.waist + .008, .02, 16), dk, [0, .565, 0]);
-    if (!L.noBelt && !gear.includes('satchel') && !gear.includes('toolbelt') && (seed >> 4) % 2) { add(new THREE.BoxGeometry(.08, .07, .05), '#6b4528', [B.waist * .75, .5, B.waist * .55], { rot:[0, -.7, 0] }); add(new THREE.BoxGeometry(.085, .025, .055), '#4a2e1a', [B.waist * .75, .54, B.waist * .55], { rot:[0, -.7, 0] }); }
+    if (!L.noBelt && !gear.includes('satchel') && !gear.includes('toolbelt') && (seed >>> 4) % 2) { add(new THREE.BoxGeometry(.08, .07, .05), '#6b4528', [B.waist * .75, .5, B.waist * .55], { rot:[0, -.7, 0] }); add(new THREE.BoxGeometry(.085, .025, .055), '#4a2e1a', [B.waist * .75, .54, B.waist * .55], { rot:[0, -.7, 0] }); }
     if (!gear.includes('ears')) for (const sx of [-1, 1]) add(new THREE.SphereGeometry(.03, 8, 6), skin, [sx * .158, .955, -.005], { sc:[.5, 1, .8] });
   }
   // arms (shoulder pivots); pose: idle | open (palms out) | hold (right hand forward, holding something)
@@ -1914,7 +1914,7 @@ function buildPerson(L) {
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
   const fm = (geo, mat, x, y, z, sc, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sc) m.scale.set(...sc); m.rotation.z = rz; inner.add(m); return m; };
   const eyeC = L.eyes ? new THREE.MeshBasicMaterial({ color:new THREE.Color(L.eyes) }) : blk, fs = L.face === 'content' ? 2 : L.face === 'neutral' ? 5 : seed % 5;   // face 2: level brows and a small smile; 5: level brows, straight mouth
-  const irisM = new THREE.MeshBasicMaterial({ color:L.iris || ['#6b4a2a', '#4a6a8a', '#5a7a4a', '#7a5a3a', '#55606e', '#3a2a1c', '#8a6a3a'][(seed >> 5) % 7] });
+  const irisM = new THREE.MeshBasicMaterial({ color:L.iris || ['#6b4a2a', '#4a6a8a', '#5a7a4a', '#7a5a3a', '#55606e', '#3a2a1c', '#8a6a3a'][(seed >>> 5) % 7] });
   for (const sx of [-1, 1]) { fm(new THREE.SphereGeometry(.022, 10, 8), wht, sx * .058, .962, .148, [1.05, .8, .4]); fm(new THREE.SphereGeometry(.014, 10, 8), eyeC, sx * .057, .961, .158, [.9, 1.15, .5]);
     if (!L.eyes) { fm(new THREE.SphereGeometry(.0175, 10, 8), irisM, sx * .057, .961, .1545, [.95, 1.15, .5]);   // a coloured iris round the pupil
       fm(new THREE.SphereGeometry(.005, 6, 5), wht, sx * .057 + .006, .968, .166); fm(new THREE.SphereGeometry(.0025, 5, 4), wht, sx * .057 - .005, .955, .166); }
@@ -1936,7 +1936,7 @@ function buildPerson(L) {
   else { fm(new THREE.SphereGeometry(.02, 8, 6), toon(new THREE.Color(skin).multiplyScalar(.85), { wash:2 }), 0, .93, .165, [.8, 1, .9]);
     if (fs === 5) fm(new THREE.BoxGeometry(.04, .006, .008), blk, 0, .895, .156); else fm(new THREE.TorusGeometry(.026, .006, 5, 12, Math.PI), blk, 0, .895 + (fs > 2 ? -.01 : .01), .152, null, fs > 2 ? 0 : Math.PI); }
   // hair
-  const hc = L.hair || '#3a2414', cap = (r = .176, cut = .5) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12, 0, Math.PI * 2, 0, Math.PI * cut), toon(hc)); m.position.set(0, HY + .015, -.02); m.rotation.x = -.42; inner.add(m); return m; };
+  const hc = L.hair || '#3a2414', cap = (r = .176, cut = .5) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12, 0, Math.PI * 2, 0, Math.PI * cut), toon(hc)); m.position.set(0, HY + .015, -.012); m.rotation.x = -.18; inner.add(m); return m; };   // sits forward enough to meet the fringe: no bare scalp between them
   if (hair === 'short' || hair === 'ponytail' || hair === 'bob' || hair === 'long') cap();
   if (hair === 'spiky') { cap(.172, .42); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; add(new THREE.ConeGeometry(.04, .11, 6), hc, [Math.cos(a) * .1, HY + .14, Math.sin(a) * .1 - .02], { rot:[Math.sin(a) * .5, 0, -Math.cos(a) * .5], ink:0 }); } }
   if (hair === 'curly') { cap(.168, .45); for (let i = 0; i < 5; i++) add(new THREE.SphereGeometry(.06, 8, 6), hc, [Math.cos(i * 1.26) * .05, HY + .16, Math.sin(i * 1.26) * .05 - .03], { ink:1.05 }); }   // fill the crown: no bald spot
@@ -1961,7 +1961,7 @@ function buildPerson(L) {
   // every head of hair gets a fringe of separate locks, a sheen where the light catches it, and darker hair underneath at the nape
   if (hair !== 'bald' && hair !== 'curlylong' && !gear.includes('hood') && !gear.includes('veil') && !gear.includes('flamehair') && !L.snout) {
     const hLt = new THREE.Color(hc).offsetHSL(0, .03, .1).getStyle(), hDk = new THREE.Color(hc).multiplyScalar(.7).getStyle(), hatted = L.hat || ['tophat', 'helmet', 'cap', 'bakerhat', 'bandana'].some(k => gear.includes(k));
-    if (hair !== 'curly') { const nL = 5, part0 = (seed >> 6) % 3 - 1;   // locks across the forehead, swept from the parting
+    if (hair !== 'curly') { const nL = 5, part0 = (seed >>> 6) % 3 - 1;   // locks across the forehead, swept from the parting
       for (let i = 0; i < nL; i++) { const u = (i - (nL - 1) / 2) / ((nL - 1) / 2), a = u * .95, len = .05 + .028 * (1 - Math.abs(u - part0 * .5)) + ((seed >> i) & 1) * .012;
         add(new THREE.ConeGeometry(.034, len * 2, 5), i % 2 ? hc : hLt, [Math.sin(a) * .15, HY + .105 - len * .55, Math.cos(a) * .135], { rot:[Math.PI - .32, 0, (u - part0 * .6) * .55], ink:0, sc:[1.25, 1, .5] }); } }
     if (!hatted) { const sheen = new THREE.Mesh(new THREE.TorusGeometry(.128, .011, 5, 22, Math.PI * .8), new THREE.MeshBasicMaterial({ color:hLt, transparent:true, opacity:.7 })); sheen.position.set(0, HY + .1, .0); sheen.rotation.set(Math.PI / 2 - .35, 0, Math.PI * .1); inner.add(sheen); }
@@ -1971,7 +1971,7 @@ function buildPerson(L) {
   // clothes in layers, the way the travellers and townsfolk in the paintings are dressed: lapels, a waistcoat, a neckerchief, a shawl, a hem.
   // Chosen per person and kept for good; people who are already dressed up (coats, aprons, armour, robes, patterns) keep their own look.
   if (!L.plain && !L.kit && !L.pattern && !L.tiedye && !L.snout && !['apron', 'armor', 'longcoat', 'poncho', 'cape', 'scarf', 'hood', 'veil'].some(k => gear.includes(k))) {
-    const cC = new THREE.Color(coat), dk = cC.clone().multiplyScalar(.58).getStyle(), lt = cC.clone().lerp(new THREE.Color('#fff3d6'), .4).getStyle(), acc = L.accent || cC.clone().offsetHSL(.45, -.05, .08).getStyle(), kind = (seed >> 7) % 5;
+    const cC = new THREE.Color(coat), dk = cC.clone().multiplyScalar(.58).getStyle(), lt = cC.clone().lerp(new THREE.Color('#fff3d6'), .4).getStyle(), acc = L.accent || cC.clone().offsetHSL(.45, -.05, .08).getStyle(), kind = (seed >>> 7) % 5;
     const rAt = y => B.waist + (B.sh * .92 - B.waist) * ((y - .52) / .3);
     if (kind === 0 || kind === 3) for (const sx of [-1, 1]) {   // lapels, and a shirt showing between them
       add(new THREE.BoxGeometry(.05, .17, .012), lt, [sx * .045, .72, rAt(.72) + .004], { rot:[.12, 0, sx * .32] }); if (sx > 0) add(new THREE.BoxGeometry(.05, .14, .008), '#efe6d0', [0, .74, rAt(.74) + .001], { rot:[.12, 0, 0] }); }
