@@ -10280,16 +10280,18 @@ function voiceLine(e, m, idx) {
     if (val == null) { console.warn('voice key', k); return ''; } val = String(val); return /^[A-Z]/.test(k) ? VB(val) : val; });
 }
 // Next of a person's five lines about the Manif they notice. Advances on each talk.
-let VOICED = null;
+// Who has already said something about your Manifs on this visit: once each, until you leave the place and come back.
+let VOICED = null; const VOICED_VISIT = { v:-1, set:new Set() };
+const voicedKey = e => { if (VOICED_VISIT.v !== MAP_VISIT) { VOICED_VISIT.v = MAP_VISIT; VOICED_VISIT.set.clear(); } return S.map + ':' + e.id; };
 function voiceNext(e, m) {
   S.voice = S.voice || { n:0, ids:{}, c:{} }; const ck = S.map + ':' + e.id + ':' + m.sp; const i = S.voice.c[ck] || 0; S.voice.c[ck] = (i + 1) % 5;
-  VOICED = S.map + ':' + e.id; return voiceLine(e, m, i);
+  VOICED = S.map + ':' + e.id; VOICED_VISIT.set.add(voicedKey(e)); return voiceLine(e, m, i);
 }
 const isPerson = e => e && !e.animal && !e.item && !e.note && !e.invisible && !e.body && !e.numb && !e.manif && !e.sign && !e.door && (e.look || e.model && e.name || e.real) && (e.name || isFolk(e));
 async function sayVoice(e, m) { m = m || (S.party.length ? noticedManif(e) : null); if (!m) return; await say(`${e.name || 'They'}: ${voiceNext(e, m)}`); }
 // After the aura talk: anyone who hasn't yet said something about your Manifs this time does.
 async function voicePreTalk(e) {
-  if (!isPerson(e) || VOICED === S.map + ':' + e.id) return;
+  if (!isPerson(e) || VOICED === S.map + ':' + e.id || VOICED_VISIT.set.has(voicedKey(e))) return;
   if (S.flags.doom && !S.flags.atoned && !e.real && farRoot(S.map) && !(S.flags.cfHeard || {})[S.map + e.id]) { (S.flags.cfHeard = S.flags.cfHeard || {})[S.map + e.id] = 1; VOICED = S.map + ':' + e.id; if (await chordFarLine(e)) return; }   // the far places heard the Chord (h18): once per person
   if (!S.party.length || S.flags.ruin || S.flags.doom && S.flags.hushDone) return;
   await sayVoice(e);
