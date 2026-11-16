@@ -641,7 +641,7 @@ const RESPONSES = [
 Object.assign(ITEMS, {
   salts:    { name:'Smelling Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
   hearth:   { name:'Heart Stone',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
-  charm:    { name:'Kindred Charm',  res:30, desc:'+30 Resonance with a wild Manif', price:140 },
+  charm:    { name:'Kindred Charm',  res:30, desc:'+30 Understanding with a wild Manif', price:140 },
   ember:    { name:'Ember Draught',  atk:2, desc:'Sharply raises one Manif\'s Force', price:110 },
   iron:     { name:'Iron Tea',       def:2, desc:'Sharply raises one Manif\'s Poise', price:110 },
   quill:    { name:'Insight Quill',  level:1, desc:'One Manif gains a level', price:600, field:true },
@@ -655,7 +655,7 @@ const ITEM_INFO = {
   tonic:'Restores all of one Manif\'s Composure. Use it in battle or from the Bag.',
   salts:'Brings back a Manif that was overwhelmed, with half its Composure. Use it in battle or from the Bag.',
   hearth:'Restores half the Composure of every Manif in your Chorus at once. Best saved for a hard battle.',
-  charm:'In a meeting with a wild Manif: +30 Resonance, so it\'s far likelier to stay with you. No use on a trainer\'s Manifs.',
+  charm:'In a meeting with a wild Manif: +30 Understanding. At 100% it settles on its own and will stay with you. No use on a trainer\'s Manifs.',
   ember:'In battle: sharply raises one Manif\'s Force (how hard its Expressions hit) for the rest of the meeting.',
   iron:'In battle: sharply raises one Manif\'s Poise (how well it takes a hit) for the rest of the meeting.',
   quill:'From the Bag: one Manif you choose gains a level straight away.',
@@ -5618,7 +5618,7 @@ const WREN_TOPICS = [
     'You don\'t hurt them. You wear them out of their feeling until it settles. Each one carries the echo of a real person, and it will tell you a little about them.']],
   ['battle', 'How meetings work', ['Up to three of your Manifs act each turn, using Expressions. Each feeling sits on the wheel. Feelings opposite each other hit twice as hard. Joy and Sadness, Hope and Fear, Calm and Anger, Confidence and Shame, Surprise and Disgust.',
     'Two neighbours on the wheel acting together can fuse into something stronger. Joy and Hope make Optimism, for instance.',
-    'Reach Out helps the other Manif feel heard. It builds Resonance, and the higher the Resonance, the more likely a Manif chooses to stay with you when it settles.']],
+    'Reach Out helps the other Manif feel heard. It builds Understanding. Fill it to 100% and the feeling settles on its own and will stay with you. When a feeling is nearly worn down, the memory of its person may surface: answer what they needed and it is understood on the spot.']],
   ['keep', 'Keeping and letting go', ['When a Manif settles, you can keep it or let it go. You can carry six. The rest wait in your Satchel, and you can swap them from the menu.',
     'Letting go isn\'t failing. Your Codex remembers everything you held and everything you put down.']],
   ['grow', 'Composure, Insight and growing', ['Composure is how much a Manif can take before it needs to rest. If every one you carry is spent, you\'ll wake up somewhere safe. There\'s no losing here.',
@@ -7189,14 +7189,14 @@ async function talkWrenCold() {
 Object.assign(ITEMS, {
   bloodink: { name:'Blood Ink',      custom:'bloodink', desc:'Force +3 for one Manif. It drinks a little of its own Composure', price:420, forbidden:true },
   needle:   { name:'Choir Needle',   custom:'needle',   desc:'Drains a quarter of the foe\'s Composure into one of yours', price:520, forbidden:true },
-  phial:    { name:'Hollow Phial',   custom:'phial',    desc:'Numbs a wild foe: intensity drops, Resonance +45', price:600, forbidden:true },
+  phial:    { name:'Hollow Phial',   custom:'phial',    desc:'Numbs a wild foe: intensity drops, Understanding +45', price:600, forbidden:true },
   ash:      { name:'Shard of Ash',   custom:'ash',      desc:'Brings back every overwhelmed Manif at full Composure', price:900, forbidden:true },
   marrow:   { name:'Marrow Wine',    custom:'marrow',   desc:'The whole Chorus: Force and Poise up', price:480, forbidden:true }
 });
 Object.assign(ITEM_INFO, {
   bloodink:'Ink cut with something that used to be inside a person. One Manif\'s Force rises sharply, and it loses a tenth of its Composure. Battle only.',
   needle:'A copper Choir needle, still sticky. Drains a quarter of the foe\'s Composure and pours it into one of your Manifs. Battle only. Not used on the Hush.',
-  phial:'The same grey phial the clinics use. A wild foe goes slack: its intensity drops a step and Resonance jumps by 45. Battle only. Wild Manifs only.',
+  phial:'The same grey phial the clinics use. A wild foe goes slack: its intensity drops a step and Understanding jumps by 45. Battle only. Wild Manifs only.',
   ash:'A sliver of the burned capital. Every overwhelmed Manif in your Chorus comes back at full Composure. Battle only.',
   marrow:'Wine with bone marrow stirred in. Your whole Chorus gains Force and Poise. Battle only.'
 });
@@ -11206,11 +11206,14 @@ async function reapFoes() {
   }
   const al = aliveFoes(); if (al.length && (!B.cur || B.cur.m.hp <= 0)) useFoe(al[0]); renderBHUD();
 }
-const keepChance = () => Math.round(clamp((B.opt.heart ? 10 : 20) + B.res * .8, 0, 100));
+// Two ways a meeting ends: wear the feeling down (intensity to nothing), or understand it (Understanding to 100%).
+// Understanding only ends a one-on-one meeting with a feeling; the Hush and a trainer's team of several have to be faced.
+const canUnderstand = () => B && !B.final && !B.group;
+const keepChance = () => B && B.understood ? 100 : Math.round(clamp((B.opt.heart ? 10 : 20) + B.res * .8, 0, 100));
 function renderBHUD() {
   const f = B.foe, li = ladderIdx(), fr = f.hp / B.foeMax, ft = typeOf(f);
   const lower = B.final ? `<div class="lbl"><span>Phase ${phaseOf()} of 3</span><span>${B.numb.size ? 'Numbing your Chorus' : ''}</span></div>`
-    : `<div class="lbl"><span>Resonance ${Math.round(B.res)}%</span><span>${B.opt.owner ? 'Bound to ' + B.opt.owner : 'Keep chance ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
+    : `<div class="lbl"><span>Understanding ${Math.round(B.res)}%${canUnderstand() ? ' · at 100% it settles' : ''}</span><span>${B.opt.owner ? 'Bound to ' + B.opt.owner : 'Keep chance ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
   $('#bhud').innerHTML = `<div class="top">${B.final ? `<span class="mi" style="background:#d8d4cc"></span>` : manifIcon(f)}<span class="nm">${B.final ? 'The Hush' : (B.opt.heart ? 'Heart · ' : B.opt.owner ? B.opt.owner + '\'s ' : 'Wild ') + nm(f)}</span>${B.final ? pill(ft) : pillsOf(f.sp)}<span class="lv">Lv ${f.lvl}</span></div>
     <div class="int">${f.hp <= 0 ? 'Settled' : B.final ? `Wearing ${TYPES[ft].name}` : SPECIES[f.sp].dyad ? `${TYPES[ft].name} + ${TYPES[SPECIES[f.sp].type2].name}` : TYPES[ft].ladder[li]} <small>${B.final ? 'it shifts' : 'intensity'}</small></div>
     <div class="bar"><i style="width:${fr * 100}%;background:${B.final ? '#f3efe6' : TYPES[ft].c}"></i></div>${lower}${B.group ? `<div class="grp">${B.group.map(g => `<span class="gc${g === B.cur ? ' on' : ''}${g.m.hp <= 0 ? ' down' : ''}"><em>${nm(g.m)}</em><b><i style="width:${Math.max(0, g.m.hp / g.max * 100)}%;background:${TYPES[typeOf(g.m)].c}"></i></b></span>`).join('')}${B.reserve.length ? `<span class="gc wait">+${B.reserve.length} waiting</span>` : ''}</div>` : ''}`;
@@ -11332,7 +11335,7 @@ async function battleTurn() {
     //   rows 1-2: four attack slots · row 3: support move, Reach Out · row 4: Guard, Item · row 5: Step away
     // Each move has its own slot from the whole list it will ever learn; a move not learned yet is a blank, inert slot.
     const SL = battleSlots(m), opts = SL.map(k => k && m.moves.includes(k) ? moveOption(m, k, acts) : { label:'—', sub:'', disabled:true });
-    opts.push({ label:'Reach Out', sub: B.final ? 'reach the person inside' : '+Resonance' }, { label:'Guard', sub:'halve damage' });
+    opts.push({ label:'Reach Out', sub: B.final ? 'reach the person inside' : '+Understanding' }, { label:'Guard', sub:'halve damage' });
     const its = BATTLE_ITEMS.filter(k => (S.items[k] || 0) > 0);
     opts.push({ label:'Item', sub: its.length ? `${its.length} kinds` : 'none', disabled:!its.length });
     opts.push(i > 0 ? { label:'← Back' } : { label:'Step away', sub: B.final ? 'no way back' : 'leave', disabled:B.final });
@@ -11373,8 +11376,11 @@ async function battleTurn() {
     else if (q.kind === 'reach') await doReach(q.m);
     else if (q.kind === 'guard') await say(`${nm(q.m)} braces itself.`);
     else if (q.kind === 'item') await useItem(q.m, q.item);
+    if (await understandCheck()) break;
   }
+  if (B.understood) return checkEnd();
   if (B.group) await reapFoes();
+  if (await understandCheck()) return checkEnd();
   if (!foeFirst && (B.group ? aliveFoes().length : B.foe.hp > 0)) await foePhase();
   if (B.final && B.phase === 3 && B.foe.hp > 0 && chorusActive().length) await foeAct();
   return checkEnd();
@@ -11527,6 +11533,30 @@ async function overwhelmed(m) {
   if (reserve) { B.chorus[i] = reserve; B.fought.add(reserve); B.models.delete(m); placeChorusModel(reserve, i); renderBHUD(); await say(`${nm(reserve)} steps into the Chorus.`); }
   else renderBHUD();
 }
+// ── Understanding a feeling instead of beating it ────────────────────────────────────────────────
+// Reach Out (and the Echo below) fill Understanding. At 100% the meeting ends: the feeling settles on its own, stays with you
+// for certain if you ask, pays a little more, and takes one sin off your record. And once, when a feeling is nearly worn down,
+// the memory of the person it came from surfaces: answer what they needed and it's understood on the spot.
+const ECHO_ASK = { stay:'Tell them they weren\'t alone in it', release:'Tell them they had every right to feel it', ahead:'Tell them it doesn\'t end there' };
+async function understandCheck() {
+  if (!canUnderstand() || B.understood || B.foe.hp <= 0) return !!B.understood;
+  if (B.res >= 100) { B.understood = 1; B.foe.hp = 0; renderBHUD(); return true; }
+  if (!B.echoDone && B.foe.hp / B.foeMax <= .3 && await echoTurn()) { B.understood = 1; B.foe.hp = 0; renderBHUD(); return true; }
+  return false;
+}
+async function echoTurn() {
+  B.echoDone = 1; const foe = B.foe, ft = typeOf(foe), E = echoesOf(foe);
+  sfx('reach'); pulseWedge(ft, 1.2);
+  await say(`(${cap(bname(foe))} flickers. For one moment you can see the person it came from, and what they were living through.)`);
+  const mem = E[2] || E[1] || E[0]; if (mem) await say(`${nm(foe)}: "${mem}"`);
+  let h = 0; for (const ch of foe.sp) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const order = RESPONSES.map((r, i) => RESPONSES[(i + h) % RESPONSES.length]);   // the right answer isn't always in the same place
+  const c = await choose(order.map(r => ({ label:ECHO_ASK[r.k] })), { cancel:false }), r = order[c];
+  await say(`You: ${r.say}`);
+  if (NEEDS[ft] === r.k) { floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ understood', 'heal'); B.res = 100; renderBHUD(); await say('The memory softens. Whoever they were, that was what they needed to hear.'); return true; }
+  B.res = Math.min(99, B.res + 10); renderBHUD(); floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +10', 'heal');
+  await say('The memory fades before you can find the right words. It heard you, though.'); return false;
+}
 async function checkEnd() {
   if (B.group) { await reapFoes(); if (!chorusActive().length) return 'blackout'; if (!aliveFoes().length && !B.reserve.length) { await say(`Every one of ${B.opt.owner}'s Manifs has settled.`); return 'won'; } return null; }
   if (B.foe.hp <= 0) {
@@ -11539,16 +11569,17 @@ async function checkEnd() {
       await gainXpAll([...B.fought].filter(m => m.hp > 0), B.foe);
       return 'won';
     }
-    await say(`${cap(bname(B.foe))} settles. Its storm goes quiet.`);
+    if (B.understood) { await banner('Understood', nm(B.foe)); await say(`${cap(bname(B.foe))} isn't fighting any more. It was never really trying to hurt anyone. It wanted someone to understand, and you did.`); if ((S.sins || 0) > 0) S.sins--; }
+    else await say(`${cap(bname(B.foe))} settles. Its storm goes quiet.`);
     await tween(500, k => { B.foeModel.position.y = FOE_POS.y - k * .5; B.foeModel.userData.mat.emissiveIntensity *= .97; });
     countSettle();
-    const marks = B.opt.heart ? 250 + B.foe.lvl * 10 : 6 + B.foe.lvl * 3; pay(marks);
+    const marks = Math.round((B.opt.heart ? 250 + B.foe.lvl * 10 : 6 + B.foe.lvl * 3) * (B.understood ? 1.5 : 1)); pay(marks);
     await say(`The settled feeling leaves a little glimmer behind. (+${marks} Marks)`);
     await gainXpAll([...B.fought].filter(m => m.hp > 0), B.foe);
-    if (B.opt.owner) { await say(`${nm(B.foe)} settles, and drifts back to ${B.opt.owner}.`); return 'won'; }
+    if (B.opt.owner) { await say(B.understood ? `${nm(B.foe)} goes back to ${B.opt.owner} quietly. ${B.opt.owner} looks at you differently now.` : `${nm(B.foe)} settles, and drifts back to ${B.opt.owner}.`); return 'won'; }
     const ch = keepChance(), t = typeOf(B.foe);
     await say(`${nm(B.foe)}: "${echoesOf(B.foe)[3]}"`);
-    const y = await ask(`The settled ${nm(B.foe)} hovers, waiting. Keep it?`, [{ label:'Keep it', sub: ch + '% chance' }, { label:'Let it go' }], { cancel:false });
+    const y = await ask(B.understood ? `${nm(B.foe)} hovers close to you. It trusts you. Keep it?` : `The settled ${nm(B.foe)} hovers, waiting. Keep it?`, [{ label:'Keep it', sub: B.understood ? 'it will stay' : ch + '% chance' }, { label:'Let it go' }], { cancel:false });
     if (y === 1) { S.declined.push(t); (S.declinedSp = S.declinedSp || []).push(B.foe.sp); sfx('release'); await say(`You let ${nm(B.foe)} drift back into the Welkin.`); return 'released'; }
     if (Math.random() * 100 >= ch) {
       await tween(700, k => { B.foeModel.position.y = FOE_POS.y - .5 + k * 5; B.foeModel.scale.multiplyScalar(.985); });
