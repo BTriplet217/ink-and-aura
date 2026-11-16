@@ -3635,12 +3635,10 @@ const KITS = (() => {
         K.add(Cyl(r * .95, r * .9, .05, 10), '#2a2630', [0, -.17, 0], { to:el }); K.add(Tor(r * 1.0, .006), '#c9a24a', [0, -.19, 0], { to:el, rot:[PI / 2, 0, 0] }); }                                                              // dark wrist wraps and a bangle
       belt(K, .545, vio, 0, .05); K.add(Box(.05, .3, .012), vio, [-.06, .38, B.waist + .05], { rot:[.1, 0, .06] }); K.add(Box(.04, .22, .012), vioD, [-.02, .4, B.waist + .055], { rot:[.1, 0, -.05] });   // violet sash, tails hanging
       belt(K, .5, LEA, .1, .03); belt(K, .47, LEAD, -.1, .026);
-      K.add(Box(.11, .14, .05), '#6a4a2a', [-.21, .42, .08], { rot:[0, -.5, .05], ink:1.05 }); K.add(Box(.115, .13, .012), '#d8c8a0', [-.21, .42, .055], { rot:[0, -.5, .05] }); K.add(Box(.03, .03, .012), BRASS, [-.19, .43, .115], { rot:[0, -.5, 0] });   // spellbook at the hip
-      for (const [x, c] of [[.1, '#b08ae0'], [.15, '#d8d0f0'], [.19, '#8a5ad0']]) { K.add(Box(.004, .06, .004), '#8a8498', [x, .43, B.waist + .03 - x * .2]); K.add(Cone(.012, .05, 5), c, [x, .385, B.waist + .03 - x * .2], { rot:[PI, 0, 0] }); const o = glow(c, .07, .6); o.position.set(x, .385, B.waist + .04 - x * .2); K.inner.add(o); }   // crystals on cords
       ragHem(K, .23, B.hip * 1.9, '#24202c', 12, .15, '#3a2a52'); ragHem(K, .34, B.hip * 1.55, '#2c2836', 9, .12, vioD);                                                       // the robe's pointed, layered hem
       for (let i = 0; i < 6; i++) { const a = i / 6 * PI * 2 + .5, r = B.hip * 1.55; const w = new THREE.Mesh(Tor(.035, .0025, PI * 1.6), new THREE.MeshBasicMaterial({ color:0x8a8498 })); w.position.set(Math.sin(a) * r, .33, Math.cos(a) * r); w.rotation.y = a; K.inner.add(w); }   // web embroidery
       bootCuff(K, '#5a4630', .08);
-      for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) K.add(Sph(.034 - i * .004, 8, 6), i % 2 ? '#e2c474' : '#d2b05c', [sx * (.15 + i * .012), .8 - i * .075, .07 - i * .012], { ink:0, sc:[1, 1.5, .9] });   // waves of hair falling in front of each shoulder
+      for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) K.add(Sph(.034 - i * .004, 8, 6), i % 2 ? '#8a7868' : '#76665a', [sx * (.15 + i * .012), .8 - i * .075, .07 - i * .012], { ink:0, sc:[1, 1.5, .9] });   // waves of hair falling in front of each shoulder
     },
     // ── SAFFI: brass dragonborn ranger. Gold scales, jaw fins, curly hair pinned up, round glasses, a big green scarf, leafy shoulder ruffles
     //    over tie-dye, sash and belts with pouches and beads, a quiver of green-fletched arrows, flowered baggy trousers bound at the shin.
@@ -3653,8 +3651,6 @@ const KITS = (() => {
       const R = B.waist + .045; pouch(K, Math.sin(-1) * R, Math.cos(-1) * R, .455, LEA); pouch(K, Math.sin(1.05) * R, Math.cos(1.05) * R, .455, LEAL, .9); pouch(K, Math.sin(1.7) * R, Math.cos(1.7) * R, .46, LEA, .8);
       for (let i = 0; i < 7; i++) K.add(Sph(.009, 6, 5), ['#4a9a8a', '#3a6ad0', '#e8d04a'][i % 3], [.05 + i * .004, .44 - i * .018, R + .005 - i * .003]);                                                                                // a string of beads
       K.add(Cyl(B.waist + .02, B.hip * 1.25, .14, 14, true), '#8ac0a0', [0, .43, 0], { mo:DS, ink:0 }); ragHem(K, .37, B.hip * 1.22, '#c8d06a', 8, .1, '#6ab0a0');                                                                         // ragged tunic hem
-      K.add(Cyl(.06, .05, .38, 10), '#6b4528', [.1, .7, -B.sh * .85], { rot:[.1, 0, -.4], ink:1.05 }); K.add(Cyl(.064, .064, .03, 10), grn, [.14, .84, -B.sh * .87], { rot:[.1, 0, -.4] });
-      for (const k of [0, 1, 2, 3]) { K.add(Cyl(.005, .005, .14, 5), '#7a5a36', [.17 + k * .014, .93, -B.sh * .88 - (k % 2) * .02], { rot:[.1, 0, -.4] }); K.add(Cone(.02, .07, 4), k % 2 ? '#5a9a4a' : '#7ab85a', [.195 + k * .014, .99, -B.sh * .88 - (k % 2) * .02], { rot:[.1, 0, -.4], sc:[1, 1, .3] }); }   // quiver, green fletching
       strap(K, -.6, LEA, .03);
       for (const hip of K.legs) { const kn = hip.userData.knee, r = B.leg; for (const [dx, dz, c] of [[.6, .9, '#e8a83a'], [-.7, .6, '#d86a8a'], [.2, -1, '#e8d04a'], [-.3, 1.05, '#8a7ad0']]) K.add(Sph(.016, 6, 5), c, [dx * r * 1.4, -.1 - Math.abs(dx) * .06, dz * r * 1.4], { to:hip, sc:[1, 1, .4], ink:0 });   // flowers on the trousers
         K.add(Cyl(r * 1.22, r * 1.15, .07, 10), grn, [0, -.04, 0], { to:kn, ink:1.05 }); for (let i = 0; i < 4; i++) K.add(Cone(.02, .05, 4), grnD, [Math.sin(i * 1.57) * r * 1.2, -.09, Math.cos(i * 1.57) * r * 1.2], { to:kn, rot:[PI, 0, 0], sc:[1, 1, .4], ink:0 }); }   // green wraps at the shin
@@ -8438,20 +8434,20 @@ const DND_DOOR = (() => { const P = MAPS[TOWNS.JOY.id]; const k = Object.keys(P.
 // Built from Blaine's character art.
 const DND_LOOK = {
   // Mary: drow sorcerer. Lavender-blue skin, long blonde hair, pointed ears, thin glasses, black layered robe, purple sash, arms open.
-  morwen:{ kit:'morwen', coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#4a3826', skin:'#8a8cc8', hair:'#d6b566', brow:'#a88a48', iris:'#3ac0b0',
+  morwen:{ kit:'morwen', coat:'#1e1a24', sleeve:'#1e1a24', accent:'#3a2a4a', sash:'#6a3a9a', skirt:'#24202c', legs:'#2a2630', boot:'#4a3826', skin:'#8a8cc8', hair:'#7e6c5c', brow:'#5e4e40', iris:'#3ac0b0',
     hairStyle:'long', build:'avg', pose:'open', gear:['ears', 'glasses'] },
   // Shannon: brass dragonborn ranger. Gold scales, snout, curly brown hair up, glasses, teal scarf, tie-dye top and baggy trousers, tail. A dragon's muzzle and swept horns (no bow).
   saffi:{ kit:'saffi', coat:'#7ab0a0', tiedye:['#8ad07a', '#3aa89a', '#4a8ad0', '#e8d04a', '#8a7ad0', '#58b878'], sleeve:'#6ab89a', legs:'#3e6268', baggy:true, boot:'#5a3a20', skin:'#d8a840', hair:'#6a3a1e', hairStyle:'curly', snout:true,
     accent:'#3a8a7a', build:'heavy', gear:['glasses', 'bun', 'tail', 'scales'], tailC:'#d8a840', scaleC:'#b8882a', hornC:'#f0dca0' },
   // Liam: dragonborn/human kid. Tousled brown hair, little horns, pointed ears, teal scarf, grey-green tunic, satchel.
-  lio:{ kit:'lio', coat:'#a8b8a8', sleeve:'#b4c2b0', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', iris:'#8a6a3a', hairStyle:'spiky', small:true, pose:'hold', orb:'#4aa8ff',
-    gear:['horns', 'ears', 'satchel', 'gadget'], hornC:'#d8c8a0' },
+  lio:{ kit:'lio', coat:'#a8b8a8', sleeve:'#b4c2b0', accent:'#3a7a7a', legs:'#3a2e26', boot:'#5a3a20', skin:'#f0caa6', hair:'#6a4020', iris:'#8a6a3a', hairStyle:'spiky', small:true,
+    gear:['horns', 'ears'], hornC:'#d8c8a0' },
   // Blaine: fire genasi paladin. Big, bald, dark beard, glowing ember eyes, black plate with cracks of fire.
   brand:{ kit:'brand', coat:'#2a2624', sleeve:'#2a2624', accent:'#1e1c1a', legs:'#1e1c1a', boot:'#1a1816', skin:'#a06a48', hair:'#1e1410', brow:'#1e1410', eyes:'#ff8a2a', hairStyle:'bald', build:'broad',
-    gear:['beard', 'armor', 'flamesword'], pose:'sword', armorC:'#3a3634', embers:true },
+    gear:['beard', 'armor'], armorC:'#3a3634', embers:true },
   // Tony: human artificer. Short dark hair, full beard, glasses, long navy coat, blue scarf, tool belt full of pouches, gauntlet.
-  tam:{ kit:'tam', pose:'hold', orb:'#4aa8ff', coat:'#2a3a5a', sleeve:'#2a3a5a', accent:'#2a5a8a', legs:'#2a2622', boot:'#5a4028', skin:'#d8a888', hair:'#1e1410', hairStyle:'short', build:'broad', glove:'#6a5a4a',
-    gear:['beard', 'glasses', 'longcoat', 'gadget'] }
+  tam:{ kit:'tam', coat:'#2a3a5a', sleeve:'#2a3a5a', accent:'#2a5a8a', legs:'#2a2622', boot:'#5a4028', skin:'#d8a888', hair:'#1e1410', hairStyle:'short', build:'broad', glove:'#6a5a4a',
+    gear:['beard', 'glasses', 'longcoat'] }
 };
 const DND_NAME = { morwen:'Morwen', saffi:'Saffi', lio:'Lio', brand:'Brand', tam:'Tam' };
 // Seats: Morwen far end (north), Saffi right side with Lio beside her, Brand at the front end (south), Tam at the left end.
