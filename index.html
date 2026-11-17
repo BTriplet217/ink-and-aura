@@ -5414,7 +5414,7 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now) && !(e.manifComp && GONE[map + ':' + e.owner] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
 const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
@@ -6181,7 +6181,7 @@ async function moodPreTalk(e) {
   if (MOOD.tremorT > 0) { await sayE(mood === 'dread' ? pickA(['Did you feel that?! It\'s under the Archive. Under all of us.', 'Everyone\'s staying close to home. You should too, {name}.']) : pickA(['Did you feel that?! The Heart\'s getting worse every day.', 'Get inside! It always comes in twos!', '(They grab your sleeve.) Was that the shrine? Was that the shrine again?'])); return; }
   const key = e.id, famT = moodFamily(S.map);
   if (famT && isFolk(e) && !isChild(e) && !(MOOD.vented = MOOD.vented || {})[key]) { MOOD.vented[key] = 1;
-    if (VENT[famT]) { await sayE(deal('vent_' + famT, VENT[famT])); return; } }
+    if (VENT[famT]) { await sayE(deal('vent_' + famT, VENT[famT])); if (famT === 'ANGER') return 'refuse'; return; } }   // an angry first word is all you get
   if (!playerThreat() && isFolk(e) && !isChild(e) && fierceDark() && !(MOOD.eyed = MOOD.eyed || {})[key] && Math.random() < .45) { MOOD.eyed[key] = 1; const m = fierceDark();
     await sayVoice(e, m); return; }
   if (savedHere() && wouldSnub(e)) return;   // the ungrateful don't thank you first (auraPreTalk deals with them)
@@ -6738,14 +6738,15 @@ async function auraPreTalk(e) {
     if (ok) { await say('The knife skids away across the cobbles. They clutch a cut forearm, blood running through their fingers, and run.'); pay(25); await say('(They dropped 25 Marks.)'); } return 'refuse';
   }
   // Sometimes it's the whole story of what you carry they comment on, not just the light or the dark of it.
-  if (S.party.length && Math.random() < .35) await sayE(auraRemark(moral));
+  if (S.party.length && Math.random() < .35) { await sayE(auraRemark(moral)); if (moral === 'cruel') return 'refuse'; }
   // A menacing aura gets the old treatment; everything else meets the six kinds of people.
   else if (read === 'menace') {
     const mr = manifReaction(e, fam0); if (mr) await sayManifReaction(e, mr); else await sayE(deal('react:' + fam0 + moral, REACT[fam0][moral]));
+    if (moral !== 'kind') { if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam0) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); } return 'refuse'; }
     if (moral === 'cruel' && ['ANGER', 'CONFIDENCE'].includes(fam0) && z.y === 'fierce' && Math.random() < .5) { const m = 15 + Math.floor(Math.random() * 30); pay(m); await say(`(They shove ${m} Marks at you without being asked, to make you go away.)`); }
   } else if (await reactFolk(e, read, fam, sayE) === 'refuse') return 'refuse';
   // After the world is saved, people still remember how dark you went.
-  if (S.flags.hushDone && !S.flags.doom && (S.sins || 0) >= 6 && Math.random() < .35) await sayE(deal('remember', ['You saved us. I know. I still remember what you were before, though.', 'Thank you. Truly. ...You still scare me a little. Is that awful?', 'My sister says you burned a station once. I told her that can\'t be true. Is it true?', 'Funny. You look like a hero now. You didn\'t, a while back.']));
+  if (S.flags.hushDone && !S.flags.doom && (S.sins || 0) >= 6 && Math.random() < .35) return sayE(deal('remember', ['You saved us. I know. I still remember what you were before, though.', 'Thank you. Truly. ...You still scare me a little. Is that awful?', 'My sister says you burned a station once. I told her that can\'t be true. Is it true?', 'Funny. You look like a hero now. You didn\'t, a while back.'])).then(() => 'refuse');
 }
 // Prices: cruel shopkeepers squeeze the vulnerable; nobody haggles with a menace.
 // Hurting auras get squeezed (the frightened pay most: "protection"); menacing ones get waved through cheap.
@@ -9279,7 +9280,8 @@ async function reactFolk(e, read, fam, sayE) {
   const pt = personOf(e), P = worldProfile(), mr = manifReaction(e, fam), nf = mr ? (SPECIES[mr.m.sp].type) : fam;
   const intense = mr ? (SPECIES[mr.m.sp].heart || SPECIES[mr.m.sp].tier >= 2) : intenseFam(fam);
   const deck = (REACT6[nf] || REACT6.CALM)[pt], line = intense ? deck[2] : deck[(S.steps + e.id.length) % 2];
-  if (mr) { await sayManifReaction(e, mr); if (!mr.spoken && pt !== 'avoider' && Math.random() < .5) await sayE(line); } else await sayE(line);
+  if (mr) { await sayManifReaction(e, mr); if (!mr.spoken && pt !== 'avoider' && pt !== 'judge' && Math.random() < .5) await sayE(line); } else await sayE(line);
+  const negative = pt === 'judge' || (pt === 'avoider' && intense);   // a judging or recoiling word is the whole conversation
   const second = blendFam(fam), bl = second && BLEND[fam + '+' + second];
   if (bl && !mr && (pt === 'kind' || pt === 'mirror' || pt === 'fixer') && Math.random() < .5) await sayE(bl);
   const key = S.map + ':' + e.id, hurt = read === 'hurt', roll = Math.random();
@@ -9288,6 +9290,7 @@ async function reactFolk(e, read, fam, sayE) {
   if (pt === 'fixer' && roll < pchance(.05, .04, P.fixers) + (hurt ? .15 : 0)) { const k = nf === 'FEAR' ? 'salts' : 'tonic'; S.items[k] = (S.items[k] || 0) + 1; return say(`(They hand you a ${ITEMS[k].name}. "There. Practical. Use it.")`); }
   if (pt === 'avoider' && roll < pchance(.1, .05, P.unsettle) + (intense || hurt || read === 'menace' ? .3 : 0)) { GONE[key] = performance.now() + 45000; ENTC.t = 0; buildWorld(S.map); return 'refuse'; }
   if (pt === 'judge' && roll < pchance(.1, .05, P.friction) + (hurt || intense ? .25 : 0)) { if (mr && !mr.spoken) return 'refuse'; await say(pickA(['(They turn their back on you.)', '(They walk off, shaking their head.)', '(They tut, and that\'s the end of the conversation.)'])); return 'refuse'; }
+  if (negative) return 'refuse';
   if (pt === 'opportunist') {
     if ((S.marks || 0) > 40 && roll < pchance(.1, .05, P.exposed) + (hurt ? .25 : 0)) {
       const amt = (intense ? 35 : 20) + Math.floor(Math.random() * 35);
