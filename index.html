@@ -8457,7 +8457,7 @@ const DND_HIDE = [5, 3, 'left'];          // tucked in between Morwen and Saffi,
 const DND_FUN = {
   morwen:[
     'Okay. You\'re back at the edge of the swamp. It smells exactly how you remember. Tam, put your hand down, you can\'t opt out of the swamp.',
-    'The note on the altar is written in an old, looping cursive. Brand, you can ask for help. Brand. Brand, you\'ve been squinting at it for ten minutes.',
+    [['Morwen', 'You find a note on the altar, written in an old, looping cursive.'], ['Brand', 'Of course it is. Morwen, why is every important note in this campaign written in cursive?'], ['Morwen', 'Because the people who wrote them were old and dramatic.'], ['Brand', 'I want it on record that I\'m questioning that as a design choice.'], ['Saffi', 'He has a point.']],
     'Quick recap. The boss is dead, the vault is open, the library is still standing, and I would like it to stay that way.',
     [['Morwen', 'You find a little brown mushroom growing out of a skull. Nobody is going to—'], ['Brand', 'I eat it.'], ['Morwen', 'Of course you do. Roll a constitution save.'], ['Brand', '...Is a four good?'], ['Morwen', 'You see yourself from behind. Then you see yourself from the side. Then you hit yourself with a stick.']],
     'Reminder that you all walked straight past Dana. She was tied to a post. She was waving. She had a sign.',
@@ -8475,8 +8475,7 @@ const DND_FUN = {
     'I glitter-bombed the throne room. There will be glitter in that castle for three hundred years. Archaeologists will find it.',
   ],
   brand:[
-    'Hang on. I can read this. It says... "Beware the... loopy... L." That\'s an L. That\'s definitely an L. Nobody help me.',
-    'Morwen, why is every important letter in this campaign written in cursive. Is it a curse? Is that where the word comes from?',
+    'Morwen, why is every important letter in this campaign written in cursive? Is the villain a calligrapher? Is that the twist?',
     'The egg hatched! Oh. Oh no. It\'s not... it\'s not moving. It\'s been in my backpack since spring, hasn\'t it.',
     [['Brand', 'My egg finally hatched.'], ['Morwen', 'It\'s been dead for months, Brand. It\'s been rotting in your backpack.'], ['Brand', '...'], ['Saffi', 'Can I have it?'], ['Tam', 'Absolutely not.'], ['Saffi', 'For science.'], ['Tam', 'It is NOT for science.']],
     'I ate the mystery mushroom. I would do it again. I saw three of me and one of them owed me money.',
@@ -8701,7 +8700,7 @@ async function dndFort() { await say('(Blankets draped over two chairs, a string
   healAll(); await say('(You crawl in. It is ridiculously cosy. Lio hands you a cushion and tells you a long story about a dragon who was scared of the dark, so the other dragons made him a lamp.)');
   await say('(When you crawl back out, everything you carry is composed again.)'); }
 // the costume trunk: hats for every occasion, none of them for this one
-const DND_HATS = [['a wizard hat with a moon on it', 'Morwen', 'Ooh. Very mysterious. Now you have to read the cursive letters for us.'], ['a dented helmet three sizes too big', 'Brand', 'That\'s mine! It fits me fine. I wore it into the swamp. Smell it. Actually, don\'t.'],
+const DND_HATS = [['a wizard hat with a moon on it', 'Morwen', 'Ooh. Very mysterious. Now you have to say everything in a spooky voice.'], ['a dented helmet three sizes too big', 'Brand', 'That\'s mine! It fits me fine. I wore it into the swamp. Smell it. Actually, don\'t.'],
   ['a cape with a little owl stitched on it', 'Saffi', 'The owl\'s cape! He\'ll be furious. Swish it. No, more swish.'], ['a pair of swamp waders', 'Tam', 'Those are mine and I am never wearing them again. You can have them. Please take them.'],
   ['a crown made of paper and glitter', 'Lio', 'That\'s my crown! ...You can borrow it. It\'s got glitter-bomb glitter on it. It never comes off.']];
 async function dndTrunk() { await say('(A battered trunk with DRESS-UP stencilled on the lid. Inside: capes, hats, a lot of glitter.)');
@@ -9401,7 +9400,7 @@ async function ashlynnTender() {
 const DND_TENDER = {
   morwen:{ SADNESS:'You don\'t have to play. Sit in. We\'re just about to go back to the swamp, and honestly, watching Tam suffer is half the fun.', FEAR:'Nothing in this room rolls initiative unless I say so. And I\'m saying no. Tonight is a shopping episode.', SHAME:'Every single person at this table walked straight past a woman tied to a post. Dana. Her name was Dana. You\'re fine.' },
   saffi:{ SADNESS:'Here, sit by me. Take the good chair. Lio, baby, get them a cookie.', FEAR:'Hey. Look at me. You\'re safe here. If anything comes through that door, it gets the atomic glitter bomb.', SHAME:'Oh, honey. I tried to burn down a library tonight. Twice. Whatever you did, you\'re in good company.' },
-  brand:{ SADNESS:'Sit down, sit down. You can help me read this letter. It\'s in cursive. I need all the help I can get. Don\'t tell the others I said that.', FEAR:'Nothing gets past this table. We beat the boss tonight. We can take whatever\'s bothering you.', SHAME:'I hatched an egg that had been dead since spring. In front of everyone. We\'re all just doing our best here.' },
+  brand:{ SADNESS:'Sit down, sit down. Stay as long as you like. We\'re just arguing about why every note in this campaign is in cursive. You can take my side.', FEAR:'Nothing gets past this table. We beat the boss tonight. We can take whatever\'s bothering you.', SHAME:'I hatched an egg that had been dead since spring. In front of everyone. We\'re all just doing our best here.' },
   tam:{ SADNESS:'I made a thing. It\'s a lamp. It doesn\'t do anything else, it\'s just warm. Here. Keep it.', FEAR:'Anyone bothering you? Give me a name. I\'ll put it in my notes, right under "do not go back to the swamp".', SHAME:'Tonight I was hit by a rotten egg I specifically said not to throw. You\'re not what happened to you. You\'re what you do next.' },
   lio:{ SADNESS:'(Lio climbs down and puts his big lucky die in your hand.) You can hold it. It\'s lucky. It only rolls ones for me, but it might work for you.', FEAR:'I\'m not scared of anything. Except the swamp. I\'ll stand here with you.', SHAME:'Mum says everybody does dumb stuff. I put a bean in my ear once. A big one.' }
 };
