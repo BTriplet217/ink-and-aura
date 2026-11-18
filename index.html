@@ -8454,39 +8454,47 @@ const DND_HIDE = [5, 3, 'left'];          // tucked in between Morwen and Saffi,
 // Lio doesn't play: he's there because his mum and dad are.
 // What they talk about at the table: only what's happening in the campaign, never who they're playing.
 // A plain string is that person's own line; a list of [who, line] pairs is a little exchange round the table.
+// A string is that person's own line. A list of [who, line] pairs is a moment at the table, and it always starts with whoever speaks
+// first (so a moment Morwen opens is only heard by talking to Morwen). Morwen is the game master: players say what they try and roll,
+// and she says what happens. A moment can be wrapped as { id, after, skip, say }: it waits until 'after' has been heard, and it's
+// dropped for good if 'skip' was heard first (you can't stage the tea shop once Brand has already complained about how it went).
 const DND_FUN = {
   morwen:[
     'Okay. You\'re back at the edge of the swamp. It smells exactly how you remember. Tam, put your hand down, you can\'t opt out of the swamp.',
     [['Morwen', 'You find a note on the altar, written in an old, looping cursive.'], ['Brand', 'Of course it is. Morwen, why is every important note in this campaign written in cursive?'], ['Morwen', 'Because the people who wrote them were old and dramatic.']],
+    { id:'tea', skip:'tea_moan', say:[['Morwen', 'You\'re all in the tea shop. The owner is very proud of the blends. There\'s a small, very soft creature asleep on the counter.'], ['Brand', 'Can I pet the animal?'], ['Morwen', 'The owner says no.'], ['Brand', 'I haven\'t even said which animal.'], ['Morwen', 'Still no. She moves it to a high shelf.']] },
+    { id:'mush', say:[['Morwen', 'You find a little brown mushroom growing out of a skull. Nobody is going to—'], ['Brand', 'I eat it.'], ['Morwen', 'Of course you do. Roll.'], ['Brand', '(Brand rolls.) Four.'], ['Morwen', 'You see yourself from behind. Then you see yourself from the side. Then you hit yourself with a stick.']] },
+    { id:'egg', say:[['Morwen', 'Brand, the egg in your backpack finally cracks open.'], ['Brand', 'Yes! Finally!'], ['Morwen', 'Nothing comes out. It\'s been dead for months. It\'s been rotting in there since spring.'], ['Brand', '...'], ['Saffi', 'Can I have it?'], ['Tam', 'Absolutely not.']] },
     'Quick recap. The boss is dead, the vault is open, the library is still standing, and I would like it to stay that way.',
-    [['Morwen', 'You find a little brown mushroom growing out of a skull. Nobody is going to—'], ['Brand', 'I eat it.'], ['Morwen', 'Of course you do. Roll a constitution save.'], ['Brand', '...Is a four good?'], ['Morwen', 'You see yourself from behind. Then you see yourself from the side. Then you hit yourself with a stick.']],
+    { id:'fish', say:[['Morwen', 'The town swears a giant stag with flowers for antlers has been terrorising them. You\'ve searched the woods all day. No stag.'], ['Morwen', 'But out in the lake, something enormous and golden is circling. It shimmers.'],
+      ['Brand', 'I\'m thinking about trying to catch it.'], ['Morwen', 'Are you?'], ['Brand', '...No. Leave it. Some things should stay wild.'],
+      ['Morwen', 'The great golden fish rises out of the water and looks at you. It will trade you a single blossom from the stag\'s antlers, big as a cartwheel, for your sacred ash.'], ['Tam', 'So we never actually found the stag.'], ['Saffi', 'We\'ve got its flower. The town doesn\'t have to know.']] },
+    [['Morwen', 'So. The boss is down. What\'s your next move?'], ['Saffi', 'Burn it to the ground.'], ['Morwen', 'The whole castle?'], ['Saffi', 'The whole castle.'], ['Brand', 'I\'m in.'], ['Lio', 'Me too!'], ['Saffi', '(Saffi is beaming.) Everybody agreed. Nobody ever agrees. This is the best night of my life.']],
+    [['Morwen', 'You know... NPCs CAN lie, you guys.'], ['Everyone', 'Ohhhh!!!']],
     'Reminder that you all walked straight past Dana. She was tied to a post. She was waving. She had a sign.',
     'The shopkeeper swears the tea set is hand-carved. Roll insight. ...It has a sticker on the bottom.',
     'The owl got his cape. He has not stopped posing in it. He looks at every window he passes.',
-    'The sludge golem bursts. Everyone in a ten-foot radius is now covered in it. Yes, Tam, that includes you. Especially you.',
+    'The sludge golem bursts. Everyone nearby is now covered in it. Yes, Tam, that includes you. Especially you.',
   ],
   saffi:[
     [['Saffi', 'Okay, hear me out. We burn the library.'], ['Tam', 'We are not burning the library.'], ['Saffi', 'It\'s full of evil books!'], ['Tam', 'It\'s full of the evidence we need. And the librarian. Who is alive. And nice.'], ['Saffi', '...Fine. But I\'m keeping a match in my hand.']],
     [['Saffi', 'What if we burned just the restricted section?'], ['Tam', 'The restricted section is the load-bearing section, Saffi.'], ['Saffi', 'So it\'d go faster.'], ['Tam', 'No.']],
     'Atomic glitter bomb. Right in the middle of them. I don\'t care that it\'s a support spell, it\'s my weapon now.',
-    'I know the egg is rotten. That\'s the point. It\'s a grenade now. A smell grenade. Tam, stop making that face.',
-    [['Morwen', 'So. The boss is down. What\'s your next move?'], ['Saffi', 'Burn it to the ground.'], ['Morwen', 'The whole castle?'], ['Saffi', 'The whole castle.'], ['Brand', 'I\'m in.'], ['Lio', 'Me too!'], ['Saffi', '(Saffi is beaming.) Everybody agreed. Nobody ever agrees. This is the best night of my life.']],
+    { after:'egg', say:'I know the egg is rotten. That\'s the point. It\'s a grenade now. A smell grenade. Tam, stop making that face.' },
+    { after:'egg', say:[['Saffi', 'I\'ve got the rotten egg in a sling. On three.'], ['Tam', 'Do NOT throw the egg in an enclosed space.'], ['Saffi', 'Three!'], ['Tam', 'That was ONE.'], ['Morwen', 'Everybody roll. Except Saffi. Saffi\'s fine. Saffi\'s used to it.']] },
     'Did we ever go back for Dana? ...We didn\'t go back for Dana, did we.',
     'I glitter-bombed the throne room. There will be glitter in that castle for three hundred years. Archaeologists will find it.',
   ],
   brand:[
     [['Brand', 'I want to give the little fire rabbit a ball of paper. To kick. Like a football.'], ['Morwen', 'Roll for it.'], ['Brand', '(Brand rolls.) ...Okay.'], ['Morwen', 'He takes the paper ball. He looks you right in the eye. He sets it on fire.'], ['Saffi', 'Honestly? Respect.']],
-    'Still thinking about that tea shop. The owner had the softest little creature on the counter, and I asked, very politely, if I could pet it. "Absolutely not." Absolutely not! It was looking at me. It wanted to be petted.',
-    [['Morwen', 'You\'re all in the tea shop. The owner is very proud of the blends.'], ['Brand', 'Can I pet the animal?'], ['Morwen', 'No.'], ['Brand', 'I haven\'t even said which animal.'], ['Morwen', 'Still no.']],
-    'The egg hatched! Oh. Oh no. It\'s not... it\'s not moving. It\'s been in my backpack since spring, hasn\'t it.',
-    [['Brand', 'My egg finally hatched.'], ['Morwen', 'It\'s been dead for months, Brand. It\'s been rotting in your backpack.'], ['Brand', '...'], ['Saffi', 'Can I have it?'], ['Tam', 'Absolutely not.'], ['Saffi', 'For science.'], ['Tam', 'It is NOT for science.']],
-    'I ate the mystery mushroom. I would do it again. I saw three of me and one of them owed me money.',
+    { id:'tea_moan', say:'Still thinking about that tea shop. The softest little creature on the counter, and I asked, very politely, if I could pet it. "Absolutely not." It was looking at me. It wanted to be petted.' },
+    { after:'mush', say:'I ate the mystery mushroom. I would do it again. I saw three of me and one of them owed me money.' },
+    { after:'fish', say:'I could have tried for that golden fish. I didn\'t. Some things are better left in the lake. ...Also it was the size of a boat.' },
     'We rescued everybody! Well. Everybody except Dana. Dana\'s fine. Dana\'s probably fine.',
   ],
   tam:[
     'Not the swamp. Anything but the swamp. I just got the smell out of my boots.',
     [['Tam', 'Why does every road on this map go through the swamp.'], ['Morwen', 'It\'s a very central swamp.'], ['Tam', 'I hate it here.']],
-    [['Saffi', 'I\'ve got the rotten egg in a sling. On three.'], ['Tam', 'Do NOT throw the egg in an enclosed space.'], ['Saffi', 'Three!'], ['Tam', 'That was ONE.'], ['Morwen', 'Everybody roll constitution. Except Saffi. Saffi\'s fine. Saffi\'s used to it.']],
     'For the record, I said no to the library, I said no to the castle, and I said no to the egg. I\'d like that written down somewhere.',
     'We have the evidence. We have the key. We have a plan. Can we please, for once, just follow the plan.',
     'Still covered in sludge. It\'s in my ears. I can hear it.',
@@ -8525,7 +8533,11 @@ async function dndTalk(k) {
     await say('(Morwen gives you a spiral fossil, coiled like a staircase. It\'s warm from the table lamp.)'); S.items.hearth = (S.items.hearth || 0) + 1; return; }
   if (k === 'lio' && !S.flags.dndEgg) { S.flags.dndEgg = 1; S.items.lioEgg = 1; S.flags.eggStart = S.steps; await sayAs(n, 'This is my egg. It\'s a dragon egg. It might be a dragon. It might be anything. There\'s only one. You have to keep it in your bag and take it on a really, REALLY long walk, and then it hatches. Like three thousand steps. I counted.');
     await say('(Lio puts a speckled egg in your hands, very carefully, with both of his. It is the size of a fist and faintly humming. You tuck it into your Bag.)'); return; }
-  const deck = DND_FUN[k], i = (S.flags['dndLine_' + k] || 0); S.flags['dndLine_' + k] = i + 1; const L = deck[i % deck.length];
+  const deck = DND_FUN[k], heard = S.flags.dndHeard = S.flags.dndHeard || {}, i0 = S.flags['dndLine_' + k] || 0;
+  const ok = x => !(x.after && !heard[x.after]) && !(x.skip && heard[x.skip]) && !(x.id && heard[x.id]);   // one-off moments play once
+  let i = i0, E = null; for (let t = 0; t < deck.length; t++, i++) { const x = deck[i % deck.length]; if (typeof x === 'string' || Array.isArray(x) || ok(x)) { E = x; break; } }
+  if (!E) E = deck.find(x => typeof x === 'string') || deck[0];
+  S.flags['dndLine_' + k] = i + 1; if (E && E.id) heard[E.id] = 1; const L = E && E.say !== undefined ? E.say : E;
   if (typeof L === 'string') return sayAs(n, L); for (const [who, t] of L) await sayAs(who, t);
 }
 async function dndGoodbye() { return sayAs('Morwen', 'Sorry, we\'re mid-session. Could you head out?'); }
