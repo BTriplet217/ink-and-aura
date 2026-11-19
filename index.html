@@ -23,8 +23,8 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 #bottom>*{pointer-events:auto}
 #dlg{width:100%;padding:16px 20px 14px;font-size:16px;line-height:1.5;min-height:72px;cursor:pointer}
 #dlg .who{position:absolute;top:-13px;left:16px;background:var(--ink);color:var(--gold);font:15px 'IM Fell English SC',serif;padding:2px 12px 3px;border-radius:7px;letter-spacing:.5px}
-#dlg .nxt{position:absolute;right:14px;bottom:8px;color:var(--gold2);font-size:12px;animation:blink 1s steps(2) infinite}
-@keyframes blink{50%{opacity:0}}
+#dlg .nxt{position:absolute;right:14px;bottom:8px;color:var(--gold2);font-size:12px;animation:blink 2.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:.9;transform:translateY(0)}50%{opacity:.6;transform:translateY(2px)}}
 #cho{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:180px;max-height:52vh;overflow:auto;padding:4px}
 #cho{box-sizing:border-box;max-width:100%}
 #cho.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
@@ -209,7 +209,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
   <div id="joy"><i class="t n"></i><i class="t e"></i><i class="t s"></i><i class="t w"></i><div id="joyKnob"></div></div>
   <div id="ab"><div class="k" id="kDist" data-k="tpdist">Normal</div><div class="k round" data-k="b">B</div><div class="k round" id="kA" data-k="a">A</div></div>
 </div>
-<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Zoom and over-the-shoulder view: C · Look up / down: R / F · Scroll to zoom</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y zoom · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
+<div id="hint"><span class="kb">Move: arrows / WASD · Talk / confirm: Z or Space · Run on/off: X · Menu: M or Esc · Turn camera: Q / E · Views, including over the shoulder: C · Look up / down: R / F · Scroll to zoom</span><span class="gp">Controller: move left stick or D-pad · view right stick · A talk · B run (back in menus) · Start menu · Y views · X camera distance over the shoulder (menu otherwise) · LB / RB turn · R3 reset view (change in Menu → Controller)</span></div>
 <div id="fade"></div>
 <script type="module">
 import * as THREE from 'three';
@@ -255,9 +255,9 @@ const MOVES = {
   LULL:{name:'Lull',type:'CALM',pow:40,acc:100}, STEADY:{name:'Steady',fx:'def+',desc:'Raises its Poise'}, EBB:{name:'Ebb',type:'CALM',pow:62,acc:95}, STILL_TIDE:{name:'Still Tide',type:'CALM',pow:88,acc:90},
   STRIDE:{name:'Stride',type:'CONFIDENCE',pow:42,acc:95}, STARE_DOWN:{name:'Stare Down',fx:'foedef-',desc:'Lowers foe Poise'}, STAND_TALL:{name:'Stand Tall',type:'CONFIDENCE',pow:66,acc:90}, UNBOWED:{name:'Unbowed',type:'CONFIDENCE',pow:92,acc:85},
   POP:{name:'Pop',type:'SURPRISE',pow:40,acc:100}, DAZZLE:{name:'Dazzle',fx:'foedef-',desc:'Lowers foe Poise'}, UPEND:{name:'Upend',type:'SURPRISE',pow:62,acc:95}, REVELATION:{name:'Revelation',type:'SURPRISE',pow:88,acc:90},
-  WEEP:{name:'Weep',type:'SADNESS',pow:40,acc:100}, WITHDRAW:{name:'Withdraw',fx:'def+',desc:'Raises its Poise'}, ACHE:{name:'Ache',type:'SADNESS',pow:62,acc:95}, LAMENT:{name:'Lament',type:'SADNESS',pow:88,acc:90},
-  FLINCH:{name:'Flinch',type:'FEAR',pow:40,acc:100}, COWER:{name:'Cower',fx:'def+',desc:'Raises its Poise'}, SHUDDER:{name:'Shudder',type:'FEAR',pow:62,acc:95}, NIGHTMARE:{name:'Nightmare',type:'FEAR',pow:88,acc:90},
-  LASH_OUT:{name:'Lash Out',type:'ANGER',pow:46,acc:90}, GLARE:{name:'Glare',fx:'foedef-',desc:'Lowers foe Poise'}, SEETHE:{name:'Seethe',type:'ANGER',pow:70,acc:85}, ERUPTION:{name:'Eruption',type:'ANGER',pow:98,acc:80},
+  WEEP:{name:'Weep',type:'SADNESS',pow:40,acc:100}, WITHDRAW:{name:'Pull Inward',fx:'def+',desc:'Raises its Poise'}, ACHE:{name:'Ache',type:'SADNESS',pow:62,acc:95}, LAMENT:{name:'Lament',type:'SADNESS',pow:88,acc:90},
+  FLINCH:{name:'Flinch',type:'FEAR',pow:40,acc:100}, COWER:{name:'Cower',fx:'def+',desc:'Raises its Poise'}, SHUDDER:{name:'Shudder',type:'FEAR',pow:62,acc:95}, NIGHTMARE:{name:'Night Terror',type:'FEAR',pow:88,acc:90},
+  LASH_OUT:{name:'Snap',type:'ANGER',pow:46,acc:90}, GLARE:{name:'Scowl',fx:'foedef-',desc:'Lowers foe Poise'}, SEETHE:{name:'Seethe',type:'ANGER',pow:70,acc:85}, ERUPTION:{name:'Boil Over',type:'ANGER',pow:98,acc:80},
   FLUSH:{name:'Flush',type:'SHAME',pow:40,acc:100}, SHRINK:{name:'Shrink',fx:'def+',desc:'Raises its Poise'}, STAIN:{name:'Stain',type:'SHAME',pow:62,acc:95}, UNRAVEL:{name:'Unravel',type:'SHAME',pow:88,acc:90},
   WINCE:{name:'Wince',type:'DISGUST',pow:40,acc:100}, SCORN:{name:'Scorn',fx:'foedef-',desc:'Lowers foe Poise'}, SPURN:{name:'Spurn',type:'DISGUST',pow:62,acc:95}, REVULSION:{name:'Revulsion',type:'DISGUST',pow:88,acc:90}
 };
@@ -639,9 +639,9 @@ const RESPONSES = [
 
 // ---------------------------------------------------------------- items ------
 Object.assign(ITEMS, {
-  salts:    { name:'Smelling Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
+  salts:    { name:'Waking Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
   hearth:   { name:'Heart Stone',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
-  charm:    { name:'Kindred Charm',  res:30, desc:'+30 Understanding with a wild Manif', price:140 },
+  charm:    { name:'Kindred Charm',  res:30, desc:'+30 Understanding with the Manif you\'re facing', price:140 },
   ember:    { name:'Ember Draught',  atk:2, desc:'Sharply raises one Manif\'s Force', price:110 },
   iron:     { name:'Iron Tea',       def:2, desc:'Sharply raises one Manif\'s Poise', price:110 },
   quill:    { name:'Insight Quill',  level:1, desc:'One Manif gains a level', price:600, field:true },
@@ -655,7 +655,7 @@ const ITEM_INFO = {
   tonic:'Restores all of one Manif\'s Composure. Use it in battle or from the Bag.',
   salts:'Brings back a Manif that was overwhelmed, with half its Composure. Use it in battle or from the Bag.',
   hearth:'Restores half the Composure of every Manif in your Chorus at once. Best saved for a hard battle.',
-  charm:'In a meeting with a wild Manif: +30 Understanding. At 100% it settles on its own and will stay with you. No use on a trainer\'s Manifs.',
+  charm:'In battle: +30 Understanding with the Manif you\'re facing. At 100% a wild one settles and will stay with you; a trainer\'s goes back to them, understood. No use when several face you at once, or on the Hush.',
   ember:'In battle: sharply raises one Manif\'s Force (how hard its Expressions hit) for the rest of the meeting.',
   iron:'In battle: sharply raises one Manif\'s Poise (how well it takes a hit) for the rest of the meeting.',
   quill:'From the Bag: one Manif you choose gains a level straight away.',
@@ -2627,7 +2627,7 @@ const ANIM = {
   charge:(b, t) => { const k = (t * .9) % 1; b.position.z = k < .8 ? -k * .1 : (k - .8) * 1.5 - .08; b.position.y = Math.abs(Math.sin(t * 12)) * .03; b.rotation.x = .1; },
   stomp:(b, t) => { b.position.y = Math.max(0, Math.sin(t * 5)) * .08; b.rotation.z = Math.sin(t * 2.5) * .06; },
   loom:(b, t) => { b.rotation.x = .12 + Math.sin(t * .5) * .12; b.scale.y = 1 + Math.sin(t * .5) * .05; },
-  flicker:(b, t) => { b.scale.setScalar(1 + (Math.sin(t * 17) * Math.sin(t * 5.3)) * .03); b.rotation.y = Math.sin(t * .7) * .25; },
+  flicker:(b, t) => { b.scale.setScalar(1 + (Math.sin(t * 3.1) * Math.sin(t * 1.3)) * .03); b.rotation.y = Math.sin(t * .7) * .25; },
   wobble:(b, t) => { const s = Math.sin(t * 7) * .06; b.scale.set(1 + s, 1 - s, 1 + s); b.rotation.z = Math.sin(t * 5) * .05; },
   sink:(b, t) => { b.position.y = -.04 + Math.sin(t * .5) * .03; },
   strain:(b, t) => { b.position.x = Math.sin(t * 34) * .012; b.scale.y = 1 + Math.sin(t * 1.3) * .03; },
@@ -4601,7 +4601,7 @@ const HOME_WANTS = [
   { k:'item', item:'tonic', ask:'My husband\'s Manif got into the gin and now it won\'t stop crying. Have you a Bitter Tonic? I\'ll make it worth your while.', thanks:'Oh, thank Christ. Quiet at last.' },
   { k:'item', item:'iron', ask:'I\'ve got a fight at the pit on Saturday and my nerve\'s shot. An Iron Tea would see me right.', thanks:'Ha! Now I\'ll knock that bastard\'s teeth in. Here, take this.' },
   { k:'item', item:'cake', ask:'I haven\'t eaten in two days. Don\'t look at me like that. A Honey Cake. Please.', thanks:'(They eat it in four bites, crying a bit.) Thank you. Take this. I\'ve got nothing else worth giving.' },
-  { k:'item', item:'salts', ask:'My daughter\'s Manif got hurt in a scrap and it won\'t wake up. Smelling Salts? Anything?', thanks:'It\'s moving! It\'s moving. Oh, you darling. Here.' },
+  { k:'item', item:'salts', ask:'My daughter\'s Manif got hurt in a scrap and it won\'t wake up. Waking Salts? Anything?', thanks:'It\'s moving! It\'s moving. Oh, you darling. Here.' },
   { k:'item', item:'ember', ask:'The landlord\'s coming Friday with his two big lads. I need an Ember Draught for my Manif. Don\'t ask.', thanks:'Right. Let him come. Here, for your trouble.' },
   { k:'show', fam:'JOY', ask:'Nobody\'s laughed in this house since Da died. Have you got any Joy on you? Just let me look at it a while.', thanks:'(They watch your Manif for a long time, and smile for the first time in months.) Take this.' },
   { k:'show', fam:'CALM', ask:'My nerves are wrecked. If you\'re carrying anything Calm, let me sit near it. Please.', thanks:'(Their hands stop shaking.) God, that\'s better. Here.' },
@@ -5639,7 +5639,7 @@ const WREN_TOPICS = [
   ['people', 'People and trust', ['Out on the routes, people train Manifs. Some train them to protect, some train them for war. They\'ll spar with you if they trust you, and pay you for it.',
     'Others need help. Do them a favour and they\'ll give you something back. Whether anyone trusts you depends on your aura, and on what you\'re carrying.']],
   ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from trainers and from favours.',
-    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Heart Stone mends your whole Chorus by half. Smelling Salts wake a Manif that\'s been overwhelmed.',
+    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Heart Stone mends your whole Chorus by half. Waking Salts wake a Manif that\'s been overwhelmed.',
     'Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
   ['hearts', 'Hearts, the Hush and the Stillwell', ['Each city has a Heart at its shrine, far stronger than anything on its road. Settle all ten and the way to the Stillwell opens, under the Archive.',
     'The Hush waits down there. In the end it wears the feeling you\'ve carried longest, so think about what you carry when you go.']],
@@ -5648,7 +5648,7 @@ const WREN_TOPICS = [
   ['controls', 'Controls', ['Move with the arrow keys or WASD, the left stick or D-pad, or the pad on screen. Talk or confirm with Z, Space or A. Go back with X or B. While you\'re walking, X or B switches between walking and running.',
     'Open the menu with M, Escape or Start. On a controller, X opens it too, unless you\'re looking over your shoulder.',
     'Turn the view by dragging across the screen, with Q and E, LB and RB, or the right stick. C or Y steps through the views, from far above right down to over your shoulder. Pinch or the mouse wheel zooms. You can also pick the view in Menu, then View.',
-    'Over the shoulder, look up and down with R and F or the right stick. The controller\'s X button steps the camera close, normal or far, and on a phone the distance button does the same. Set the controller up however you like in Menu, then Controller.']]
+    'Over the shoulder, look up and down with R and F or the right stick. The controller\'s X button steps the camera close, normal or far, and on a phone the distance button does the same. Pressing the right stick in puts the view back. Set the controller up however you like in Menu, then Controller.']]
 ];
 async function wrenExplain(k, intro) { const T = WREN_TOPICS.find(x => x[0] === k); for (const l of T[2]) await say('Wren: ' + l); }
 async function wrenTopics(first) {
@@ -6536,7 +6536,7 @@ async function endGift(kind) {
   if (S.party.length < 6) S.party.push(m); else S.satchel.push(m); S.codex.kept[m.sp] = 1; rebuildMinis();
   sfx('keep'); banner(m.nick, kind === 'doom' ? 'It obeys you' : 'It chose you');
   if (kind === 'doom') { pay(5000); await say('The Choir\'s treasury is yours now. 5000 Marks in old grey coin.'); await say('(Somewhere far below, something that is not the Hush is waking. The Welkin\'s last free feeling has come looking for you. Look in the Stillwell.)'); }
-  else { S.items.tonic = (S.items.tonic || 0) + 5; S.items.salts = (S.items.salts || 0) + 5; await say('Ilse sends up the Archive\'s best stores: 5 Bitter Tonics and 5 Smelling Salts.'); await say('(Something is still down there. Orrin Vale held the Hush shut for two hundred years. Whatever is left of him is waking. Look in the Stillwell.)'); }
+  else { S.items.tonic = (S.items.tonic || 0) + 5; S.items.salts = (S.items.salts || 0) + 5; await say('Ilse sends up the Archive\'s best stores: 5 Bitter Tonics and 5 Waking Salts.'); await say('(Something is still down there. Orrin Vale held the Hush shut for two hundred years. Whatever is left of him is waking. Look in the Stillwell.)'); }
   await say('(Hearts can now be faced again at any shrine, far stronger. Notice clerks have new bounties. Your Manifs can grow to Lv 60.)');
 }
 async function talkSuperboss() {
@@ -6839,7 +6839,7 @@ async function meetNumbGirl(z) {
   const c = await ask('She holds out a grey hand.', ['Follow her', 'Gently send her home']); if (c !== 0) { S.zq[z] = 1; return say('(She stands where you left her, perfectly still, for the rest of the day.)'); }
   await say('She leads you behind the shrine to a cellar full of things the Numbed stopped caring about: wedding rings, letters, a child\'s shoe, a box of Marks nobody counted.');
   for (const k of ['tonic', 'salts', 'hearth']) S.items[k] = (S.items[k] || 0) + 1; pay(120);
-  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Heart Stone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
+  zdone(z, '(You take a Bitter Tonic, Waking Salts, a Heart Stone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
 }
 async function meetCalloway(z) {
   await say('Brother Calloway: Forgive me. You have a face people tell things to. I have to tell someone before the Heart takes me too.');
@@ -8430,7 +8430,7 @@ function mapLine() { const n = mapNodes().N.find(x => x.id === hereId()); return
 // =============================================================================
 //  THE DRAGON'S TABLE — a D&D group in a house in Larkhollow (Joy).
 //    Morwen (Mary)   — the DM, drow sorcerer, at the far end of the table
-//    Saffi (Shannon) — brass dragonborn ranger, right side; Lio (Liam) stands by her
+//    Saffi (Shannon) — human ranger, right side; Lio (Liam) stands by her
 //    Brand (Blaine)  — fire genasi paladin, at the front end
 //    Tam (Tony)      — human artificer, at the left end
 //  Good aura: they're delighted, and funny. Morwen gives you a spiral fossil; Lio gives you an egg
@@ -8487,7 +8487,7 @@ const DND_FUN = {
     [['Morwen', 'So. The boss is down. What\'s your next move?'], ['Saffi', 'Burn it to the ground.'], ['Morwen', 'The whole castle?'], ['Saffi', 'The whole castle.'], ['Brand', 'I\'m in.'], ['Lio', 'Me too!'], ['Saffi', '(Saffi is beaming.) Everybody agreed. Nobody ever agrees. This is the best night of my life.']],
     [['Morwen', 'You know... NPCs CAN lie, you guys.'], ['Everyone', 'Ohhhh!!!']],
     'Reminder that you all walked straight past Dana. She was tied to a post. She was waving. She had a sign.',
-    'The shopkeeper swears the tea set is hand-carved. Roll insight. ...It has a sticker on the bottom.',
+    'The shopkeeper swears the tea set is hand-carved. Roll. ...It has a sticker on the bottom.',
     'The owl got his cape. He has not stopped posing in it. He looks at every window he passes.',
     'The sludge golem bursts. Everyone nearby is now covered in it. Yes, Tam, that includes you. Especially you.',
   ],
@@ -9783,7 +9783,7 @@ Object.assign(TYPES, {
 });
 Object.assign(MOVES, {
   EMBRACE:{ name:'Embrace', type:'LOVE', pow:46, acc:100 }, CHERISH:{ name:'Cherish', fx:'healall', desc:'Heals the whole Chorus a little' }, DEVOTE:{ name:'Devote', type:'LOVE', pow:70, acc:95 }, ADORATION:{ name:'Adoration', type:'LOVE', pow:96, acc:90 },
-  POKE:{ name:'Pretend Poke', type:'CURIOUS', pow:44, acc:100 }, ASK_WHY:{ name:'Pillow Fort', fx:'def+', desc:'Raises its Poise' }, INVESTIGATE:{ name:'Dragon Roar', type:'CURIOUS', pow:68, acc:95 }, DISCOVERY:{ name:'Happily Ever After', type:'CURIOUS', pow:94, acc:90 }
+  POKE:{ name:'Pretend Poke', type:'CURIOUS', pow:44, acc:100 }, ASK_WHY:{ name:'Pillow Fort', fx:'def+', desc:'Raises its Poise' }, INVESTIGATE:{ name:'Big Pretend Roar', type:'CURIOUS', pow:68, acc:95 }, DISCOVERY:{ name:'Happily Ever After', type:'CURIOUS', pow:94, acc:90 }
 });
 Object.assign(MOVES, { SWEEP:{ name:'Sweeping Beam', type:'BEACON', pow:46, acc:100 }, KEEPLIT:{ name:'Keep the Light On', fx:'healall', desc:'Heals the whole Chorus a little' }, FOGHORN:{ name:'Foghorn', type:'BEACON', pow:70, acc:95 }, GUIDEHOME:{ name:'Guide Them Home', type:'BEACON', pow:92, acc:90 } });
 Object.assign(MOVES, { HEADCOUNT:{ name:'Headcount', type:'BELONG', pow:48, acc:100 }, HUDDLE:{ name:'Huddle Up', fx:'healall', desc:'Heals the whole Chorus a little' }, COUNTEDTWICE:{ name:'Counted Twice', type:'BELONG', pow:72, acc:95 }, HOMECOMING:{ name:'Homecoming', type:'BELONG', pow:92, acc:90 } });
@@ -11521,9 +11521,9 @@ async function useItem(m, k) {
   if (it.revive) {
     const down = S.party.filter(p => p.hp <= 0); if (!down.length) { S.items[k]++; return say('Nobody needs reviving.'); }
     const p = down[0]; p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
-    sfx('heal'); renderBHUD(); return say(`The Smelling Salts sting. ${nm(p)} comes back to itself.`);
+    sfx('heal'); renderBHUD(); return say(`The Waking Salts sting. ${nm(p)} comes back to itself.`);
   }
-  if (it.res) { if (B.final) { S.items[k]++; return say('The Hush has nobody left inside to befriend. Not like that.'); } B.res = Math.min(100, B.res + it.res); floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + it.res, 'heal'); renderBHUD(); return say(`You hold out the Kindred Charm. ${cap(bname(B.foe))} leans toward it.`); }
+  if (it.res) { if (B.final) { S.items[k]++; return say('The Hush has nobody left inside to befriend. Not like that.'); } if (!canUnderstand()) { S.items[k]++; return say('There are too many of them at once. The charm can\'t find just one to reach.'); } B.res = Math.min(100, B.res + it.res); floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + it.res, 'heal'); renderBHUD(); return say(`You hold out the Kindred Charm. ${cap(bname(B.foe))} leans toward it.`); }
   if (it.atk) { B.atk.set(m, Math.min(3, (B.atk.get(m) || 0) + it.atk)); floatText(pos(m), 'Force ▲▲', 'heal'); sfx('buff'); return say(`${nm(m)} drinks the Ember Draught. Its Force surges.`); }
   if (it.def) { B.def.set(m, Math.min(3, (B.def.get(m) || 0) + it.def)); floatText(pos(m), 'Poise ▲▲', 'heal'); sfx('buff'); return say(`${nm(m)} sips the Iron Tea. It sets its feet.`); }
 }
@@ -12421,7 +12421,7 @@ function updateBattle(dt, t) {
   animManif(B.foeModel, t, 1.4);
   for (const g of B.models.values()) animManif(g, t);
   animHero(B.hero, 0, false, t);
-  for (const g of [B.foeModel, ...B.models.values()]) { const u = g.userData; if (u.flash > 0) { u.flash = Math.max(0, u.flash - dt * 2.5); u.mat.emissiveIntensity = (u.baseE != null ? u.baseE : [.26, .34, .5][u.tier]) + u.flash * 1.4; u.body.position.x = Math.sin(t * 70) * .08 * u.flash; } }
+  for (const g of [B.foeModel, ...B.models.values()]) { const u = g.userData; if (u.flash > 0) { u.flash = Math.max(0, u.flash - dt * 1.4); u.mat.emissiveIntensity = (u.baseE != null ? u.baseE : [.26, .34, .5][u.tier]) + u.flash * .45; u.body.position.x = -.07 * u.flash; /* a soft glow and a lean back, no flash or jitter */ } }
   for (const w of Object.values(B.wedges)) { const p = w.userData.pulse || 0; w.material.emissiveIntensity = .05 + p * .55; w.userData.pulse = Math.max(0, p - dt * 1.4); }
   const ft = typeOf(B.foe); B.wedges[ft].material.emissiveIntensity = Math.max(B.wedges[ft].material.emissiveIntensity, .18 + Math.sin(t * 3) * .06);
   for (const c of arena.children) { if (c.userData.drift) c.position.y += Math.sin(t * c.userData.drift + c.position.x) * .002; else if (c.isSprite) c.position.x += Math.sin(t * .2 + c.position.z) * .004; }
