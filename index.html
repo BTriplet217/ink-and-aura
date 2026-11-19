@@ -178,7 +178,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 #ecard .ek{font:800 11px 'Nunito Sans';letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
 #ecard h3{font:30px 'IM Fell English',serif;margin:4px 0 8px;display:flex;align-items:center;gap:10px}
 #ecard p{font-size:16px;line-height:1.55;margin:0 0 10px}
-#ecard .stats{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:14px;margin:8px 0}
+#ecard .stats{display:grid;grid-template-columns:auto auto auto auto;gap:4px 12px;font-size:13px;margin:8px 0;max-width:420px}@media (max-width:560px){#ecard .stats{grid-template-columns:1fr auto}}
 #ecard .stats b{font-weight:800}
 #ecard .tl{display:flex;flex-direction:column;gap:5px;margin:8px 0 6px}
 #ecard .tl div{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
@@ -503,48 +503,8 @@ const TOWN_ORDER = ['JOY','HOPE','CALM','CONFIDENCE','SURPRISE','SADNESS','FEAR'
 const TOWN_BY_ID = Object.fromEntries(Object.entries(TOWNS).map(([t, c]) => [c.id, { ...c, type:t }]));
 
 // ---------------------------------------------------------------- ending -----
+// The ending's reflection lines live in new_end.js; the aura lines stay here.
 const END = {
-  longest: {
-    JOY:'You carried Joy the longest. You kept reaching for what lights things up, and you let delight lead. Joy is how we connect and stay open. Just make sure it never becomes a way of keeping the harder feelings out of the room.',
-    TRUST:'You carried Trust the longest. You leaned on things and let them lean on you. Trust is how we belong to each other, and it takes quiet courage to keep offering it.',
-    FEAR:'You carried Fear the longest. Some part of you stayed alert, scanning for what might go wrong. Fear exists to protect us. It might be worth asking what yours is guarding, and whether that still needs guarding.',
-    SURPRISE:'You carried Surprise the longest. You stayed open to the unexpected and let the world interrupt you. Surprise is how we learn our maps were wrong, and how we draw better ones.',
-    SADNESS:'You carried Sadness the longest. You didn\'t rush past it. Sadness slows us down so we can take in what we\'ve lost and what it meant. Carrying it isn\'t weakness. Often it\'s what love looks like after something ends.',
-    DISGUST:'You carried Disgust the longest. You knew what you wouldn\'t accept. Disgust draws boundaries and protects what we value. The question is whether your walls still let the right things in.',
-    ANGER:'You carried Anger the longest. Anger shows up when something is in the way, or something isn\'t fair. It\'s energy for change. Carried too long, though, it can start to weigh more than whatever caused it.',
-    ANTICIPATION:'You carried Anticipation the longest. You kept looking ahead, toward what\'s next. Anticipation is the engine of hope and planning. Remember to arrive, sometimes, in the moment you\'re actually in.'
-  },
-  heldAWhile: {
-    JOY:'You held Joy for a while, then set it down. Maybe it felt like too much to keep up. Joy doesn\'t have to be constant to be real.',
-    TRUST:'You held Trust for a while, then set it down. Trust can be lent and taken back. Knowing when to do that is wisdom, not failure.',
-    FEAR:'You carried Fear for a while, then put it down. That\'s what working through fear usually looks like: it gets lighter once you\'ve faced it.',
-    SURPRISE:'You held Surprise for a while before setting it aside. Some things stop surprising us once we understand them. That\'s growth.',
-    SADNESS:'You held Sadness for a while, then set it down. Sadness tends to come in seasons. Setting it down doesn\'t mean you\'ve forgotten.',
-    DISGUST:'You carried Disgust for a while, then set it down. Sometimes a boundary does its job, and then we can soften.',
-    ANGER:'You carried Anger for a while, then put it down. Letting anger do its work and then letting it rest is one of the hardest, healthiest things a person can do.',
-    ANTICIPATION:'You carried Anticipation for a while, then set it down. Maybe what you were waiting for arrived. Or maybe it stopped mattering.'
-  },
-  left: {
-    JOY:'You kept Joy, but left it in your Satchel. It\'s there when you\'re ready. Some of us need permission to feel good. Consider this permission.',
-    TRUST:'You kept Trust, but rarely carried it. Maybe trust has cost you before. It\'s still yours, whenever you want it.',
-    FEAR:'You kept Fear, but packed it away. Out of sight isn\'t the same as gone. It\'s worth checking on now and then.',
-    SURPRISE:'You kept Surprise tucked away. Maybe you like knowing what\'s coming. A little room for the unexpected can be a gift.',
-    SADNESS:'You kept Sadness, but left it in your Satchel. Feelings we pack away still weigh something. When there\'s time, it might be worth unpacking.',
-    DISGUST:'You kept Disgust stored away. You know where your limits are, even if you don\'t show them. That\'s allowed.',
-    ANGER:'You kept Anger, but kept it out of sight. Holding anger back can be self-control. It can also be anger with nowhere to go. Only you know which.',
-    ANTICIPATION:'You kept Anticipation stored away. Hope you\'re saving for later is still hope.'
-  },
-  letGo: {
-    JOY:'You let Joy go. Sometimes we turn good things away because we don\'t feel we\'ve earned them. You\'re allowed to keep it next time.',
-    TRUST:'You let Trust go. Sometimes that\'s protection, and sometimes it\'s an old wound talking. Both deserve gentleness.',
-    FEAR:'You let Fear go. That doesn\'t mean danger is gone. It means you\'ve decided fear won\'t be the one steering.',
-    SURPRISE:'You let Surprise go. Maybe the world has changed on you enough lately. Wanting steadiness is fair.',
-    SADNESS:'You let Sadness go. Letting it pass through, instead of holding it forever, is part of healing. It was allowed to visit.',
-    DISGUST:'You let Disgust go. Softening a judgement, about others or about yourself, makes room for something new.',
-    ANGER:'You let Anger go. That isn\'t the same as saying what happened was okay. It\'s choosing not to carry it anymore.',
-    ANTICIPATION:'You let Anticipation go. Releasing expectations can feel like loss, and like relief.'
-  },
-  noneLetGo:'You never let anything go. Holding on can be loyalty. It can also become weight. Either way, it was your choice to make.',
   aura: {
     radiant:'Most of the time, you walked in Radiant light. People were glad to see you coming.',
     warm:'Most of the time, your aura was Warm. You were easy to be around.',
@@ -552,9 +512,7 @@ const END = {
     shadowed:'Most of the time, you walked Shadowed. Some doors closed. Others, the quieter ones, opened.',
     abyssal:'Most of the time, you walked through the dark. Not everyone could follow you there. That doesn\'t make it the wrong path.',
     tender:'Most of the time, you walked Tender: carrying the heavy things where people could see them. Some took advantage. More of them, it turned out, stopped to help.'
-  },
-  close:'There was no losing. Only finding out what you carry, and why.',
-  care:'This is a reflection, not a diagnosis. If something here touched something real, it might be worth talking through with someone you trust.'
+  }
 };
 
 // ---------------------------------------------------------------- waytowns ---
@@ -593,31 +551,52 @@ const WAYTOWNS = {
     kin:'Sorcha: You carry Anger. You\'ll do fine in Emberwick. Here, you\'ll need these.', not:'Sorcha: Emberwick\'s up the road. Keep your head down and your temper up.' }
 };
 const NUMBED_LINES = ['...It doesn\'t matter.', '...I used to like it here. I think.', '...Fine. Everything\'s fine.', '...I can\'t remember what I was going to say.', '...You should go. Or stay. It\'s the same.', '...Something was taken from me. I don\'t miss it. That\'s the problem.'];
-// Ending reflections for the four families added with the ten-feeling wheel.
-Object.assign(END.longest, {
-  HOPE:'You carried Hope the longest. You kept believing the road went somewhere good, and you kept walking it. Hope is how people survive the in-between. Just remember that hoping for tomorrow and living in today aren\'t opposites.',
-  CALM:'You carried Calm the longest. You kept your breath slow while the world sped up. Calm is a kind of strength people rarely notice. It\'s worth checking now and then that it\'s peace and not just quiet over something that wants to be heard.',
-  CONFIDENCE:'You carried Confidence the longest. You stood your ground and trusted your own footing. Confidence lets us try things and survive failing at them. The strongest kind still leaves room to say "I was wrong."',
-  SHAME:'You carried Shame the longest. Some part of you kept checking whether you were allowed to be here. Shame tells us we\'ve broken something about belonging. It usually lies about how much. You were allowed to be here the whole time.'
-});
-Object.assign(END.heldAWhile, {
-  HOPE:'You held Hope for a while, then set it down. Maybe what you hoped for arrived. Maybe it didn\'t, and putting it down was the bravest thing you could do.',
-  CALM:'You held Calm for a while, then set it down. Calm comes and goes like weather. It\'s easier to find again once you know where it lives.',
-  CONFIDENCE:'You held Confidence for a while, then set it down. Nobody stays sure of themselves forever. Doubt is part of growing, not the end of it.',
-  SHAME:'You carried Shame for a while, then put it down. That\'s what healing shame looks like: you look at it, you tell someone, and it gets lighter.'
-});
-Object.assign(END.left, {
-  HOPE:'You kept Hope, but packed it away. Hope saved for later still counts. It may be time to take it out and see if it still fits.',
-  CALM:'You kept Calm, but rarely carried it. Maybe stillness feels unsafe, or like wasted time. It\'s there whenever you want to rest.',
-  CONFIDENCE:'You kept Confidence, but left it in your Satchel. Maybe you\'re not sure you\'ve earned it yet. You don\'t have to earn standing up straight.',
-  SHAME:'You kept Shame, but kept it out of sight. That\'s what shame wants: to be hidden. Brought into the light, it usually turns out smaller than it felt.'
-});
-Object.assign(END.letGo, {
-  HOPE:'You let Hope go. Sometimes that\'s grief, and sometimes it\'s finally accepting what is. Hope has a way of growing back when you\'re not watching.',
-  CALM:'You let Calm go. Maybe something needed you to be stirred up. Not every storm is a mistake.',
-  CONFIDENCE:'You let Confidence go. Humility and self-doubt look alike from the outside. Only you know which this was.',
-  SHAME:'You let Shame go. That doesn\'t mean nothing was wrong. It means you decided you\'re worth more than the worst thing you did.'
-});
+// Ending reflections: short and specific. They describe the journey, never the player's health, and never advise.
+END.longest = {
+  JOY:'You carried Joy the longest. You kept reaching for whatever lights things up.',
+  HOPE:'You carried Hope the longest. You kept believing the road went somewhere good, and kept walking it.',
+  CALM:'You carried Calm the longest. You kept your breath slow while the world sped up.',
+  CONFIDENCE:'You carried Confidence the longest. You stood your ground and trusted your own footing.',
+  SURPRISE:'You carried Surprise the longest. You let the world interrupt you, and stayed open to it.',
+  SADNESS:'You carried Sadness the longest. You didn\'t rush past what was lost, or what it meant.',
+  FEAR:'You carried Fear the longest. Some part of you stayed alert the whole way, watching the road ahead.',
+  ANGER:'You carried Anger the longest. You kept noticing what was in the way, and what wasn\'t fair.',
+  SHAME:'You carried Shame the longest. Part of you kept checking whether you were allowed to be here. You were, the whole time.',
+  DISGUST:'You carried Disgust the longest. You knew exactly what you wouldn\'t accept.'
+};
+// "You held X for a while, then set it down." + one line
+END.heldAWhile = {
+  JOY:'Joy doesn\'t have to be constant to be real.', HOPE:'Maybe what you hoped for arrived.', CALM:'Calm comes and goes like weather.',
+  CONFIDENCE:'Nobody stays sure of themselves the whole way.', SURPRISE:'Some things stop surprising you once you understand them.',
+  SADNESS:'Sadness comes in seasons. Setting it down isn\'t forgetting.', FEAR:'Fear gets lighter once it\'s been faced.',
+  ANGER:'It did its work, and then you let it rest.', SHAME:'It got lighter, and you put it down.', DISGUST:'A boundary did its job, and then you could soften.'
+};
+// "You kept X, but left it in your Satchel." + one line
+END.left = {
+  JOY:'It was there whenever you wanted it.', HOPE:'Hope saved for later still counts.', CALM:'It was there whenever you wanted to rest.',
+  CONFIDENCE:'You never had to earn it. It was yours either way.', SURPRISE:'You liked knowing what was coming.', SADNESS:'Packed away, it still had weight.',
+  FEAR:'Out of sight, it still came along.', ANGER:'Self-control, or anger with nowhere to go. Only you know which.', SHAME:'Out of sight, it stayed quiet.',
+  DISGUST:'You knew your limits, even when you didn\'t show them.'
+};
+// "You let X go." + one line
+END.letGo = {
+  JOY:'You\'re allowed to keep it next time.', HOPE:'Hope has a way of growing back.', CALM:'Something needed you stirred up.',
+  CONFIDENCE:'Humility or doubt. Only you know which.', SURPRISE:'Wanting steady ground is fair.', SADNESS:'It was allowed to visit, and to pass.',
+  FEAR:'Fear wasn\'t the one steering.', ANGER:'That isn\'t saying what happened was fine. It\'s choosing not to carry it.',
+  SHAME:'You decided you were more than your worst moment.', DISGUST:'A judgement softened, and made room for something new.'
+};
+END.noneLetGo = 'You never let anything go. Everything you kept, you held onto.';
+END.close = 'There was no losing. Only finding out what you carried.';
+END.care = 'Just a look back at the road you walked.';
+// One sentence on how loud the feeling ran.
+function tierLine(type, byTier) {
+  const tot = byTier.reduce((a, b) => a + b, 0); if (!tot) return '';
+  const [lo, mid, hi] = SHADE_NAMES[type], top = byTier.indexOf(Math.max(...byTier));
+  if (byTier[top] / tot < .6) return `You knew it at every volume, from ${lo} to ${hi}.`;
+  return [`Mostly it stayed quiet: ${lo}, rarely full ${mid}.`, `Mostly it sat in the middle: plain ${mid}, neither a murmur nor a storm.`, `It ran hot: mostly ${hi}.`][top];
+}
+// The first sentence of a Manif's shade: what that feeling is, with no advice attached.
+const shadeFirst = sp => { const t = SHADE[sp] || ''; const m = t.match(/^.*?[.!?]["”]?(?=\s|$)/); return m ? m[0] : t; };
 // =============================================================================
 //  STORY DATA — echoes, responses, citizens, jobs, shops (mature tone)
 // =============================================================================
@@ -5571,10 +5550,6 @@ async function talkWren() {
   if (lab === 'Ask about…') await wrenTopics();
   if (lab === 'Archive Supply') await openShop('archive');
   if (lab === 'The Stillwell') await enterStillwell();
-  if (lab === 'Close my Codex') {
-    const y = await ask(hearts < WN ? `Wren: You've settled ${hearts} of the ${WN} Hearts. You can close your Codex now, or keep walking. It will tell you what you carried either way.` : 'Wren: Then let\'s see what you carried.', ['Close it', 'Not yet']);
-    if (y === 0) await ending();
-  }
 }
 // ---- Wren's introduction: the rundown of the world, your first Manif, and what everything is for.
 function introDone() { return S.flags.wrenIntro || (S.party.length && !S.flags.inIntro); }
@@ -6477,7 +6452,6 @@ async function talkFallenWren() {
   const c = await ask(S.flags.wrenFallen === 'numbed' ? 'Wren: Yes? Whatever you need.' : '(Silence.)', opts);
   const lab = opts[c]; healAll();
   if (lab === 'Take from the Archive stores') return openShop('archive');
-  if (lab === 'Close my Codex') { const y = await ask('Close your Codex now?', ['Close it', 'Not yet']); if (y === 0) await ending(); }
   if (lab === 'The Stillwell') return enterStillwell();
 }
 // The Stillwell, on the Choir's path: kneel, and the Conductor comes to claim the Chord for themself.
@@ -12550,7 +12524,7 @@ function computeEnding() {
   const argmax = o => Object.keys(o).sort((a, b) => o[b] - o[a])[0];
   const acts = S.acts || {};
   // Each individual feeling's weight: time carried, plus every time you reached for it in a fight.
-  const spW = {}; for (const a of all) spW[a.sp] = (spW[a.sp] || 0) + a.c; for (const k in acts) spW[k] = (spW[k] || 0) + acts[k] * 20;
+  const spW = {}; for (const a of all) spW[a.sp] = (spW[a.sp] || 0) + a.c; const spC = {}; for (const a of all) if (a.c > 0 && SPECIES[a.sp]) spC[a.sp] = (spC[a.sp] || 0) + a.c; for (const k in acts) spW[k] = (spW[k] || 0) + acts[k] * 20;
   const carried = sum(all, a => a.c), longest = argmax(carried);
   const famW = sp => { const o = {}; for (const k in spW) if (SPECIES[k] && SPECIES[k].type === sp) o[k] = spW[k]; return o; };
   const longestSp = longest && argmax(famW(longest));
@@ -12565,7 +12539,43 @@ function computeEnding() {
   for (const sp of (S.declinedSp || [])) lgSp[sp] = (lgSp[sp] || 0) + 1;
   const letGo = argmax(lg), letGoSp = letGo && argmax(Object.fromEntries(Object.entries(lgSp).filter(([k]) => SPECIES[k] && SPECIES[k].type === letGo)));
   const aura = argmax(S.tierTime) || 'neutral';
-  return { carried, longest, longestSp, byTier, shades, spW, acts, held:heldR.type, heldSp:heldR.sp, left:leftR.type, leftSp:leftR.sp, letGo, letGoSp, aura, letGoCount: S.released.length + S.declined.length };
+  return { spC, carried, longest, longestSp, byTier, shades, spW, acts, held:heldR.type, heldSp:heldR.sp, left:leftR.type, leftSp:leftR.sp, letGo, letGoSp, aura, letGoCount: S.released.length + S.declined.length };
+}
+// The mood grid: 100 squares, each 1% of the time you carried something, coloured by feeling, with a key.
+const shortTime = sec => sec >= 3600 ? `${Math.floor(sec / 3600)}h ${Math.round(sec % 3600 / 60)}m` : sec >= 60 ? `${Math.round(sec / 60)}m` : `${Math.round(sec)}s`;
+// How loud the longest feeling ran: one strip in three strengths of its colour, with a key.
+function tierStrip(type, byTier) {
+  const tot = byTier.reduce((a, b) => a + b, 0); if (!tot) return ''; const c = TYPES[type].c, names = SHADE_NAMES[type], op = [.4, .7, 1];
+  const pct = byTier.map(v => Math.round(v / tot * 100));
+  return `<div style="margin:12px 0 4px;font-size:13px;color:var(--muted)">How strongly you felt it</div><div style="display:flex;height:16px;border-radius:4px;overflow:hidden;max-width:300px">${pct.map((p, i) => p ? `<i style="display:block;width:${p}%;background:${c};opacity:${op[i]}"></i>` : '').join('')}</div><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:5px">${names.map((n, i) => !pct[i] ? '' : `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};opacity:${op[i]};margin-right:4px;vertical-align:-1px"></i>${n} ${pct[i]}%</span>`).join('')}</div>`;
+}
+// Lighter or darker version of a colour (f < 0 lightens toward white, f > 0 darkens toward black).
+function tint(hex, f) { const n = parseInt(hex.slice(1), 16), ch = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(f < 0 ? v + (255 - v) * -f : v * (1 - f)));
+  return '#' + ch.map(v => v.toString(16).padStart(2, '0')).join(''); }
+// The mood grid: every Manif you carried gets its own shade of its feeling's colour (mild lighter, intense darker)
+// and at least one square, sized by how long you carried it. The key lists every one of them under its feeling.
+function moodGrid(spC) {
+  const sps = Object.keys(spC); if (!sps.length) return '';
+  const typ = sp => SPECIES[sp].type, order = t => { const i = WHEEL.indexOf(t); return i < 0 ? 99 : i; };
+  const famT = {}; for (const sp of sps) famT[typ(sp)] = (famT[typ(sp)] || 0) + spC[sp];
+  const fams = Object.keys(famT).sort((a, b) => famT[b] - famT[a] || order(a) - order(b));
+  const tot = sps.reduce((a, sp) => a + spC[sp], 0), N = Math.max(100, Math.ceil(sps.length / 10) * 10);
+  const col = {}, groups = fams.map(t => { const L = sps.filter(sp => typ(sp) === t).sort((a, b) => (SPECIES[a].tier || 0) - (SPECIES[b].tier || 0) || spC[b] - spC[a]);
+    const base = [-.42, 0, .32];   // mild lighter, core as is, intense darker; Manifs at the same strength step apart a little
+    for (const tr of [0, 1, 2]) { const T = L.filter(sp => (SPECIES[sp].tier || 0) === tr); T.forEach((sp, i) => { col[sp] = tint(TYPES[t].c, base[tr] + (T.length < 2 ? 0 : -.1 + .2 * i / (T.length - 1))); }); }
+    L.forEach(sp => { if (!col[sp]) col[sp] = TYPES[t].c; }); return [t, L]; });
+  const flat = groups.flatMap(([, L]) => L), raw = flat.map(sp => spC[sp] / tot * N);
+  const n = raw.map(v => Math.max(1, Math.floor(v))); let left = N - n.reduce((a, b) => a + b, 0);
+  const byRem = raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; left > 0; k++) { n[byRem[k % byRem.length][1]]++; left--; }
+  while (left < 0) { const i = n.indexOf(Math.max(...n)); n[i]--; left++; }
+  const pct = v => { const p = v / tot * 100; return p < 1 ? '<1%' : Math.round(p) + '%'; };
+  const sw = (c, sz = 12) => `<i style="display:inline-block;width:${sz}px;height:${sz}px;border-radius:3px;background:${c};vertical-align:-2px;margin-right:6px;flex:none"></i>`;
+  const cells = flat.flatMap((sp, i) => Array(n[i]).fill(sp));
+  return `<div style="margin:12px 0 4px;font-size:13px;color:var(--muted)">Everything you carried, and for how long. Each square is about ${N === 100 ? '1%' : Math.round(1000 / N) / 10 + '%'} of your journey. Each Manif has its own shade: lighter is milder, darker is more intense.</div>
+    <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-width:260px;margin:6px 0 10px">${cells.map(sp => `<i style="display:block;aspect-ratio:1;border-radius:3px;background:${col[sp]}" title="${SPECIES[sp].name}"></i>`).join('')}</div>
+    ${groups.map(([t, L]) => `<div style="margin:8px 0 2px;font-size:13px;display:flex;align-items:center">${sw(TYPES[t].c, 14)}<b>${TYPES[t].name}</b><span style="color:var(--muted);margin-left:8px">${shortTime(famT[t])} · ${pct(famT[t])}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:2px 12px;font-size:12px;padding-left:20px">${L.map(sp => `<div style="display:flex;align-items:center">${sw(col[sp], 10)}${SPECIES[sp].name}<span style="color:var(--muted);margin-left:auto;padding-left:6px">${shortTime(spC[sp])}</span></div>`).join('')}</div>`).join('')}`;
 }
 async function ending(final, kind) {
   const doom = kind === 'doom', none = kind === 'none';
@@ -12577,27 +12587,30 @@ async function ending(final, kind) {
   const head = t => t ? `<span class="mi" style="background:${TYPES[t].c}"></span>${TYPES[t].name}` : '';
   const pages = [];
   if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p><p style="font-size:14px;color:var(--muted)">Some got out. The Dragon\'s Table packed up the campaign and Lio and went west. Clover went too, complaining the whole way and carrying as many books as she could, and she is safe. Out past the mainland, the grey stopped at the shore: Ashlynn\'s coast never went quiet at all.</p>' });
-  if (none) pages.push({ k:'The roads out', h:'Some got away', p:'Not everyone stayed to go grey. Many saw it coming and left the Welkin while the roads were still open: carts, families, a battered wagon loaded with dice and rulebooks and a sleepy half-dragon kid, all rolling west, unharmed. A red-haired woman from a cabin in the pines went with them, very much against her will, with a cart of good books and a baseball bat, complaining the whole way, and perfectly safe. Out past the coast, beyond the mainland where the grey can\'t cross the water, a woman with an orange kayak paddles between the islands, safe too. Wherever they went, they are still minding. Still feeling everything. Still playing.' });
+  if (none) pages.push({ k:'The roads out', h:'Some got away', p:'Not everyone stayed to go grey. Many saw it coming and left the Welkin while the roads were still open: carts, families, a battered wagon loaded with dice and rulebooks and a sleepy kid, all rolling west, unharmed. A red-haired woman from a cabin in the pines went with them, very much against her will, with a cart of good books and a baseball bat, complaining the whole way, and perfectly safe. Out past the coast, beyond the mainland where the grey can\'t cross the water, a woman with an orange kayak paddles between the islands, safe too. Wherever they went, they are still minding. Still feeling everything. Still playing.' });
   else if (doom) pages.push({ k:'The Grand Chord', h:`The Hymn of ${pname()}`, p:'The Chord goes out through all ten Hearts at once. In Larkhollow the dancing stops. In Emberwick the forges go cold with the hammers still raised. Mothers put down their children and forget to pick them up. Across the Welkin, every person stands where the note found them, and waits for your word.', extra:`<p style="font-size:14px;color:var(--muted)">The cities still stand. Nobody will ever burn one again. Nobody will ever build one again, either. The fields go to seed. The Numbed eat when they are told to eat. Some of them are not told in time. The Hollow Choir's grey banners hang in every square, and every face beneath them turns toward you when you pass. ${S.flags.wrenFallen ? 'On the Archive steps, Wren sits with her hands in her lap.' : 'Wren was never seen again.'} ${choir().burned ? 'At the Long Siding, a cat still sits on the rails by a burned-out station.' : ''}</p>` });
   else if (final) pages.push({ k:'The Stillwell', h:'The Welkin wakes', p:'Beneath Vellum, ten colours seep back into the water. Above, the whole Welkin feels everything at once: the grief and the joy, the rage and the trust. It is loud. It hurts. It is alive.', extra:'<p style="font-size:14px;color:var(--muted)">The Numbed of every city remember how to cry, and how to laugh, and how to be angry about the years they lost. Nobody calls it a happy ending. Everybody calls it an ending they can feel.</p>' });
   pages.push(
     { k:'The Codex closes', h:`The Codex of ${pname()}`, p:`You walked the Welkin for ${fmtTime(S.time)}.`,
-      extra:`<div class="stats"><span>Marks earned and kept</span><b>${S.marks || 0}</b><span>Jobs done</span><b>${Object.values(S.jobs || {}).filter(v => v === 'done').length}</b><span>Manifs met</span><b>${Object.keys(S.codex.seen).length} / ${CODEX.length}</b><span>Manifs kept</span><b>${Object.keys(S.codex.kept).length}</b><span>Hearts settled</span><b>${Object.keys(S.hearts).length} / ${WN}</b><span>Let go</span><b>${E.letGoCount}</b><span>Intensified</span><b>${S.intensified}</b><span>Fusions</span><b>${S.dyads}</b></div>
-      <div class="tl">${WHEEL.filter(t => E.carried[t]).sort((a, b) => E.carried[b] - E.carried[a]).map(t => `<div><span style="width:92px">${TYPES[t].name}</span><i style="background:${TYPES[t].c};width:${Math.max(3, E.carried[t] / tot * 60)}%"></i><span style="color:var(--muted)">${fmtTime(E.carried[t])}</span></div>`).join('')}</div>` }
+      extra:`<div class="stats"><span>Marks earned and kept</span><b>${S.marks || 0}</b><span>Jobs done</span><b>${Object.values(S.jobs || {}).filter(v => v === 'done').length}</b><span>Manifs met</span><b>${Object.keys(S.codex.seen).length} / ${CODEX.length}</b><span>Manifs kept</span><b>${Object.keys(S.codex.kept).length}</b><span>Hearts settled</span><b>${Object.keys(S.hearts).length} / ${WN}</b><span>Let go</span><b>${E.letGoCount}</b><span>Intensified</span><b>${S.intensified}</b><span>Fusions</span><b>${S.dyads}</b></div>` }
   );
   const spn = sp => SPECIES[sp] ? SPECIES[sp].name : '';
-  const shadeLead = (sp, verb) => sp ? `Specifically, it was <b>${spn(sp)}</b> you ${verb}.` : '';
-  if (E.longest) pages.push({ k:'What you carried longest', h:head(E.longest), p:END.longest[E.longest],
-    extra:`<p style="font-size:15px">${tierNuance(E.longest, E.byTier)}</p>${shadeHtml(E.longestSp, shadeLead(E.longestSp, 'kept closest'))}` });
-  if (E.shades.length) pages.push({ k:'The exact shades', h:'Not just the colour, the shade', p:'A family of feeling is a wide thing. Annoyance is not rage, and contentment is not ecstasy. These are the specific feelings you lived with most, by time carried and how often you reached for them.',
-    extra:E.shades.map(sp => `<div style="display:flex;gap:10px;align-items:flex-start;margin:10px 0">${manifIcon(sp)}<div><b>${spn(sp)}</b> <span style="color:var(--muted);font-size:13px">${TYPES[SPECIES[sp].type].name}${SPECIES[sp].dyad ? ' + ' + TYPES[SPECIES[sp].type2].name : ' · ' + SHADE_NAMES[SPECIES[sp].type][SPECIES[sp].tier]}${E.acts[sp] ? ` · used ${E.acts[sp]}×` : ''}</span><div style="font-size:14px;margin-top:3px">${SHADE[sp]}</div></div></div>`).join('') });
-  if (E.held) pages.push({ k:'What you held for a while', h:head(E.held), p:END.heldAWhile[E.held], extra:shadeHtml(E.heldSp, shadeLead(E.heldSp, 'held')) });
-  if (E.left) pages.push({ k:'What you left behind', h:head(E.left), p:END.left[E.left], extra:shadeHtml(E.leftSp, shadeLead(E.leftSp, 'left in the Satchel')) });
-  pages.push(E.letGo ? { k:'What you let go', h:head(E.letGo), p:END.letGo[E.letGo], extra:shadeHtml(E.letGoSp, shadeLead(E.letGoSp, 'let go of most')) } : { k:'What you let go', h:'Nothing', p:END.noneLetGo });
-  if ((S.gave || []).length) { const g = S.gave[S.gave.length - 1]; pages.push({ k:'What you gave back', h:head(g.type), p:END.gave.replace('{feel}', spn(g.sp) || TYPES[g.type].name) + (S.gave.length > 1 ? ` You did this ${S.gave.length} times.` : ''), extra:shadeHtml(g.sp) }); }
-  if ((S.sold || []).length) { const tot2 = S.sold.reduce((a, r) => a + (r.marks || 0), 0), g = S.sold[S.sold.length - 1]; pages.push({ k:'What you sold', h:head(g.type), p:END.sold.replace('{feel}', S.sold.length > 1 ? `${S.sold.length} feelings` : (spn(g.sp) || TYPES[g.type].name)).replace('{marks}', tot2), extra:shadeHtml(g.sp) }); }
-  pages.push({ k:'The weather you walked in', h:`<span class="mi" style="background:${TIERC[E.aura]}"></span>${tierName(E.aura)}`, p:END.aura[E.aura] });
-  pages.push(none ? { k:'Ink & Aura', h:'Nothing to do', p:'Every feeling in the Welkin was somebody\'s. When the moment came to carry them, you put them all down at once. The cities are still there. You can go and look.', cont:true, last:true } : doom ? { k:'Ink & Aura', h:'The quiet you chose', p:'You did not lose. You won, and this is what winning looked like. Every feeling the Welkin had was somebody\'s, and you gathered them up and put them away where nobody would ever have to feel them again. Was that mercy? The Welkin can\'t tell you. It has forgotten how to answer.', extra:`<p style="font-size:13px;color:var(--muted)">${END.care}</p>`, last:true } : { k:'Ink & Aura', h:'No losing', p:END.close, extra:`<p style="font-size:13px;color:var(--muted)">${END.care}</p>`, last:true });
+  const fam = t => TYPES[t] ? TYPES[t].name : '';
+  const shadeRow = sp => `<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0">${manifIcon(sp)}<div style="font-size:14px"><b>${spn(sp)}</b>${E.acts[sp] ? ` <span style="color:var(--muted);font-size:12px">· used ${E.acts[sp]}×</span>` : ''}<br>${shadeFirst(sp)}</div></div>`;
+  // One page for what you carried: the feeling, how loud it ran, and the exact shades (one line each).
+  if (E.longest) pages.push({ k:'What you carried', h:head(E.longest), p:`${END.longest[E.longest]} ${tierLine(E.longest, E.byTier)}`,
+    extra:moodGrid(E.spC) + `<div style="margin:12px 0 2px;font-size:13px;color:var(--muted)">The exact feelings you kept closest</div>` + (E.shades.length ? E.shades : [E.longestSp]).filter(Boolean).map(shadeRow).join('') });
+  // One page for everything you set down, one line each.
+  const down = [];
+  const line = (lab, t, sp, txt) => down.push(`<div style="margin:10px 0;font-size:14px"><div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em">${lab}</div>${head(t)}${sp && spn(sp) !== fam(t) ? ` <span style="color:var(--muted)">(${spn(sp)})</span>` : ''}<div>${txt}</div></div>`);
+  if (E.held) line('Held for a while', E.held, E.heldSp, `You held ${fam(E.held)} for a while, then set it down. ${END.heldAWhile[E.held] || ''}`);
+  if (E.left) line('Left in the Satchel', E.left, E.leftSp, `You kept ${fam(E.left)}, but rarely carried it. ${END.left[E.left] || ''}`);
+  if (E.letGo) line('Let go', E.letGo, E.letGoSp, `You let ${fam(E.letGo)} go. ${END.letGo[E.letGo] || ''}`);
+  if ((S.gave || []).length) { const g = S.gave[S.gave.length - 1]; line('Given back', g.type, g.sp, `You gave ${spn(g.sp) || fam(g.type)} back to someone who needed it${S.gave.length > 1 ? `, and did that ${S.gave.length} times` : ''}.`); }
+  if ((S.sold || []).length) { const g = S.sold[S.sold.length - 1], m = S.sold.reduce((a, r) => a + (r.marks || 0), 0); line('Sold', g.type, g.sp, `You sold ${S.sold.length > 1 ? S.sold.length + ' feelings' : (spn(g.sp) || fam(g.type))} for ${m} Marks.`); }
+  pages.push({ k:'What you set down', h:down.length ? 'Along the way' : 'Nothing', p:down.length ? '' : END.noneLetGo, extra:down.join('') });
+  const weather = `<p style="font-size:14px"><span class="mi" style="background:${TIERC[E.aura]}"></span> ${END.aura[E.aura]}</p><p style="font-size:13px;color:var(--muted)">${END.care}</p>`;
+  pages.push(none ? { k:'Ink & Aura', h:'Nothing to do', p:'Every feeling in the Welkin was somebody\'s. When the moment came to carry them, you put them all down at once. The cities are still there. You can go and look.', cont:true, last:true , extra:weather } : doom ? { k:'Ink & Aura', h:'The quiet you chose', p:'You did not lose. You won, and this is what winning looked like. Every feeling the Welkin had was somebody\'s, and you gathered them up and put them away where nobody would ever have to feel them again. Was that mercy? The Welkin can\'t tell you. It has forgotten how to answer.', extra:weather, last:true } : { k:'Ink & Aura', h:'No losing', p:END.close, extra:weather, last:true });
   $('#ending').classList.remove('hidden');
   await fadeTo(0, 600);
   let i = 0;
