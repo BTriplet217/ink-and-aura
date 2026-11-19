@@ -5545,12 +5545,15 @@ async function interact() {
 // ---------------------------------------------------------------- npcs -------
 const TIPS = [
   'Up to three of your Manifs stand with you in a Chorus. The rest wait their turn.',
-  'Neighbouring feelings on the wheel can fuse. Kindle and Lilt together make Optimism.',
+  'Neighbouring feelings on the wheel can fuse. Joy and Hope acting together make Optimism.',
   'Reach Out to a wild Manif before it settles, and it\'s far more likely to stay with you.',
-  'Opposite feelings cut deepest: Joy and Sadness, Anger and Fear, Trust and Disgust, Anticipation and Surprise.',
+  'Opposite feelings cut deepest: Joy and Sadness, Hope and Fear, Calm and Anger, Confidence and Shame, Surprise and Disgust.',
   'Manifs deepen as they grow. Around Lv 14, and again at 28, they can intensify. You decide whether to let them.',
   'Every town around Vellum is ruled by a feeling at its most intense. Its Heart waits at the shrine.',
-  'Six is all anyone can carry. What you set down rests in your Satchel. It doesn\'t count toward what people see.'
+  'Six is all anyone can carry. What you set down rests in your Satchel. It doesn\'t count toward what people see.',
+  'Where your Manifs stand matters. The one in the middle stands beside both of the others, and neighbours change each other.',
+  'Every feeling changes the ground you meet it on. Read the arena before you choose who stands in front.',
+  'Each Heart you settle stirs the whole Welkin up a little. Roads you\'ve already walked won\'t stay quite as easy.'
 ];
 async function talkWren() {
   if (!introDone()) return wrenIntro();
@@ -5605,35 +5608,47 @@ async function wrenIntro() {
   await say('Wren: Good. Now listen, because this is what everything\'s for. If you forget, come and ask me. I\'m always here by the Archive.');
   for (const k of ['aura', 'meet', 'battle', 'keep', 'grow', 'roads']) await wrenExplain(k, true);
   S.items.cake = (S.items.cake || 0) + 2; await say('Wren gave you 2 Honey Cakes. They bring back a Manif\'s Composure.');
-  await say('Wren: One more thing, the most important one. Whenever you\'re ready, after one Heart or all ten, come back and close your Codex. It will tell you what you carried, and what that says about you.');
+  await say('Wren: One more thing, the most important one. Your Codex keeps everything: what you met, what you kept, what you let go. When your journey ends, it will tell you what you carried, and what that says about you.');
   await wrenTopics(true);
   S.flags.wrenIntro = 1; delete S.flags.inIntro;
   await say('Wren: Off you go, then, {name}. Joy\'s road is the gentlest place to start: look for the sign that says Larkhollow.');
   npcFace.wren = 'down';
 }
 const WREN_TOPICS = [
-  ['aura', 'Your aura', ['See the badge at the top left? That\'s your aura: the weather of whatever Manifs you carry. Bright, plain or dark, and every shade between.',
+  ['aura', 'Your aura', ['See the badge at the top left? That\'s your aura: the weather of whatever Manifs you carry. It reads two ways at once: how bright or dark it is, and how fierce or still. Warm, Serene, Menacing, Forlorn, and every shade between.',
     'People can see it. Shopkeepers charge you by it. Some folk won\'t talk to a dark aura, and some only talk to the dark ones. Change what you carry and you change how the world treats you.']],
   ['meet', 'Meeting wild Manifs', ['Wild Manifs drift about in the long grass. Walk into one to meet it.',
     'You don\'t hurt them. You wear them out of their feeling until it settles. Each one carries the echo of a real person, and it will tell you a little about them.']],
   ['battle', 'How meetings work', ['Up to three of your Manifs act each turn, using Expressions. Each feeling sits on the wheel. Feelings opposite each other hit twice as hard. Joy and Sadness, Hope and Fear, Calm and Anger, Confidence and Shame, Surprise and Disgust.',
     'Two neighbours on the wheel acting together can fuse into something stronger. Joy and Hope make Optimism, for instance.',
     'Reach Out helps the other Manif feel heard. It builds Understanding. Fill it to 100% and the feeling settles on its own and will stay with you. When a feeling is nearly worn down, the memory of its person may surface: answer what they needed and it is understood on the spot.']],
+  ['chorus', 'Standing together', ['Order matters in your Chorus. They stand left, middle and right, and the one in the middle stands beside both others. Side by side, they change each other.',
+    'Opposites steady each other and take less harm. Neighbours on the wheel fall in tune and hit harder. Two of the same feeling echo each other, and Reaching Out lands deeper.',
+    'And a few pairs feed each other, like Anger and Shame, or Fear and Sadness. They hit much harder, but they hurt more easily too. To rearrange them, open Carried in the menu and move a Manif to the front.']],
+  ['arena', 'The ground you meet them on', ['Every feeling changes the ground you meet it on. Joy\'s light makes Reaching Out land deeper. Hope\'s dawn mends your Chorus a little each turn. Calm floods the ground, and every blow lands softer.',
+    'Sadness brings rain that slows you down. In Fear\'s dark, some of your strikes miss. Anger sets the air on fire and burns everyone a little each turn. In Disgust\'s rot, wounds keep bleeding.',
+    'Confidence throws a spotlight, and whoever strikes first strikes hardest. Surprise won\'t hold still and may shuffle your Chorus. Shame fills the place with watching faces, and you hit softer until it trusts you.',
+    'A Heart\'s ground is stronger still. Read the arena when it changes, and choose who stands in front.']],
   ['keep', 'Keeping and letting go', ['When a Manif settles, you can keep it or let it go. You can carry six. The rest wait in your Satchel, and you can swap them from the menu.',
     'Letting go isn\'t failing. Your Codex remembers everything you held and everything you put down.']],
   ['grow', 'Composure, Insight and growing', ['Composure is how much a Manif can take before it needs to rest. If every one you carry is spent, you\'ll wake up somewhere safe. There\'s no losing here.',
-    'Insight is what they learn from each meeting. With enough of it they deepen, and some can intensify into a stronger form, if you let them. Annoyance can become Anger. It doesn\'t have to.']],
-  ['roads', 'The roads out of Vellum', ['Every road from this square goes through a waytown, then a route, then the city at the end. The sign by each gate tells you how strong things get on the way.',
-    'Joy\'s road is the gentlest. Anger\'s is the hardest. Settle each city\'s Heart at its shrine.']],
+    'Insight is what they learn from each meeting. With enough of it they deepen, and around Lv 14 and again at 28 some can intensify into a stronger form, if you let them. Annoyance can become Anger. It doesn\'t have to.']],
+  ['roads', 'The roads out of Vellum', ['Every road from this square goes through a waytown, then a route, then the city at the end. The arch at each road tells you how strong things get past it.',
+    'Joy\'s road is the gentlest. Anger\'s is the hardest. Settle each city\'s Heart at its shrine.',
+    'Every Heart you settle stirs the rest of the Welkin up a little. Feelings everywhere grow a bit stronger and harder to reach, and the strongest learn to go for whoever they hurt most.']],
   ['people', 'People and trust', ['Out on the routes, people train Manifs. Some train them to protect, some train them for war. They\'ll spar with you if they trust you, and pay you for it.',
     'Others need help. Do them a favour and they\'ll give you something back. Whether anyone trusts you depends on your aura, and on what you\'re carrying.']],
   ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from trainers and from favours.',
-    'Honey Cakes and Heart Stones restore Composure. Bitter Tonic and Smelling Salts clear bad states. Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
+    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Heart Stone mends your whole Chorus by half. Smelling Salts wake a Manif that\'s been overwhelmed.',
+    'Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
   ['hearts', 'Hearts, the Hush and the Stillwell', ['Each city has a Heart at its shrine, far stronger than anything on its road. Settle all ten and the way to the Stillwell opens, under the Archive.',
-    'The Hush waits down there. It wears whatever feeling it\'s facing, so think about what you carry when you go.']],
-  ['codex', 'Closing your Codex', ['Your Codex is your record: every Manif you met, kept, let go, gave away or sold. Close it with me whenever you like, and it will read back what you carried longest and what that says about you.']],
-  ['controls', 'Controls', ['Move with the arrow keys or WASD, the left stick or D-pad, or the pad on screen. Talk or confirm with Z, Space or A. Go back or open the menu with X, Escape, B or Start.',
-    'Turn the view by dragging across the screen, or with Q and E, LB and RB, or the right stick. Pinch, the mouse wheel or the stick zooms. Zoom with C, the mouse wheel or Y. You can set the controller up however you like in Menu, then Controller.']]
+    'The Hush waits down there. In the end it wears the feeling you\'ve carried longest, so think about what you carry when you go.']],
+  ['codex', 'Your Codex', ['Your Codex is your record: every Manif you met, kept, let go, gave away or sold. You can read it any time from the menu.',
+    'When your journey ends, it reads back what you carried longest, and what that says about you.']],
+  ['controls', 'Controls', ['Move with the arrow keys or WASD, the left stick or D-pad, or the pad on screen. Talk or confirm with Z, Space or A. Go back with X or B. While you\'re walking, X or B switches between walking and running.',
+    'Open the menu with M, Escape or Start. On a controller, X opens it too, unless you\'re looking over your shoulder.',
+    'Turn the view by dragging across the screen, with Q and E, LB and RB, or the right stick. C or Y steps through the views, from far above right down to over your shoulder. Pinch or the mouse wheel zooms. You can also pick the view in Menu, then View.',
+    'Over the shoulder, look up and down with R and F or the right stick. The controller\'s X button steps the camera close, normal or far, and on a phone the distance button does the same. Set the controller up however you like in Menu, then Controller.']]
 ];
 async function wrenExplain(k, intro) { const T = WREN_TOPICS.find(x => x[0] === k); for (const l of T[2]) await say('Wren: ' + l); }
 async function wrenTopics(first) {
