@@ -5042,7 +5042,7 @@ function updateCamera(dt, snap) {
   const desired = V3(camFocus.x + Math.sin(camYaw) * dist, camFocus.y + ht, camFocus.z + Math.cos(camYaw) * dist);
   if (snap) camera.position.copy(desired); else camera.position.lerp(desired, 1 - Math.exp(-dt * (freeing ? 22 : 7)));
   // impacts still nudge the view, but as a short, slow sway, never a fast judder
-  if (MOOD.shake > 0) { const k = Math.min(.05, MOOD.shake * .035), tt = performance.now() / 1000; camera.position.x += Math.sin(tt * 9) * k; camera.position.y += Math.sin(tt * 7 + 1) * k * .5; }
+  // no screen shake, ever (MOOD.shake is still set by scenes but never moves the camera)
   camera.lookAt(camFocus.x, camFocus.y + .5, camFocus.z);
   if (W.fogBase) { const k = Math.max(1, z); worldScene.fog.near = W.fogBase[0] * k; worldScene.fog.far = W.fogBase[1] * k; }   // pull the haze back when zoomed out
   worldSky.position.copy(camera.position);
@@ -12416,7 +12416,7 @@ function updateWorld(dt, t) {
 function updateBattle(dt, t) {
   B.camT = Math.min(1, B.camT + dt * .8); fieldTick(dt);
   const e = 1 - Math.pow(1 - B.camT, 3), portrait = innerWidth < innerHeight;
-  bcam.position.lerpVectors(V3(7, 2.6, -1.5), V3(0, portrait ? 6.6 : 3.9, portrait ? 10.6 : 8.6), e); bcam.position.x += Math.sin(t * .3) * .25; if (B.shake > 0) { bcam.position.x += (Math.random() - .5) * B.shake * .5; bcam.position.y += (Math.random() - .5) * B.shake * .35; B.shake = Math.max(0, B.shake - dt * 2.6); }
+  bcam.position.lerpVectors(V3(7, 2.6, -1.5), V3(0, portrait ? 6.6 : 3.9, portrait ? 10.6 : 8.6), e); bcam.position.x += Math.sin(t * .3) * .25; B.shake = 0;   // no camera shake in battle
   bcam.lookAt(0, portrait ? .2 : 1, portrait ? .3 : -.3); battleSky.position.copy(bcam.position);
   animManif(B.foeModel, t, 1.4);
   for (const g of B.models.values()) animManif(g, t);
