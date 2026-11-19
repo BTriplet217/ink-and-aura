@@ -597,6 +597,52 @@ function tierLine(type, byTier) {
 }
 // The first sentence of a Manif's shade: what that feeling is, with no advice attached.
 const shadeFirst = sp => { const t = SHADE[sp] || ''; const m = t.match(/^.*?[.!?]["”]?(?=\s|$)/); return m ? m[0] : t; };
+// What carrying each Manif may say about you: one observation each. Never a diagnosis, never advice.
+const SAYS = {
+  CONTENTMENT:'You know how to be glad on an ordinary day.', JOY:'You let good things land when they came.', EUPHORIA:'When something went right, you let it lift you all the way.',
+  AMUSEMENT:'You kept finding the funny side of things, even on hard roads.', GLEE:'You like your good moods shared.', JUBILATION:'You celebrate out loud, and you bring people with you.',
+  WARMTH:'Your happiness seems to live in your people.', GRATITUDE:'You notice what you\'ve been given.', RAPTURE:'You know how to lose yourself completely in something good.',
+  SATISFACTION:'You like a job finished properly.', PRIDE:'You stand behind what you\'ve made and who you are.', TRIUMPH:'You go after the hard thing and enjoy the moment it gives.', RADIANCE:'Your good mood tends to spread to the people around you.',
+  WISHFULNESS:'You keep a soft hope going, even without a plan for it yet.', OPTIMISM:'You expect things to grow.', FAITH:'You can keep walking when you can\'t see the road.',
+  INTEREST:'You lean toward whatever comes next.', ANTICIPATION:'You enjoy the waiting almost as much as the thing itself.', EAGERNESS:'You jump in early, with both feet.',
+  COMFORT:'You know where your soft places are.', REASSURANCE:'You\'re often the one telling people "go on."', TRUST:'You let other people carry part of the weight.',
+  YEARNING:'You know exactly what matters to you.', ASPIRATION:'You keep reaching a little higher than where you stand.', DEVOTION:'When you love something, you keep a light on for it.', ELEVATION:'Good people make you want to be better.',
+  EASE:'You can be loose in your own skin.', RELAXATION:'You let yourself rest.', TRANQUILITY:'You make rooms quieter just by being in them.',
+  PATIENCE:'You can wait without losing yourself in the waiting.', COMPOSURE:'You hold steady when things get loud.', EQUANIMITY:'Highs and lows don\'t knock you over easily.',
+  STILLNESS:'You don\'t mind looking all the way down.', CALMNESS:'You\'re the steady one people don\'t always notice.', PEACEFULNESS:'You make peace a place other people can rest.',
+  SURRENDER:'You know when to stop fighting the current.', ACCEPTANCE:'You meet things as they are.', CENTEREDNESS:'You keep finding your way back to your middle.', SERENITY:'You carry a deep, quiet calm.',
+  POISE:'You walk in like you belong.', SELFASSURANCE:'You know what you are.', DIGNITY:'You hold yourself upright, whatever happens.',
+  BOLDNESS:'You go first.', ASSERTIVENESS:'You say what you need, plainly.', DEFIANCE:'You won\'t be pushed where you don\'t want to go.',
+  RESOLVE:'Once you decide, you follow through.', GRIT:'You keep going when it gets heavy.', ENDURANCE:'You\'ve stood through a lot, and you\'re still standing.',
+  NERVE:'You step forward even while your knees are shaking.', COURAGE:'You feel the fear and go anyway.', VALOR:'You stand between people and what\'s coming.', CONVICTION:'You know what you believe and you stand on it.',
+  INTRIGUE:'Small mysteries pull you in.', CURIOSITY:'You\'re still happy to be a beginner.', FASCINATION:'When something catches you, you go all the way in.',
+  PUZZLEMENT:'You can sit with not knowing yet.', CONFUSION:'You let things be tangled while they sort themselves out.', PERPLEXITY:'You keep turning the hard knots over.',
+  STARTLE:'You let the world catch you off guard.', SHOCK:'Some of the road hit you hard and fast.', ASTONISHMENT:'You still let the world amaze you.',
+  WONDER:'You look up a lot.', AMAZEMENT:'The world keeps turning out bigger than you expected.', AWE:'You know how to feel small in a good way.', EPIPHANY:'You let new understanding change how you see things.',
+  WISTFULNESS:'You look back fondly at what used to be.', LONGING:'Someone or something stays with you after it\'s gone.', HEARTBREAK:'You loved something enough for it to break.',
+  DISAPPOINTMENT:'You hoped for something.', DEJECTION:'Some of the road weighed you down.', DESPAIR:'Part of your journey went through a very dark place.',
+  MELANCHOLY:'A soft grey kept you company.', SORROW:'You stayed with what was lost instead of rushing on.', GRIEF:'You loved something a great deal.',
+  SOLITUDE:'You keep time for yourself.', LONELINESS:'You missed people while you walked.', DEPRESSION:'You carried something very heavy for a long way.', LAMENT:'You let your sorrow be heard.',
+  UNEASE:'You noticed when something felt off.', WORRY:'You think ahead about what could go wrong.', ANXIETY:'Your nerves were on watch for much of the road.',
+  NERVOUSNESS:'Things matter to you before they happen.', ALARM:'You react fast when something seems wrong.', PANIC:'Some moments came at you all at once.',
+  SUSPICION:'You don\'t take things at face value.', PARANOIA:'You kept checking over your shoulder.', HYSTERIA:'Some moments were bigger than anyone could hold calmly.',
+  APPREHENSION:'You brace before you begin.', DREAD:'You felt some things coming from a long way off.', TERROR:'You walked through something that was too much.', HORROR:'You saw something you can\'t unsee.',
+  ANNOYANCE:'Little things got under your skin.', IRRITATION:'You were running short on patience.', EXASPERATION:'You\'ve had enough of something, and you know it.',
+  IMPATIENCE:'You know where you want to go, and you want to get there.', FRUSTRATION:'You kept pushing against something that wouldn\'t give.', HOSTILITY:'You kept your guard up and your edges sharp.',
+  INDIGNATION:'You notice when something isn\'t fair.', BITTERNESS:'An old hurt stayed with you.', SPITE:'You keep score when you\'ve been crossed.',
+  AGITATION:'You were restless, ready to move.', ANGER:'You felt it when something got in your way.', RAGE:'Some of what you met made you burn.', WRATH:'You carried a righteous fury.',
+  SHYNESS:'You notice quietly from the edge.', SELFCONSCIOUSNESS:'You\'re aware of how you come across.', INSECURITY:'You wondered whether you measured up.',
+  AWKWARDNESS:'You stumble sometimes, like everyone.', EMBARRASSMENT:'You care what people think.', MORTIFICATION:'One moment stuck with you longer than it needed to.',
+  CONTRITION:'You want to make things right.', GUILT:'Your conscience speaks up.', REMORSE:'You care about what you broke.',
+  REGRET:'You look back at choices you\'d make differently.', DISGRACE:'Something about how others saw you weighed on you.', HUMILIATION:'Someone or something made you feel small.', SELFLOATHING:'You were hard on yourself.',
+  DISTASTE:'You know what you don\'t like.', AVERSION:'You turn away from what doesn\'t sit right.', REPULSION:'Your body says no clearly.',
+  QUEASINESS:'Not everything sat well with you.', SQUEAMISHNESS:'Some things are hard for you to look at.', ABHORRENCE:'There are things you\'ll never accept.',
+  SCORN:'You see through what other people fall for.', DISDAIN:'You have high standards.', CONTEMPT:'Some people lost your respect entirely.',
+  DISLIKE:'You don\'t pretend to like everyone.', RESENTMENT:'You remember who wronged you.', HATE:'Something hurt you enough to hate.', LOATHING:'You built strong walls.',
+  LOVE_X:'You were given something rare, and you kept it.', BEACON_X:'You carried a light for someone still finding their way home.', BELONG_X:'You helped someone count everyone in.',
+  CURIO_X:'You kept a child\'s promise and walked it all the way home.', HOLLOW_X:'You carried what was left when everything else was gone.'
+};
+const saysOf = sp => SAYS[sp] || '';
 // =============================================================================
 //  STORY DATA — echoes, responses, citizens, jobs, shops (mature tone)
 // =============================================================================
@@ -12554,28 +12600,44 @@ function tint(hex, f) { const n = parseInt(hex.slice(1), 16), ch = [n >> 16, (n 
   return '#' + ch.map(v => v.toString(16).padStart(2, '0')).join(''); }
 // The mood grid: every Manif you carried gets its own shade of its feeling's colour (mild lighter, intense darker)
 // and at least one square, sized by how long you carried it. The key lists every one of them under its feeling.
-function moodGrid(spC) {
-  const sps = Object.keys(spC); if (!sps.length) return '';
-  const typ = sp => SPECIES[sp].type, order = t => { const i = WHEEL.indexOf(t); return i < 0 ? 99 : i; };
+// Every carried Manif's own shade, grouped by feeling (biggest first). Shared by the grid and the per-feeling pages.
+function moodShades(spC) {
+  const sps = Object.keys(spC), typ = sp => SPECIES[sp].type, order = t => { const i = WHEEL.indexOf(t); return i < 0 ? 99 : i; };
   const famT = {}; for (const sp of sps) famT[typ(sp)] = (famT[typ(sp)] || 0) + spC[sp];
-  const fams = Object.keys(famT).sort((a, b) => famT[b] - famT[a] || order(a) - order(b));
-  const tot = sps.reduce((a, sp) => a + spC[sp], 0), N = Math.max(100, Math.ceil(sps.length / 10) * 10);
+  const fams = Object.keys(famT).sort((a, b) => famT[b] - famT[a] || order(a) - order(b)), tot = sps.reduce((a, sp) => a + spC[sp], 0);
   const col = {}, groups = fams.map(t => { const L = sps.filter(sp => typ(sp) === t).sort((a, b) => (SPECIES[a].tier || 0) - (SPECIES[b].tier || 0) || spC[b] - spC[a]);
     const base = [-.42, 0, .32];   // mild lighter, core as is, intense darker; Manifs at the same strength step apart a little
     for (const tr of [0, 1, 2]) { const T = L.filter(sp => (SPECIES[sp].tier || 0) === tr); T.forEach((sp, i) => { col[sp] = tint(TYPES[t].c, base[tr] + (T.length < 2 ? 0 : -.1 + .2 * i / (T.length - 1))); }); }
     L.forEach(sp => { if (!col[sp]) col[sp] = TYPES[t].c; }); return [t, L]; });
+  return { sps, famT, tot, col, groups };
+}
+const pctOf = (v, tot) => { const p = v / tot * 100; return p < 1 ? '<1%' : Math.round(p) + '%'; };
+const swatch = (c, sz = 12) => `<i style="display:inline-block;width:${sz}px;height:${sz}px;border-radius:3px;background:${c};vertical-align:-2px;margin-right:6px;flex:none"></i>`;
+function moodGrid(spC) {
+  if (!Object.keys(spC).length) return '';
+  const { sps, famT, tot, col, groups } = moodShades(spC), N = Math.max(100, Math.ceil(sps.length / 10) * 10);
   const flat = groups.flatMap(([, L]) => L), raw = flat.map(sp => spC[sp] / tot * N);
   const n = raw.map(v => Math.max(1, Math.floor(v))); let left = N - n.reduce((a, b) => a + b, 0);
   const byRem = raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]);
   for (let k = 0; left > 0; k++) { n[byRem[k % byRem.length][1]]++; left--; }
   while (left < 0) { const i = n.indexOf(Math.max(...n)); n[i]--; left++; }
-  const pct = v => { const p = v / tot * 100; return p < 1 ? '<1%' : Math.round(p) + '%'; };
-  const sw = (c, sz = 12) => `<i style="display:inline-block;width:${sz}px;height:${sz}px;border-radius:3px;background:${c};vertical-align:-2px;margin-right:6px;flex:none"></i>`;
   const cells = flat.flatMap((sp, i) => Array(n[i]).fill(sp));
   return `<div style="margin:12px 0 4px;font-size:13px;color:var(--muted)">Everything you carried, and for how long. Each square is about ${N === 100 ? '1%' : Math.round(1000 / N) / 10 + '%'} of your journey. Each Manif has its own shade: lighter is milder, darker is more intense.</div>
     <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-width:260px;margin:6px 0 10px">${cells.map(sp => `<i style="display:block;aspect-ratio:1;border-radius:3px;background:${col[sp]}" title="${SPECIES[sp].name}"></i>`).join('')}</div>
-    ${groups.map(([t, L]) => `<div style="margin:8px 0 2px;font-size:13px;display:flex;align-items:center">${sw(TYPES[t].c, 14)}<b>${TYPES[t].name}</b><span style="color:var(--muted);margin-left:8px">${shortTime(famT[t])} · ${pct(famT[t])}</span></div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:2px 12px;font-size:12px;padding-left:20px">${L.map(sp => `<div style="display:flex;align-items:center">${sw(col[sp], 10)}${SPECIES[sp].name}<span style="color:var(--muted);margin-left:auto;padding-left:6px">${shortTime(spC[sp])}</span></div>`).join('')}</div>`).join('')}`;
+    ${groups.map(([t, L]) => `<div style="margin:8px 0 2px;font-size:13px;display:flex;align-items:center">${swatch(TYPES[t].c, 14)}<b>${TYPES[t].name}</b><span style="color:var(--muted);margin-left:8px">${shortTime(famT[t])} · ${pctOf(famT[t], tot)}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:2px 12px;font-size:12px;padding-left:20px">${L.map(sp => `<div style="display:flex;align-items:center">${swatch(col[sp], 10)}${SPECIES[sp].name}<span style="color:var(--muted);margin-left:auto;padding-left:6px">${shortTime(spC[sp])}</span></div>`).join('')}</div>`).join('')}`;
+}
+
+// One page per feeling you carried: every Manif of it, how long, what it is, and what carrying it may say about you.
+function feelingPages(spC, head) {
+  if (!Object.keys(spC).length) return [];
+  const { famT, tot, col, groups } = moodShades(spC);
+  return groups.map(([t, L0]) => { const L = L0.slice().sort((a, b) => spC[b] - spC[a]), max = spC[L[0]];
+    return { k:`${TYPES[t].name} · ${shortTime(famT[t])} · ${pctOf(famT[t], tot)} of your journey`, h:head(t), p:'',
+      extra:L.map(sp => `<div style="margin:12px 0">
+        <div style="display:flex;align-items:center;font-size:15px">${swatch(col[sp], 14)}<b>${SPECIES[sp].name}</b><span style="color:var(--muted);margin-left:auto;font-size:13px">${shortTime(spC[sp])}</span></div>
+        <div style="height:8px;border-radius:4px;background:#0001;margin:5px 0 6px;max-width:320px"><i style="display:block;height:100%;width:${Math.max(4, spC[sp] / max * 100)}%;border-radius:4px;background:${col[sp]};box-shadow:inset 0 0 0 1px #0002"></i></div>
+        <div style="font-size:14px">${shadeFirst(sp)} ${saysOf(sp)}</div></div>`).join('') }; });
 }
 async function ending(final, kind) {
   const doom = kind === 'doom', none = kind === 'none';
@@ -12599,7 +12661,8 @@ async function ending(final, kind) {
   const shadeRow = sp => `<div style="display:flex;gap:10px;align-items:flex-start;margin:8px 0">${manifIcon(sp)}<div style="font-size:14px"><b>${spn(sp)}</b>${E.acts[sp] ? ` <span style="color:var(--muted);font-size:12px">· used ${E.acts[sp]}×</span>` : ''}<br>${shadeFirst(sp)}</div></div>`;
   // One page for what you carried: the feeling, how loud it ran, and the exact shades (one line each).
   if (E.longest) pages.push({ k:'What you carried', h:head(E.longest), p:`${END.longest[E.longest]} ${tierLine(E.longest, E.byTier)}`,
-    extra:moodGrid(E.spC) + `<div style="margin:12px 0 2px;font-size:13px;color:var(--muted)">The exact feelings you kept closest</div>` + (E.shades.length ? E.shades : [E.longestSp]).filter(Boolean).map(shadeRow).join('') });
+    extra:moodGrid(E.spC) });
+  for (const pg of feelingPages(E.spC, head)) pages.push(pg);
   // One page for everything you set down, one line each.
   const down = [];
   const line = (lab, t, sp, txt) => down.push(`<div style="margin:10px 0;font-size:14px"><div style="color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em">${lab}</div>${head(t)}${sp && spn(sp) !== fam(t) ? ` <span style="color:var(--muted)">(${spn(sp)})</span>` : ''}<div>${txt}</div></div>`);
