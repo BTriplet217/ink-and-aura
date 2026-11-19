@@ -639,7 +639,7 @@ const RESPONSES = [
 
 // ---------------------------------------------------------------- items ------
 Object.assign(ITEMS, {
-  salts:    { name:'Waking Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
+  salts:    { name:'Smelling Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
   hearth:   { name:'Heart Stone',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
   charm:    { name:'Kindred Charm',  res:30, desc:'+30 Understanding with the Manif you\'re facing', price:140 },
   ember:    { name:'Ember Draught',  atk:2, desc:'Sharply raises one Manif\'s Force', price:110 },
@@ -4601,7 +4601,7 @@ const HOME_WANTS = [
   { k:'item', item:'tonic', ask:'My husband\'s Manif got into the gin and now it won\'t stop crying. Have you a Bitter Tonic? I\'ll make it worth your while.', thanks:'Oh, thank Christ. Quiet at last.' },
   { k:'item', item:'iron', ask:'I\'ve got a fight at the pit on Saturday and my nerve\'s shot. An Iron Tea would see me right.', thanks:'Ha! Now I\'ll knock that bastard\'s teeth in. Here, take this.' },
   { k:'item', item:'cake', ask:'I haven\'t eaten in two days. Don\'t look at me like that. A Honey Cake. Please.', thanks:'(They eat it in four bites, crying a bit.) Thank you. Take this. I\'ve got nothing else worth giving.' },
-  { k:'item', item:'salts', ask:'My daughter\'s Manif got hurt in a scrap and it won\'t wake up. Waking Salts? Anything?', thanks:'It\'s moving! It\'s moving. Oh, you darling. Here.' },
+  { k:'item', item:'salts', ask:'My daughter\'s Manif got hurt in a scrap and it won\'t wake up. Smelling Salts? Anything?', thanks:'It\'s moving! It\'s moving. Oh, you darling. Here.' },
   { k:'item', item:'ember', ask:'The landlord\'s coming Friday with his two big lads. I need an Ember Draught for my Manif. Don\'t ask.', thanks:'Right. Let him come. Here, for your trouble.' },
   { k:'show', fam:'JOY', ask:'Nobody\'s laughed in this house since Da died. Have you got any Joy on you? Just let me look at it a while.', thanks:'(They watch your Manif for a long time, and smile for the first time in months.) Take this.' },
   { k:'show', fam:'CALM', ask:'My nerves are wrecked. If you\'re carrying anything Calm, let me sit near it. Please.', thanks:'(Their hands stop shaking.) God, that\'s better. Here.' },
@@ -5639,7 +5639,7 @@ const WREN_TOPICS = [
   ['people', 'People and trust', ['Out on the routes, people train Manifs. Some train them to protect, some train them for war. They\'ll spar with you if they trust you, and pay you for it.',
     'Others need help. Do them a favour and they\'ll give you something back. Whether anyone trusts you depends on your aura, and on what you\'re carrying.']],
   ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from trainers and from favours.',
-    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Heart Stone mends your whole Chorus by half. Waking Salts wake a Manif that\'s been overwhelmed.',
+    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Heart Stone mends your whole Chorus by half. Smelling Salts wake a Manif that\'s been overwhelmed.',
     'Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
   ['hearts', 'Hearts, the Hush and the Stillwell', ['Each city has a Heart at its shrine, far stronger than anything on its road. Settle all ten and the way to the Stillwell opens, under the Archive.',
     'The Hush waits down there. In the end it wears the feeling you\'ve carried longest, so think about what you carry when you go.']],
@@ -6536,7 +6536,7 @@ async function endGift(kind) {
   if (S.party.length < 6) S.party.push(m); else S.satchel.push(m); S.codex.kept[m.sp] = 1; rebuildMinis();
   sfx('keep'); banner(m.nick, kind === 'doom' ? 'It obeys you' : 'It chose you');
   if (kind === 'doom') { pay(5000); await say('The Choir\'s treasury is yours now. 5000 Marks in old grey coin.'); await say('(Somewhere far below, something that is not the Hush is waking. The Welkin\'s last free feeling has come looking for you. Look in the Stillwell.)'); }
-  else { S.items.tonic = (S.items.tonic || 0) + 5; S.items.salts = (S.items.salts || 0) + 5; await say('Ilse sends up the Archive\'s best stores: 5 Bitter Tonics and 5 Waking Salts.'); await say('(Something is still down there. Orrin Vale held the Hush shut for two hundred years. Whatever is left of him is waking. Look in the Stillwell.)'); }
+  else { S.items.tonic = (S.items.tonic || 0) + 5; S.items.salts = (S.items.salts || 0) + 5; await say('Ilse sends up the Archive\'s best stores: 5 Bitter Tonics and 5 Smelling Salts.'); await say('(Something is still down there. Orrin Vale held the Hush shut for two hundred years. Whatever is left of him is waking. Look in the Stillwell.)'); }
   await say('(Hearts can now be faced again at any shrine, far stronger. Notice clerks have new bounties. Your Manifs can grow to Lv 60.)');
 }
 async function talkSuperboss() {
@@ -6839,7 +6839,7 @@ async function meetNumbGirl(z) {
   const c = await ask('She holds out a grey hand.', ['Follow her', 'Gently send her home']); if (c !== 0) { S.zq[z] = 1; return say('(She stands where you left her, perfectly still, for the rest of the day.)'); }
   await say('She leads you behind the shrine to a cellar full of things the Numbed stopped caring about: wedding rings, letters, a child\'s shoe, a box of Marks nobody counted.');
   for (const k of ['tonic', 'salts', 'hearth']) S.items[k] = (S.items[k] || 0) + 1; pay(120);
-  zdone(z, '(You take a Bitter Tonic, Waking Salts, a Heart Stone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
+  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Heart Stone and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
 }
 async function meetCalloway(z) {
   await say('Brother Calloway: Forgive me. You have a face people tell things to. I have to tell someone before the Heart takes me too.');
@@ -11521,7 +11521,7 @@ async function useItem(m, k) {
   if (it.revive) {
     const down = S.party.filter(p => p.hp <= 0); if (!down.length) { S.items[k]++; return say('Nobody needs reviving.'); }
     const p = down[0]; p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
-    sfx('heal'); renderBHUD(); return say(`The Waking Salts sting. ${nm(p)} comes back to itself.`);
+    sfx('heal'); renderBHUD(); return say(`The Smelling Salts sting. ${nm(p)} comes back to itself.`);
   }
   if (it.res) { if (B.final) { S.items[k]++; return say('The Hush has nobody left inside to befriend. Not like that.'); } if (!canUnderstand()) { S.items[k]++; return say('There are too many of them at once. The charm can\'t find just one to reach.'); } B.res = Math.min(100, B.res + it.res); floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + it.res, 'heal'); renderBHUD(); return say(`You hold out the Kindred Charm. ${cap(bname(B.foe))} leans toward it.`); }
   if (it.atk) { B.atk.set(m, Math.min(3, (B.atk.get(m) || 0) + it.atk)); floatText(pos(m), 'Force ▲▲', 'heal'); sfx('buff'); return say(`${nm(m)} drinks the Ember Draught. Its Force surges.`); }
