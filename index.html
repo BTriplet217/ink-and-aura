@@ -5645,7 +5645,7 @@ const WREN_TOPICS = [
     'Reach Out helps the other Manif feel heard. It builds Understanding. Fill it to 100% and the feeling settles on its own and will stay with you. When a feeling is nearly worn down, the memory of its person may surface: answer what they needed and it is understood on the spot.']],
   ['chorus', 'Standing together', ['Order matters in your Chorus. They stand left, middle and right, and the one in the middle stands beside both others. Side by side, they change each other.',
     'Opposites steady each other and take less harm. Neighbours on the wheel fall in tune and hit harder. Two of the same feeling echo each other, and Reaching Out lands deeper.',
-    'And a few pairs feed each other, like Anger and Shame, or Fear and Sadness. They hit much harder, but they hurt more easily too. To rearrange them, open Carried in the menu and move a Manif to the front.']],
+    'And a few pairs feed each other, like Anger and Shame, or Fear and Sadness. They hit much harder, but they hurt more easily too. To rearrange them, open Carried in the menu and choose Move to…']],
   ['arena', 'The ground you meet them on', ['Every feeling changes the ground you meet it on. Joy\'s light makes Reaching Out land deeper. Hope\'s dawn mends your Chorus a little each turn. Calm floods the ground, and every blow lands softer.',
     'Sadness brings rain that slows you down. In Fear\'s dark, some of your strikes miss. Anger sets the air on fire and burns everyone a little each turn. In Disgust\'s rot, wounds keep bleeding.',
     'Confidence throws a spotlight, and whoever strikes first strikes hardest. Surprise won\'t hold still and may shuffle your Chorus. Shame fills the place with watching faces, and you hit softer until it trusts you.',
@@ -5825,19 +5825,37 @@ async function openMenu() {
     if (c === 5) { openMenu.last = 5; await saveMenu(); }
   }
 }
+// Where each carried Manif stands. The first three healthy ones form the Chorus in battle: left, middle, right.
+const SLOT_NAMES = ['Chorus · left', 'Chorus · middle', 'Chorus · right', 'Waiting', 'Waiting', 'Waiting'];
+// The Bonds a Manif would have at position k of this order (only the Chorus forms Bonds).
+function bondsAt(arr, k) {
+  if (k > 2 || typeof bondKind !== 'function') return [];
+  const out = []; for (const j of [k - 1, k + 1]) { if (j < 0 || j > 2 || !arr[j]) continue; const b = bondKind(arr[k], arr[j]); if (b) out.push(`${BOND_INFO[b].name} with ${nm(arr[j])}`); } return out;
+}
+const bondNote = L => L.length ? `<br><small style="color:#7a5a20">${L.join(' · ')}</small>` : '';
+function partyRow(m, i) { return manifRow(m).replace('<small>Lv', `<small>${SLOT_NAMES[i]} · Lv`).replace('</small></span>', '</small>' + bondNote(bondsAt(S.party, i)) + '</span>'); }
+// Pick a spot for m. arr is the list it will be in; from is its index there now (or -1 if it's arriving).
+async function chooseSpot(m, arr, from, title, slotLabels) {
+  const n = from < 0 ? arr.length + 1 : arr.length, spots = [...Array(n).keys()];
+  const order = j => { const a = arr.slice(); if (from >= 0) a.splice(from, 1); a.splice(j, 0, m); return a; };
+  const j = await listChoose(spots, { title, sub:slotLabels ? 'The first three healthy Manifs form your Chorus. The middle one stands beside both others.' : 'Choose where it goes in your Satchel.', start:Math.max(0, from),
+    render:j => { const a = order(j), here = j === from;
+      return `<span class="rowname">${j + 1}. ${slotLabels ? slotLabels[j] : 'Place ' + (j + 1)}<br><small>${here ? 'Where it is now' : from < 0 ? (arr[j] ? `before ${nm(arr[j])}` : 'at the end') : `${j < from ? 'before' : 'after'} ${nm(arr[j])}`}</small>${slotLabels ? bondNote(bondsAt(a, j)) : ''}</span>`; } });
+  return j;
+}
 async function partyMenu() {
   let idx = 0;
   for (;;) {
-    const i = await listChoose(S.party, { title:'Carried Manifs', sub:`${S.party.length}/6 · the first three form your Chorus · Cakes ${S.items.cake} · Tonics ${S.items.tonic}`, render: manifRow, start: idx });
+    const i = await listChoose(S.party, { title:'Carried Manifs', sub:`${S.party.length}/6 · the first three healthy ones form your Chorus · Cakes ${S.items.cake} · Tonics ${S.items.tonic}`, render: partyRow, start: idx });
     if (i < 0) return closeSheet();
     idx = i; const m = S.party[i];
-    const opts = ['Listen', 'Summary', 'Move to front', 'Set down'];
+    const opts = ['Listen', 'Summary']; if (S.party.length > 1) opts.push('Move to…'); opts.push('Set down');
     const items = Object.keys(ITEMS).filter(k => S.items[k] > 0 && m.hp < maxHp(m)); if (items.length) opts.push('Tend');
     opts.push('Back');
     const c = await choose(opts), lab = opts[c];
     if (lab === 'Listen') await listen(m);
     if (lab === 'Summary') { idx = await summary(m, S.party); continue; }
-    if (lab === 'Move to front') { S.party.splice(i, 1); S.party.unshift(m); idx = 0; rebuildMinis(); }
+    if (lab === 'Move to…') { const j = await chooseSpot(m, S.party, i, `Move ${nm(m)} to…`, SLOT_NAMES); if (j >= 0 && j !== i) { S.party.splice(i, 1); S.party.splice(j, 0, m); idx = j; rebuildMinis(); sfx('ok'); } }
     if (lab === 'Set down') {
       if (S.party.length <= 1) { await say('You can\'t set down the last thing you\'re carrying.'); continue; }
       const before = auraName(); S.party.splice(i, 1); S.satchel.push(m); idx = Math.max(0, i - 1); rebuildMinis();
@@ -5852,15 +5870,24 @@ async function satchelMenu() {
     const i = await listChoose(S.satchel, { title:'Satchel', sub:'Manifs you\'ve set down. They don\'t count toward your aura.', render: manifRow, start: idx, empty:'Manifs you set down rest here.' });
     if (i < 0) return closeSheet();
     idx = i; const m = S.satchel[i];
-    const c = await choose(['Carry', 'Summary', 'Let go', 'Listen', 'Back']);
-    if (c === 3) { await listen(m); continue; }
-    if (c === 0) {
-      if (S.party.length >= 6) { await say('You\'re carrying six already. Set something down first.'); continue; }
-      const before = auraName(); S.satchel.splice(i, 1); S.party.push(m); idx = Math.max(0, i - 1); rebuildMinis();
-      await say('You carry ' + nm(m) + ' again.'); await announceShift(before);
+    const full = S.party.length >= 6, opts = [full ? 'Swap in for…' : 'Carry', 'Summary']; if (S.satchel.length > 1) opts.push('Move to…'); opts.push('Let go', 'Listen', 'Back');
+    const lab = opts[await choose(opts)];
+    if (lab === 'Listen') { await listen(m); continue; }
+    if (lab === 'Carry') {
+      const j = await chooseSpot(m, S.party, -1, `Carry ${nm(m)} where?`, SLOT_NAMES); if (j < 0) continue;
+      const before = auraName(); S.satchel.splice(i, 1); S.party.splice(j, 0, m); idx = Math.max(0, i - 1); rebuildMinis();
+      await say(`You carry ${nm(m)} again. It stands ${SLOT_NAMES[j] === 'Waiting' ? 'with the ones waiting' : 'in your Chorus, ' + SLOT_NAMES[j].split('· ')[1]}.`); await announceShift(before);
     }
-    if (c === 1) { idx = await summary(m, S.satchel); continue; }
-    if (c === 2) { const y = await ask('Let ' + nm(m) + ' go back into the Welkin? It won\'t return.', ['Let it go', 'Keep it']); if (y === 0) { recordRelease(m); S.satchel.splice(i, 1); idx = Math.max(0, i - 1); sfx('release'); await say(nm(m) + ' drifts up and away, back into the weather.'); } }
+    if (lab === 'Swap in for…') {
+      const j = await listChoose(S.party, { title:`Swap ${nm(m)} in for…`, sub:'It takes that one\'s place, and that one rests in your Satchel.', start:0,
+        render:(p, k) => { const a = S.party.slice(); a[k] = m; return manifRow(p).replace('<small>Lv', `<small>${SLOT_NAMES[k]} · Lv`).replace('</small></span>', '</small>' + bondNote(bondsAt(a, k)) + '</span>'); } });
+      if (j < 0) continue;
+      const before = auraName(), out = S.party[j]; S.party[j] = m; S.satchel[i] = out; rebuildMinis();
+      await say(`${nm(m)} takes ${nm(out)}'s place. ${nm(out)} rests in your Satchel.`); await announceShift(before);
+    }
+    if (lab === 'Move to…') { const j = await chooseSpot(m, S.satchel, i, `Move ${nm(m)} to…`); if (j >= 0 && j !== i) { S.satchel.splice(i, 1); S.satchel.splice(j, 0, m); idx = j; sfx('ok'); } }
+    if (lab === 'Summary') { idx = await summary(m, S.satchel); continue; }
+    if (lab === 'Let go') { const y = await ask('Let ' + nm(m) + ' go back into the Welkin? It won\'t return.', ['Let it go', 'Keep it']); if (y === 0) { recordRelease(m); S.satchel.splice(i, 1); idx = Math.max(0, i - 1); sfx('release'); await say(nm(m) + ' drifts up and away, back into the weather.'); } }
   }
 }
 function summaryHTML(m) {
