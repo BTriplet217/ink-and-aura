@@ -2087,14 +2087,14 @@ const AURA_RING = (() => { const c = document.createElement('canvas'); c.width =
 function addManifAura(g, d, o) {
   const c = new THREE.Color(TYPES[d.type].c); if (d.dyad && d.type2) c.lerp(new THREE.Color(TYPES[d.type2].c), .5);
   const tier = d.heart ? 3 : d.tier || 0, mini = !!o.mini, k = (mini ? .55 : 1) * (1 + tier * .22);
-  const halo = glow(c, 2 * k, mini ? .45 : .62 + tier * .08); halo.position.set(0, .05, -.05); halo.renderOrder = -1; g.add(halo);
-  const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.5 * k, 1.5 * k), new THREE.MeshBasicMaterial({ map:AURA_RING, color:c, transparent:true, opacity:mini ? .45 : .7, blending:THREE.AdditiveBlending, depthWrite:false }));
+  const halo = glow(c, 2 * k, mini ? .22 : .3 + tier * .04); halo.position.set(0, .05, -.05); halo.renderOrder = -1; g.add(halo);
+  const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.5 * k, 1.5 * k), new THREE.MeshBasicMaterial({ map:AURA_RING, color:c, transparent:true, opacity:mini ? .2 : .3, depthWrite:false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = mini ? -.5 : -.62; g.add(ring);
-  const motes = []; for (let i = 0; i < (mini ? 3 : 5 + tier * 2); i++) { const m = glow(c, (mini ? .1 : .16) * (1 + tier * .1), .9); m.userData.ph = Math.random() * 6.28; m.userData.r = .25 + Math.random() * .35; g.add(m); motes.push(m); }
+  const motes = []; for (let i = 0; i < (mini ? 3 : 5 + tier * 2); i++) { const m = glow(c, (mini ? .1 : .16) * (1 + tier * .1), .35); m.userData.ph = Math.random() * 6.28; m.userData.r = .25 + Math.random() * .35; g.add(m); motes.push(m); }
   const t0 = Math.random() * 10;
-  halo.onBeforeRender = () => { const t = performance.now() / 1000 + t0; halo.material.opacity = (mini ? .42 : .6 + tier * .08) * (.82 + .18 * Math.sin(t * 2.1));
-    ring.material.opacity = (mini ? .4 : .65) * (.75 + .25 * Math.sin(t * 2.1 + 1));
-    for (const m of motes) { const u = (t * .35 + m.userData.ph) % 1; m.position.set(Math.cos(m.userData.ph + t * .6) * m.userData.r, -.45 + u * 1.5, Math.sin(m.userData.ph + t * .6) * m.userData.r); m.material.opacity = Math.sin(u * Math.PI) * .9; } };
+  halo.onBeforeRender = () => { const t = performance.now() / 1000 + t0; halo.material.opacity = (mini ? .2 : .28 + tier * .04) * (.9 + .1 * Math.sin(t * .9));   // a faint, slow breath
+    ring.material.opacity = (mini ? .18 : .28) * (.88 + .12 * Math.sin(t * .9 + 1));
+    for (const m of motes) { const u = (t * .35 + m.userData.ph) % 1; m.position.set(Math.cos(m.userData.ph + t * .6) * m.userData.r, -.45 + u * 1.5, Math.sin(m.userData.ph + t * .6) * m.userData.r); m.material.opacity = Math.sin(u * Math.PI) * .35; } };
   g.userData.aura = { halo, ring, motes, color:c };
 }
 function manifColor(d) {
@@ -2114,7 +2114,7 @@ function buildSculpt(sp, o) {
   SCULPT[sp](k);
   body.add(manifDust(body, new THREE.Color(L.dust || '#1e1712'), tier + (L.char ? 1 : 0), !!o.mini, !!L.light));
   let gl = null;
-  if (L.glow) { gl = glow(new THREE.Color(L.glow), (o.mini ? .9 : 1.9) * (1 + tier * .2) * (d.heart ? 1.4 : 1), (o.mini ? .5 : 1) * L.go); gl.position.y = -.02; g.add(gl); }
+  if (L.glow) { gl = glow(new THREE.Color(L.glow), (o.mini ? .9 : 1.9) * (1 + tier * .2) * (d.heart ? 1.4 : 1), (o.mini ? .5 : 1) * L.go * .5); gl.position.y = -.02; g.add(gl); }
   g.userData = { body, mat:k.m, glow:gl, shape:'sculpt', sculpt:true, anim:k.anim, tags:k.tags, phase:Math.random() * 6, tier, baseE:k.m.emissiveIntensity };
   g.scale.setScalar((o.scale || 1) * (d.heart ? 1.05 : [.84, 1, 1.15][tier]));
   return g;
@@ -2154,7 +2154,7 @@ function buildManifLegacy(sp, o = {}) {
     }
   }
   if (!o.mini && DECOR[sp]) DECOR[sp](body, mat, col);
-  const gl = glow(col, (o.mini ? .9 : 1.9) * (1 + tier * .2), o.mini ? .55 : .5); g.add(gl);
+  const gl = glow(col, (o.mini ? .9 : 1.9) * (1 + tier * .2), o.mini ? .28 : .25); g.add(gl);
   g.userData = { ...g.userData, body, mat, glow:gl, shape, phase:Math.random() * 6, tier };
   g.scale.setScalar((o.scale || 1) * [.84, 1, 1.18][tier]);
   return g;
@@ -2276,7 +2276,7 @@ function manifDust(body, col, tier, mini, light) {
         void main(){ float k = fract(wTime * (.12 + aSeed * .18) + aSeed * 7.); vec3 d = aDir * (.85 + k * .55) + vec3(sin(aSeed * 40. + wTime) * .03, k * .22, cos(aSeed * 33. + wTime) * .03);
           vec4 mv = modelViewMatrix * vec4(position + d, 1.); gl_Position = projectionMatrix * mv; vA = (1. - k) * smoothstep(0., .15, k); vS = aSeed;
           gl_PointSize = (3. + aSeed * 8.) * uPx * (5. / -mv.z); }`,
-      fragmentShader:`uniform vec3 uCol; varying float vA; varying float vS; void main(){ vec2 q = gl_PointCoord - .5; float r = length(q); if (r > .5) discard; float g = fract(sin(dot(floor(gl_PointCoord * 4.), vec2(12.9, 78.2)) + vS * 91.) * 43758.5); if (g < .35) discard; gl_FragColor = vec4(uCol, vA * .75 * (1. - r * 1.6));
+      fragmentShader:`uniform vec3 uCol; varying float vA; varying float vS; void main(){ vec2 q = gl_PointCoord - .5; float r = length(q); if (r > .5) discard; float g = fract(sin(dot(floor(gl_PointCoord * 4.), vec2(12.9, 78.2)) + vS * 91.) * 43758.5); if (g < .35) discard; gl_FragColor = vec4(uCol, vA * .4 * (1. - r * 1.6));
         #include <colorspace_fragment>
       }` });
     DUST_MAT.set(key, m); }
@@ -11891,7 +11891,7 @@ function dressField() {
     sky:[battleSky.material.uniforms.horizon.value.clone(), battleSky.material.uniforms.top.value.clone()], arenaRot:arena.rotation.clone() };
   // Nothing changes at once: fieldTick eases sky, fog and light from how the arena looked to how it should look over a few seconds.
   const u = battleSky.material.uniforms, C = c => new THREE.Color(c);
-  B.fieldEase = { t:0, t0:performance.now(), dur:4,
+  B.fieldEase = { t:0, t0:performance.now(), dur:10,
     from:{ hor:u.horizon.value.clone(), top:u.top.value.clone(), bg:battleScene.background.clone(), fog:battleScene.fog.color.clone(), near:battleScene.fog.near, far:battleScene.fog.far,
       sun:battleLights.sun.intensity, hemi:battleLights.hemi.intensity, sunC:battleLights.sun.color.clone(), hemiC:battleLights.hemi.color.clone() },
     to:{ hor:C(L[0]), top:C(L[1]), bg:C(L[0]), fog:C(L[2]), near:L[3], far:L[4], sun:battleLights.sun.intensity * L[5], hemi:battleLights.hemi.intensity * L[6], sunC:C(L[7]), hemiC:battleLights.hemi.color.clone().lerp(C(L[2]), .5) } };
