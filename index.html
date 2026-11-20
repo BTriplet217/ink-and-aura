@@ -3327,6 +3327,30 @@ Object.assign(SCULPT, {
     k.face({ e:'glow', gc:'#ff3a2a', st:.65, es:.026, sp:.075, m:'teeth', mw:.045, b:.5 }, [0, .3, .22], 1, g); }
 });
 // =============================================================================
+//  LIMBS IN PAIRS (20 Nov) — a Manif has two arms or none, two legs or none.
+//  These designs were built with one arm (raised, waving, holding something) or one leg.
+//  Each gets its missing partner on the other side: an arm hangs at rest, so the gesture
+//  stays the Manif's own; a leg mirrors the one it has.
+// =============================================================================
+const PAIR_UP = ['WISHFULNESS', 'REASSURANCE', 'ASPIRATION', 'NERVE', 'VALOR', 'INTRIGUE', 'CURIOSITY', 'PUZZLEMENT', 'CONFUSION', 'PERPLEXITY', 'EPIPHANY',
+  'WISTFULNESS', 'HEARTBREAK', 'DISAPPOINTMENT', 'DESPAIR', 'GRIEF', 'ANXIETY', 'SHYNESS', 'SELFCONSCIOUSNESS', 'REGRET', 'DISTASTE', 'SQUEAMISHNESS', 'CONTEMPT', 'RESENTMENT'];
+const PAIR_OUT = { REASSURANCE:.16, REGRET:.08, RESENTMENT:.1, SHYNESS:.04, HEARTBREAK:.04, GRIEF:.04 };
+for (const sp of PAIR_UP) { const orig = SCULPT[sp]; if (!orig) continue;
+  SCULPT[sp] = k => {
+    const arms = [], legs = [], oa = PK.arm, ol = PK.leg;
+    PK.arm = function (kk, a, b, r, o) { arms.push({ a, b, r, o:o || {} }); return oa.apply(this, arguments); };
+    PK.leg = function (kk, x, yt, yb, r, o) { legs.push({ x, yt, yb, r, o:o || {} }); return ol.apply(this, arguments); };
+    try { orig(k); } finally { PK.arm = oa; PK.leg = ol; }
+    // Separate limbs are the chains that don't start where another segment ends.
+    const key = p => p.map(v => (+v).toFixed(2)).join(','), ends = new Set(arms.map(s => key(s.b)));
+    const roots = arms.filter(s => !ends.has(key(s.a)));
+    if (roots.length % 2) { const s = roots[0], sx = Math.sign(s.a[0]) || 1, ax = Math.max(.12, Math.abs(s.a[0]));
+      const out = PAIR_OUT[sp] || 0;   // wide bodies need the arm set further out so it shows
+      PK.arm(k, [-sx * (ax + out), s.a[1], s.a[2] + out * .5], [-sx * (ax + out + .09), s.a[1] - .2, s.a[2] + .08 + out * .5], s.r, { m:s.o.m, p:s.o.p }); }   // hangs at its side
+    if (legs.length % 2) { const l = legs[0]; PK.leg(k, -l.x || .08, l.yt, l.yb, l.r, l.o); }
+  };
+}
+// =============================================================================
 //  SET PIECES — the big props that make each route its own place
 //  (abandoned cars, a broken-down Prairie steam engine, a fair, a war camp…)
 // =============================================================================
