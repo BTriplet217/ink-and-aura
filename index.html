@@ -4927,7 +4927,8 @@ function buildWorld(id) {
   if (M.kind === 'still') { world.add(at(buildShrine('#ffffff'), 10.5, 0, 3.5)); if (!S.flags.hushDone) { W.heart = buildHush(); W.heart.position.set(10.5, 2.6, 3.5); world.add(W.heart); } }
   if (M.kind === 'city') {
     const t = M.vibe, SH = M.shrine || SHRINE; world.add(at(buildShrine(TYPES[t].c), SH.x, 0, SH.z));
-    if (!S.hearts[t]) { W.heart = buildManif(heartOf(t), { scale:1.6 }); W.heart.position.set(SH.x, 2.3, SH.z); world.add(W.heart); }
+    if (!S.hearts[t] && heartWaits(t)) world.add(at(heartStatue(t), SH.x, 1.25, SH.z));   // still stone: this city's event comes first
+    else if (!S.hearts[t]) { W.heart = buildManif(heartOf(t), { scale:1.6 }); W.heart.position.set(SH.x, 2.3, SH.z); world.add(W.heart); }
   }
   W.fog = [];
   if (V.groundFog) for (let k = 0; k < (M.kind === 'city' ? 34 : 18); k++) {
@@ -4936,7 +4937,7 @@ function buildWorld(id) {
     world.add(s); W.fog.push(s);
   }
   W.npcs = {};
-  for (const e of ents(id)) renderEnt(e);
+  for (const e of ents(id)) { renderEnt(e); evMarkOn(e); }
   W.entKeys = new Set(Object.keys(W.npcs));
   worldExtras(id, M, V); S.visited = S.visited || {}; S.visited[M.kind === 'inside' ? (M.route || id) : id] = 1;
   W.train = null; if (S.trainAt && S.trainAt !== id) S.trainAt = null; parkedTrain(id);   // one train: parked where you left it, home again once you leave
@@ -5125,7 +5126,7 @@ function syncEnts(map, list) {
   if (!world || S.map !== map || !W.npcs) return;
   const ids = new Set(list.map(e => e.id));
   for (const id of Object.keys(W.npcs)) if (!ids.has(id)) { world.remove(W.npcs[id]); delete W.npcs[id]; }
-  for (const e of list) if (!W.npcs[e.id] && !e.invisible) renderEnt(e);
+  for (const e of list) if (!W.npcs[e.id] && !e.invisible) { renderEnt(e); evMarkOn(e); }
 }
 // =============================================================================
 //  UI — dialogue, choices, sheets, input
@@ -5641,7 +5642,8 @@ const TIPS = [
   'Six is all anyone can carry. What you set down rests in your Satchel. It doesn\'t count toward what people see.',
   'Where your Manifs stand matters. The one in the middle stands beside both of the others, and neighbours change each other.',
   'Every feeling changes the ground you meet it on. Read the arena before you choose who stands in front.',
-  'Each Heart you settle stirs the whole Welkin up a little. Roads you\'ve already walked won\'t stay quite as easy.'
+  'Each Heart you settle stirs the whole Welkin up a little. Roads you\'ve already walked won\'t stay quite as easy.',
+  'A Heart that\'s still stone is waiting on something. Ask around the city. Look for the gold marker.'
 ];
 async function talkWren() {
   if (!introDone()) return wrenIntro();
@@ -5690,7 +5692,7 @@ async function wrenIntro() {
   st.canon = 1; S.canon[st.sp] = 1; S.party.push(st); S.codex.seen[st.sp] = 1; S.codex.kept[st.sp] = 1; rebuildMinis(); auraPulse = 1; sfx('keep');
   await say(`${nm(st)} joins what you carry! It circles you once, quiet and curious.`);
   await say('Wren: Good. Now listen, because this is what everything\'s for. If you forget, come and ask me. I\'m always here by the Archive.');
-  for (const k of ['aura', 'meet', 'battle', 'keep', 'grow', 'roads']) await wrenExplain(k, true);
+  for (const k of ['aura', 'meet', 'battle', 'keep', 'grow', 'roads', 'events']) await wrenExplain(k, true);
   S.items.cake = (S.items.cake || 0) + 2; await say('Wren gave you 2 Honey Cakes. They bring back a Manif\'s Composure.');
   await say('Wren: One more thing, the most important one. Your Codex keeps everything: what you met, what you kept, what you let go. When your journey ends, it will tell you what you carried, and what that says about you.');
   await wrenTopics(true);
@@ -5725,7 +5727,10 @@ const WREN_TOPICS = [
   ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from trainers and from favours.',
     'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Heart Stone mends your whole Chorus by half. Smelling Salts wake a Manif that\'s been overwhelmed.',
     'Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
-  ['hearts', 'Hearts, the Hush and the Stillwell', ['Each city has a Heart at its shrine, far stronger than anything on its road. Settle all ten and the way to the Stillwell opens, under the Archive.',
+  ['events', 'Trouble in the cities', ['Every city is in trouble right now, and it\'s the Choir\'s doing. Children who\'ve stopped laughing, a station held hostage, a whole town asleep. Somebody in each city will tell you about it. Look for the small gold marker over them.',
+    'Until that trouble is dealt with, the city\'s Heart sleeps as a stone statue on its shrine, and the shrine stays shut. Help the city first, and the Heart wakes.',
+    'You\'ll have to fight the Choir to do it, and in the end you\'ll have to choose. Some choices can\'t be taken back. People can die out there.']],
+  ['hearts', 'Hearts, the Hush and the Stillwell', ['Each city has a Heart at its shrine, far stronger than anything on its road. Deal with the city\'s trouble first: until you do, its Heart is only stone. Settle all ten and the way to the Stillwell opens, under the Archive.',
     'The Hush waits down there. In the end it wears the feeling you\'ve carried longest, so think about what you carry when you go.']],
   ['codex', 'Your Codex', ['Your Codex is your record: every Manif you met, kept, let go, gave away or sold. You can read it any time from the menu.',
     'When your journey ends, it reads back what you carried longest, and what that says about you.']],
@@ -7147,54 +7152,126 @@ async function evAngBarracks() { const s = evS('ANGER'); if (s.st !== 1) return 
 }
 
 // ---------------------------------------------------------------- who stands where
+function evSpot(map, taken, x0, y0) {
+  const M = MAPS[map], prev = S.map; S.map = map;
+  try {
+    const occ = new Set(taken.filter(e => !e.invisible).map(e => e.x + ',' + e.y));
+    const tileOk = (x, y) => x > 0 && y > 0 && x < M.w - 1 && y < M.h - 1 && !SOLID.has(tileAt(x, y)) && tileAt(x, y) !== 'D';
+    const free = (x, y) => tileOk(x, y) && !occ.has(x + ',' + y);
+    const starts = [M.entryS, M.entryN].filter(Boolean); if (!starts.length) for (let x = 0; x < M.w; x++) for (const y of [1, M.h - 2]) if (free(x, y)) starts.push({ x, y });
+    const seen = new Set(starts.map(p => p.x + ',' + p.y)), q = starts.map(p => [p.x, p.y]);
+    while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = nx + ',' + ny; if (!seen.has(k) && free(nx, ny)) { seen.add(k); q.push([nx, ny]); } } }
+    const good = (x, y) => free(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has((x + dx) + ',' + (y + dy)))
+      && [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => seen.has((x + dx) + ',' + (y + dy))).length >= 2;   // and never the only way through
+    for (let r = 0; r <= 10; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (good(x0 + dx, y0 + dy)) return { x:x0 + dx, y:y0 + dy }; }
+    return { x:x0, y:y0 };
+  } finally { S.map = prev; }
+}
 // Event people in each city (and the odd route or waytown), placed near open ground.
 function eventEnts(map, taken) {
-  const M = MAPS[map], out = [], all = () => taken.concat(out), at = (e, x, y) => out.push(at2(map, all(), e, x, y));
+  const M = MAPS[map], out = [], all = () => taken.concat(out);
+  // Every event spot must be somewhere you can walk up to: the nearest free tile with a walkable neighbour connected to the way in.
+  const at = (e, x, y) => { const p = evSpot(map, all(), x, y); out.push(at2(map, all(), e, p.x, p.y)); };
   if (!M || S.flags.doom) return out;
   const cx = Math.floor(M.w / 2), cy = Math.floor(M.h / 2) + 2, city = t => M.kind === 'city' && M.vibe === t;
   const mem = (id, x, y, text) => at({ id, note:true, talk:() => say(text) }, x, y);
+  const on = t => evS(t).st < 9, prop = (id, kind, talk, x, y, t, markH) => at({ id, model:EV_PROP[kind], talk, mark:on(t), markH:markH || 2.6 }, x, y);
   // 1 JOY
-  if (city('JOY')) { const s = evS('JOY'); at({ id:'ev_hettie', look:HETTIE, name:'Hettie Brack', talk:evJoyHettie }, cx - 4, cy); at({ id:'ev_well', note:true, talk:evJoyWell }, cx + 6, cy + 2); }
+  if (city('JOY')) { const s = evS('JOY'); at({ id:'ev_hettie', look:HETTIE, name:'Hettie Brack', talk:evJoyHettie, mark:on('JOY') }, cx - 4, cy); prop('ev_well', 'well', evJoyWell, cx + 6, cy + 2, 'JOY'); }
   // 2 HOPE
-  if (city('HOPE')) { const s = evS('HOPE'); at({ id:'ev_orla', look:ORLA, name:'Orla Hollis', talk:evHopeOrla }, cx - 4, cy); at({ id:'ev_station', note:true, talk:evHopeStation }, cx + 5, cy - 3);
+  if (city('HOPE')) { const s = evS('HOPE'); at({ id:'ev_orla', look:ORLA, name:'Orla Hollis', talk:evHopeOrla, mark:on('HOPE') }, cx - 4, cy); prop('ev_station', 'box', evHopeStation, cx + 5, cy - 3, 'HOPE', 2.6);
     mem('ev_rusk', cx + 7, cy - 3, s.st >= 9 ? '(Flowers under the departures board, and a hat. "E. RUSK — WAITED FOR THE 4:10 FOR 30 YEARS.")' : '(Through the station glass you can see a man lying under the departures board. Nobody has moved him.)'); }
   // 3 CALM
-  if (city('CALM')) { const s = evS('CALM'); at({ id:'ev_lissa', look:LISSA, name:'Lissa Tull', talk:evCalmLissa }, cx - 4, cy); at({ id:'ev_pond', note:true, talk:evCalmPond }, cx + 5, cy + 3);
+  if (city('CALM')) { const s = evS('CALM'); at({ id:'ev_lissa', look:LISSA, name:'Lissa Tull', talk:evCalmLissa, mark:on('CALM') }, cx - 4, cy); prop('ev_pond', 'pond', evCalmPond, cx + 5, cy + 3, 'CALM', 1.4);
     if (s.st < 9) at({ id:'ev_sleeper', look:pLook('#6a8a9a', '#5a3a2a', SKINS[1], ['scarf']), numb:true, name:'Sleeping woman', talk:() => say('(Lissa\'s mother. Asleep sitting up, breathing very slowly. She doesn\'t wake when you touch her shoulder.)') }, cx - 3, cy + 1);
     mem('ev_tull', cx + 7, cy + 4, s.st >= 9 ? '(A fresh grave by the pond, with a ferryman\'s cap on the marker. "GAFFER TULL. HE LIKED IT HERE.")' : '(Reeds, flattened in the shape of a man. The water has gone back over the place.)'); }
-  if (map === ROUTES.CALM.id && evS('CALM').st === 1) at({ id:'ev_horn', item:true, talk:evCalmHorn }, 13, 4);
+  if (map === ROUTES.CALM.id && evS('CALM').st === 1) at({ id:'ev_horn', item:true, talk:evCalmHorn, mark:true, markH:1.2 }, 13, 4);
   // 4 CONFIDENCE
-  if (city('CONFIDENCE')) { const s = evS('CONFIDENCE'); at({ id:'ev_herald', look:HERALD, name:'Herald', talk:evConfHerald }, cx - 4, cy);
+  if (city('CONFIDENCE')) { const s = evS('CONFIDENCE'); at({ id:'ev_herald', look:HERALD, name:'Herald', talk:evConfHerald, mark:on('CONFIDENCE') }, cx - 4, cy); at({ id:'ev_stair', model:EV_PROP.stair, talk:evConfHerald }, cx - 6, cy);
     if (!s.idrisDead && s.st < 9) at({ id:'ev_idris', look:IDRIS, name:'Idris Kell', talk:() => say(s.warned ? 'Idris Kell: Ready when you are. Let\'s give them a final worth remembering.' : 'Idris Kell: Good luck in the Proving. Truly. I hope you make me work for it.') }, cx + 3, cy - 2);
     if (s.idrisDead) mem('ev_idris_mem', cx + 3, cy - 2, '(At the foot of the high stair, a champion\'s sash has been laid out flat, and people have left stones on it.)'); }
   // 5 SURPRISE
-  if (city('SURPRISE')) { const s = evS('SURPRISE'); at({ id:'ev_dot', look:DOT, name:'Dot Pim', talk:evSurpDot }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_tibbs', look:DOT, name:'Tibbs Pim', talk:() => say('Tibbs Pim: (He jumps when you speak, then smiles.) Sorry. It\'s you. That\'s all right, then.') }, cx - 3, cy + 1); }
-  if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', note:true, talk:evSurpMirror }, 6, 20);
+  if (city('SURPRISE')) { const s = evS('SURPRISE'); at({ id:'ev_dot', look:DOT, name:'Dot Pim', talk:evSurpDot, mark:on('SURPRISE') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_tibbs', look:DOT, name:'Tibbs Pim', talk:() => say('Tibbs Pim: (He jumps when you speak, then smiles.) Sorry. It\'s you. That\'s all right, then.') }, cx - 3, cy + 1); }
+  if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', model:EV_PROP.mirror, talk:evSurpMirror, mark:evS('SURPRISE').st === 1, markH:2.3 }, 6, 20);
   // 6 SADNESS
-  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan }, cx - 4, cy); at({ id:'ev_tower', note:true, talk:evSadTower }, cx + 5, cy - 4);
+  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:on('SADNESS') }, cx - 4, cy); prop('ev_tower', 'tower', evSadTower, cx + 5, cy - 4, 'SADNESS', 3.9);
     mem('ev_maren', cx + 7, cy - 4, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
   // 7 FEAR
-  if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
+  if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine, mark:on('FEAR') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
     if (s.hanged) mem('ev_gallows', cx + 5, cy - 3, '(The gallows in the square. Nobody has taken it down yet. Nobody walks under it.)'); }
-  if (WAYTOWNS.FEAR && map === WAYTOWNS.FEAR.id && evS('FEAR').st === 1) at({ id:'ev_camp', look:GRIEVE, name:'Mother Grieve', talk:evFearCamp }, 16, 8);
+  if (WAYTOWNS.FEAR && map === WAYTOWNS.FEAR.id && evS('FEAR').st === 1) { at({ id:'ev_camp', look:GRIEVE, name:'Mother Grieve', talk:evFearCamp, mark:true }, 16, 8); at({ id:'ev_cage', model:EV_PROP.cage, talk:evFearCamp }, 17, 8); }
   // 8 SHAME
   if (city('SHAME')) { const s = evS('SHAME');
-    at({ id:'ev_tobias', look:s.numb || s.numbAgnes ? NUMBED_LOOK : TOBIAS, numb:!!(s.numb || s.numbAgnes), name:'Tobias Fenn', talk:evShameScene }, cx - 4, cy);
+    at({ id:'ev_tobias', look:s.numb || s.numbAgnes ? NUMBED_LOOK : TOBIAS, numb:!!(s.numb || s.numbAgnes), name:'Tobias Fenn', talk:evShameScene, mark:on('SHAME') }, cx - 4, cy);
     at({ id:'ev_agnes', look:s.numbAgnes ? NUMBED_LOOK : AGNES, numb:!!s.numbAgnes, name:'Agnes Fenn', talk:evShameScene }, cx - 3, cy);
     if (s.st < 9) at({ id:'ev_hollin', look:CHOIR_LOOK, name:'Cantor Hollin', talk:evShameScene }, cx - 4, cy - 1); }
   // 9 DISGUST
   if (city('DISGUST')) { const s = evS('DISGUST');
-    if (!s.dark) at({ id:'ev_wynn', look:WYNN, name:'Wynn Ferrow', talk:s.st === 2 ? evDisMob : evDisWynn }, cx - 4, cy);
+    if (!s.dark) at({ id:'ev_wynn', look:WYNN, name:'Wynn Ferrow', talk:s.st === 2 ? evDisMob : evDisWynn, mark:s.st === 0 || s.st === 2 }, cx - 4, cy);
     else mem('ev_ferrow', cx - 4, cy, '(Black timber where the Ferrow house stood. A child\'s chair, burned on one side, sits in the ash.)');
-    at({ id:'ev_pump', note:true, talk:evDisPump }, cx + 4, cy + 2);
+    at({ id:'ev_pump', model:EV_PROP.pump, talk:evDisPump, mark:s.st === 1, markH:1.9 }, cx + 4, cy + 2);
     if (s.st === 2) at({ id:'ev_gorse', look:GORSE, name:'Gorse', talk:evDisMob }, cx - 6, cy); }
   // 10 ANGER
   if (city('ANGER')) { const s = evS('ANGER');
-    if (!s.dark) at({ id:'ev_corra', look:CORRA, name:'Corra Vane', talk:evAngCorra }, cx - 4, cy);
-    at({ id:'ev_barracks', note:true, talk:evAngBarracks }, cx + 6, cy - 2);
+    if (!s.dark) at({ id:'ev_corra', look:CORRA, name:'Corra Vane', talk:evAngCorra, mark:on('ANGER') && s.st === 0 }, cx - 4, cy);
+    prop('ev_barracks', 'gate', evAngBarracks, cx + 6, cy - 2, 'ANGER', 3.2);
     mem('ev_jory', cx - 6, cy + 2, s.dark ? '(Seven graves by the forge wall. The first says JORY PIKE, 19. The last says CORRA VANE.)' : '(A forge apron hung on the wall, with a name chalked under it: JORY PIKE, 19.)'); }
   return out;
 }
+
+// ---------------------------------------------------------------- how event places look
+// The Heart waits as a stone statue until its city's event is done.
+const heartWaits = t => !evDone(t) && !S.flags.doom && !(typeof choir === 'function' && choir().bell);
+function heartStatue(t) {
+  const g = withSurf('stone', () => buildManif(heartOf(t), { scale:1.5 }));
+  g.traverse(o => { if (o.isSprite || o.isPoints || (o.material && o.material.transparent && o.material.opacity < .9)) o.visible = false;
+    else if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color = stoneGrey(o.material.color); if (o.material.emissive) o.material.emissive.setRGB(0, 0, 0); } });
+  if (g.userData.aura) { g.userData.aura.halo.visible = false; g.userData.aura.ring.visible = false; g.userData.aura.motes.forEach(m => m.visible = false); }
+  g.onBeforeRender = () => {}; g.traverse(o => { o.onBeforeRender = () => {}; });   // a statue doesn't breathe
+  return g;
+}
+// A soft gold marker over anything an unfinished event wants you to find. It stands still: no blinking, no bobbing.
+function evMarkOn(e) {
+  if (!e.mark || !W.npcs[e.id]) return;
+  const g = new THREE.Group(), h = e.markH || 2.35;
+  const d = new THREE.Mesh(new THREE.OctahedronGeometry(.16), toon('#f2c45a', {})); d.scale.y = 1.5; d.position.y = h; g.add(d);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.42, .52, 32), new THREE.MeshBasicMaterial({ color:'#f2c45a', transparent:true, opacity:.35, depthWrite:false, side:THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = .04; g.add(ring);
+  W.npcs[e.id].add(g);
+}
+// Small builder helpers for the props.
+const PM = c => toon(c, {}), cyl = (rt, rb, h, c, seg = 18) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), PM(c)), place = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const EV_PROP = {
+  well:() => { const g = new THREE.Group();
+    g.add(place(cyl(.46, .5, .5, '#8a8478'), 0, .25, 0)); const w = new THREE.Mesh(new THREE.CircleGeometry(.38, 20), new THREE.MeshBasicMaterial({ color:'#1a2228' })); w.rotation.x = -Math.PI / 2; g.add(place(w, 0, .49, 0));
+    g.add(place(inkBox(.08, 1.1, .08, PM('#5a4030')), -.42, .8, 0)); g.add(place(inkBox(.08, 1.1, .08, PM('#5a4030')), .42, .8, 0));
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(.7, .45, 4), PM('#8a4a3a')); roof.rotation.y = Math.PI / 4; g.add(place(roof, 0, 1.55, 0));
+    g.add(place(inkBox(.9, .05, .05, PM('#4a3424')), 0, 1.15, 0)); g.add(place(cyl(.1, .08, .16, '#7a6a4a', 10), .1, .95, 0)); return g; },
+  box:() => { const g = new THREE.Group();   // the station's signal box
+    g.add(place(inkBox(.9, 1.4, .9, PM('#3a6a5a')), 0, .7, 0)); g.add(place(inkBox(.95, .35, .95, PM('#e8dcc0')), 0, 1.1, 0));
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(.78, .5, 4), PM('#4a3428')); roof.rotation.y = Math.PI / 4; g.add(place(roof, 0, 1.68, 0));
+    g.add(place(inkBox(.7, .22, .05, PM('#1a1814')), 0, .45, .47)); g.add(place(inkBox(.06, .7, .06, PM('#c8a03a')), .55, .35, .2)); g.add(place(cyl(.07, .07, .1, '#c83a2a', 10), .55, .72, .2)); return g; },
+  pond:() => { const g = new THREE.Group(); const w = new THREE.Mesh(new THREE.CircleGeometry(.62, 24), new THREE.MeshBasicMaterial({ color:'#3a5a6a' })); w.rotation.x = -Math.PI / 2; g.add(place(w, 0, .03, 0));
+    for (const [x, z, r] of [[-.2, .1, .3], [.25, -.15, -.4]]) { const c = inkBox(.32, .22, .26, PM('#8a6a44')); c.rotation.y = r; c.rotation.z = .25; g.add(place(c, x, .06, z)); }
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.add(place(cyl(.015, .02, .5, '#6a7a3a', 5), Math.cos(a) * .62, .25, Math.sin(a) * .62)); } return g; },
+  mirror:() => { const g = new THREE.Group(); g.add(place(inkBox(.8, 1.7, .08, PM('#b8902a')), 0, .9, 0));
+    g.add(place(new THREE.Mesh(new THREE.PlaneGeometry(.62, 1.45), new THREE.MeshStandardMaterial({ color:'#c8d4dc', metalness:.6, roughness:.25 })), 0, .9, .05));
+    g.add(place(inkBox(.5, .3, .08, PM('#3a3430')), .6, .5, -.1)); for (const x of [.48, .6, .72]) g.add(place(cyl(.03, .03, .26, '#2a2a2a', 6), x, .72, -.06)); return g; },
+  tower:() => { const g = new THREE.Group(); g.add(place(inkBox(1, 2.6, 1, PM('#8a8a90')), 0, 1.3, 0));
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(.82, .9, 4), PM('#3a4a6a')); roof.rotation.y = Math.PI / 4; g.add(place(roof, 0, 3.05, 0));
+    g.add(place(inkBox(.4, .7, .05, PM('#2a2018')), 0, .35, .51)); g.add(place(inkBox(.3, .4, .05, PM('#1a1a20')), 0, 2.2, .51)); g.add(place(cyl(.16, .24, .28, '#b8902a', 12), 0, 2.15, .3)); return g; },
+  cage:() => { const g = new THREE.Group(); g.add(place(inkBox(.9, .06, .9, PM('#3a3028')), 0, .03, 0)); g.add(place(inkBox(.9, .06, .9, PM('#3a3028')), 0, 1.1, 0));
+    for (let i = 0; i < 5; i++) for (const s of [-1, 1]) { g.add(place(cyl(.02, .02, 1.05, '#2a2622', 6), -.42 + i * .21, .56, s * .42)); g.add(place(cyl(.02, .02, 1.05, '#2a2622', 6), s * .42, .56, -.42 + i * .21)); }
+    const l = cyl(.06, .06, .14, '#e8c070', 8); g.add(place(l, .5, 1.2, .5)); return g; },
+  pump:() => { const g = new THREE.Group(); g.add(place(cyl(.1, .12, 1.1, '#3a4a3a', 10), 0, .55, 0)); g.add(place(cyl(.14, .14, .14, '#3a4a3a', 10), 0, 1.12, 0));
+    const h = inkBox(.6, .05, .05, PM('#2a2a2a')); h.rotation.z = -.4; g.add(place(h, .26, 1.18, 0)); g.add(place(inkBox(.1, .08, .3, PM('#3a4a3a')), 0, .85, .18));
+    g.add(place(inkBox(.9, .26, .45, PM('#6a5a44')), 0, .13, .5)); const st = new THREE.Mesh(new THREE.CircleGeometry(.35, 16), new THREE.MeshBasicMaterial({ color:'#7a8a3a', transparent:true, opacity:.55 })); st.rotation.x = -Math.PI / 2; g.add(place(st, -.1, .02, -.2)); return g; },
+  gate:() => { const g = new THREE.Group(); for (const x of [-.48, .48]) g.add(place(inkBox(.22, 1.9, .22, PM('#6a5a4a')), x, .95, 0));
+    g.add(place(inkBox(1.25, .24, .3, PM('#4a3a2e')), 0, 1.95, 0)); g.add(place(cyl(.025, .025, .9, '#2a2420', 6), .48, 2.5, 0));
+    g.add(place(inkBox(.44, .28, .02, PM('#a83a2a')), .72, 2.75, 0)); for (const x of [-.25, 0, .25]) g.add(place(inkBox(.05, 1.6, .05, PM('#2a2420')), x, .8, 0)); return g; },
+  stair:() => { const g = new THREE.Group(); for (let i = 0; i < 5; i++) g.add(place(inkBox(1, .18, .3, PM('#b8a888')), 0, .09 + i * .18, .4 - i * .2));
+    g.add(place(inkBox(.06, 1.6, .06, PM('#c8a03a')), -.45, 1.4, -.4)); g.add(place(inkBox(.5, .3, .02, PM('#e8c060')), -.2, 2.05, -.4)); return g; }
+};
 // =============================================================================
 //  AURA GRID — your aura has two axes: Light ↔ Shadow (how pleasant what you carry
 //  is) and Still ↔ Fierce (how much energy it has). Where you land, and which feeling
