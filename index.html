@@ -5510,8 +5510,8 @@ function entsBase(map) {
     out.push({ id:'tobin', x:12, y:20, dir:'right', look:LOOKS.tobin, talk:talkTobin });
     out.push(f.lookoutMoved ? { id:'lookout', x:5, y:16, dir:'left', look:LOOKS.lookout, talk:talkLookout } : { id:'lookout', x:4, y:17, dir:'up', look:LOOKS.lookout, talk:talkLookout });
     out.push({ id:'sable', x:3, y:19, dir:'right', look:LOOKS.sable, talk:talkSable });
-    // Test build only: a bundle of 100 Insight Quills just south of the black market.
-    if (window.IA_TEST && !S.flags.quills100) out.push({ id:'quills100', item:true, x:3, y:21, talk:async () => { S.flags.quills100 = 1; S.items.quill = (S.items.quill || 0) + 100; const o = W.npcs.quills100; if (o) { world.remove(o); delete W.npcs.quills100; } sfx('ok'); await say('(A bundle tied with string, tucked behind a crate: 100 Insight Quills.)'); } });
+    // For now, in every build: a bundle of 100 Insight Quills on the street just south of the black market's wall.
+    if (!S.flags.quills100) out.push({ id:'quills100', item:true, x:3, y:22, talk:async () => { S.flags.quills100 = 1; S.items.quill = (S.items.quill || 0) + 100; const o = W.npcs.quills100; if (o) { world.remove(o); delete W.npcs.quills100; } sfx('ok'); await say('(A bundle tied with string, tucked behind a crate: 100 Insight Quills.)'); } });
   } else if (M.kind === 'still') {
     for (const [i, [x, y]] of [[8,12],[13,15],[8,18],[13,21]].entries()) out.push({ id:'spirit' + i, x, y, dir: x < 10 ? 'right' : 'left', look:roomLook(WHEEL[i * 3 % 10], i * 2 + 1), numb:true, talk:() => say('Numbed: ' + STILL_LINES[i]) });
     out.push({ id:'hushL', x:10, y:6, invisible:true, talk:talkHush }, { id:'hushR', x:11, y:6, invisible:true, talk:talkHush });
