@@ -5836,6 +5836,7 @@ async function talkHeart(t) {
   if (S.hearts[t] && postgame()) return heartRematch(t);
   if (S.hearts[t] && choir().bell && !bound()[t]) return bindSettled(t);
   if (S.hearts[t]) return say(bound()[t] ? `The shrine is grey and silent. All around it, ${TOWNS[t].name} kneels.` : `The shrine is quiet now. ${TOWNS[t].name} breathes a little easier.`);
+  if (!evDone(t) && !S.flags.doom && !choir().bell) return evGate(t);   // each city's event comes first
   const T = TOWNS[t], sp = heartOf(t);
   await say(T.heartIntro);
   if (!S.flags.heartNamed) { S.flags.heartNamed = 1; await say('(For a moment you hear your own name in it, {name}, said the way someone who loves you would say it. Then it\'s gone.)'); }
@@ -6741,7 +6742,7 @@ function questEnts(map, base) {
     if (t && map === TOWNS[t].id + '_room' + MISSING[t].room && boardState(t).miss === 1) out.push(at2(map, all(), { id:'missing', look:roomLook(t, 9, { dark:true }), name:MISSING[t].who, talk:() => findMissing(t) }, 3, 3));
   }
   if (M.kind === 'still' && postgame() && S.flags.gift) out.push(at2(map, all(), { id:'superboss', look:S.flags.doom ? LOOKS.wren : ORRIN_LOOK, name:S.flags.doom ? 'Wren' : 'Orrin Vale', talk:talkSuperboss }, 10, 9));
-  out.push(...evilEnts(map, all())); out.push(...wardenEnts(map, all()));
+  out.push(...evilEnts(map, all())); out.push(...wardenEnts(map, all())); out.push(...eventEnts(map, all()));
   return out.filter(Boolean);
 }
 function at2(map, taken, e, x, y) { const [a, b] = spotNear(map, x, y, taken); return { dir:'down', ...e, x:a, y:b }; }
@@ -6800,6 +6801,399 @@ async function burnStation() {   // flames climb the station where you can watch
     for (const f of fl) { f.position.y += f.userData.vy * 3; f.material.opacity *= .99; } await wait(60); }
   MOOD.shake = 1.4; sfx('bighit');
   await fadeTo(1, 450); world.remove(g); buildWorld(S.map); await fadeTo(0, 650);   // the roof comes down: what's left is a shell
+}
+// =============================================================================
+//  THE TEN EVENTS (21 Nov) — one big event on each feeling's road, and the Heart's shrine stays shut
+//  until it's done. Each shows what the Hollow Choir is doing to ordinary people, gives a few hard
+//  fights at that city's level, and ends on a choice with a lasting result. People can die here.
+//  (Never anyone based on a real person.)
+// =============================================================================
+const EVS = () => (S.ev = S.ev || {});
+const evS = t => (EVS()[t] = EVS()[t] || { st:0 });
+const evDone = t => (EVS()[t] || {}).st >= 9;
+const EV_LV = { JOY:10, HOPE:12, CALM:14, CONFIDENCE:16, SURPRISE:18, SADNESS:20, FEAR:22, SHAME:25, DISGUST:28, ANGER:31 };
+const evLv = (t, d = 0) => EV_LV[t] + d;
+const pLook = (coat, hair, skin, gear = [], o = {}) => ({ coat, accent:o.accent || '#c8b8a0', skin, hair, legs:o.legs || '#2c221c', hat:o.hat || null, gear });
+const SKINS = ['#f0c8a2', '#d9a882', '#b88468', '#8a5a3c', '#e8c0a0', '#6a4430'];
+// A Choir fight. Losing doesn't end the event: you come round somewhere safe and can go back.
+async function evFight(owner, team) {
+  const ok = await trainerFight(owner, team);
+  if (!ok) await say('(It isn\'t over. They\'re still there, and so is everyone they\'re hurting. You can go back when you\'re ready.)');
+  return ok;
+}
+const evSin = n => { S.sins = (S.sins || 0) + n; };
+async function evReward(m, items) { pay(m); await say(`You earned ${m} Marks.`); for (const [k, n] of items) await giveItem(k, n); }
+async function evDark(t, m) { pay(m); await say(`(You pocket ${m} Marks. It weighs more than it should.)`); }
+// What the shrine keeper says while the city's event is still going on.
+const EV_GATE = {
+  JOY:'The shrine is roped off. A note on the rope: "Gone looking for the children\'s laughter. Back when it\'s found. — Hettie."',
+  HOPE:'The shrine doors are chained. Everyone who could open them is either at the station or being held inside it.',
+  CALM:'The shrine keeper is asleep against the doors, and nothing you do will wake him.',
+  CONFIDENCE:'The shrine is closed for the Proving. Nobody climbs the stair until a champion is crowned.',
+  SURPRISE:'The shrine is shuttered. Someone has chalked on it: "TIBBS PIM — HAVE YOU SEEN HIM?"',
+  SADNESS:'The shrine keeper won\'t open it. "Not while the bell\'s silent. Not while Maren\'s on the stair."',
+  FEAR:'The shrine is locked. The keeper is out with every lantern in Quailmoor, searching the dark for a boy.',
+  SHAME:'The shrine curtains are drawn. Behind them, someone is crying, and won\'t stop.',
+  DISGUST:'The shrine is empty. The whole town is at the Ferrow house, with torches.',
+  ANGER:'The shrine gates are barred by soldiers. "Nobody in or out. There\'s a strike on."'
+};
+function evGate(t) { const s = evS(t); return say(EV_GATE[t] + (s.st === 0 ? ' (Something is happening in this city. Find out what.)' : '')); }
+
+// ---------------------------------------------------------------- 1. JOY — The Quiet Children (Larkhollow)
+const HETTIE = pLook('#c88a3a', '#6a3a1e', SKINS[0], ['satchel', 'glasses'], { accent:'#fff0c8' });
+async function evJoyHettie() { const s = evS('JOY');
+  if (s.st === 0) {
+    await say('Hettie Brack (schoolteacher): You\'re not from here, so maybe you\'ll see it. Listen. Do you hear that?');
+    await say('(You listen. A town full of children, and not one of them laughing.)');
+    await say('Hettie Brack: Since yesterday. They all played at the old wishing well after school, came home, and went quiet. They eat. They answer. They just don\'t... light up. My Pip used to laugh in her sleep.');
+    await say('Hettie Brack: There were people in grey coats near the well last night. Lowering something on ropes. Please. I\'m a teacher. I can\'t fight anything.');
+    const c = await ask('Help Hettie?', ['I\'ll go down the well', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Hettie Brack: The well\'s by the east lane. The rope ladder still holds. Bring them back. Please.');
+  }
+  if (s.st === 1) return say('Hettie Brack: The well. East lane. Please hurry. Pip asked me today why nothing is funny anymore.');
+  return say(s.dark ? 'Hettie Brack: They never did laugh again, you know. They grew up very sensible. (She doesn\'t look at you.)' : ['Hettie Brack: Hear that? That\'s Pip. She laughed so hard at supper she got hiccups. Thank you.', 'Hettie Brack: The children made you a card. It\'s mostly glitter.'][Math.floor(Math.random() * 2)]);
+}
+async function evJoyWell() { const s = evS('JOY'); if (s.st !== 1) return say('(An old wishing well. Pennies glint at the bottom.)');
+  await say('(Rope ladder. Damp stone. Then, far below, a cavern lit by jars: hundreds of them, each glowing a small warm gold. In each one, very faintly, a child is laughing.)');
+  await say('Choir collector: Visitors. Wrong well, friend.');
+  if (!await evFight('Choir collector', [[spAt('JOY', 0, 1), evLv('JOY', -3)], [spAt('JOY', 1, 0), evLv('JOY', -2)]])) return;
+  await say('Cantor Gilt: (Corking a jar with great care.) Do you know what a child\'s laugh fetches in the capital? Nothing is purer. They\'ll make more. Children always do.');
+  if (!await evFight('Cantor Gilt', [[spAt('JOY', 1, 1), evLv('JOY', -1)], [spAt('JOY', 2, 0), evLv('JOY')]])) return;
+  await say('(Gilt scrambles up a side tunnel and is gone. The jars hum on their shelves.)');
+  const c = await ask('The jars of laughter', ['Smash them all', 'Pocket one before you smash the rest', 'Leave them for Sable']);
+  if (c === 0) { await say('(You break them one by one. Gold mist rises up the well shaft, and somewhere above, a child shrieks with laughter at nothing at all.)'); s.st = 9; await evReward(250, [['quill', 2], ['cake', 3]]); }
+  else if (c === 1) { await say('(You slip one into your coat, still warm, and break the rest. Up above, most of the children start laughing. One doesn\'t.)'); s.st = 9; evSin(1); await evDark('JOY', 300); await evReward(150, [['quill', 1]]); }
+  else { s.st = 9; s.dark = 1; evSin(3); await say('(You leave every jar where it is. Gilt\'s people will be back for them tonight. Larkhollow\'s children will grow up very quiet.)'); await evDark('JOY', 700); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 2. HOPE — The Signal Box (Trothaven)
+const ORLA = pLook('#3a6a5a', '#2a1a12', SKINS[3], ['cap', 'satchel'], { accent:'#e8d8a0' });
+async function evHopeOrla() { const s = evS('HOPE');
+  if (s.st === 0) {
+    await say('Orla Hollis (porter): Don\'t go near the station. The Choir took it at dawn. Eleven passengers in the waiting room, and my dad up in the signal box with a knife at his ribs.');
+    await say('Orla Hollis: They keep chalking new times on the board. "4:10, delayed. 4:40, on time." There is no 4:40. They want everyone in there hoping, so they can bottle it.');
+    await say('Orla Hollis: Mr. Rusk ran for the door this morning. He\'s still lying under the departures board. Nobody\'s been allowed to move him.');
+    const c = await ask('Help Orla?', ['I\'ll get them out', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Orla Hollis: Waiting room first, then the ticket hall. Dad\'s at the top of the box. His name is Abel. He hums when he\'s scared.');
+  }
+  if (s.st === 1) return say('Orla Hollis: The station. Please. Every time they chalk a new time on that board, somebody in there believes it.');
+  return say(s.dark ? 'Orla Hollis: The board still says the 4:10\'s on its way. People still come and wait. You knew they would.' : 'Orla Hollis: Dad\'s got two cracked ribs and won\'t stop humming. The board says the true times again. Thank you.');
+}
+async function evHopeStation() { const s = evS('HOPE'); if (s.st !== 1) return say(s.st >= 9 ? '(The station. The departures board is honest again.)' : '(The station doors are shut. Someone grey is watching through the glass.)');
+  await say('(The waiting room. Eleven people on the benches, coats on, bags in their laps, watching the board. Under it, a man lies very still with his hat beside him. Mr. Rusk.)');
+  await say('Choir usher: Sit down and wait like everyone else.');
+  if (!await evFight('Choir usher', [[spAt('HOPE', 1, 0), evLv('HOPE', -3)], [spAt('HOPE', 0, 2), evLv('HOPE', -2)]])) return;
+  await say('(The ticket hall. A Choir clerk is chalking "4:40 — ON TIME" with a steady hand.)');
+  if (!await evFight('Choir clerk', [[spAt('HOPE', 1, 1), evLv('HOPE', -2)], [spAt('FEAR', 1, 0), evLv('HOPE', -1)]])) return;
+  await say('(Up the iron stair to the signal box. Cantor Lowe has Abel Hollis against the lever frame. Abel is humming, very quietly.)');
+  await say('Cantor Lowe: Close enough. Here\'s my offer. Walk away, and I let every passenger go home. I keep the board. People keep coming to wait for trains that never arrive, and I keep what they feel. Nobody else gets hurt. Or try me, and see how fast I am with this.');
+  const c = await ask('Cantor Lowe', ['Rush him', 'Take his deal', 'Take his deal, and his money']);
+  if (c === 0) {
+    if (!await evFight('Cantor Lowe', [[spAt('HOPE', 1, 2), evLv('HOPE', -1)], [spAt('HOPE', 2, 0), evLv('HOPE')]])) return;
+    await say('(Lowe goes through the signal box window and doesn\'t get up. Abel sits down on the floor and laughs, and then cries, and then hums.)');
+    s.st = 9; await evReward(300, [['hearth', 1], ['tonic', 2]]);
+  } else { s.st = 9; s.dark = 1; evSin(c === 2 ? 3 : 1);
+    await say('(The passengers file out into the daylight. Behind you, the chalk squeaks: "5:15 — ON TIME." Tomorrow, new people will come and wait.)');
+    if (c === 2) await evDark('HOPE', 500); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 3. CALM — The Sleepers (Moonmoss)
+const LISSA = pLook('#5a8a9a', '#c8a060', SKINS[4], ['scarf'], { accent:'#e8f0f0' });
+async function evCalmLissa() { const s = evS('CALM');
+  if (s.st === 0) {
+    await say('Lissa Tull: (She is sitting beside a sleeping woman on a doorstep, holding her hand.) She won\'t wake up. Nobody will. Half of Moonmoss just lay down where they stood.');
+    await say('Lissa Tull: Grandad fell asleep in the reeds this morning, by the pond. The water came up over him. He didn\'t even move.');
+    await say('Lissa Tull: Men in grey brought crates down to the pond three nights running. Old Pell on the boardwalk used to wake the whole town with his ferry horn for the spring fair. If anything can wake them, that can.');
+    const c = await ask('Help Lissa?', ['I\'ll find the horn', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Lissa Tull: The horn hangs at the far end of the Reedwater Boardwalk. Please be quick. Mum\'s breathing is so slow.');
+  }
+  if (s.st === 1) return say('Lissa Tull: The horn. At the end of the Reedwater Boardwalk. Please.');
+  if (s.st === 2) return say('Lissa Tull: You found it! Blow it at the pond. Where the crates went in.');
+  return say(s.dark ? 'Lissa Tull: Mum sleeps most of the day now. Most of the town does. It\'s very peaceful. (Her voice isn\'t.)' : 'Lissa Tull: Mum woke up and asked what\'s for supper. We buried Grandad by the pond. He liked it there.');
+}
+async function evCalmHorn() { const s = evS('CALM'); if (s.st !== 1) return;
+  s.st = 2; sfx('ok'); await say('(A dented brass ferry horn, hanging from a hook at the end of the boardwalk. It\'s heavier than it looks.)');
+  const o = W.npcs.ev_horn; if (o) { world.remove(o); delete W.npcs.ev_horn; }
+}
+async function evCalmPond() { const s = evS('CALM');
+  if (s.st < 2) return say(s.st === 1 ? '(The pond is glass-still. Under the surface, the edges of wooden crates.)' : '(The pond is very still.)');
+  if (s.st >= 9) return say('(The pond ripples in the wind, like a pond should.)');
+  await say('(You raise the ferry horn and blow. The note rolls out across Moonmoss, low and long. The pond shudders. Something huge and slow rises out of it, made of every sleep that\'s been poured in.)');
+  const r = await battle(newManif(spAt('CALM', 2, 1), evLv('CALM')), { owner:'the pond' }); if (r === 'blackout') return blackout(); if (r !== 'won') return;
+  await say('(All over town, people sit up, blinking. And at the far side of the pond, a man in grey is trying very quietly to drag a crate back into the reeds.)');
+  await say('Sloe (Choir carter): I just carry the crates. That\'s all. I just carry them.');
+  if (!await evFight('Sloe', [[spAt('CALM', 1, 0), evLv('CALM', -2)], [spAt('CALM', 1, 2), evLv('CALM', -1)], [spAt('FEAR', 1, 0), evLv('CALM', -1)]])) return;
+  const c = await ask('The crates of bottled Calm', ['Smash every one', 'Sell them back to Sloe\'s buyer']);
+  if (c === 0) { await say('(The bottles break against the stones, and the sleep in them drifts off over the water like mist off a kettle.)'); s.st = 9; await evReward(350, [['iron', 2], ['quill', 2]]); }
+  else { s.st = 9; s.dark = 1; evSin(2); await say('(Sloe\'s buyer pays well and asks no questions. The crates go back into the pond that night. Moonmoss gets very peaceful.)'); await evDark('CALM', 800); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 4. CONFIDENCE — The Proving (Highcrest)
+const HERALD = pLook('#c8a03a', '#3a2a1a', SKINS[2], ['tophat', 'longcoat'], { accent:'#fff0c0' });
+const IDRIS = pLook('#e8c060', '#1a1410', SKINS[3], ['longcoat'], { accent:'#fff8e0' });
+async function evConfHerald() { const s = evS('CONFIDENCE');
+  if (s.st === 0) {
+    await say('Herald: The Highcrest Proving! Three bouts, and the last against our champion, Idris Kell, who has never once been beaten. Win, and you climb the high stair to be crowned.');
+    const c = await ask('Enter the Proving?', ['Enter', 'Not now']); if (c !== 0) return;
+    await say('Herald: First bout! Dace Morrow, quarry foreman, who once arm-wrestled a mule!');
+    if (!await evFight('Dace Morrow', [[spAt('CONFIDENCE', 1, 0), evLv('CONFIDENCE', -3)]])) return;
+    s.st = 1; await say('Herald: Second bout! Hilde Brannock, who has never apologised for anything!');
+    if (!await evFight('Hilde Brannock', [[spAt('CONFIDENCE', 1, 1), evLv('CONFIDENCE', -2)], [spAt('CONFIDENCE', 1, 2), evLv('CONFIDENCE', -2)]])) return;
+    s.st = 2;
+    await say('(Between bouts, a soft-voiced man in a good grey coat falls into step beside you.)');
+    await say('Marro: Lovely work. A word. When Idris is crowned on the high stair, I\'ll be standing close, and I\'ll take what he has. All of it. Twenty years of never doubting himself. Do you know what that\'s worth?');
+    await say('Marro: You\'ll win the final either way. Just don\'t look round when he\'s on the stair. (A purse, heavy, presses into your hand.)');
+    const d = await ask('Marro\'s purse', ['Warn Idris', 'Keep the purse and say nothing']);
+    s.warned = d === 0; if (d === 1) { s.dark = 1; evSin(3); await evDark('CONFIDENCE', 700); }
+    else await say('Idris Kell: (He listens, very still.) Marro. I\'ve seen him at every Proving for six years. Thank you. Fight me properly, and then we\'ll deal with him together.');
+  }
+  if (s.st === 2) {
+    await say('Herald: The final! Idris Kell, champion of Highcrest!');
+    if (!await evFight('Idris Kell', [[spAt('CONFIDENCE', 2, 0), evLv('CONFIDENCE', -1)], [spAt('CONFIDENCE', 2, 1), evLv('CONFIDENCE')]])) return;
+    if (s.warned) {
+      await say('(As the crowd roars, Marro steps onto the stair, phial uncorked. Idris turns to face him. So do you.)');
+      if (!await evFight('Marro', [[spAt('CONFIDENCE', 1, 2), evLv('CONFIDENCE', -1)], [spAt('SHAME', 1, 0), evLv('CONFIDENCE')]])) return;
+      await say('(Marro is carried off by the Highcrest guard. Idris laughs, and puts the champion\'s sash over your head himself.)');
+      s.st = 9; await evReward(400, [['iron', 3], ['ember', 2], ['quill', 1]]);
+    } else {
+      await say('(You climb the high stair to be crowned. Idris climbs beside you, gracious in defeat. Halfway up, Marro brushes past him, and Idris stops.)');
+      await say('(He looks at his own hands like they belong to someone else. Then he looks down at the long fall to the square, and he steps off the stair, quite calmly, as if it were the next step.)');
+      await say('(The crowd screams. You don\'t look round. You were paid not to.)');
+      s.st = 9; s.idrisDead = 1; await evReward(200, [['ember', 1]]);
+    }
+    await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600); return;
+  }
+  return say(s.idrisDead ? 'Herald: (Quietly.) There won\'t be a Proving next year. Nobody has the heart for it.' : 'Herald: Our new champion! And Idris says he\'ll have you back next year, and this time he\'ll win.');
+}
+
+// ---------------------------------------------------------------- 5. SURPRISE — Behind the Third Mirror (Tumbledown Fair)
+const DOT = pLook('#c84a8a', '#e8c040', SKINS[0], ['cap'], { accent:'#fff0a0' });
+async function evSurpDot() { const s = evS('SURPRISE');
+  if (s.st === 0) {
+    await say('Dot Pim: You\'ve not seen a boy who looks exactly like me? Tibbs. My twin. He rode the ghost train at Tumbledown Fair three nights ago and the car came back empty.');
+    await say('Dot Pim: Four people have gone that way this month. The fair says they wandered off. Tibbs doesn\'t wander. He\'s scared of the dark.');
+    await say('Dot Pim: Tibbs always said there was something behind the third mirror in the Funhouse. He said it ticked. And the levers by it go: last the left, first the right. He made me learn it like a rhyme.');
+    const c = await ask('Help Dot?', ['I\'ll find Tibbs', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Dot Pim: The third mirror. Last the left, first the right. Please.');
+  }
+  if (s.st === 1) return say('Dot Pim: Third mirror, Tumbledown Fair. Last the left, first the right.');
+  return say(s.dark ? 'Dot Pim: Tibbs jumps at everything now. A door. A spoon. Me. (She won\'t meet your eyes.)' : 'Dot Pim: Tibbs is home. He sleeps with the lamp on and I don\'t care. Thank you. And Mr. Abernathy\'s daughter came for him. She says thank you for bringing his name back.');
+}
+async function evSurpMirror() { const s = evS('SURPRISE'); if (s.st !== 1) return say('(A tall cracked mirror, propped by the Funhouse wall. Your reflection looks tired.)');
+  await say('(Behind the third mirror, three iron levers: left, middle, right. Something behind the wall is ticking.)');
+  const orders = ['Right, middle, left', 'Left, middle, right', 'Middle, right, left'];
+  const c = await ask('Pull the levers in which order?', orders);
+  if (c !== 0) { await say('(A bell rings somewhere inside. A door slams open, and a Choir guard comes out at a run.)'); if (!await evFight('Choir guard', [[spAt('SURPRISE', 1, 0), evLv('SURPRISE', -3)]])) return; await say('(You try again: right first, left last. The wall swings open.)'); }
+  else await say('(Right, middle, left. The wall swings open without a sound.)');
+  await say('(A long room of cages. In each one, a person, flinching. Every few seconds a Choir startler bangs a pan, or bursts a bag, or leaps out of the dark, and a jar on the wall fills a little more.)');
+  if (!await evFight('Choir startler', [[spAt('SURPRISE', 1, 1), evLv('SURPRISE', -2)], [spAt('FEAR', 1, 1), evLv('SURPRISE', -2)]])) return;
+  await say('Mistress Vell: Do you know how hard it is to surprise someone who\'s expecting it? You have to be creative. (She smiles.) Let me show you.');
+  if (!await evFight('Mistress Vell', [[spAt('SURPRISE', 1, 2), evLv('SURPRISE', -1)], [spAt('SURPRISE', 2, 0), evLv('SURPRISE')]])) return;
+  await say('(Tibbs Pim is in the third cage, curled small, alive. In the last cage, an old man in a ticket-collector\'s coat isn\'t. The tag on his cage says ABERNATHY. His heart gave out.)');
+  const d = await ask('Vell\'s startle-box, still ticking', ['Free everyone and smash the box', 'Free everyone, keep the box to sell']);
+  s.st = 9; if (d === 0) { await say('(You open every cage. They come out blinking, holding on to each other.)'); await evReward(450, [['salts', 2], ['charm', 2]]); }
+  else { s.dark = 1; evSin(2); await say('(You open the cages, and tuck the ticking box under your arm. Sable will love it.)'); await evDark('SURPRISE', 900); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 6. SADNESS — The Bell That Won't Ring (Sorrowmere)
+const EWAN = pLook('#3a4a6a', '#6a6a6a', SKINS[1], ['hood', 'longcoat'], { accent:'#a8b8d0' });
+async function evSadEwan() { const s = evS('SADNESS');
+  if (s.st === 0) {
+    await say('Ewan (gravedigger): The bell hasn\'t rung in a month. Brother Aldous rings it for every death, and he\'s up in the tower and won\'t come down. Can\'t, I think.');
+    await say('Ewan: There are people in grey at every funeral now. Standing at the back with their jars open. Maren Ashby threw one in the river. They followed her home.');
+    await say('Ewan: They found her at the foot of the bell tower. And now there\'s something on the tower stair that won\'t let anyone up. It cries like her.');
+    const c = await ask('Help Ewan?', ['I\'ll go up the tower', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Ewan: Be gentle with her, whatever she is now. She was kind to everybody.');
+  }
+  if (s.st === 1) return say('Ewan: The tower. Be gentle with her.');
+  return say(s.dark ? 'Ewan: Funny. Nobody cries at funerals anymore. We just stand there. (He keeps digging.)' : 'Ewan: Aldous rang it for Maren first. Then for everyone else they\'d missed. It took all night.');
+}
+async function evSadTower() { const s = evS('SADNESS'); if (s.st !== 1) return say(s.st >= 9 ? '(The bell tower. The rope moves a little in the draught.)' : '(The bell tower. The door is open. The stair goes up into the dark.)');
+  await say('(Halfway up the stair, a Manif blocks the way: grey-blue, heavy, weeping without a sound. It has her shawl.)');
+  const r = await battle(newManif(spAt('SADNESS', 2, 2), evLv('SADNESS', -1)), {}); if (r === 'blackout') return blackout(); if (r === 'fled') return say('(You back down the stair. She is still there, weeping.)');
+  await say('(What was left of Maren\'s grief settles, and the stair is clear.)');
+  await say('Choir mourner: (Two of them, jars open, at the top of the stair.) You\'re interrupting a service.');
+  if (!await evFight('Choir mourners', [[spAt('SADNESS', 1, 0), evLv('SADNESS', -2)], [spAt('SADNESS', 1, 1), evLv('SADNESS', -2)], [spAt('SADNESS', 2, 0), evLv('SADNESS', -1)]])) return;
+  await say('(Brother Aldous is tied to the bell frame. Beside him, a crate of full jars: a month of Sorrowmere\'s grief.)');
+  await say('Brother Aldous: They let me ring nothing. Every death in a month, and I couldn\'t ring for one of them.');
+  const c = await ask('The crate of grief', ['Untie Aldous. Let him ring', 'Take the crate. It\'ll sell']);
+  s.st = 9; if (c === 0) { await say('(The bell rings out over Sorrowmere, once for Maren, and then for each name Aldous says aloud. Down in the streets, people stop and cry, properly, at last.)'); await evReward(500, [['hearth', 2], ['tonic', 2]]); }
+  else { s.dark = 1; evSin(3); await say('(You take the crate and leave Aldous where he is. The bell stays silent. Sorrowmere goes very flat.)'); await evDark('SADNESS', 1000); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 7. FEAR — Taken (Quailmoor / Hushwood)
+const DELPHINE = pLook('#4a3a6a', '#1a1218', SKINS[5], ['scarf', 'lantern'], { accent:'#b8a8d8' });
+const GRIEVE = pLook('#2a2a30', '#8a8a8a', SKINS[1], ['hood', 'lantern', 'longcoat'], { accent:'#5a5a60' });
+async function evFearDelphine() { const s = evS('FEAR');
+  if (s.st === 0) {
+    await say('Delphine Crane: (She is holding a small shoe.) They took Ossie. Out of his bed. He\'s eight. They left this in the lane.');
+    await say('Delphine Crane: Everyone knows there are people in the Hushwood who keep children scared, and sell what comes off them. Everyone knows, and nobody goes.');
+    const c = await ask('Help Delphine?', ['I\'ll go into the Hushwood', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Delphine Crane: Hushwood, past the lanterns. Ossie\'s afraid of owls. Tell him... tell him owls are just birds.');
+  }
+  if (s.st === 1) return say('Delphine Crane: Hushwood. Please. Every hour he\'s out there...');
+  return say(s.dark ? 'Delphine Crane: (She is still holding the shoe. She doesn\'t look up.)' : s.hanged ? 'Delphine Crane: Ossie still wakes up at night. But he wakes up here. (Across the square, the gallows hasn\'t been taken down yet.)' : 'Delphine Crane: Ossie still wakes up at night. But he wakes up here. He says the lady who took him cried a lot.');
+}
+async function evFearCamp() { const s = evS('FEAR'); if (s.st !== 1) return say(s.st >= 9 ? '(A cold campfire. Empty cages, door open.)' : '(Wheel ruts going off into the trees.)');
+  await say('(A clearing deep in the Hushwood. Cages in a ring. In each, a child with wide, sleepless eyes. Men in grey walk round the outside, tapping the bars, never letting them rest.)');
+  if (!await evFight('Fear farmer', [[spAt('FEAR', 1, 0), evLv('FEAR', -3)], [spAt('FEAR', 1, 1), evLv('FEAR', -2)]])) return;
+  if (!await evFight('Fear farmer', [[spAt('FEAR', 1, 2), evLv('FEAR', -2)], [spAt('ANGER', 1, 0), evLv('FEAR', -2)]])) return;
+  await say('Mother Grieve: (An old woman with a lantern stands in front of the last cage.) My Cally was eight too. The fever took her, and the doctor wanted money I didn\'t have, and by the time I had it... (She looks at the cages.) The Choir pays for fear. I tell myself it\'s for the next Cally.');
+  if (!await evFight('Mother Grieve', [[spAt('FEAR', 2, 0), evLv('FEAR', -1)], [spAt('SADNESS', 2, 1), evLv('FEAR')]])) return;
+  await say('(Ossie Crane is in the last cage, holding his knees, absolutely silent.)');
+  const c = await ask('Mother Grieve, on her knees', ['Take the children home. Let her go', 'Take her to Quailmoor\'s watch', 'Leave the children. Take the Choir\'s money']);
+  s.st = 9;
+  if (c === 0) { await say('(Grieve walks off into the dark without a word. You carry Ossie home on your back. The other children follow you like ducklings.)'); await evReward(500, [['salts', 2], ['charm', 2]]); }
+  else if (c === 1) { s.hanged = 1; await say('(Quailmoor\'s watch takes her. She doesn\'t fight. They hang her at dawn in the square, and the whole town turns out, and some of them cheer, and some of them don\'t.)'); await evReward(650, [['salts', 2]]); }
+  else { s.dark = 1; evSin(5); await say('(You walk away. Behind you, someone starts tapping on the bars again.)'); await evDark('FEAR', 1200); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 8. SHAME — A Feeling Taken (Veilham)
+const TOBIAS = pLook('#6a4a5a', '#3a2a22', SKINS[2], ['satchel'], { accent:'#d8b8c8' }), AGNES = pLook('#8a5a6a', '#6a3a2a', SKINS[0], ['scarf'], { accent:'#f0d8e0' });
+async function evShameScene() { const s = evS('SHAME');
+  if (s.st >= 9) return say(s.dark ? 'Agnes Fenn: ...Yes? (She looks through you. So does Tobias.)' : s.back ? 'Tobias Fenn: I still go red when people look at me. I\'ve decided I like it. It means I\'m in here.' : 'Agnes Fenn: (She is sitting with Tobias, holding his hand. He doesn\'t hold hers back.) He might come back. People say they sometimes do.');
+  await say('(In a doorway on Veilham\'s narrow street, a man in grey has his hand flat on another man\'s chest. A woman is pulling at the grey man\'s arm, screaming.)');
+  await say('Agnes Fenn: Stop it! Stop it, please! Tobias, look at me! He\'s done nothing! He\'s just shy, he\'s always been shy, that\'s all it is!');
+  await say('Cantor Hollin: Madam, a man this ashamed of himself is a waste of good shame. (His jar glows a deep rose.) Nearly done.');
+  await say('(You watch the colour leave Tobias Fenn. It goes out of his cheeks first, then his eyes. His hands stop shaking. He stands up very straight and looks at nothing.)');
+  s.numb = 1; buildWorld(S.map);
+  await say('Agnes Fenn: Tobias? Tobias. Say something. Say my name. (He doesn\'t.) TOBIAS!');
+  await say('Cantor Hollin: (Corking the jar, then turning to you.) Ah. A witness. Here\'s a kindness, since you\'re here: she\'ll scream like that for the rest of her life. I can stop it. One touch. You\'d be doing her a favour. Or you can try to take this jar off me, and see how that goes.');
+  const c = await ask('Cantor Hollin', ['Fight him for the jar', 'Let him numb Agnes too', 'Walk away']);
+  if (c === 0) {
+    if (!await evFight('Cantor Hollin', [[spAt('SHAME', 1, 0), evLv('SHAME', -2)], [spAt('SHAME', 1, 1), evLv('SHAME', -1)], [spAt('SHAME', 2, 0), evLv('SHAME')]])) { s.numb = 1; return; }
+    await say('(Hollin runs, and drops the jar. It doesn\'t break. You put it in Agnes\'s hands, and she uncorks it against Tobias\'s chest.)');
+    await say('(For a long moment, nothing. Then Tobias Fenn goes bright red from his collar to his hair, and puts his face in his hands, and Agnes laughs, and cries, and holds on.)');
+    s.st = 9; s.back = 1; s.numb = 0; await evReward(600, [['hearth', 2], ['quill', 2]]);
+  } else if (c === 1) {
+    await say('(Hollin touches Agnes on the forehead, gently. The screaming stops mid-breath. She lets go of her husband\'s arm and stands beside him, very straight, looking at nothing.)');
+    s.st = 9; s.dark = 1; s.numbAgnes = 1; evSin(4); await say('Cantor Hollin: There. Peace. (He presses coins into your hand.) For your trouble.'); await evDark('SHAME', 900);
+  } else { s.st = 9; await say('(You walk away. Behind you, Agnes Fenn is still saying his name.)'); }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 9. DISGUST — The Unclean House (Spurnhold)
+const WYNN = pLook('#6a7a3a', '#4a2a1a', SKINS[4], ['scarf'], { accent:'#c8d0a0' }), GORSE = pLook('#4a4a2a', '#2a2a1a', SKINS[1], ['beard', 'stout'], { accent:'#8a8a5a' });
+async function evDisWynn() { const s = evS('DISGUST');
+  if (s.st === 0) {
+    await say('Wynn Ferrow: They say we\'re unclean. That we carry the rot. Our neighbours. People we\'ve had to supper. They spat at Grandpa in the street.');
+    await say('Wynn Ferrow: It started when the new man came to tend the pump. Everyone who drinks from it gets this look on their face when they see us. Like we\'re something on a shoe.');
+    await say('Wynn Ferrow: Gorse is gathering people with torches. Tonight. Grandpa can\'t walk. Please.');
+    const c = await ask('Help Wynn?', ['I\'ll look at that pump', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Wynn Ferrow: The pump in the square. Please be quick. They\'ve started painting things on our door.');
+  }
+  if (s.st === 1) return say('Wynn Ferrow: The pump. Please. I can hear them gathering.');
+  if (s.st === 2) return say('Wynn Ferrow: They\'re here. Gorse is at our door. Please!');
+  return say(s.dark ? '(Where the Ferrow house stood, there is only black timber. Nobody in Spurnhold talks about it.)' : 'Wynn Ferrow: Gorse came and apologised. He couldn\'t look at us. Grandpa made him tea anyway.');
+}
+async function evDisPump() { const s = evS('DISGUST'); if (s.st !== 1) return say(s.st >= 9 ? '(The town pump. The water tastes of iron, and nothing else.)' : '(The town pump.)');
+  await say('(Behind the pump, a man in a tender\'s apron is pouring a jar of something greenish down the shaft.)');
+  if (!await evFight('Choir pump-tender', [[spAt('DISGUST', 1, 0), evLv('DISGUST', -3)], [spAt('DISGUST', 1, 1), evLv('DISGUST', -2)]])) return;
+  await say('(Under his cart, a crate of empty jars with Choir seals. Twenty of them. Every one of them poured into the water Spurnhold drinks.)');
+  s.st = 2; await say('(From across town, shouting. Torches. The mob has reached the Ferrow house.)');
+}
+async function evDisMob() { const s = evS('DISGUST'); if (s.st !== 2) return evDisWynn();
+  await say('Gorse: Stand aside. They\'ve brought the rot into Spurnhold. Look at them. Can\'t you feel it? Just looking at them turns your stomach.');
+  const c0 = await ask('The mob', ['Show them the Choir\'s jars', 'Stand aside']);
+  if (c0 === 1) {
+    await say('Gorse: (He presses a coin purse into your hand without looking at you.) Good. Sensible.');
+    await say('(The torches go in through the windows. Wynn gets out. Her grandfather can\'t walk.)');
+    s.st = 9; s.dark = 1; s.grandpaDead = 1; evSin(4); await evDark('DISGUST', 700);
+  } else {
+    await say('(You hold up the jars, one after another, Choir seals out. "Every one of these went into your pump.")');
+    await say('Gorse: Lies. You\'re one of them. (He sets his Manifs on you.)');
+    if (!await evFight('Gorse', [[spAt('DISGUST', 2, 0), evLv('DISGUST', -1)], [spAt('ANGER', 2, 0), evLv('DISGUST', -1)], [spAt('DISGUST', 2, 1), evLv('DISGUST')]])) return;
+    await say('(Gorse sits down hard in the mud. One by one, the torches go out. Someone at the back is being sick. Someone else starts to cry.)');
+    s.st = 9; await evReward(700, [['hearth', 2], ['tonic', 3]]);
+  }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- 10. ANGER — The Strike (Emberwick)
+const CORRA = pLook('#8a3a2a', '#1a1010', SKINS[3], ['bandana', 'stout'], { accent:'#e8a070' });
+async function evAngCorra() { const s = evS('ANGER');
+  if (s.st === 0) {
+    await say('Corra Vane (forge worker): We walked out. All of us. Twelve-hour shifts and two men burned last month, and the owners won\'t even talk.');
+    await say('Corra Vane: The garrison was fine with us at first. Then three days ago, it changed. Soldiers I\'ve known since school spitting at us. Yesterday one of them shot Jory Pike for shouting. Jory was nineteen.');
+    await say('Corra Vane: They\'re lining up across the forge yard now. Muskets loaded. Something\'s wrong with them. They\'re not like this.');
+    const c = await ask('Help Corra?', ['I\'ll find out what\'s wrong with them', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Corra Vane: The barracks are by the east wall. Their cistern\'s in the cellar. Please. We won\'t back down, and they won\'t either.');
+  }
+  if (s.st === 1) return say('Corra Vane: The barracks. Hurry. Captain Haldane\'s counting down.');
+  return say(s.dark ? '(A row of fresh graves by the forge wall. Seven of them. Someone has scratched names into the iron gate.)' : 'Corra Vane: We got our hours down to ten. Captain Haldane came to Jory\'s funeral. He stood at the back and didn\'t say anything. It was enough.');
+}
+async function evAngBarracks() { const s = evS('ANGER'); if (s.st !== 1) return say(s.st >= 9 ? '(The garrison barracks. The soldiers drink from the well now.)' : '(The garrison barracks. The gate is shut.)');
+  await say('(The barracks are nearly empty: every soldier is out in the forge yard. The two left on the gate are red-eyed and shaking with rage at nothing.)');
+  if (!await evFight('Garrison guard', [[spAt('ANGER', 1, 0), evLv('ANGER', -3)], [spAt('ANGER', 1, 1), evLv('ANGER', -2)]])) return;
+  await say('(Down in the cellar, a Choir Cantor is pouring a glowing red jar into the soldiers\' drinking cistern. Empty jars all around him.)');
+  await say('Cantor Sear: Do you know how much rage a massacre makes? Enough to light the capital for a year. Walk away and you can have a share.');
+  const c = await ask('Cantor Sear', ['Stop him', 'Take his share and walk away']);
+  if (c === 1) {
+    s.st = 9; s.dark = 1; evSin(5); await evDark('ANGER', 1100);
+    await say('(You climb out of the cellar. Across the forge yard, Captain Haldane raises his hand. The volley is very loud. Then it is very quiet.)');
+  } else {
+    if (!await evFight('Cantor Sear', [[spAt('ANGER', 1, 2), evLv('ANGER', -1)], [spAt('ANGER', 2, 0), evLv('ANGER')], [spAt('DISGUST', 2, 0), evLv('ANGER')]])) return;
+    await say('(You kick the jars into the dark and run for the yard. Soldiers on one side, strikers on the other, Captain Haldane with his hand raised.)');
+    await say('(You stand in the middle and tell them, very loudly, what\'s in their water. Haldane looks at his own raised hand for a long time. Then he lowers it.)');
+    s.st = 9; await evReward(800, [['iron', 3], ['quill', 2], ['hearth', 1]]);
+  }
+  await fadeTo(1, 600); buildWorld(S.map); await fadeTo(0, 600);
+}
+
+// ---------------------------------------------------------------- who stands where
+// Event people in each city (and the odd route or waytown), placed near open ground.
+function eventEnts(map, taken) {
+  const M = MAPS[map], out = [], all = () => taken.concat(out), at = (e, x, y) => out.push(at2(map, all(), e, x, y));
+  if (!M || S.flags.doom) return out;
+  const cx = Math.floor(M.w / 2), cy = Math.floor(M.h / 2) + 2, city = t => M.kind === 'city' && M.vibe === t;
+  const mem = (id, x, y, text) => at({ id, note:true, talk:() => say(text) }, x, y);
+  // 1 JOY
+  if (city('JOY')) { const s = evS('JOY'); at({ id:'ev_hettie', look:HETTIE, name:'Hettie Brack', talk:evJoyHettie }, cx - 4, cy); at({ id:'ev_well', note:true, talk:evJoyWell }, cx + 6, cy + 2); }
+  // 2 HOPE
+  if (city('HOPE')) { const s = evS('HOPE'); at({ id:'ev_orla', look:ORLA, name:'Orla Hollis', talk:evHopeOrla }, cx - 4, cy); at({ id:'ev_station', note:true, talk:evHopeStation }, cx + 5, cy - 3);
+    mem('ev_rusk', cx + 7, cy - 3, s.st >= 9 ? '(Flowers under the departures board, and a hat. "E. RUSK — WAITED FOR THE 4:10 FOR 30 YEARS.")' : '(Through the station glass you can see a man lying under the departures board. Nobody has moved him.)'); }
+  // 3 CALM
+  if (city('CALM')) { const s = evS('CALM'); at({ id:'ev_lissa', look:LISSA, name:'Lissa Tull', talk:evCalmLissa }, cx - 4, cy); at({ id:'ev_pond', note:true, talk:evCalmPond }, cx + 5, cy + 3);
+    if (s.st < 9) at({ id:'ev_sleeper', look:pLook('#6a8a9a', '#5a3a2a', SKINS[1], ['scarf']), numb:true, name:'Sleeping woman', talk:() => say('(Lissa\'s mother. Asleep sitting up, breathing very slowly. She doesn\'t wake when you touch her shoulder.)') }, cx - 3, cy + 1);
+    mem('ev_tull', cx + 7, cy + 4, s.st >= 9 ? '(A fresh grave by the pond, with a ferryman\'s cap on the marker. "GAFFER TULL. HE LIKED IT HERE.")' : '(Reeds, flattened in the shape of a man. The water has gone back over the place.)'); }
+  if (map === ROUTES.CALM.id && evS('CALM').st === 1) at({ id:'ev_horn', item:true, talk:evCalmHorn }, 13, 4);
+  // 4 CONFIDENCE
+  if (city('CONFIDENCE')) { const s = evS('CONFIDENCE'); at({ id:'ev_herald', look:HERALD, name:'Herald', talk:evConfHerald }, cx - 4, cy);
+    if (!s.idrisDead && s.st < 9) at({ id:'ev_idris', look:IDRIS, name:'Idris Kell', talk:() => say(s.warned ? 'Idris Kell: Ready when you are. Let\'s give them a final worth remembering.' : 'Idris Kell: Good luck in the Proving. Truly. I hope you make me work for it.') }, cx + 3, cy - 2);
+    if (s.idrisDead) mem('ev_idris_mem', cx + 3, cy - 2, '(At the foot of the high stair, a champion\'s sash has been laid out flat, and people have left stones on it.)'); }
+  // 5 SURPRISE
+  if (city('SURPRISE')) { const s = evS('SURPRISE'); at({ id:'ev_dot', look:DOT, name:'Dot Pim', talk:evSurpDot }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_tibbs', look:DOT, name:'Tibbs Pim', talk:() => say('Tibbs Pim: (He jumps when you speak, then smiles.) Sorry. It\'s you. That\'s all right, then.') }, cx - 3, cy + 1); }
+  if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', note:true, talk:evSurpMirror }, 6, 20);
+  // 6 SADNESS
+  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan }, cx - 4, cy); at({ id:'ev_tower', note:true, talk:evSadTower }, cx + 5, cy - 4);
+    mem('ev_maren', cx + 7, cy - 4, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
+  // 7 FEAR
+  if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
+    if (s.hanged) mem('ev_gallows', cx + 5, cy - 3, '(The gallows in the square. Nobody has taken it down yet. Nobody walks under it.)'); }
+  if (WAYTOWNS.FEAR && map === WAYTOWNS.FEAR.id && evS('FEAR').st === 1) at({ id:'ev_camp', look:GRIEVE, name:'Mother Grieve', talk:evFearCamp }, 16, 8);
+  // 8 SHAME
+  if (city('SHAME')) { const s = evS('SHAME');
+    at({ id:'ev_tobias', look:s.numb || s.numbAgnes ? NUMBED_LOOK : TOBIAS, numb:!!(s.numb || s.numbAgnes), name:'Tobias Fenn', talk:evShameScene }, cx - 4, cy);
+    at({ id:'ev_agnes', look:s.numbAgnes ? NUMBED_LOOK : AGNES, numb:!!s.numbAgnes, name:'Agnes Fenn', talk:evShameScene }, cx - 3, cy);
+    if (s.st < 9) at({ id:'ev_hollin', look:CHOIR_LOOK, name:'Cantor Hollin', talk:evShameScene }, cx - 4, cy - 1); }
+  // 9 DISGUST
+  if (city('DISGUST')) { const s = evS('DISGUST');
+    if (!s.dark) at({ id:'ev_wynn', look:WYNN, name:'Wynn Ferrow', talk:s.st === 2 ? evDisMob : evDisWynn }, cx - 4, cy);
+    else mem('ev_ferrow', cx - 4, cy, '(Black timber where the Ferrow house stood. A child\'s chair, burned on one side, sits in the ash.)');
+    at({ id:'ev_pump', note:true, talk:evDisPump }, cx + 4, cy + 2);
+    if (s.st === 2) at({ id:'ev_gorse', look:GORSE, name:'Gorse', talk:evDisMob }, cx - 6, cy); }
+  // 10 ANGER
+  if (city('ANGER')) { const s = evS('ANGER');
+    if (!s.dark) at({ id:'ev_corra', look:CORRA, name:'Corra Vane', talk:evAngCorra }, cx - 4, cy);
+    at({ id:'ev_barracks', note:true, talk:evAngBarracks }, cx + 6, cy - 2);
+    mem('ev_jory', cx - 6, cy + 2, s.dark ? '(Seven graves by the forge wall. The first says JORY PIKE, 19. The last says CORRA VANE.)' : '(A forge apron hung on the wall, with a name chalked under it: JORY PIKE, 19.)'); }
+  return out;
 }
 // =============================================================================
 //  AURA GRID — your aura has two axes: Light ↔ Shadow (how pleasant what you carry
@@ -7394,11 +7788,11 @@ async function backRoom() {
   const pool = QUIZ.slice().sort(() => Math.random() - .5).slice(0, 3);
   for (let i = 0; i < 3; i++) { const [q, opts, ans] = pool[i]; const c = await ask(`Sable: ${q}`, opts);
     if (c !== ans) {
-      sfx('bighit'); MOOD.shake = 1.4;
+      sfx('bighit');
       await say('Sable: Wrong. (She nods to the big man behind you.)');
       await say(deal('kick', ['A boot the size of a loaf hits you square in the back. You go through the curtain, across the cobbles, and face-first into a rain barrel.', 'Someone grabs your collar and your belt and throws you, actually throws you, out into the street. You land on your shoulder and something pops.', 'The big man kicks you so hard you skid three feet on your face. Your lip splits open on the cobbles. Somebody laughs.']));
       const lead = S.party.find(p => p.hp > 0); if (lead) lead.hp = Math.max(1, Math.round(lead.hp * .6));
-      S.flags.kickedUntil = S.time + 180; await fadeTo(1, 300); S.x = Math.min(MAPS[S.map].w - 3, S.x + 2); S.y = Math.min(MAPS[S.map].h - 3, S.y + 2); buildWorld(S.map); await fadeTo(0, 400);
+      S.flags.kickedUntil = S.time + 180; await fadeTo(1, 300); S.map = 'vellum'; S.x = 3; S.y = 15; S.dir = 'down'; buildWorld('vellum');   // out through the gap in the wall, onto the street north of it await fadeTo(0, 400);
       return say('(You can try again in a few minutes. If you can still walk.)');
     }
     await say(['Sable: Hm.', 'Sable: Lucky.', 'Sable: ...Fine.'][i]); }
