@@ -6853,9 +6853,9 @@ async function evJoyHettie() { const s = evS('JOY');
     await say('Hettie Brack: Since yesterday. They all played at the old wishing well after school, came home, and went quiet. They eat. They answer. They just don\'t... light up. My Pip used to laugh in her sleep.');
     await say('Hettie Brack: There were people in grey coats near the well last night. Lowering something on ropes. Please. I\'m a teacher. I can\'t fight anything.');
     const c = await ask('Help Hettie?', ['I\'ll go down the well', 'Not now']); if (c !== 0) return;
-    s.st = 1; return say('Hettie Brack: The well\'s by the east lane. The rope ladder still holds. Bring them back. Please.');
+    s.st = 1; return say('Hettie Brack: The old well is in the east garden, next to the bandstand. The rope ladder still holds. Bring them back. Please.');
   }
-  if (s.st === 1) return say('Hettie Brack: The well. East lane. Please hurry. Pip asked me today why nothing is funny anymore.');
+  if (s.st === 1) return say('Hettie Brack: The well, in the east garden by the bandstand. Please hurry. Pip asked me today why nothing is funny anymore.');
   return say(s.dark ? 'Hettie Brack: They never did laugh again, you know. They grew up very sensible. (She doesn\'t look at you.)' : ['Hettie Brack: Hear that? That\'s Pip. She laughed so hard at supper she got hiccups. Thank you.', 'Hettie Brack: The children made you a card. It\'s mostly glitter.'][Math.floor(Math.random() * 2)]);
 }
 async function evJoyWell() { const s = evS('JOY'); if (s.st !== 1) return say('(An old wishing well. Pennies glint at the bottom.)');
@@ -7161,7 +7161,9 @@ function evSpot(map, taken, x0, y0) {
     const starts = [M.entryS, M.entryN].filter(Boolean); if (!starts.length) for (let x = 0; x < M.w; x++) for (const y of [1, M.h - 2]) if (free(x, y)) starts.push({ x, y });
     const seen = new Set(starts.map(p => p.x + ',' + p.y)), q = starts.map(p => [p.x, p.y]);
     while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = nx + ',' + ny; if (!seen.has(k) && free(nx, ny)) { seen.add(k); q.push([nx, ny]); } } }
-    const good = (x, y) => free(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has((x + dx) + ',' + (y + dy)))
+    // The camera looks north, so nothing goes just behind a house, where its roof would hide it.
+    const seen2 = (x, y) => ![1, 2, 3].some(d => tileAt(x, y + d) === 'H');
+    const good = (x, y) => free(x, y) && seen2(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has((x + dx) + ',' + (y + dy)))
       && [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => seen.has((x + dx) + ',' + (y + dy))).length >= 2;   // and never the only way through
     for (let r = 0; r <= 10; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (good(x0 + dx, y0 + dy)) return { x:x0 + dx, y:y0 + dy }; }
     return { x:x0, y:y0 };
@@ -7177,7 +7179,7 @@ function eventEnts(map, taken) {
   const mem = (id, x, y, text) => at({ id, note:true, talk:() => say(text) }, x, y);
   const on = t => evS(t).st < 9, prop = (id, kind, talk, x, y, t, markH) => at({ id, model:EV_PROP[kind], talk, mark:on(t), markH:markH || 2.6 }, x, y);
   // 1 JOY
-  if (city('JOY')) { const s = evS('JOY'); at({ id:'ev_hettie', look:HETTIE, name:'Hettie Brack', talk:evJoyHettie, mark:on('JOY') }, cx - 4, cy); prop('ev_well', 'well', evJoyWell, cx + 6, cy + 2, 'JOY'); }
+  if (city('JOY')) { const s = evS('JOY'); at({ id:'ev_hettie', look:HETTIE, name:'Hettie Brack', talk:evJoyHettie, mark:on('JOY') }, cx - 4, cy); prop('ev_well', 'well', evJoyWell, cx + 12, cy + 3, 'JOY'); }   // in the open garden by the bandstand
   // 2 HOPE
   if (city('HOPE')) { const s = evS('HOPE'); at({ id:'ev_orla', look:ORLA, name:'Orla Hollis', talk:evHopeOrla, mark:on('HOPE') }, cx - 4, cy); prop('ev_station', 'box', evHopeStation, cx + 5, cy - 3, 'HOPE', 2.6);
     mem('ev_rusk', cx + 7, cy - 3, s.st >= 9 ? '(Flowers under the departures board, and a hat. "E. RUSK — WAITED FOR THE 4:10 FOR 30 YEARS.")' : '(Through the station glass you can see a man lying under the departures board. Nobody has moved him.)'); }
