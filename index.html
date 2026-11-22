@@ -275,7 +275,7 @@ const LEARN = {
 };
 const LEARN_AT = [1, 1, 10, 22];
 const INTENSIFY_AT = [14, 28];      // mild → core at 14, core → intense at 28
-let MAX_LVL = 40;
+let MAX_LVL = 50;
 
 // 13 per family: four intensify chains (line 0–3: mild → core → intense) and the family's Heart (line 4),
 // which lives at the city shrine and can't be found in the wild.
@@ -6619,7 +6619,7 @@ async function wrenConfront() {
   await say('Wren: I raised you up out of a field with nothing but a starter Manif and your name. I told you everything. And you went to my brother.');
   await say('Wren: The Codex is the only thing holding the Hush shut. Orrin is still down there. Still holding it. If you take this to Corvin, Orrin lets go, and everyone stops. Everyone, forever.');
   const y = await ask('Wren holds the Codex to her chest.', ['Take it', 'Back down']); if (y !== 0) return say('Wren: (She doesn\'t move until you\'re gone.) Go. Please. Come back as yourself.');
-  const ok = await trainerFight('Wren', [[spAt('CALM', 2, 0), 34], [spAt('HOPE', 2, 1), 35], [spAt('JOY', 2, 2), 36]]); if (!ok) return;
+  const ok = await trainerFight('Wren', [[spAt('CALM', 2, 0), 42], [spAt('HOPE', 2, 1), 43], [spAt('JOY', 2, 2), 44]]); if (!ok) return;
   await say('Wren goes down on the Archive steps. Her spectacles skid away across the stone. She keeps hold of the Codex with both hands.');
   const k = await ask('She will not let go.', ['Pour the phial', 'Break her hands', 'Leave her']);
   if (k === 2) return say('You can\'t do it. Wren watches you go, holding the Codex, crying without making a sound.');
@@ -6645,7 +6645,7 @@ async function choirKneel() {
   await say('Conductor: Thank you. Truly. Now give me the Codex and the Bell. The Chord needs one voice, and it was never going to be yours.');
   await say('(The Conductor holds out a white hand. You close yours around the Bell.)');
   await say('Conductor: (He laughs, softly, and lifts the baton.) I hoped you\'d say that. Corvin Vale-Ashby, Conductor of the Hollow Choir. Let\'s see whose song it is.');
-  const ok = await trainerFight('the Conductor', [[spAt('CALM', 2, 1), 40], [spAt('FEAR', 2, 0), 41], [spAt('SHAME', 2, 2), 42]]);
+  const ok = await trainerFight('the Conductor', [[spAt('CALM', 2, 1), 45], [spAt('FEAR', 2, 0), 46], [spAt('SHAME', 2, 2), 47]]);
   if (!ok) return say('(The Conductor waits by the water, humming. Gather yourself and kneel again.)');
   await say('The Conductor falls back into the shallows. The Hush bends over him, and for a moment you see it wear Wren\'s face, and Orrin\'s, and his.');
   await say('Corvin: Wrenna... (The Hush drinks him, slowly, from the feet up. He does not stop talking until he is gone.)');
@@ -6686,7 +6686,7 @@ async function bindSettled(t) {
 
 // ============================================================ ENDGAME
 async function endGift(kind) {
-  if (S.flags.gift) return; S.flags.gift = 1; MAX_LVL = 60;
+  if (S.flags.gift) return; S.flags.gift = 1;
   const pool = WHEEL.filter(t => kind === 'doom' ? bound()[t] : S.hearts[t]);
   await say(kind === 'doom' ? 'When you climb out of the Stillwell, the Hearts of the Welkin are waiting for you, kneeling. One of them will follow you. Choose.' : 'When you climb out of the Stillwell, one of the settled Hearts is waiting at the top of the steps, glowing softly. It wants to walk with you. Choose.');
   const c = await ask('Which Heart?', pool.map(t => ({ label:SPECIES[heartOf(t)].name, sub:TOWNS[t].name })));
@@ -6695,7 +6695,7 @@ async function endGift(kind) {
   sfx('keep'); banner(m.nick, kind === 'doom' ? 'It obeys you' : 'It chose you');
   if (kind === 'doom') { pay(5000); await say('The Choir\'s treasury is yours now. 5000 Marks in old grey coin.'); await say('(Somewhere far below, something that is not the Hush is waking. The Welkin\'s last free feeling has come looking for you. Look in the Stillwell.)'); }
   else { S.items.tonic = (S.items.tonic || 0) + 5; S.items.salts = (S.items.salts || 0) + 5; await say('Ilse sends up the Archive\'s best stores: 5 Bitter Tonics and 5 Smelling Salts.'); await say('(Something is still down there. Orrin Vale held the Hush shut for two hundred years. Whatever is left of him is waking. Look in the Stillwell.)'); }
-  await say('(Hearts can now be faced again at any shrine, far stronger. Notice clerks have new bounties. Your Manifs can grow to Lv 60.)');
+  await say('(Hearts can now be faced again at any shrine, far stronger. Notice clerks have new bounties.)');
 }
 async function talkSuperboss() {
   const doom = !!S.flags.doom;
@@ -6708,8 +6708,8 @@ async function talkSuperboss() {
     await say('Orrin Vale: Child. I am so tired. I gave them a well to put their grief in, and it ate them. Show me what a person can carry without it. Show me, and I can rest.');
     await orrinLoveGift();
   }
-  const c = await ask(doom ? 'Wren, the Last Unbound (Lv 55)' : 'The Echo of Orrin Vale (Lv 55)', ['Face it', 'Not yet']); if (c !== 0) return;
-  const team = doom ? [[spAt('HOPE', 2, 2), 53], [spAt('JOY', 2, 1), 54], [heartOf('CALM'), 55]] : [[spAt('SADNESS', 2, 2), 53], [spAt('FEAR', 2, 1), 54], [heartOf('SADNESS'), 55]];
+  const c = await ask(doom ? 'Wren, the Last Unbound (Lv 50)' : 'The Echo of Orrin Vale (Lv 50)', ['Face it', 'Not yet']); if (c !== 0) return;
+  const team = doom ? [[spAt('HOPE', 2, 2), 50], [spAt('JOY', 2, 1), 50], [heartOf('CALM'), 50]] : [[spAt('SADNESS', 2, 2), 50], [spAt('FEAR', 2, 1), 50], [heartOf('SADNESS'), 50]];
   const ok = await trainerFight(doom ? 'Wren' : 'Orrin Vale', team); if (!ok) return;
   S.flags.superDone = 1;
   await say(doom ? 'Wren sinks to her knees in the water. "Thank you," she says, and for a moment she sounds like herself. Then she lies back, and the still water closes over her face, and does not move again.' : 'Orrin lowers his arms at last. The white ink of him runs into the water like milk. "Carry them home," he says. Then there is nobody holding anything shut, and nothing left to hold.');
@@ -6717,7 +6717,7 @@ async function talkSuperboss() {
   if (doom) await startWayBack();
 }
 async function heartRematch(t) {
-  const lv = 46 + WHEEL.indexOf(t);
+  const lv = 41 + WHEEL.indexOf(t);   // 41 to 50: the level cap is 50, and nothing is ever stronger
   const c = await ask(`${bound()[t] ? 'The bound Heart' : 'The Heart'} of ${TOWNS[t].name} stirs at your step, far stronger than before. (Lv ${lv})`, ['Face it', 'Leave it']); if (c !== 0) return;
   const r = await battle(newManif(heartOf(t), lv), { owner:TOWNS[t].name });
   if (r === 'blackout') return blackout(); if (r !== 'won') return;
@@ -6728,7 +6728,6 @@ async function heartRematch(t) {
 function questEnts(map, base) {
   const M = MAPS[map], out = [], c = choir(), all = () => base.concat(out);
   if (!M) return out;
-  if (S.flags.gift) MAX_LVL = 60;
   // Fragments lying in the world
   for (const f of WORLD_FRAGS) if (f.map === map && !(S.frags || {})[f.id]) { const [x, y] = spotNear(map, f.x, f.y, all()); out.push({ id:'frag' + f.id, note:true, x, y, talk:() => gainFrag(f.id, 'Under a stone, folded small, a page of old Archive ink.').then(() => buildWorld(S.map)) }); }
   if (M.kind === 'way') { const t = M.vibe; out.push(at2(map, all(), { id:'clerk', look:CLERK_LOOK, name:'Notice clerk', talk:() => talkClerk(t) }, 10, 12)); }
@@ -7006,8 +7005,8 @@ function eventEnts(map, taken) {
   if (city('SURPRISE')) { const s = evS('SURPRISE'); at({ id:'ev_dot', look:DOT, name:'Dot Pim', talk:evSurpDot, mark:on('SURPRISE') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_tibbs', look:DOT, name:'Tibbs Pim', talk:() => say('Tibbs Pim: (He jumps when you speak, then smiles.) Sorry. It\'s you. That\'s all right, then.') }, cx - 3, cy + 1); }
   if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', model:EV_PROP.mirror, talk:evSurpMirror, mark:evS('SURPRISE').st === 1, markH:2.3 }, 6, 20);
   // 6 SADNESS
-  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:on('SADNESS') }, cx - 4, cy); prop('ev_tower', 'tower', evSadTower, cx + 5, cy - 4, 'SADNESS', 3.9);
-    mem('ev_maren', cx + 7, cy - 4, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
+  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:on('SADNESS') }, cx - 4, cy); prop('ev_tower', 'tower', evSadTower, cx + 8, cy + 13, 'SADNESS', 3.9);   // out in the open square by the south gate, well away from the fountain
+    mem('ev_maren', cx + 10, cy + 13, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
   // 7 FEAR
   if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine, mark:on('FEAR') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
     if (s.hanged) mem('ev_gallows', cx + 5, cy - 3, '(The gallows in the square. Nobody has taken it down yet. Nobody walks under it.)'); }
@@ -7021,7 +7020,7 @@ function eventEnts(map, taken) {
   if (city('DISGUST')) { const s = evS('DISGUST');
     if (!s.dark) at({ id:'ev_wynn', look:WYNN, name:'Wynn Ferrow', talk:s.st === 2 ? evDisMob : evDisWynn, mark:s.st === 0 || s.st === 2 }, cx - 4, cy);
     else mem('ev_ferrow', cx - 4, cy, '(Black timber where the Ferrow house stood. A child\'s chair, burned on one side, sits in the ash.)');
-    at({ id:'ev_pump', model:EV_PROP.pump, talk:evDisPump, mark:s.st === 1, markH:1.9 }, cx + 4, cy + 2);
+    at({ id:'ev_pump', model:EV_PROP.pump, talk:evDisPump, mark:s.st === 1, markH:1.9 }, cx + 15, cy - 3);   // the town pump stands alone in the open east yard
     if (s.st === 2) at({ id:'ev_gorse', look:GORSE, name:'Gorse', talk:evDisMob }, cx - 6, cy); }
   // 10 ANGER
   if (city('ANGER')) { const s = evS('ANGER');
@@ -11261,7 +11260,7 @@ async function useLectern(t) {
   const keys = Object.keys(ORDERS), c = await ask(`You open the Ledger at ${TOWNS[t].name}. The Numbed in the square turn, all together, to watch you write.`, keys.map(k => ORDERS[k].label).concat(['Close the Ledger']));
   if (c < 0 || c >= keys.length) return;
   await say('You write it. The ink is grey. For a moment nothing happens. Then the shrine behind you begins to hum, low and furious: the bound Heart of the city is pushing back.');
-  const i = WHEEL.indexOf(t), r = await battle(newManif(heartOf(t), 50 + i), { owner:TOWNS[t].name });
+  const i = WHEEL.indexOf(t), r = await battle(newManif(heartOf(t), 41 + i), { owner:TOWNS[t].name });   // 41 to 50
   if (r === 'blackout') return blackout();
   if (r !== 'won') return say('You step back. The ink on the page fades to nothing. The order didn\'t take.');
   ORD()[t] = keys[c]; S.sins = (S.sins || 0) + 1; pay(300); applyOrders(S.map, MAPS[S.map]);
@@ -11294,7 +11293,7 @@ async function startWayBack() {
 async function unbindHeart(t) {
   const c = await ask(`The bound Heart of ${TOWNS[t].name} hums under the grey, like something holding its breath.`, ['Unbind it', 'Leave it']); if (c !== 0) return;
   await say('You put your hand on the shrine and you say, out loud, that you were wrong. The Heart comes up out of the grey to see if you mean it.');
-  const i = WHEEL.indexOf(t), r = await battle(newManif(heartOf(t), 48 + i), { owner:TOWNS[t].name });
+  const i = WHEEL.indexOf(t), r = await battle(newManif(heartOf(t), 41 + i), { owner:TOWNS[t].name });   // 41 to 50
   if (r === 'blackout') return blackout();
   if (r !== 'won') return say('The Heart sinks back into the grey. Not yet, then.');
   bound()[t] = 0; FREED()[t] = 1; const had = ORD()[t]; delete ORD()[t]; applyOrders(S.map, MAPS[S.map]); sfx('settle');
@@ -11322,7 +11321,7 @@ async function recruitHesk() {
   if (HCH().hesk) return say('Cantor Hesk: The Chancel is under the east end of Vellum. Take the steps down. We keep the candles grey.');
   await sayAs('Cantor Hesk', 'You did it. The Grand Chord. I heard it from here and I sat down in the cinders and I wept, and I don\'t know which kind of weeping it was.');
   await sayAs('Cantor Hesk', 'There are five of us left. Scattered. Ashamed or proud, I can\'t tell any more. If you want a Choir, you\'ll have to earn us. Me first.');
-  const ok = await trainerFight('Cantor Hesk', [[spAt('FEAR', 2, 1), 50], [spAt('SHAME', 2, 2), 52]]); if (!ok) return;
+  const ok = await trainerFight('Cantor Hesk', [[spAt('FEAR', 2, 1), 48], [spAt('SHAME', 2, 2), 49]]); if (!ok) return;
   HCH().hesk = 1; ENTC.t = 0;
   await sayAs('Cantor Hesk', 'Good. There\'s an old chancel under Vellum, at the east end of the city: steps going down. The Choir sang there before it sang anywhere else. I\'ll light the candles.');
   return say('(Cantor Hesk joins the Hollow Choir. The Hollow Chancel is open, under the east end of Vellum.)');
@@ -11345,7 +11344,7 @@ async function recruitTalk(k) {
   else if (k === 'ilka') {
     if (recruited().filter(x => x !== 'ilka').length < 4) return sayAs(nm2, `I lead a choir, not a rabble. Bring me the other four. You have ${recruited().length}. Then come back and sing for me.`);
     await sayAs(nm2, 'All four. Hesk, Mott, Quell, Wyst. You\'ve been busy. Then sing for me, and if you\'re worth it I\'ll hold the rite.');
-    const ok = await trainerFight(nm2, [[spAt('ANGER', 2, 2), 55], [spAt('DISGUST', 2, 2), 56], [spAt('FEAR', 2, 2), 58]]); if (!ok) return;
+    const ok = await trainerFight(nm2, [[spAt('ANGER', 2, 2), 49], [spAt('DISGUST', 2, 2), 50], [spAt('FEAR', 2, 2), 50]]); if (!ok) return;
     await sayAs(nm2, 'Yes. That\'s the voice. Meet me at the Chancel. Bring nothing. Feel nothing. We\'ll take care of the rest.'); }
   H[k] = 1; ENTC.t = 0; await say(`(${nm2} joins the Hollow Choir. ${recruited().length}/5.)`);
 }
@@ -11447,7 +11446,7 @@ async function wardenGate() {
   if (auraSide() === 'shadow') {
     await sayAs('Warden Reyne', 'No. I\'ve watched the roads go grey for thirty years and I know what it looks like when it walks up to me. You\'re carrying it. You go down there like that and you won\'t come back up as you.');
     const c = await ask('Warden Reyne lifts his staff across the stairs.', ['Make him move', 'Step back']); if (c !== 0) return false;
-    const ok = await trainerFight('Warden Reyne', [[spAt('CONFIDENCE', 2, 2), 38], [spAt('CALM', 2, 2), 39], [spAt('HOPE', 2, 2), 40]]); if (!ok) return false;
+    const ok = await trainerFight('Warden Reyne', [[spAt('CONFIDENCE', 2, 2), 45], [spAt('CALM', 2, 2), 46], [spAt('HOPE', 2, 2), 47]]); if (!ok) return false;
     F.wardenGate = 'forced'; await sayAs('Warden Reyne', '(He sits down hard on the Archive floor.) Then go. Somebody has to watch the door. I\'ll still be here when it\'s over, whichever way it goes.'); return true; }
   await sayAs('Warden Reyne', 'Ten Hearts. I\'ve waited thirty years to see someone stand here. A Warden swears an oath at every crossroads: that whoever passes, passes as themselves. I\'ve got one left.');
   await say('He takes the brass badge off his coat, a crossroads cut into it, and presses it into your hand. It\'s warm.');
@@ -11899,7 +11898,7 @@ function auraStory(p = S.party) {
   if (nFam === 1 && p.length >= 3) parts.push('Nothing else gets a word in.');
   else if (nFam >= 5) parts.push('Everyone who looks at you sees something different.');
   if (held > 600 && p.length > 1) parts.push(`You've carried ${nm(longest)} the longest; it's started to look like part of you.`);
-  if (lvMin >= 40) parts.push('Everything you hold is full-grown.'); else if (lvMax - lvMin >= 20) parts.push('Some of it is old and heavy, and some of it is very new.');
+  if (lvMin >= MAX_LVL) parts.push('Everything you hold is full-grown.'); else if (lvMax - lvMin >= 20) parts.push('Some of it is old and heavy, and some of it is very new.');
   if (gift) parts.push({ LOVE:'And under all of it, Love, which makes the rest bearable.', CURIOUS:'And there\'s a made-up creature in there that nobody can quite take seriously, or forget.',
     BEACON:'And a steady light in it that people turn toward without meaning to.', BELONG:'And a feeling of belonging that makes strangers wave.', HOLLOW:'And a hollow at the middle of it that people step around.' }[gift]);
   return { title, story:parts.join(' '), bits:{ top, second, I, oppKey, dy, nFam, longest, gift } };
@@ -12592,7 +12591,7 @@ async function talkHush() {
   if (c !== 0) return;
   if (choirPath) { choir().betrayed = 1; await say('You close the Codex and stand up. Somewhere far above, on the Archive stair, you hear the Choir stop singing.'); }
   SPECIES.HUSH.type = 'FEAR';
-  const foe = { sp:'HUSH', lvl:38, xp:0, hp:1, moves:LEARN.FEAR.slice() };
+  const foe = { sp:'HUSH', lvl:48, xp:0, hp:1, moves:LEARN.FEAR.slice() };
   const r = await battle(foe, { final:true });
   if (r === 'blackout') { await say('The silence swallows you. You wake on the Archive steps, Wren holding your hand.'); await fadeTo(1, 400); S.map = 'vellum'; S.x = 16; S.y = 16; S.dir = 'up'; healAll(); buildWorld('vellum'); playMusic(themeFor('vellum')); await fadeTo(0, 400); await say('Wren: You came back. That\'s what matters. It\'s still down there. Rest, and try again.'); return; }
   if (r !== 'won') return;
