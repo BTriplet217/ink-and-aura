@@ -7014,7 +7014,7 @@ function eventEnts(map, taken) {
   if (WAYTOWNS.FEAR && map === WAYTOWNS.FEAR.id && evS('FEAR').st === 1) at({ id:'ev_camp', model:EV_PROP.cage, talk:evFearCamp, mark:true, markH:1.8 }, 16, 8);   // an empty cage on a cart, and wheel ruts into the trees
   // 8 SHAME
   if (city('SHAME')) { const s = evS('SHAME');
-    if (s.st < 9) at({ id:'ev_lane', note:true, talk:evShameScene, mark:true, markH:1.4 }, cx - 4, cy);   // screaming from Wicket Lane
+    if (s.st < 9) at({ id:'ev_lane', model:EV_PROP.gate, name:'Wicket Lane', talk:evShameScene, mark:true, markH:2.2 }, cx - 4, cy);   // screaming from Wicket Lane
     else { at({ id:'ev_tobias', look:s.numb || s.numbAgnes ? NUMBED_LOOK : TOBIAS, numb:!!(s.numb || s.numbAgnes), name:'Tobias Fenn', talk:evShameScene }, cx - 4, cy);
       at({ id:'ev_agnes', look:s.numbAgnes ? NUMBED_LOOK : AGNES, numb:!!s.numbAgnes, name:'Agnes Fenn', talk:evShameScene }, cx - 3, cy); } }
   // 9 DISGUST
@@ -11447,7 +11447,7 @@ async function wardenGate() {
   if (auraSide() === 'shadow') {
     await sayAs('Warden Reyne', 'No. I\'ve watched the roads go grey for thirty years and I know what it looks like when it walks up to me. You\'re carrying it. You go down there like that and you won\'t come back up as you.');
     const c = await ask('Warden Reyne lifts his staff across the stairs.', ['Make him move', 'Step back']); if (c !== 0) return false;
-    const ok = await trainerFight('Warden Reyne', [[spAt('CONFIDENCE', 2, 2), 47], [spAt('CALM', 2, 2), 48], [spAt('HOPE', 2, 2), 49]]); if (!ok) return false;
+    const ok = await trainerFight('Warden Reyne', [[spAt('CONFIDENCE', 2, 2), 38], [spAt('CALM', 2, 2), 39], [spAt('HOPE', 2, 2), 40]]); if (!ok) return false;
     F.wardenGate = 'forced'; await sayAs('Warden Reyne', '(He sits down hard on the Archive floor.) Then go. Somebody has to watch the door. I\'ll still be here when it\'s over, whichever way it goes.'); return true; }
   await sayAs('Warden Reyne', 'Ten Hearts. I\'ve waited thirty years to see someone stand here. A Warden swears an oath at every crossroads: that whoever passes, passes as themselves. I\'ve got one left.');
   await say('He takes the brass badge off his coat, a crossroads cut into it, and presses it into your hand. It\'s warm.');
