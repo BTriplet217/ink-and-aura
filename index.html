@@ -4981,6 +4981,10 @@ function rebuildMinis() {
   for (const m of W.minis) world.remove(m);
   W.minis = S.party.map(m => { const g = buildManif(m.sp, { mini:true, scale:.36 }); world.add(g); return g; });
 }
+// Once all ten Hearts are settled (or bound), every wild Manif in the Welkin has grown: Lv 38 to 46 everywhere,
+// so there is somewhere to train for the endgame. Before that, each place keeps its own levels.
+const lateWild = () => WHEEL.every(t => S.hearts[t] || (S.bound && S.bound[t]));
+const wildBand = (lo, hi) => lateWild() ? [38, 46] : [lo, hi];
 function spawnWild() {
   const M = MAPS[S.map]; if (!M.wild) return;
   const spots = [];
@@ -4988,7 +4992,8 @@ function spawnWild() {
   if (!spots.length) return;
   const [x, y] = pickA(spots), [spx, , lo, hi] = pickW(M.wild), sp = Array.isArray(spx) ? pickA(spx) : spx;
   const g = buildManif(sp, { scale:.85 }); g.position.set(x, groundY(x, y) + .65, y); world.add(g);
-  W.wilds.push({ sp, lvl: lo + Math.floor(Math.random() * (hi - lo + 1)), x, y, fx:x, fy:y, t:1, next:rnd(.8, 2), g });
+  const [a, b] = wildBand(lo, hi);
+  W.wilds.push({ sp, lvl: a + Math.floor(Math.random() * (b - a + 1)), x, y, fx:x, fy:y, t:1, next:rnd(.8, 2), g });
 }
 function removeWild(w) { world.remove(w.g); W.wilds.splice(W.wilds.indexOf(w), 1); const map = S.map; setTimeout(() => { if (scene === 'world' && S.map === map && W.wilds.length < 7) spawnWild(); }, 6000); }
 
@@ -5617,7 +5622,7 @@ async function interact() {
   if (tl === 's') {
     if (S.map === 'vellum') { const g = Object.entries(GATES).find(([, g]) => g.sign[0] === fx && g.sign[1] === fy); if (g) { const t = GATE_TYPE[g[0]], T = TOWNS[t], Wt = WAYTOWNS[t]; await say(`This road: ${Wt.name} (Lv ${Wt.lv[0]}+), then ${ROUTES[t].name} (Lv ${ROUTES[t].lv[0]}+), then the city of ${T.name}, ruled by ${TYPES[t].name} (Lv ${T.lv[0]}+).${S.hearts[t] ? ' Its Heart has settled.' : ''}`); } }
     else if (MAPS[S.map].kind === 'way') { const t = MAPS[S.map].vibe, T = WAYTOWNS[t]; await say(`${T.name.toUpperCase()}. North: ${ROUTES[t].name}, then ${TOWNS[t].name}, the city of ${TYPES[t].name} (Lv ${TOWNS[t].lv[0]}+). South: Vellum. Wild Manifs here: Lv ${T.lv[0]} to ${T.lv[1]}, many feelings.`); }
-    else if (MAPS[S.map].kind === 'route') { const t = MAPS[S.map].vibe; await say(ROUTES[t].sign + ` (Wild Manifs: Lv ${ROUTES[t].lv[0]} to ${ROUTES[t].lv[1]}.)`); }
+    else if (MAPS[S.map].kind === 'route') { const t = MAPS[S.map].vibe; { const [a, b] = wildBand(ROUTES[t].lv[0], ROUTES[t].lv[1]); await say(ROUTES[t].sign + ` (Wild Manifs: Lv ${a} to ${b}.)`); } }
     else { const t = MAPS[S.map].vibe; await say(`${TOWNS[t].name.toUpperCase()}. Ruled by ${TYPES[t].name}. The road south leads back to ${ROUTES[t].name}, and ${WAYTOWNS[t].name} beyond.`); }
   } else if (tl === 'D' && MAPS[S.map].doors && MAPS[S.map].doors[fx + ',' + fy]) await enterDoor(MAPS[S.map].doors[fx + ',' + fy]);
   else if ((tl === 'D' || tl === 'H') && MAPS[S.map].kind === 'route') await say(pickA(['The door is nailed shut.', 'Locked. Through the keyhole you can see dust, and nothing else.', 'The door won\'t budge. Someone has pushed furniture against it from inside.']));
@@ -5634,6 +5639,7 @@ async function interact() {
 // ---------------------------------------------------------------- npcs -------
 const TIPS = [
   'Up to three of your Manifs stand with you in a Chorus. The rest wait their turn.',
+  'Once all ten Hearts are settled, every wild Manif in the Welkin grows stronger, Lv 38 to 46, wherever you meet it. That\'s where to train for what comes after.',
   'Neighbouring feelings on the wheel can fuse. Joy and Hope acting together make Optimism.',
   'Reach Out to a wild Manif before it settles, and it\'s far more likely to stay with you.',
   'Opposite feelings cut deepest: Joy and Sadness, Hope and Fear, Calm and Anger, Confidence and Shame, Surprise and Disgust.',
@@ -6480,7 +6486,7 @@ async function talkClerk(t) {
   st.elder = 1; return say(`Clerk: Since the Codex closed, something has been walking ${R.name} that\'s older than the road. Old as the war. ${T.lv[1] * 25 + 600} Marks. I don\'t expect to pay it.`);
 }
 async function fightRogue(t, elder) {
-  const st = boardState(t), lv = elder ? 50 + WHEEL.indexOf(t) % 5 : TOWNS[t].lv[1] + 5, sp = elder ? heartOf(t) : spAt(t, 2, 1);
+  const st = boardState(t), lv = elder ? 46 + WHEEL.indexOf(t) % 5 : TOWNS[t].lv[1] + 5, sp = elder ? heartOf(t) : spAt(t, 2, 1);
   const foe = newManif(sp, lv);
   await say(elder ? 'The air thickens. Something that has been a feeling for two hundred years turns to look at you, and its ink is old and black as tar.' : 'The air goes wrong. A rogue Manif turns toward you, dripping, and it has clearly hurt people.');
   const c = await ask(`${elder ? 'The Elder' : 'The Rogue'} ${SPECIES[sp].name} (Lv ${lv})`, ['Face it', 'Not yet']); if (c !== 0) return;
