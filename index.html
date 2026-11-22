@@ -7104,13 +7104,13 @@ async function evEnter(t, line) {
   const s = evS(t), d = sceneOf(t); if (!d) return;
   s.ret = { map:S.map, x:S.x, y:S.y };
   if (line) await say(line);
-  await fadeTo(1, 900); S.map = d.id; S.x = d.start[0]; S.y = d.start[1]; S.dir = 'up'; ENTC.t = 0; buildWorld(d.id); await wait(250); await fadeTo(0, 900);
+  await fadeTo(1, 900); S.map = d.id; S.x = d.start[0]; S.y = d.start[1]; S.dir = 'up'; ENTC.t = 0; buildWorld(d.id); playMusic(themeFor(d.id)); await wait(250); await fadeTo(0, 900);
   if (d.intro) await d.intro(s);
 }
 async function evLeave(t, line) {
   const s = evS(t), r = s.ret || { map:TOWNS[t].id, x:MAPS[TOWNS[t].id].entryS.x, y:MAPS[TOWNS[t].id].entryS.y };
   if (line) await say(line);
-  await fadeTo(1, 900); S.map = r.map; S.x = r.x; S.y = r.y; S.dir = 'down'; ENTC.t = 0; buildWorld(r.map); await wait(250); await fadeTo(0, 900);
+  await fadeTo(1, 900); S.map = r.map; S.x = r.x; S.y = r.y; S.dir = 'down'; ENTC.t = 0; buildWorld(r.map); playMusic(themeFor(r.map)); await wait(250); await fadeTo(0, 900);
 }
 // Who is where in a scene: a scene's own list, with anyone who has walked somewhere standing where they walked to.
 function sceneEnts(map) {
@@ -12879,6 +12879,7 @@ const routeFamily = id => WHEEL.find(t => ROUTES[t].id === id);
 const themeFor = id => { const M = MAPS[id], k = '';
   const pick = key => SPEC_CACHE[key] || (SPEC_CACHE[key] = key.startsWith('music/') ? { id:key, track:key } : MUS(key));
   if (M.music) return pick(M.music);
+  if (M.scene) return SPEC_CACHE['ev_' + M.scene] || (SPEC_CACHE['ev_' + M.scene] = { id:'ev_' + M.scene, score:'ev_' + M.scene, vol:.72 });   // event scenes: their own dark pieces
   if (M.kind === 'inside') return themeFor(M.route);
   if (S && S.flags && S.flags.doom && !S.flags.atoned && M.kind !== 'still' && !(M.kind === 'city' && (S.freed || {})[M.vibe])) return pick('doom_world');
   if (M.kind === 'hub') return pick(S && S.flags && S.flags.hushDone ? 'vellum_restored' : S && Object.keys(S.hearts || {}).length >= WN ? 'vellum_dread' : 'vellum');
@@ -13232,6 +13233,123 @@ const SCORES = {
     }
   })
 };
+// ── Event scene scores (21 Nov) ─────────────────────────────────────────────
+// Each event place has its own dark piece, written note by note for what is happening there.
+// They stay soft: no sudden loud hits, nothing that jumps out at you. The dread comes from harmony and space.
+Object.assign(SCORES, {
+  // JOY — Under the Wishing Well. A child's music-box lullaby, gone wrong: D minor, slightly out of tune,
+  // dripping water in the dark, and a low drone like the ground breathing. 3/4, 66 bpm.
+  ev_JOY:() => mkScore(66, 2, 3, 16, a => {
+    for (let b = 0; b < 16; b += 4) { a.n('pad', b, 0, 24, [38, 45], .45); a.n('sour', b, 0, 24, [50, 53], .35); }
+    // the lullaby: it starts sweet and bends into the minor second
+    const L = [[0, 0, 2, 74], [0, 2, 2, 77], [0, 4, 2, 81], [1, 0, 4, 79], [1, 4, 2, 77], [2, 0, 2, 76], [2, 2, 2, 77], [2, 4, 2, 74], [3, 0, 6, 73],
+      [4, 0, 2, 74], [4, 2, 2, 77], [4, 4, 2, 81], [5, 0, 4, 82], [5, 4, 2, 81], [6, 0, 2, 80], [6, 2, 2, 77], [6, 4, 2, 75], [7, 0, 6, 74]];
+    for (const [b, s, l, m] of L) { a.n('musicbox', b, s, l, m, .5); a.n('musicbox', b + 8, s, l * 1.4, m - 1 + (s % 4 === 0 ? 1 : 0), .38); }   // second time through, it sags flat
+    // water dripping, never in time
+    for (const [b, s, m] of [[0, 5, 93], [2, 1, 91], [3, 4, 94], [5, 3, 92], [6, 5, 90], [9, 2, 93], [11, 0, 89], [12, 5, 92], [14, 3, 90], [15, 1, 94]]) a.n('bell', b, s, 1, m, .22);
+    for (let b = 0; b < 16; b += 2) a.n('bass', b, 0, 12, b % 8 < 4 ? 38 : 37, .35);
+  }),
+
+  // HOPE — Trothaven Station. A clock that won't stop ticking, a piano repeating the same two notes
+  // like someone checking the board again, and a train whistle that never arrives. C minor, stuck on the dominant.
+  ev_HOPE:() => mkScore(84, 2, 4, 16, a => {
+    for (let b = 0; b < 16; b++) { for (let s = 0; s < 8; s += 2) a.d(b, s, 37, s ? .4 : .55);
+      for (let s = 0; s < 8; s++) a.n('piano', b, s, .9, s % 2 ? 67 : 68, .28 + (s === 0 ? .08 : 0)); }
+    const CH = [[43, [55, 59, 62, 65]], [44, [56, 60, 63, 67]], [43, [55, 59, 62, 65]], [41, [53, 56, 60, 62]]];
+    for (let b = 0; b < 16; b += 2) { const [r, c] = CH[(b / 2) % 4]; a.n('strings', b, 0, 16, c, .38); a.n('bass', b, 0, 15, r, .42); }
+    // the whistle: a falling minor third, far off, then silence where the answer should be
+    for (const b of [3, 7, 13]) { a.n('flute', b, 0, 5, 79, .32); a.n('flute', b, 5, 7, 76, .28); }
+    for (const [b, s, l, m] of [[9, 0, 4, 72], [9, 4, 4, 71], [10, 0, 8, 68], [11, 0, 8, 67]]) a.n('cello', b, s, l, m - 12, .45);
+  }),
+
+  // CALM — The Reeds at Dusk. Very slow, very still, sinking. Harp falls down a whole-tone scale that never
+  // finds the floor; a low choir hums under the water. 48 bpm.
+  ev_CALM:() => mkScore(48, 2, 4, 16, a => {
+    for (let b = 0; b < 16; b += 4) { a.n('pad', b, 0, 32, [38, 44, 50], .5); a.n('choir', b, 0, 32, [50, 56], .3); a.n('bass', b, 0, 30, 26, .35); }
+    const WT = [86, 84, 82, 80, 78, 76, 74, 72, 70, 68];
+    for (let b = 0; b < 16; b += 2) WT.forEach((m, k) => a.n('harp', b, k * 1.5, 6, m - (b % 4 ? 2 : 0), .32 - k * .02));
+    for (const [b, s, l, m] of [[1, 0, 8, 68], [3, 0, 8, 66], [5, 0, 6, 68], [5, 6, 2, 67], [7, 0, 8, 62], [11, 0, 8, 68], [13, 0, 8, 66], [15, 0, 8, 62]]) a.n('vibes', b, s, l, m, .4);
+  }),
+
+  // CONFIDENCE — The Proving Ring. A crowd's march turned into a funeral march: B♭ minor, timpani like a
+  // heartbeat, low brass that climbs and can't reach the top, the crowd humming a note too high.
+  ev_CONFIDENCE:() => mkScore(92, 4, 4, 16, a => {
+    for (let b = 0; b < 16; b++) { a.n('timpani', b, 0, 2, 34, .5); a.n('timpani', b, 8, 2, b % 4 === 3 ? 33 : 34, .4);
+      a.lane(b, '....x..-....x.--', 38); }
+    const CH = [[46, [58, 61, 65]], [46, [58, 61, 65]], [42, [54, 58, 61]], [45, [57, 60, 64]]];
+    for (let b = 0; b < 16; b += 2) { const [r, c] = CH[(b / 2) % 4]; a.n('strings', b, 0, 30, c, .36); a.n('bass', b, 0, 30, r - 12, .45); }
+    const F = [[0, 0, 6, 58], [0, 6, 2, 61], [1, 0, 8, 65], [1, 8, 8, 66], [2, 0, 12, 65], [3, 0, 4, 63], [3, 4, 4, 61], [3, 8, 8, 60],
+      [4, 0, 6, 58], [4, 6, 2, 61], [5, 0, 8, 65], [5, 8, 8, 68], [6, 0, 8, 70], [6, 8, 8, 69], [7, 0, 16, 64]];
+    for (const [b, s, l, m] of F) { a.n('brass', b, s, l * .95, m, .5); a.n('brass', b + 8, s, l * .95, m - 12, .45); }
+    for (let b = 8; b < 16; b += 4) a.n('choir', b, 0, 64, [70, 71], .22);   // the crowd, a semitone apart
+  }),
+
+  // SURPRISE — Behind the Third Mirror. A fairground tune played backwards in a hall of mirrors: 5/4, the music box
+  // and pizzicato never agree on where the beat is, and the harmony slides a tritone at a time.
+  ev_SURPRISE:() => mkScore(116, 2, 5, 16, a => {
+    const R = [40, 46, 40, 45];
+    for (let b = 0; b < 16; b++) { const r = R[b % 4]; a.n('pizz', b, 0, 1, r, .5); a.n('pizz', b, 3, 1, r + 6, .4); a.n('pizz', b, 6, 1, r + 7, .38); a.n('pizz', b, 8, 1, r + 6, .32);
+      a.n('pad', b, 0, 10, [r + 12, r + 18], .25); }
+    const M = [76, 77, 81, 82, 80, 76, 75, 71, 70, 76];
+    for (let b = 0; b < 16; b++) if (b % 4 !== 3) M.forEach((m, k) => { if ((k + b) % 3 !== 1) a.n(k % 2 ? 'kalimba' : 'musicbox', b, k, 1, m + (b % 8 < 4 ? 0 : -6), .3); });
+    for (const b of [3, 7, 11, 15]) { a.n('bell', b, 0, 10, [64, 70], .22); a.n('sour', b, 0, 10, [52, 58], .3); }   // the music stops; only a ringing
+  }),
+
+  // SADNESS — The Bell Tower. A lament on the cello, and the great bell tolling low under it, far too slowly.
+  // Rain on the louvres. D minor, 3/4, 56 bpm.
+  ev_SADNESS:() => mkScore(56, 2, 3, 16, a => {
+    for (let b = 0; b < 16; b += 2) { a.n('bell', b, 0, 12, [50, 62], .38); a.n('organ', b, 0, 12, b % 4 ? [53, 57, 62] : [50, 57, 62], .16); }
+    for (let b = 0; b < 16; b += 4) a.n('bass', b, 0, 24, b % 8 ? 34 : 38, .38);
+    const L = [[0, 0, 4, 62], [0, 4, 2, 60], [1, 0, 6, 58], [2, 0, 2, 57], [2, 2, 2, 58], [2, 4, 2, 60], [3, 0, 6, 57],
+      [4, 0, 4, 65], [4, 4, 2, 64], [5, 0, 4, 62], [5, 4, 2, 60], [6, 0, 6, 58], [7, 0, 6, 57],
+      [8, 0, 4, 62], [8, 4, 2, 65], [9, 0, 6, 69], [10, 0, 4, 67], [10, 4, 2, 65], [11, 0, 6, 64], [12, 0, 4, 65], [12, 4, 2, 62], [13, 0, 6, 61], [14, 0, 12, 62]];
+    for (const [b, s, l, m] of L) a.n('cello', b, s, l * .98, m - 12, .55);
+    for (let b = 0; b < 16; b++) for (const s of [1, 4]) a.n('harp', b, s + (b % 2) * .5, 1, 86 + ((b * 7 + s) % 5), .1);   // rain
+  }),
+
+  // FEAR — The Clearing. A slow heartbeat, strings shivering on a cluster that never resolves, and a few notes of
+  // a nursery tune that keep starting and stopping. B locrian, 68 bpm.
+  ev_FEAR:() => mkScore(68, 2, 4, 16, a => {
+    for (let b = 0; b < 16; b++) { a.d(b, 0, 36, .55); a.d(b, 1, 36, .38); }
+    for (let b = 0; b < 16; b += 4) { a.n('tremolo', b, 0, 32, [59, 60, 65], .3); a.n('pad', b, 0, 32, [35, 41], .4); }
+    const T = [[2, 0, 2, 83], [2, 2, 2, 81], [2, 4, 4, 79], [6, 0, 2, 83], [6, 2, 2, 81], [6, 4, 2, 79], [6, 6, 2, 78], [10, 0, 2, 83], [10, 2, 6, 84],
+      [14, 0, 2, 83], [14, 2, 2, 81]];
+    for (const [b, s, l, m] of T) a.n('musicbox', b, s, l, m, .32);
+    for (const [b, m] of [[4, 47], [8, 48], [12, 53]]) a.n('cello', b, 0, 16, m, .4);
+  }),
+
+  // SHAME — Wicket Lane. A hesitant electric piano that keeps losing its nerve mid-phrase, whispers of a choir,
+  // and a sour pad underneath. F♯ minor, 72 bpm.
+  ev_SHAME:() => mkScore(72, 2, 4, 16, a => {
+    const CH = [[42, [54, 57, 61]], [38, [50, 54, 57]], [40, [52, 56, 59]], [37, [49, 53, 56]]];
+    for (let b = 0; b < 16; b += 2) { const [r, c] = CH[(b / 2) % 4]; a.n('sour', b, 0, 16, c, .3); a.n('bass', b, 0, 15, r, .38); }
+    const P = [[0, 0, 2, 73], [0, 2, 2, 71], [0, 4, 3, 69], [2, 0, 2, 73], [2, 2, 2, 74], [2, 4, 1, 76], [4, 0, 2, 73], [4, 2, 2, 71], [4, 4, 2, 69], [4, 6, 2, 68],
+      [6, 0, 1, 66], [8, 0, 2, 78], [8, 2, 2, 76], [8, 4, 2, 74], [10, 0, 2, 73], [10, 2, 1, 74], [12, 0, 2, 69], [12, 2, 2, 68], [12, 4, 4, 66]];
+    for (const [b, s, l, m] of P) a.n('epiano', b, s, l * .9, m, .42);
+    for (let b = 1; b < 16; b += 4) a.n('choir', b, 2, 10, [66, 69], .2);
+  }),
+
+  // DISGUST — Ferrow Lane. A phrygian organ drone, a bass crawling down by semitones, and the stamp of a crowd
+  // getting closer: each time round the feet are a little louder. 84 bpm.
+  ev_DISGUST:() => mkScore(84, 2, 4, 16, a => {
+    for (let b = 0; b < 16; b += 4) a.n('organ', b, 0, 32, [48, 55, 61], .22);
+    const BS = [48, 49, 48, 47, 46, 47, 46, 45];
+    for (let b = 0; b < 16; b++) { a.n('bassaw', b, 0, 3, BS[b % 8] - 12, .45); a.n('bassaw', b, 4, 3, BS[b % 8] - 12, .35);
+      const v = .2 + .03 * b; a.d(b, 0, 41, v); a.d(b, 4, 41, v * .9); if (b >= 8) { a.d(b, 2, 41, v * .6); a.d(b, 6, 41, v * .6); } }
+    for (const [b, s, l, m] of [[2, 0, 8, 61], [3, 0, 8, 60], [6, 0, 8, 63], [7, 0, 8, 61], [10, 0, 6, 61], [10, 6, 2, 63], [11, 0, 8, 64], [14, 0, 8, 61], [15, 0, 8, 60]]) a.n('brass', b, s, l * .95, m - 12, .4);
+    for (const b of [8, 12]) a.n('choir', b, 0, 32, [60, 61], .2);
+  }),
+
+  // ANGER — The Garrison. A standoff: military snare, a low string ostinato that won't let go, and held, quiet
+  // power chords like a breath before the order. E phrygian, 100 bpm.
+  ev_ANGER:() => mkScore(100, 4, 4, 16, a => {
+    for (let b = 0; b < 16; b++) { a.lane(b, 'x..-x.--x..-x---', 38); a.n('timpani', b, 0, 2, 28, .4);
+      for (let s = 0; s < 16; s += 2) a.n('strings', b, s, 1.6, [40, 41, 40, 43, 40, 41, 40, 38][s / 2] + 12, .3); }
+    for (const b of [2, 6, 10, 14]) { a.n('power', b, 0, 30, 40, .35); }
+    for (const b of [4, 12]) a.n('brass', b, 0, 30, [52, 53], .38);
+    for (const [b, s, l, m] of [[8, 0, 8, 64], [8, 8, 8, 65], [9, 0, 16, 64], [10, 0, 8, 67], [10, 8, 8, 65], [11, 0, 16, 64], [13, 0, 16, 59], [15, 0, 16, 58]]) a.n('cello', b, s, l * .95, m - 12, .45);
+  })
+});
 // =============================================================================
 //  MAIN — loop, title, character select, intro, ending
 // =============================================================================
