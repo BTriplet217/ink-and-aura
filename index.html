@@ -1689,6 +1689,10 @@ function washPatch(m, kind, surf = 'auto') {
           outgoingLight += (1. - seam) * vec3(.1, .09, .075) * (.25 + smoothstep(.4, .95, N.y) + rivet * 1.5) * near1; }   // dark iron still catches the light
         else pat = .95 + .1 * step(.8, t1) - .08 * step(t1, .15);
         outgoingLight *= shade * mix(1. - (1. - pat) * .4, pat, near1);`}
+        // Safety net for phone graphics chips: if the lighting maths ever comes out broken (not a number) or pitch black,
+        // fall back to the surface's own colour, dimmed. Nothing lit by day should ever render as a solid black shape.
+        if (!(outgoingLight.r + outgoingLight.g + outgoingLight.b >= 0.) || outgoingLight.r + outgoingLight.g + outgoingLight.b > 1e4) outgoingLight = dc * .7;
+        outgoingLight = max(outgoingLight, dc * .12);
       }
       #include <opaque_fragment>`);
   };
@@ -2347,7 +2351,7 @@ const post = (() => {
       float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2. - 1.; return (2. * near * far) / (far + near - z * (far - near)); }
       float coc(float d){ float k = (d - focus) / focus; return clamp((abs(k) - .13) * (k < 0. ? 2.2 : 1.35) * dof, 0., maxC); }   // nearer than the hero blurs faster than farther
       void main(){
-        vec3 col = texture2D(tColor, vUv).rgb; float c0 = coc(lin(vUv));
+        vec3 col = texture2D(tColor, vUv).rgb; if (!(col.r + col.g + col.b >= 0.) || col.r + col.g + col.b > 1e4) col = vec3(.5); float c0 = coc(lin(vUv));
         if (c0 > .01) { vec3 acc = col * .6; float n = .6, rad = c0 * res.y * .016;
           for (int i = 0; i < TAPS; i++) { float a = float(i) * 2.39996, r = sqrt((float(i) + .5) / float(TAPS)); vec2 uv = vUv + vec2(cos(a), sin(a)) * r * rad / res;
             float w = .03 + smoothstep(0., c0 * .8, coc(lin(uv))); acc += texture2D(tColor, uv).rgb * w; n += w; }   // sharp things never smear into the blur behind them (no halos round people)
@@ -2357,7 +2361,8 @@ const post = (() => {
           for (int i = 0; i < AOP; i++) { float a = float(i) * 2.39996 + 1.1, r = R * sqrt((float(i) + .5) / float(AOP)); vec2 o = vec2(cos(a), sin(a) * res.x / res.y) * r;
             float dA = clamp(lin(vUv + o), d0 - .9, d0 + .9), dB = clamp(lin(vUv - o), d0 - .9, d0 + .9); occ += smoothstep(.012, .16, d0 - .5 * (dA + dB)); }
           col *= 1. - .62 * (occ / float(AOP)) * (1. - smoothstep(40., 70., d0)); }
-        vec3 bl = texture2D(tBloom, vUv).rgb; col += bl * bloomK;
+        vec3 bl = texture2D(tBloom, vUv).rgb; if (bl.r + bl.g + bl.b >= 0. && bl.r + bl.g + bl.b < 1e4) col += bl * bloomK;
+        if (!(col.r + col.g + col.b >= 0.)) col = texture2D(tColor, vUv).rgb;
         float L = dot(col, vec3(.299, .587, .114));
         col = mix(vec3(L), col, sat);
         col *= mix(shadowT, lightT, smoothstep(.04, .72, L));
