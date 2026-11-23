@@ -6900,7 +6900,12 @@ async function evJoyHettie() { const s = evS('JOY');
     s.st = 1; return say('Hettie Brack: The old well is in the east garden, next to the bandstand. The rope ladder still holds. Bring them back. Please.');
   }
   if (s.st === 1) return say('Hettie Brack: The well, in the east garden by the bandstand. Please hurry. Pip asked me today why nothing is funny anymore.');
-  return say(s.dark ? 'Hettie Brack: They never did laugh again, you know. They grew up very sensible. (She doesn\'t look at you.)' : ['Hettie Brack: Hear that? That\'s Pip. She laughed so hard at supper she got hiccups. Thank you.', 'Hettie Brack: The children made you a card. It\'s mostly glitter.'][Math.floor(Math.random() * 2)]);
+  if (s.dark) return say('Hettie Brack: They never did laugh again, you know. They grew up very sensible. (She doesn\'t look at you.)');
+  if (!S.flags.glitterCard) { S.flags.glitterCard = 1;
+    await say('Hettie Brack: Oh, you\'re back! Wait there. (She fetches something from her satchel, holding it very carefully by the edges.) The children made you a card. It\'s mostly glitter.');
+    await say('Hettie Brack: Pip did the drawing. Ned did the spelling. Nobody did the glitter, it just sort of happened. You\'ll be finding it for weeks.');
+    await giveItem('glitterCard'); return say('(You can look at it any time from your Bag.)'); }
+  return say(['Hettie Brack: Hear that? That\'s Pip. She laughed so hard at supper she got hiccups. Thank you.', 'Hettie Brack: Did you like the card? Pip wants to know if you\'ve put it up somewhere. I said you probably have.', 'Hettie Brack: I\'m still finding glitter in the register. I don\'t mind at all.'][Math.floor(Math.random() * 3)]);
 }
 // ---------------------------------------------------------------- 2. HOPE — The Signal Box (Trothaven)
 const ORLA = pLook('#3a6a5a', '#2a1a12', SKINS[3], ['cap', 'satchel'], { accent:'#e8d8a0' });
@@ -7103,6 +7108,47 @@ const PM = c => toon(c, {}), cyl = (rt, rb, h, c, seg = 18) => new THREE.Mesh(ne
 // Where each city's event entrance is set into the north wall (x tile), and the stretch of wall kept clear of trees round it.
 const EV_WALLX = () => ({ [TOWNS.SHAME.id]:9, [TOWNS.DISGUST.id]:9, [TOWNS.HOPE.id]:38, [TOWNS.ANGER.id]:38 });
 const evWallGap = (map, x, y) => { const g = EV_WALLX()[map]; return g != null && y <= 2 && Math.abs(x - g) <= 3; };
+// ---------------------------------------------------------------- the children's card from Larkhollow
+// A key item: from the Bag you can open it and look at it. It's a folded card, crayon and glitter, drawn by Pip and signed by everyone.
+Object.assign(ITEMS, { glitterCard:{ name:'Glitter Card', key:true, fieldUse:() => glitterCardSheet(), desc:'From the children of Larkhollow. Mostly glitter' } });
+async function glitterCardSheet() {
+  // the glitter: a few hundred fixed specks scattered over the card (they don't twinkle or move)
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const cols = ['#e8b84a', '#f08ab0', '#7ac8e8', '#b8e070', '#c8a0f0', '#ffffff'];
+  const specks = Array.from({ length:260 }, () => `<i style="left:${(rnd() * 100).toFixed(1)}%;top:${(rnd() * 100).toFixed(1)}%;background:${cols[Math.floor(rnd() * cols.length)]};width:${(2 + rnd() * 3).toFixed(1)}px;height:${(2 + rnd() * 3).toFixed(1)}px;transform:rotate(${Math.floor(rnd() * 90)}deg)"></i>`).join('');
+  const who = esc0(S.name || 'you'), hand = `'Comic Sans MS','Segoe Print','Bradley Hand',cursive`;
+  showSheet(`<style>
+    .gcard{position:relative;margin:4px auto 8px;width:min(340px,86vw);aspect-ratio:3/4;background:#fdf6e4;border-radius:6px;box-shadow:0 6px 18px #0004, inset 0 0 0 2px #e8dcc0;overflow:hidden;font-family:${hand};color:#2a2420}
+    .gcard i{position:absolute;border-radius:1px;opacity:.9}
+    .gcard .t{position:absolute;left:0;right:0;top:7%;text-align:center;font-size:clamp(30px,9vw,44px);font-weight:700;letter-spacing:.04em;line-height:1}
+    .gcard .t span{display:inline-block}
+    .gcard svg{position:absolute;left:8%;right:8%;top:26%;width:84%}
+    .gcard .msg{position:absolute;left:8%;right:8%;bottom:16%;text-align:center;font-size:clamp(14px,4vw,18px);line-height:1.25}
+    .gcard .names{position:absolute;left:6%;right:6%;bottom:4%;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:clamp(12px,3.4vw,15px)}
+  </style>
+  <h2 style="margin-bottom:2px">Glitter Card</h2><div class="subt">From the children of Larkhollow</div>
+  <div class="gcard">${specks}
+    <div class="t"><span style="color:#e04a3a;transform:rotate(-6deg)">T</span><span style="color:#e8a020;transform:rotate(4deg)">H</span><span style="color:#3aa04a;transform:rotate(-3deg)">A</span><span style="color:#3a7ad8;transform:rotate(7deg)">N</span><span style="color:#a04ad0;transform:rotate(-5deg)">K</span>
+      <span style="width:.3em"></span><span style="color:#e04a90;transform:rotate(5deg)">Y</span><span style="color:#e04a3a;transform:rotate(-4deg)">O</span><span style="color:#e8a020;transform:rotate(8deg)">U</span><span style="color:#3a7ad8;transform:rotate(-2deg)">!!</span></div>
+    <svg viewBox="0 0 200 130" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="172" cy="22" r="13" fill="#ffd84a" stroke="#e8a020" stroke-width="2"/><path d="M172 3v-0M190 22h0M158 6l-3-3M186 6l3-3" stroke="#e8a020" stroke-width="3"/>
+      <path d="M10 118 Q60 110 100 116 T190 114" stroke="#5ab04a" stroke-width="4"/>
+      <ellipse cx="58" cy="98" rx="22" ry="7" fill="#9aa0a8" stroke="#555" stroke-width="2"/><path d="M36 98v-22h44v22M34 76h48M40 76v-14h36v14" stroke="#7a5a3a" stroke-width="3"/><path d="M58 62v-6" stroke="#7a5a3a" stroke-width="3"/>
+      <circle cx="120" cy="58" r="9" fill="#f0c8a0" stroke="#2a2420" stroke-width="2"/><path d="M116 57h0M124 57h0" stroke="#2a2420" stroke-width="3"/><path d="M115 61q5 4 10 0" stroke="#2a2420" stroke-width="2"/>
+      <path d="M120 67v26M120 75l-12 8M120 75l12-10M120 93l-9 16M120 93l9 16" stroke="#3a6ad0" stroke-width="3"/><path d="M132 65l6-8" stroke="#3a6ad0" stroke-width="3"/>
+      <path d="M140 52q3-6 6 0q3-6 6 0" stroke="#e04a90" stroke-width="2.5"/><path d="M146 46q3-5 6 0q3-5 6 0" stroke="#e04a90" stroke-width="2.5"/>
+      <g stroke="#2a2420" stroke-width="2"><circle cx="160" cy="82" r="6" fill="#f0c8a0"/><path d="M160 88v14M160 93l-7 4M160 93l7-6M160 102l-5 9M160 102l5 9"/>
+      <circle cx="178" cy="86" r="5" fill="#d8a070"/><path d="M178 91v12M178 95l-6 2M178 95l6-5M178 103l-4 8M178 103l4 8"/></g>
+      <text x="96" y="40" font-size="10" fill="#7a5a3a" font-family="${hand}" transform="rotate(-8 96 40)">that's YOU</text><path d="M108 42l6 8" stroke="#7a5a3a" stroke-width="1.5"/>
+    </svg>
+    <div class="msg">Dear ${who},<br>thank you for geting our laffs back out of the well.<br>you are the BRAVEST.</div>
+    <div class="names"><span style="color:#e04a90">Pip ♥</span><span style="color:#3a7ad8">Ned</span><span style="color:#3aa04a">Rosie (age 6)</span><span style="color:#a04ad0">Bram</span><span style="color:#e8a020">Ottilie</span><span style="color:#7a5a3a">+ Miss Brack</span></div>
+  </div>
+  <p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 2px">A or B to close</p>`);
+  await new Promise(res => { selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) { selectHandler = null; res(); } }; });
+  closeSheet();
+}
+const esc0 = t => String(t).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
 const PLAQ = {};
 // Words painted (or chalked) on a board, as a flat plane. Cached per text so redrawing a scene is cheap.
 function plaque(text, w, h, bg, fg, font) {
