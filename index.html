@@ -1702,7 +1702,7 @@ const withSurf = (sf, f) => { const p = SURF_DEFAULT; SURF_DEFAULT = sf; try { r
 const withWash = (k, f) => function (...a) { const p = WASH_DEFAULT; WASH_DEFAULT = k; try { return f.apply(this, a); } finally { WASH_DEFAULT = p; } };
 // Ink hulls become broken charcoal lines rather than clean vector outlines.
 // Outlines: solid dark lines, like the edge of a pixel sprite.
-const INK = new THREE.MeshBasicMaterial({ color:0x1e1712, side:THREE.BackSide });
+const INK = new THREE.MeshBasicMaterial({ color:0x1e1712, side:THREE.BackSide, polygonOffset:true, polygonOffsetFactor:2, polygonOffsetUnits:4 });   // outlines sit just behind what they outline, so on phones (coarser depth) a thin flat roof never loses to its own outline and turns black
 // Lumpy, hand-sculpted spheres for foliage and bodies (no faceting).
 function lumpy(geo, amt = .08, freq = 3.5, seed = 0) {
   const p = geo.attributes.position, v = new THREE.Vector3(), n = new THREE.Vector3();
@@ -4715,7 +4715,7 @@ for (const k in MAPS) if (MAPS[k].kind === 'inside') varyRoom(k);
 //  WORLD — build a map in 3D: sculpted terrain, mood vibe, life
 // =============================================================================
 const worldScene = new THREE.Scene(), battleScene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 140);
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.3, 140);   // near plane not too close: keeps depth precise on phones, so thin roofs don't flicker to black when zoomed out
 const bcam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 140);
 const TP = { on:(() => { try { return localStorage.getItem('ia_view') === 'tp'; } catch (e) { return false; } })(), pitch:.1, live:false, dist:2.4, want:2.5 };
 const TP_DISTS = [4.2, 2.5, 1.5], TP_MIN = 1.1, TP_MAX = 6;   // over the shoulder: far, normal, close
@@ -6960,9 +6960,9 @@ async function evFearDelphine() { const s = evS('FEAR');
     await say('Delphine Crane: (She is holding a small shoe.) They took Ossie. Out of his bed. He\'s eight. They left this in the lane.');
     await say('Delphine Crane: Everyone knows there are people in the Hushwood who keep children scared, and sell what comes off them. Everyone knows, and nobody goes.');
     const c = await ask('Help Delphine?', ['I\'ll go into the Hushwood', 'Not now']); if (c !== 0) return;
-    s.st = 1; return say('Delphine Crane: Hushwood, past the lanterns. Ossie\'s afraid of owls. Tell him... tell him owls are just birds.');
+    s.st = 1; return say('Delphine Crane: Hushwood. On the north side of the town there\'s a cart at the edge of the trees. The ruts go in from there. Ossie\'s afraid of owls. Tell him... tell him owls are just birds.');
   }
-  if (s.st === 1) return say('Delphine Crane: Hushwood. Please. Every hour he\'s out there...');
+  if (s.st === 1) return say('Delphine Crane: Hushwood, the cart on the north side, by the trees. Please. Every hour he\'s out there...');
   return say(s.dark ? 'Delphine Crane: (She is still holding the shoe. She doesn\'t look up.)' : s.hanged ? 'Delphine Crane: Ossie still wakes up at night. But he wakes up here. (Across the square, the gallows hasn\'t been taken down yet.)' : 'Delphine Crane: Ossie still wakes up at night. But he wakes up here. He says the lady who took him cried a lot.');
 }
 // ---------------------------------------------------------------- 8. SHAME — A Feeling Taken (Veilham)
@@ -7046,7 +7046,7 @@ function eventEnts(map, taken) {
   // 7 FEAR
   if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine, mark:ask0('FEAR') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
     if (s.hanged) mem('ev_gallows', cx + 5, cy - 3, '(The gallows in the square. Nobody has taken it down yet. Nobody walks under it.)'); }
-  if (WAYTOWNS.FEAR && map === WAYTOWNS.FEAR.id && evS('FEAR').st < 9) at({ id:'ev_camp', model:EV_PROP.cage, talk:evFearCamp, mark:true, markH:1.8 }, 16, 8);   // an empty cage on a cart, and wheel ruts into the trees
+  if (WAYTOWNS.FEAR && map === WAYTOWNS.FEAR.id && evS('FEAR').st < 9) at({ id:'ev_camp', model:EV_PROP.cage, talk:evFearCamp, mark:true, markH:1.8 }, 6, 2);   // an empty cage on a cart, left at the edge of the wood on the north side of town, and wheel ruts going in under the trees
   // 8 SHAME
   if (city('SHAME')) { const s = evS('SHAME');
     wall('ev_lane', () => EV_PROP.arch('WICKET LANE', { stone:'#8a7a80', pier:'#6a5a62' }), evShameScene, 9, 'SHAME');   // an arch in the north wall, and screaming from the lane beyond
