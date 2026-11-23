@@ -6,7 +6,7 @@
 <title>Ink &amp; Aura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Lora:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
 <style>
 :root{--ink:#1b1512;--ink2:#2c221c;--parch:#f3e7c9;--parch2:#e4d3ae;--gold:#e8b84a;--gold2:#c48a2c;--muted:#6a5a48}
@@ -133,10 +133,12 @@ body.running #pad .k[data-k="b"]{background:rgba(232,184,74,.55);color:var(--ink
 #fade{position:fixed;inset:0;background:#1b1512;opacity:1;z-index:40;pointer-events:none;transition:opacity .3s}
 #title{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:radial-gradient(ellipse at center,rgba(233,220,192,0) 30%,rgba(27,21,18,.35));padding-bottom:120px}
 #tcard{display:flex;border:2px solid var(--ink);border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(27,21,18,.45)}
-#tcard div{padding:26px 26px 22px;font:clamp(44px,11vw,82px)/1 'IM Fell English',serif}
-#tcard .l{background:var(--gold);color:var(--ink);padding-right:14px}
-#tcard .r{background:#16110f;color:#ffd98a;text-shadow:0 0 22px rgba(255,214,120,.85);padding-left:14px}
-#tcard .amp{font-style:italic;font-size:.5em;opacity:.9}
+/* the logo, as on the tester's guide: Ink in black on gold, Aura in pale gold on near-black, the ampersand sitting on the seam */
+#tcard{position:relative;border:3px solid #1a1310}
+#tcard div{padding:24px 30px 22px;font:500 clamp(46px,12vw,86px)/1 'Lora',Georgia,serif;letter-spacing:-.01em}
+#tcard .l{background:#e8b84a;color:#1a1310;padding-right:24px;position:relative;z-index:1}
+#tcard .r{background:#1a1310;color:#f3dca0;padding-left:24px}
+#tcard .amp{position:absolute;right:0;top:50%;transform:translate(50%,-46%);font:500 .42em/1 'Lora',Georgia,serif;color:#f0dca8}
 #tgate{display:block;width:max-content;margin:0 auto;text-align:center;padding:7px 16px;border-radius:99px;background:#f3e7c9e6;box-shadow:0 2px 10px #0004;font-style:normal;font:600 13px system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);opacity:.8;animation:tgp 1.6s ease-in-out infinite}@keyframes tgp{50%{opacity:.25}}
 #tsub{font:italic 17px 'IM Fell English',serif;color:var(--ink);text-shadow:0 0 12px #f3e7c9}
 #intro{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#2a1f2e,#120e0c 70%);z-index:12}
@@ -215,7 +217,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 <div id="tools" class="hidden"><div class="tb" data-k="mute" id="muteB">♪</div><div class="tb" data-k="zoom" title="Zoom (C)">⌕</div><div class="tb" data-k="rotl">⟲</div><div class="tb" data-k="rotr">⟳</div><div class="tb" data-k="menu">Menu</div></div>
 <div id="toast"></div>
 <div id="intro" class="hidden"></div>
-<div id="title" class="hidden"><div id="tcard"><div class="l">Ink <span class="amp">&amp;</span></div><div class="r">Aura</div></div><div id="tsub">what will you carry?</div></div>
+<div id="title" class="hidden"><div id="tcard"><div class="l">Ink<span class="amp">&amp;</span></div><div class="r">Aura</div></div><div id="tsub">what will you carry?</div></div>
 <div id="namer" class="hidden"><h1>What's your name?</h1><div class="sub" id="namerSub">People you meet will call you by it.</div>
   <input id="nameIn" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Type a name"><div id="nameGrid"></div>
   <div class="sub">Type it, or pick letters with the arrows / D-pad and A. B deletes. Start / Enter when done.</div></div>
