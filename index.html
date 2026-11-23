@@ -6,7 +6,7 @@
 <title>Ink &amp; Aura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Schoolbell&family=Gochi+Hand&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
 <style>
 :root{--ink:#1b1512;--ink2:#2c221c;--parch:#f3e7c9;--parch2:#e4d3ae;--gold:#e8b84a;--gold2:#c48a2c;--muted:#6a5a48}
@@ -7116,20 +7116,23 @@ async function glitterCardSheet() {
   let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const cols = ['#e8b84a', '#f08ab0', '#7ac8e8', '#b8e070', '#c8a0f0', '#ffffff'];
   const specks = Array.from({ length:260 }, () => `<i style="left:${(rnd() * 100).toFixed(1)}%;top:${(rnd() * 100).toFixed(1)}%;background:${cols[Math.floor(rnd() * cols.length)]};width:${(2 + rnd() * 3).toFixed(1)}px;height:${(2 + rnd() * 3).toFixed(1)}px;transform:rotate(${Math.floor(rnd() * 90)}deg)"></i>`).join('');
-  const who = esc0(S.name || 'you'), hand = `'Comic Sans MS','Segoe Print','Bradley Hand',cursive`;
+  const who = esc0(S.name || 'you'), hand = `'Schoolbell','Gochi Hand','Comic Sans MS',cursive`, hand2 = `'Gochi Hand','Schoolbell','Comic Sans MS',cursive`;
+  // Kid writing: every letter a little off. Different sizes, tipped one way or the other, not on the line, and the odd letter backwards.
+  const kid = (text, o = {}) => { let i = 0; return [...text].map(ch => { if (ch === ' ') return '<span style="display:inline-block;width:.32em"></span>'; if (ch === '\n') return '<br>'; i++;
+    const r = (rnd() - .5) * (o.tilt || 14), y = (rnd() - .5) * (o.wob || .16), z = 1 + (rnd() - .5) * (o.size || .22), flip = o.flip && o.flip.includes(i) ? ' scaleX(-1)' : '', col = o.cols ? o.cols[(i - 1) % o.cols.length] : '';
+    return `<span style="display:inline-block;transform:translateY(${y.toFixed(2)}em) rotate(${r.toFixed(1)}deg) scale(${z.toFixed(2)})${flip};${col ? 'color:' + col : ''}">${ch === '<' ? '&lt;' : ch === '&' ? '&amp;' : ch}</span>`; }).join(''); };
+  const rainbow = ['#e04a3a', '#e8a020', '#3aa04a', '#3a7ad8', '#a04ad0', '#e04a90'];
   showSheet(`<style>
     .gcard{position:relative;margin:4px auto 8px;width:min(340px,86vw);aspect-ratio:3/4;background:#fdf6e4;border-radius:6px;box-shadow:0 6px 18px #0004, inset 0 0 0 2px #e8dcc0;overflow:hidden;font-family:${hand};color:#2a2420}
     .gcard i{position:absolute;border-radius:1px;opacity:.9}
-    .gcard .t{position:absolute;left:0;right:0;top:7%;text-align:center;font-size:clamp(30px,9vw,44px);font-weight:700;letter-spacing:.04em;line-height:1}
-    .gcard .t span{display:inline-block}
+    .gcard .t{position:absolute;left:3%;right:3%;top:6%;text-align:center;font-size:clamp(34px,10vw,48px);line-height:1;transform:rotate(-3deg);text-shadow:1px 1px 0 #0001}
     .gcard svg{position:absolute;left:8%;right:8%;top:26%;width:84%}
-    .gcard .msg{position:absolute;left:8%;right:8%;bottom:16%;text-align:center;font-size:clamp(14px,4vw,18px);line-height:1.25}
-    .gcard .names{position:absolute;left:6%;right:6%;bottom:4%;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:clamp(12px,3.4vw,15px)}
+    .gcard .msg{position:absolute;left:7%;right:5%;bottom:15%;text-align:left;font-size:clamp(17px,4.8vw,21px);line-height:1.2;transform:rotate(-2deg);color:#3a4ab0}
+    .gcard .names{position:absolute;left:4%;right:4%;bottom:3%;display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:2px 14px;font-family:${hand2};font-size:clamp(14px,4vw,18px)}
   </style>
   <h2 style="margin-bottom:2px">Glitter Card</h2><div class="subt">From the children of Larkhollow</div>
   <div class="gcard">${specks}
-    <div class="t"><span style="color:#e04a3a;transform:rotate(-6deg)">T</span><span style="color:#e8a020;transform:rotate(4deg)">H</span><span style="color:#3aa04a;transform:rotate(-3deg)">A</span><span style="color:#3a7ad8;transform:rotate(7deg)">N</span><span style="color:#a04ad0;transform:rotate(-5deg)">K</span>
-      <span style="width:.3em"></span><span style="color:#e04a90;transform:rotate(5deg)">Y</span><span style="color:#e04a3a;transform:rotate(-4deg)">O</span><span style="color:#e8a020;transform:rotate(8deg)">U</span><span style="color:#3a7ad8;transform:rotate(-2deg)">!!</span></div>
+    <div class="t">${kid('THANK YOU!!', { cols:rainbow, tilt:18, wob:.22, size:.3, flip:[4] })}</div>
     <svg viewBox="0 0 200 130" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="172" cy="22" r="13" fill="#ffd84a" stroke="#e8a020" stroke-width="2"/><path d="M172 3v-0M190 22h0M158 6l-3-3M186 6l3-3" stroke="#e8a020" stroke-width="3"/>
       <path d="M10 118 Q60 110 100 116 T190 114" stroke="#5ab04a" stroke-width="4"/>
@@ -7139,10 +7142,10 @@ async function glitterCardSheet() {
       <path d="M140 52q3-6 6 0q3-6 6 0" stroke="#e04a90" stroke-width="2.5"/><path d="M146 46q3-5 6 0q3-5 6 0" stroke="#e04a90" stroke-width="2.5"/>
       <g stroke="#2a2420" stroke-width="2"><circle cx="160" cy="82" r="6" fill="#f0c8a0"/><path d="M160 88v14M160 93l-7 4M160 93l7-6M160 102l-5 9M160 102l5 9"/>
       <circle cx="178" cy="86" r="5" fill="#d8a070"/><path d="M178 91v12M178 95l-6 2M178 95l6-5M178 103l-4 8M178 103l4 8"/></g>
-      <text x="96" y="40" font-size="10" fill="#7a5a3a" font-family="${hand}" transform="rotate(-8 96 40)">that's YOU</text><path d="M108 42l6 8" stroke="#7a5a3a" stroke-width="1.5"/>
+      <text x="92" y="40" font-size="12" fill="#7a5a3a" font-family="${hand2}" transform="rotate(-10 96 40)">thats YOU</text><path d="M108 42l6 8" stroke="#7a5a3a" stroke-width="1.5"/>
     </svg>
-    <div class="msg">Dear ${who},<br>thank you for geting our laffs back out of the well.<br>you are the BRAVEST.</div>
-    <div class="names"><span style="color:#e04a90">Pip ♥</span><span style="color:#3a7ad8">Ned</span><span style="color:#3aa04a">Rosie (age 6)</span><span style="color:#a04ad0">Bram</span><span style="color:#e8a020">Ottilie</span><span style="color:#7a5a3a">+ Miss Brack</span></div>
+    <div class="msg">${kid('Dear ' + (S.name || 'you') + ',', { tilt:8, wob:.1, size:.15 })}<br>${kid('thank you for geting our', { tilt:8, wob:.1, size:.15 })}<br>${kid('laffs back out of the well', { tilt:8, wob:.12, size:.15 })}<br>${kid('you are the BRAVEST', { tilt:10, wob:.14, size:.2, flip:[15] })} <span style="color:#e04a3a">♥</span></div>
+    <div class="names"><span style="color:#e04a90">${kid('Pip ♥', { tilt:10 })}</span><span style="color:#3a7ad8">${kid('NED', { tilt:12, flip:[2] })}</span><span style="color:#3aa04a">${kid('Rosie (age 6)', { tilt:12, size:.3 })}</span><span style="color:#a04ad0">${kid('bram', { tilt:14, size:.35 })}</span><span style="color:#e8a020;font-size:1.3em">${kid('OTTILIE', { tilt:16, size:.4, flip:[3] })}</span><span style="color:#7a5a3a;font-family:Georgia,serif;font-style:italic;font-size:.85em">+ Miss Brack</span></div>
   </div>
   <p style="text-align:center;font-size:12px;color:var(--muted);margin:6px 0 2px">A or B to close</p>`);
   await new Promise(res => { selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) { selectHandler = null; res(); } }; });
