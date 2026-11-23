@@ -3550,7 +3550,9 @@ function buildHouseX0(hd, roofC, wallC) {
   const g = new THREE.Group(), cx = hd.x + (hd.w - 1) / 2, cz = hd.y + 1.5, fz = hd.y + 3.5, dx = hd.x + Math.floor(hd.w / 2);
   const notable = !!role, two = notable || r(1) < .35, wh = two ? 2.35 : 1.45;
   const wallCol = new THREE.Color(wallC).offsetHSL((r(2) - .5) * .04, (r(3) - .5) * .1, (r(4) - .5) * .1).getStyle();
-  const roofCol = new THREE.Color(roofC).offsetHSL((r(5) - .5) * .05, (r(6) - .5) * .12, (r(7) - .5) * .12).getStyle();
+  // Roofs never go so dark that they read as a black hole from above (the shadowy towns' slate roofs did, on phone screens):
+  // keep at least a third of full lightness so the tiles still show.
+  const roofCol = (() => { const c = new THREE.Color(roofC).offsetHSL((r(5) - .5) * .05, (r(6) - .5) * .12, (r(7) - .5) * .12), h = {}; c.getHSL(h); if (h.l < .34) c.setHSL(h.h, h.s, .34); return c.getStyle(); })();
   const trim = new THREE.Color(wallC).multiplyScalar(.62).getStyle(), wood = '#6b4528';
   // body + plinth + corner posts + timber bands
   g.add(at(inkBox(hd.w - .08, wh, 3.92, toon(wallCol), .04), cx, .3 + wh / 2, cz));
