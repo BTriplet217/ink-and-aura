@@ -5208,7 +5208,7 @@ function dlgShow(d, n) { n = Math.floor(n); if (d.drawn === n) return; d.drawn =
 let TALKING = null;
 const BACK_RE = /turns? (?:their|his|her) back|turned (?:their|his|her) back|turns? away|turned away|walks? (?:off|away)|looks? away|won't look at you|doesn't look at you|don't look at you|won't meet your eyes|turns? back to (?:what|the|her|his|their)|goes? back to (?:what|work|her|his|their)/i;
 function backTurned(text) { if (typeof text !== 'string') return false; const stage = (text.match(/\([^)]*\)/g) || []).join(' ') + (/^[A-Z][\w .'-]{0,30}: /.test(text) ? '' : ' ' + text); return BACK_RE.test(stage); }   // stage directions and narration only, not what someone says
-function say(text) { if (TALKING && backTurned(text)) npcFace[TALKING.id] = S.dir;
+function say(text) { if (TALKING && (TALKING.look || TALKING.manif) && backTurned(text)) npcFace[TALKING.id] = S.dir;
   return new Promise(res => { setDlg(text); UI.dlg.res = res; }); }
 function choose(opts, o = {}) {
   return new Promise(res => {
@@ -5654,7 +5654,7 @@ async function interact() {
     const facable = c && [[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => { const x = c.x + dx, y = c.y + dy, t = tileAt(x, y); return t != null && !SOLID.has(t) && t !== 'D' && (!entAt(x, y) || (x === S.x && y === S.y)); });
     if (c && !facable) { const cc = S.comp && S.comp[compKey(S.map, e)], nm = cc && SPECIES[cc.sp] ? SPECIES[cc.sp].name : 'Manif';
       const r = await ask(`(Someone stands here with their ${nm} beside them.)`, ['Talk to them', `Talk to the ${nm}`]); if (r < 0 || r == null) return; if (r === 1) e = c; } }
-  if (e) { if (!e.item && !e.invisible) npcFace[e.id] = OPPD[S.dir]; VOICED = null; TALKING = e.item || e.invisible || e.note ? null : e;
+  if (e) { if (!e.item && !e.invisible && (e.look || e.manif)) npcFace[e.id] = OPPD[S.dir];   // people and Manifs turn to face you; wells, signs, boxes and other things stay as they are VOICED = null; TALKING = e.item || e.invisible || e.note ? null : e;
     try { const evp = /^evs?_/.test(e.id);   // people caught up in a city's trouble get straight to it: no greeting, no reaction to your aura first
       if (!evp) { if (await moodPreTalk(e) === 'refuse') return; if (await auraPreTalk(e) === 'refuse') return; await voicePreTalk(e); } await e.talk(); if (!e.manifComp) await compMention(e); } finally { TALKING = null; } return; }
   const tl = tileAt(fx, fy);
