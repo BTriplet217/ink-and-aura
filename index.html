@@ -74,6 +74,7 @@ body.touring #joy,body.touring #pad .k[data-k=b]{visibility:hidden}
 #tourbar{position:fixed;top:12px;right:12px;z-index:16;display:flex;gap:8px}
 #tourbar .tb{font-size:18px;height:40px;min-width:46px}
 body.padmode #pad{display:none!important}
+.coarse body.overlay #pad{display:flex!important;z-index:70}.coarse body.overlay #joy{visibility:visible!important}
 body.padmode #tourbar{display:none}
 /* Phone turned sideways: the world gets the whole wide screen. The stick and buttons sit low in the two side margins (clear of any notch),
    dialogue and menus sit in the middle between them, and everything is a little smaller so it fits the short height. */
@@ -13237,8 +13238,8 @@ ITEMS.doctorate = { name:'Honorary Doctorate', key:true, desc:'Quillsby Universi
 // =============================================================================
 const SNOW_V = REGION_VIBE({ sky:'#dfe8f0', fog:'#e8eef4', fogNear:14, fogFar:44, hemi:'#ffffff', sun:1.7, ground:['#eef2f4', '#e4eaee', '#f4f6f8'], tall:['#c8d4dc', '#d4dee4', '#bcc8d0'], trees:'conifer', treeC:['#3a5a4a', '#46665a', '#2f4a3e'], road:'#a8a49c', parts:'petals', partC:['#ffffff', '#f4f8fc'], groundFog:'#f4f8fc', fogOp:.3 });
 farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecrown', V:SNOW_V, music:'switchback', side:'east', rail:true, origin:{ map:'r_siding', x:24, y:29, dir:'left' }, town:{ map:'whitecrown', x:1, y:16, dir:'right' },
-  arrive:'The old branch line climbs out of the Siding and into the snow. The air goes thin and sweet. Far above, a red cable car hangs on its wire, not moving, like a held breath.', sign:'WHITECROWN 2 →. Chains required. (Someone has added, in pencil: "and patience".)',
-  deco:B => { B.piece('cablecar', 20, 4); B.piece('cablecar', 44, 4); B.piece('snowman', 32, 12); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 46, 4, ','); },
+  arrive:'The old branch road climbs out of the Siding and into the snow. The air goes thin and sweet. Somewhere ahead, dogs are barking, happily, all at once.', sign:'WHITECROWN 2 →. Chains required. (Someone has added, in pencil: "and patience".)',
+  deco:B => { B.piece('sled', 19, 11); rect(B.m, 40, 3, 9, 3, '~'); B.piece('icefall', 49, 3, 2, 3); B.piece('snowman', 32, 12); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 12, 4, ','); rect(B.m, 26, 13, 24, 4, ','); },
   npcs:() => [
     npc('muleman', 14, 11, 'down', 'Mule driver', lk('#6a4a3a', '#e8dcc0', SK[3], '#3a2414', ['cap', 'scarf', 'beard']), talks('muleman', 'Mule driver', [
       { light:"Bessie and me carry the post up. She likes you. She doesn't like anybody.", even:'Mind the ice on the bends. Mind Bessie, too. She bites.', hurt:'Put your hand on Bessie\'s neck. Go on. She\'s warm, and she doesn\'t ask questions.', shadow:'(He moves the mule between you and the post bags.)' },
@@ -13261,7 +13262,7 @@ farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecr
   rect(m, 0, 16, 40, 2, '='); rect(m, 19, 6, 2, 24, '='); rect(m, 2, 26, 38, 1, '=');
   B.piece('hut', 30, 5, 2, 2); B.piece('snowman', 32, 7); B.piece('cablecar', 8, 4); B.piece('snowman', 14, 21); B.piece('snowman', 26, 22); B.piece('watertower', 36, 21, 2, 2);
   B.house(4, 10, 7, '#3a4a5a', '#e8e4dc', { name:'The Kettle & Crown', w:13, h:9, music:'whitecrown', floor:['#8a6a4a', '#7e6044'], wall:'#e0d0b8', furn:[['stove', 1, 1, { lit:true }], ['table', 4, 3], ['table', 8, 3], ['bed', 11, 1], ['bed', 11, 5], ['armchair', 3, 6], ['rug', 6, 6]] });   // 0
-  B.house(22, 10, 6, '#6a3a2a', '#e8dcc0', { name:'Schoolhouse', w:11, h:9, music:'whitecrown', floor:['#8a7458', '#7e6a50'], wall:'#e8dcc0', furn:[['desk', 5, 1], ['chalkboard', 5, 0], ['bench', 2, 4], ['bench', 5, 4], ['bench', 8, 4], ['bench', 2, 6], ['bench', 8, 6], ['stove', 9, 1, { lit:true }]] });   // 1
+  B.house(22, 10, 6, '#6a3a2a', '#e8dcc0', { name:'Schoolhouse', w:11, h:9, music:'whitecrown', floor:['#8a7458', '#7e6a50'], wall:'#e8dcc0', furn:[['chalkboard', 5, 1], ['desk', 6, 2], ['bench', 2, 4, { r:Math.PI }], ['bench', 5, 4, { r:Math.PI }], ['bench', 8, 4, { r:Math.PI }], ['bench', 2, 6, { r:Math.PI }], ['bench', 8, 6, { r:Math.PI }], ['stove', 9, 1, { lit:true }]] });   // 1
   B.house(4, 19, 7, '#5a3a3a', '#d8ccb8', { name:'The Vale House', w:13, h:10, music:'whitecrown', floor:['#6a5040', '#5e4838'], wall:'#c8b8a0', light:{ hemi:'#c8d8e8' }, furn:[['stove', 1, 1], ['table', 5, 3], ['chair', 4, 3], ['chair', 6, 3], ['bed', 10, 1], ['bed', 10, 5], ['bookcase', 1, 6], ['trunk', 7, 7]] });   // 2
   B.house(28, 19, 6, '#4a5a4a', '#e8e4dc', { name:'Post Office', w:11, h:8, music:'whitecrown', floor:['#7a6450', '#6e5a48'], wall:'#e0d4c0', furn:[['desk', 5, 2], ['shelf', 1, 1], ['shelf', 9, 1], ['sacks', 2, 5], ['stove', 9, 5, { lit:true }]] });   // 3
   for (const [x, y] of [[3, 15], [18, 15], [21, 15], [36, 15], [18, 25]]) B.lamp(x, y);
@@ -13891,9 +13892,9 @@ function skyView() { return new Promise(resolve => {
   const el = document.createElement('div'); el.id = 'skyview';
   el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#03050c;opacity:0;transition:opacity 1s ease;touch-action:none;font-family:Lora,serif;color:#f3e7c9';
   const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; el.appendChild(cv);
-  const cap = document.createElement('div'); cap.style.cssText = 'position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(560px,88vw);text-align:center;font-size:17px;font-weight:500;line-height:1.55;background:rgba(10,8,6,.78);border:1px solid #6a5434;border-radius:10px;padding:10px 16px;transition:opacity .6s ease;opacity:0'; el.appendChild(cap);
-  const hint = document.createElement('div'); hint.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);width:90vw;font-size:14px;color:#d8b46a;text-align:center'; hint.textContent = 'Arrows or drag to look · A: ask about the stars in the circle · B: step back'; el.appendChild(hint);
-  document.body.appendChild(el); requestAnimationFrame(() => el.style.opacity = 1);
+  const cap = document.createElement('div'); cap.style.cssText = 'position:absolute;left:50%;bottom:' + (matchMedia('(pointer: coarse)').matches ? '210px' : '22px') + ';transform:translateX(-50%);width:min(560px,88vw);text-align:center;font-size:17px;font-weight:500;line-height:1.55;background:rgba(10,8,6,.78);border:1px solid #6a5434;border-radius:10px;padding:10px 16px;transition:opacity .6s ease;opacity:0'; el.appendChild(cap);
+  const hint = document.createElement('div'); hint.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);width:90vw;font-size:14px;color:#d8b46a;text-align:center'; hint.textContent = matchMedia('(pointer: coarse)').matches ? 'Pad or drag to look · A: ask about the stars in the circle · B: step back' : 'Arrows or drag to look · A: ask about the stars in the circle · B: step back'; el.appendChild(hint);
+  document.body.appendChild(el); document.body.classList.add('overlay'); requestAnimationFrame(() => el.style.opacity = 1);   // the touch pad and A/B stay on top of the sky
   S.skySeen = S.skySeen || {};
   const GAP = 380, U = 26, SW = GAP * 10 + 400, SH = 1500; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const stars = []; for (let i = 0; i < 1000; i++) stars.push([rnd() * SW, rnd() * SH, rnd() < .9 ? .5 + rnd() * .8 : 1.2 + rnd() * 1.0, .3 + rnd() * .55, rnd() < .15 ? '#ffd8b0' : rnd() < .3 ? '#c8d8ff' : '#ffffff']);
@@ -13928,7 +13929,7 @@ function skyView() { return new Promise(resolve => {
     if (!c) return show("<i>Isolde:</i> Just stars there. Just stars. Isn't that enough?");
     if (!S.skySeen[c.t]) { S.skySeen[c.t] = 1; c.revealT = performance.now(); tx = c.cx; ty = c.cy; }   // centre it, and let the lines draw in
     lastShown = c; show(`<b>The ${TYPES[c.t].name}: ${c.fig}.</b><br><i>Isolde:</i> ${SKY_LORE[c.t].replace(/^The \w+\. /, '')}`); };
-  const close = () => { if (!alive) return; alive = false; selectHandler = null; el.style.opacity = 0; removeEventListener('resize', fit); setTimeout(() => { el.remove(); resolve(); }, 1000); };
+  const close = () => { if (!alive) return; alive = false; selectHandler = null; document.body.classList.remove('overlay'); el.style.opacity = 0; removeEventListener('resize', fit); setTimeout(() => { el.remove(); resolve(); }, 1000); };
   selectHandler = b => { if (b === 'left') tx -= step; else if (b === 'right') tx += step; else if (b === 'up') ty -= step * .7; else if (b === 'down') ty += step * .7; else if (b === 'a') ask(); else if (b === 'b' || b === 'menu') close(); clamp(); };
   el.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, tx, ty]; });
   el.addEventListener('pointermove', e => { if (drag) { tx = drag[2] - (e.clientX - drag[0]); ty = drag[3] - (e.clientY - drag[1]); clamp(); } });
@@ -14130,6 +14131,135 @@ async function rideMinecart() {
 { const base = REGION_NPCS.dry_fork; REGION_NPCS.dry_fork = () => [...base().filter(e => e.id !== 'cartride'),
   look('cartride', 30, 5, 'Minecart', rideMinecart),
   npc('df_pete', 31, 6, 'up', 'Pete', PETE_LOOK, async () => { await sayLine('Pete', ['Pete. I push the cart. Well. I push people in the cart. The ore cart goes on its own. Nobody pushes ore for fun.', () => S.flags.forkTold === 'told' ? 'Mine\'s shut, so the cart\'s all mine now. Best summer I\'ve ever had. Don\'t tell my dad I said that.' : 'My dad\'s a miner. He says the cart\'s not a toy. Then on Sundays he has three goes.', 'Fastest I ever got it was with the deputy in. He screamed. Don\'t tell him I told you.'][rotIdx('pete', 3)]); return rideMinecart(); }) ]; }
+
+// ---------------------------------------------------------------- the Switchback: Ingrid's dog sled (and the frozen falls)
+SET.sled = p => { const g = new THREE.Group(); for (const z of [-.32, .32]) { sBox(g, 1.7, .05, .06, '#5a3a24', 0, .06, z); const t = sBox(g, .3, .05, .06, '#5a3a24', .95, .14, z); t.rotation.z = .6; }
+  for (const x of [-.6, 0, .6]) for (const z of [-.32, .32]) sBox(g, .05, .26, .05, '#5a3a24', x, .2, z);
+  sBox(g, 1.5, .05, .72, '#8a6a48', 0, .34, 0); sBox(g, .5, .25, .66, '#a8452f', -.3, .5, 0); for (const z of [-.32, .32]) sBox(g, .05, .7, .05, '#5a3a24', -.78, .65, z); sBox(g, .05, .05, .7, '#5a3a24', -.78, 1.0, 0);
+  sBox(g, .06, .02, .02, '#3a2a1a', 1.2, .25, 0, { ink:0 }); return g; };
+SET.icefall = p => { const g = new THREE.Group(); sBox(g, 2.2, 3.2, .8, '#7a7e84', 0, 1.6, -.4); for (let i = 0; i < 9; i++) { const h = 1.2 + hsh(p.x, i) * 1.8; const c = sCyl(g, .05, .16 + hsh(i, p.y) * .1, h, '#dff0f8', -.9 + i * .22, 3.1 - h / 2, 0, null, { seg:6, ink:0 }); c.rotation.x = Math.PI; c.material.transparent = true; c.material.opacity = .8; }
+  sBox(g, 2.4, .15, 1.2, '#e8f4fa', 0, .08, .4, { ink:0 }); return g; };
+const DOGS = ['Pepper', 'Moss', 'Bracken', 'Sleet'], DOG_C = ['#3a3a3a', '#a07a4a', '#6a4a32', '#d8d4cc'];
+async function sledRide() {
+  const so = SETOBJS.find(s => s.p.k === 'sled'); if (!so || S.map !== 'r_switchback') return;
+  if ((S.marks || 0) < 20) return sayAs('Ingrid', 'Twenty Marks to the top. Dogs eat, you know. Mostly they eat more than I do.');
+  const c = await ask('Ride the dog sled up to Whitecrown? (20 Marks)', ['Climb aboard', 'Not now']); if (c !== 0) return; S.marks -= 20;
+  const sled = so.o, x0 = sled.position.x, z0 = sled.position.z, gy = x => groundY(Math.min(MAPS.r_switchback.w - 1, Math.max(0, Math.round(x))), Math.round(z0));
+  const dogs = DOGS.map((n, i) => { const real = W.npcs['sw_dog' + i]; if (real) real.visible = false; const d = CRIT.dog({ c:DOG_C[i] }); d.userData.ph = i; d.rotation.y = Math.PI / 2; world.add(d); return d; });
+  const musherReal = W.npcs.sw_musher; if (musherReal) musherReal.visible = false; const musher = buildPerson(MUSHER_LOOK); sled.add(musher); musher.position.set(-.85, .1, 0); musher.rotation.y = Math.PI / 2;
+  const seat = new THREE.Object3D(); seat.position.set(-.1, .4, 0); sled.add(seat); S.dir = 'right'; RIDE.on = true; RIDE.anchor = seat;
+  const place = (x, run) => { sled.position.set(x, gy(x), z0); dogs.forEach((d, i) => { const dx = x + 1.6 + Math.floor(i / 2) * .9, dz = z0 + (i % 2 ? .35 : -.35); d.position.set(dx, gy(dx), dz); critterAnim(d, performance.now() / 1000 * (run ? 4 : 1)); }); };
+  place(x0, false); await say('Ingrid: Hike! (The dogs lean into the traces, all four at once, and the sled jerks, slides, and then flies.)');
+  await tween(4200, k => { const e = k * k * (3 - 2 * k); place(x0 + (MAPS.r_switchback.w + 2 - x0) * e, true); musher.userData.inner && (musher.userData.inner.rotation.z = Math.sin(k * 30) * .04); });
+  RIDE.on = false; await fadeTo(1, 800);
+  S.map = 'whitecrown'; S.x = 2; S.y = 16; S.dir = 'right'; ENTC.t = 0; buildWorld('whitecrown'); playMusic(themeFor('whitecrown')); await fadeTo(0, 800);
+  await say(pickA(['(The sled skids to a stop at the edge of Whitecrown. Four dogs look back at you, very pleased with themselves. Ingrid turns them round for the run back down.)', '(Snow in your collar, snow in your hair, and a grin you can\'t get off your face. Ingrid waves and the dogs are gone back down the road in a spray of white.)']));
+}
+const MUSHER_LOOK = lk('#3a5a7a', '#c0503a', SK[2], '#e2c070', ['hat', 'scarf']);
+{ const base = REGION_NPCS.r_switchback; REGION_NPCS.r_switchback = () => [...base().filter(e => !['wr_snowman'].includes(e.id)),
+  ...DOGS.map((n, i) => ({ id:'sw_dog' + i, x:21 + Math.floor(i / 2), y:11 + (i % 2), dir:'right', animal:true, name:null, model:() => { const g = CRIT.dog({ c:DOG_C[i] }); g.userData.ph = i * 1.3; return g; },
+    talk:() => say(['(Pepper, the lead dog, black as a stove, looks at you with enormous seriousness, then licks your whole face.)', '(Moss, sandy and lopsided, is asleep standing up in her harness.)', '(Bracken wags so hard his back half goes along with it.)', '(Sleet, white as the road, watches the bend in the road ahead. He would like to be going now, please.)'][i]) })),
+  look('sw_sled', 19, 11, 'Dog sled', sledRide),
+  npc('sw_musher', 18, 12, 'right', 'Ingrid', MUSHER_LOOK, async () => { await sayLine('Ingrid', [
+      'Ingrid. That\'s Pepper in the lead, then Moss, Bracken and Sleet. We run the post up when Bessie the mule won\'t, and anyone who\'d rather fly than walk.',
+      () => `Your ${leadName()} can ride in the basket if it likes. Last week a Joy rode up with me. Sang the whole way. The dogs loved it.`,
+      { light:'Hop on, you\'ve the right face for it. The dogs can tell who\'ll laugh.', even:'Twenty Marks to the top, Marks back if you don\'t grin. Nobody\'s ever got their Marks back.', hurt:'Come for a ride. Nothing makes a heavy heart lighter than going fast in the snow behind four idiots who love you.', shadow:'(The dogs go very quiet. Ingrid puts a hand on Pepper\'s head and keeps it there.)' }][rotIdx('ingrid', 3)]);
+    if (auraSide() === 'shadow') return; return sledRide(); }),
+  look('sw_falls', 49, 4, 'Frozen falls', '(A waterfall, frozen solid mid-fall. Inside the ice you can see the water still moving, very slowly, the way a thought keeps going when you\'ve stopped saying it.)'),
+  look('sw_hole', 45, 5, 'Fishing hole', '(A round hole cut in the ice, a line going down into the black. Something tugs it, once, and stops.)'),
+  look('wr_snowman', 32, 12, 'Snowman', '(A snowman with a pipe and two very serious stick arms. Someone has given it a scarf and a library card.)'),
+  npc('sw_fisher', 44, 6, 'up', 'Ice fisherman', lk('#5a4a3a', '#e8dcc0', SK[0], '#f4f1e8', ['hat', 'scarf', 'beard']), talks('sw_fisher', 'Ice fisherman', [
+    'Shh. They can hear you through the ice. Well. They can\'t. But I like to think they\'re listening.',
+    'Forty winters on this pond. Caught a perch the size of my boot in \'71. Threw it back. It looked at me like it knew my mother.',
+    { light:'Here, hold the line a minute. Feel that? That\'s the whole pond, breathing.', even:'Nothing biting. Nothing ever bites. That\'s not the point of fishing.', hurt:'Sit on the bucket. Watch the hole. You\'d be surprised what goes down it and doesn\'t come back up. Worries, mostly.', shadow:'(He pulls his line up out of the hole and winds it, slowly, without looking at you.)' } ])) ]; }
+
+// ---------------------------------------------------------------- Galloway: the pole-boat race, for real
+// A top-down race on the back channel against Tee-Jean. A pushes the pole (time it: a full push when the pole is
+// planted, a weak one if you rush), up/down changes lane. Logs stop you, lily mats slow you, and Remy the gator
+// cruises across the channel. Nothing flashes: the countdown and the finish fade in and out.
+function poleRace(stakes) { return new Promise(resolve => {
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const el = document.createElement('div'); el.id = 'polerace'; el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#20281c;opacity:0;transition:opacity .8s ease;touch-action:none;font-family:Lora,serif;color:#f3e7c9';
+  const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; el.appendChild(cv);
+  const msg = document.createElement('div'); msg.style.cssText = 'position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;font-weight:600;text-align:center;text-shadow:0 2px 10px #000;transition:opacity .5s ease;opacity:0;pointer-events:none;width:90vw'; el.appendChild(msg);
+  const help = document.createElement('div'); help.style.cssText = 'position:absolute;left:50%;top:14px;transform:translateX(-50%);font-size:14px;color:#e8c070;text-align:center;width:92vw;text-shadow:0 1px 4px #000';
+  help.textContent = (coarse ? 'A: push the pole (wait for it to plant) · Pad ↑↓: change lane' : 'A / Space: push the pole (wait for it to plant) · ↑↓: change lane') + ' · B: give up'; el.appendChild(help);
+  document.body.appendChild(el); document.body.classList.add('overlay'); requestAnimationFrame(() => el.style.opacity = 1);
+  const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; }; fit(); addEventListener('resize', fit);
+  const big = stakes === 'big', LEN = big ? 7600 : 5600, LANES = 3; let seed = Math.floor(Math.random() * 1e6); const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const obs = []; for (let x = 380; x < LEN - 200; x += 150 + rnd() * 170) { const r = rnd(); obs.push({ x, lane:Math.floor(rnd() * LANES), kind:r < .45 ? 'log' : r < .85 ? 'lily' : 'stump', w:r < .45 ? 70 : r < .85 ? 90 : 34 }); }
+  const gator = { x:LEN * .55, y:-1, dir:1, t:0 };   // Remy crosses the channel slowly, back and forth
+  const you = { x:0, lane:1, ly:1, v:0, pole:1, hit:0 }, tj = { x:0, lane:0, ly:0, v:0, pole:1, hit:0, next:0 };
+  const tjSkill = big ? .95 : .85, tjPlant = big ? .87 : .88; let state = 'count', t0 = performance.now(), last = t0, alive = true, result = null;
+  const say = (txt, ms) => { msg.innerHTML = txt; msg.style.opacity = 1; if (ms) setTimeout(() => { if (msg.innerHTML === txt) msg.style.opacity = 0; }, ms); };
+  const push = b => { if (b.pole < .7) { b.v *= .8; b.pole = 0; b.splash = performance.now(); return 'early'; } const gain = b.pole >= .9 ? 125 : 45; b.v = Math.min(big ? 330 : 300, b.v + gain); b.pole = 0; return gain > 120 ? 'good' : 'ok'; };   // rushing a push costs speed; a planted pole gives a full one
+  const blockedAhead = (b, lane, d) => obs.find(o => o.lane === lane && o.kind !== 'lily' && o.x > b.x && o.x - b.x < d);
+  const laneFree = (b, lane) => lane >= 0 && lane < LANES && !blockedAhead(b, lane, 160);
+  const step = (b, dt) => { b.pole = Math.min(1, b.pole + dt / .6); b.ly += (b.lane - b.ly) * Math.min(1, dt * 7); b.v *= Math.pow(.62, dt); if (b.hit > 0) b.hit -= dt;
+    for (const o of obs) if (Math.round(b.ly) === o.lane && Math.abs(b.x + 30 - o.x) < o.w / 2 + 20) { if (o.kind === 'lily') b.v *= Math.pow(.25, dt); else if (b.hit <= 0) { b.v = 0; b.hit = .7; b.x -= 12; } }
+    const gy = gator.y; if (gy >= 0 && Math.abs(Math.round(b.ly) - gy) < .6 && Math.abs(b.x + 30 - gator.x) < 50 && b.hit <= 0) { b.v = 0; b.hit = .9; b.x -= 18; }
+    b.x = Math.max(0, b.x + b.v * dt); };
+  const tjThink = (dt) => { if (blockedAhead(tj, tj.lane, 150)) { for (const L of [tj.lane - 1, tj.lane + 1].sort(() => rnd() - .5)) if (laneFree(tj, L)) { tj.lane = L; break; } }
+    tj.next -= dt; if (tj.next <= 0 && tj.pole >= tjPlant + rnd() * (1 - tjPlant) && tj.hit <= 0) { push(tj); if (rnd() > tjSkill) tj.v *= .7; tj.next = .05 + rnd() * .15; } };
+  const H = () => cv.height / devicePixelRatio, Wd = () => cv.width / devicePixelRatio;
+  const laneY = l => { const h = H(), top = h * .32, bot = h * .78; return top + (bot - top) * (l + .5) / LANES; };
+  const draw = (now) => { const g = cv.getContext('2d'), s = devicePixelRatio, w = Wd(), h = H(); g.setTransform(s, 0, 0, s, 0, 0);
+    const zk = Math.min(1, w / 760), cam = Math.max(0, Math.min(you.x, tj.x + 60) - w * .22 / zk), X = x => (x - cam) * zk;   // narrow screens see more of the course, so Tee-Jean stays in view
+    const wg = g.createLinearGradient(0, h * .25, 0, h * .85); wg.addColorStop(0, '#3a4a32'); wg.addColorStop(.5, '#4a5a3a'); wg.addColorStop(1, '#3a4630'); g.fillStyle = wg; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#2f3a24'; g.fillRect(0, 0, w, h * .26); g.fillRect(0, h * .84, w, h * .16);   // the banks
+    for (let k = Math.floor(cam / 90) - 1; k < (cam + w) / 90 + 1; k++) { const x = X(k * 90), r = hsh(k, 3); g.fillStyle = r < .5 ? '#4a6a3a' : '#3e5a30'; g.beginPath(); g.ellipse(x, h * .2 - r * 20, 34, 26, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(x + 40, h * .9 + r * 14, 30, 22, 0, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(200,220,180,.12)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, h * .4 + r * h * .3); g.lineTo(x + 26, h * .4 + r * h * .3); g.stroke(); }   // ripples
+    for (let l = 1; l < LANES; l++) { g.strokeStyle = 'rgba(255,255,255,.05)'; g.setLineDash([12, 14]); g.beginPath(); const y = (laneY(l - 1) + laneY(l)) / 2; g.moveTo(0, y); g.lineTo(w, y); g.stroke(); } g.setLineDash([]);
+    // the finish: an old cypress with a red ribbon across the channel
+    const fx = X(LEN); if (fx < w + 100) { g.fillStyle = '#5a4030'; g.fillRect(fx - 8, h * .1, 16, h * .2); g.fillStyle = '#4a6a3a'; g.beginPath(); g.ellipse(fx, h * .1, 50, 34, 0, 0, 7); g.fill(); g.strokeStyle = '#c0302a'; g.lineWidth = 4; g.beginPath(); g.moveTo(fx, h * .28); g.lineTo(fx, h * .84); g.stroke(); }
+    for (const o of obs) { const x = X(o.x), y = laneY(o.lane); if (x < -100 || x > w + 100) continue;
+      if (o.kind === 'log') { g.fillStyle = '#6a4a30'; g.beginPath(); g.roundRect(x - o.w / 2, y - 9, o.w, 18, 9); g.fill(); g.fillStyle = '#8a6a48'; g.beginPath(); g.ellipse(x + o.w / 2 - 4, y, 5, 8, 0, 0, 7); g.fill(); }
+      else if (o.kind === 'stump') { g.fillStyle = '#5a4030'; g.beginPath(); g.arc(x, y, 15, 0, 7); g.fill(); g.strokeStyle = '#8a6a48'; g.beginPath(); g.arc(x, y, 9, 0, 7); g.stroke(); }
+      else for (let i = 0; i < 5; i++) { g.fillStyle = i % 2 ? '#5f8a3e' : '#6f9a46'; g.beginPath(); g.arc(x - 35 + i * 18, y + (i % 2 ? -8 : 7), 11, .3, 6.0); g.lineTo(x - 35 + i * 18, y + (i % 2 ? -8 : 7)); g.fill(); if (i === 2) { g.fillStyle = '#f2a7c0'; g.beginPath(); g.arc(x, y + 7, 4, 0, 7); g.fill(); } } }
+    if (gator.y >= 0) { const x = X(gator.x), y = laneY(0) + (laneY(LANES - 1) - laneY(0)) * gator.y / (LANES - 1); g.fillStyle = '#2f4a2a'; g.beginPath(); g.ellipse(x, y, 46, 12, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(x + gator.dir * 48, y, 16, 8, 0, 0, 7); g.fill(); g.fillStyle = '#d8e070'; for (const sy of [-5, 5]) { g.beginPath(); g.arc(x + gator.dir * 44, y + sy, 2.4, 0, 7); g.fill(); } }
+    const boat = (b, hull, coat, name) => { const x = X(b.x), y = laneY(0) + (laneY(LANES - 1) - laneY(0)) * b.ly / (LANES - 1);
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x + 30, y + 6, 46, 10, 0, 0, 7); g.fill();
+      g.fillStyle = hull; g.beginPath(); g.moveTo(x - 14, y); g.quadraticCurveTo(x + 30, y - 16, x + 76, y); g.quadraticCurveTo(x + 30, y + 16, x - 14, y); g.fill();
+      g.fillStyle = coat; g.beginPath(); g.arc(x + 22, y, 9, 0, 7); g.fill(); g.fillStyle = '#e8c8a8'; g.beginPath(); g.arc(x + 22, y - 2, 5.5, 0, 7); g.fill();
+      const a = -.5 - (1 - b.pole) * 1.1; g.strokeStyle = '#c8a870'; g.lineWidth = 3; g.beginPath(); g.moveTo(x + 22, y); g.lineTo(x + 22 + Math.cos(Math.PI + a) * 46, y + 22 + Math.sin(a) * 6); g.stroke();
+      if (b.v > 80) { g.strokeStyle = 'rgba(230,240,220,.35)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 14, y); g.lineTo(x - 40 - b.v * .05, y - 8); g.moveTo(x - 14, y); g.lineTo(x - 40 - b.v * .05, y + 8); g.stroke(); }
+      g.fillStyle = '#f3e7c9'; g.font = '500 12px Lora, serif'; g.textAlign = 'center'; g.fillText(name, x + 30, y - 20); };
+    boat(tj, '#3a6a8a', '#4f8aa8', 'Tee-Jean'); boat(you, '#8a5a32', '#c9a24a', S.name || 'You');
+    // your pole: a little gauge under your boat, gold when it's planted and ready for a full push
+    { const x = X(you.x) + 30, y = laneY(0) + (laneY(LANES - 1) - laneY(0)) * you.ly / (LANES - 1) + 26; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x - 30, y, 60, 7); g.fillStyle = you.pole >= .9 ? '#e8c070' : you.pole >= .7 ? '#a8a070' : '#7a6a5a'; g.fillRect(x - 30, y, 60 * you.pole, 7); }
+    // the course: how far each of you has to go
+    const bw = Math.min(420, w * .8), bx = (w - bw) / 2, by = h * .27 - 30; g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(bx, by, bw, 8); g.fillStyle = '#c0302a'; g.fillRect(bx + bw - 3, by - 4, 3, 16);
+    g.fillStyle = '#4f8aa8'; g.beginPath(); g.arc(bx + bw * Math.min(1, tj.x / LEN), by + 4, 6, 0, 7); g.fill(); g.fillStyle = '#e8c070'; g.beginPath(); g.arc(bx + bw * Math.min(1, you.x / LEN), by + 4, 6, 0, 7); g.fill(); };
+  const loop = now => { if (!alive) return; const dt = Math.min(.1, (now - last) / 1000) * (window.__raceSpeed || 1); last = now;
+    if (state === 'count') { const k = (now - t0) / 1000; if (k < 3) { const n = 3 - Math.floor(k); if (msg.dataset.n != n) { msg.dataset.n = n; say(String(n)); } } else { state = 'go'; say('Push!', 900); } }
+    else if (state === 'go') { step(you, dt); tjThink(dt); step(tj, dt);
+      gator.t += dt; if (gator.t > 5) { if (gator.y < 0) { gator.y = gator.dir > 0 ? 0 : LANES - 1; gator.x = Math.max(you.x, tj.x) + 260 + rnd() * 200; } gator.y += gator.dir * dt * .45; if (gator.y > LANES - 1 || gator.y < 0) { gator.y = -1; gator.dir *= -1; gator.t = 0; } }
+      if (you.x >= LEN || tj.x >= LEN) { state = 'done'; result = you.x >= tj.x; say(result ? 'You win!' : 'Tee-Jean wins!'); setTimeout(() => finish(), 2200); } }
+    draw(now); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  const finish = () => { if (!alive) return; alive = false; selectHandler = null; removeEventListener('keydown', key); document.body.classList.remove('overlay'); el.style.opacity = 0; removeEventListener('resize', fit); setTimeout(() => { el.remove(); resolve(result); }, 900); };
+  selectHandler = b => { if (state !== 'go') { if (b === 'b' && state !== 'done') { result = null; finish(); } return; }
+    if (b === 'a') push(you); else if (b === 'up' && laneFreeMove(-1)) you.lane--; else if (b === 'down' && laneFreeMove(1)) you.lane++; else if (b === 'b') { result = false; state = 'done'; say('You let Tee-Jean have it.'); setTimeout(() => finish(), 1500); } };
+  const laneFreeMove = d => you.lane + d >= 0 && you.lane + d < LANES;
+  const key = e => { if (e.code === 'Space') { e.preventDefault(); selectHandler('a'); } }; addEventListener('keydown', key);
+  el.addEventListener('pointerdown', e => { if (state === 'go' && !e.target.closest('#pad')) { const y = e.clientY; if (Math.abs(y - laneY(you.lane)) > 60) (y < laneY(you.lane) ? selectHandler('up') : selectHandler('down')); else selectHandler('a'); } });
+}); }
+// Tee-Jean: pick a race, then race him
+boatRace = async function () {
+  const wins = S.flags.raceWins || 0;
+  await sayAs('Tee-Jean', wins >= 3 ? 'Champ! (He says it like it hurts.) Another one? I\'ve been practising on the gator.' : wins ? 'Rematch? I\'ve been practising. On land, mostly.' : 'Pole-boat race, down the back channel to the old cypress. Mind the logs, mind the lily mats, mind Remy. You in?');
+  const c = await ask('Race Tee-Jean?', ['Friendly race (10 Marks, win 40)', 'Sunday stakes (50 Marks, win 200)', 'Not now']);
+  if (c < 0 || c === 2) return sayAs('Tee-Jean', 'Scared of a little water? Ha. Come back when you\'re not.');
+  const cost = c === 0 ? 10 : 50; if ((S.marks || 0) < cost) return sayAs('Tee-Jean', `${cost} Marks. I'm not running a charity, I'm running a race.`);
+  S.marks -= cost; const won = await poleRace(c === 0 ? 'small' : 'big');
+  if (won === null) { S.marks += cost; return sayAs('Tee-Jean', 'Changed your mind on the line? Fine. Keep your Marks. Chicken.'); }
+  if (!won) return sayAs('Tee-Jean', pickA(['Ha! Born on this water. Come back when you\'ve got webbed feet.', 'You pushed too fast. Plant the pole, then push. Everybody rushes. Rushing\'s for land.', 'Remy got you, didn\'t he? He gets everybody. He likes you, that\'s why.']));
+  const prize = c === 0 ? 40 : 200; pay(prize); S.flags.raceWins = wins + 1; S.flags.raceWin = 1;
+  if (wins === 0) { S.items.charm = (S.items.charm || 0) + 2; await sayAs('Tee-Jean', `Aw, MAN. Fine. Fine! Take the pot. (${prize} Marks, and 2 Kindred Charms out of his tackle box, "for beating me, which nobody does".)`); }
+  else await sayAs('Tee-Jean', pickA([`Again?! (${prize} Marks. He throws his hat in the water, then has to go and get it.)`, `How?! (${prize} Marks. His mama, on the porch, is laughing so hard she has to hold the rail.)`]));
+  if (S.flags.raceWins === 3) { S.items.ribbon09 = 1; pay(300); await sayAs('Tee-Jean', 'Three times. Three. (He goes inside and comes back with a faded red ribbon.) This was my papa\'s. Twelve years he won the Sunday race. He\'d want the champ to have it. Don\'t lose it.'); await say('(You received the Racer\'s Ribbon and 300 Marks from the Sunday pot.)'); }
+};
+ITEMS.ribbon09 = { name:"Racer's Ribbon", key:true, desc:'Galloway Landing, Sunday race champion', fieldUse:() => say('(A faded red ribbon, the gold letters worn almost off: SUNDAY RACE, 1ST. Tee-Jean\'s papa won it twelve years running.)') };
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
