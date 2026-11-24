@@ -9196,7 +9196,7 @@ async function highCardGame() {
   if (me > him) { S.tokens += 10; sfx('keep'); await sayAs('Dex', pickA(['Well, well.', 'Lady Luck likes you tonight.', 'Don\'t get used to it.'])); } else await sayAs('Dex', pickA(['House.', 'Better luck, friend.', 'The deck giveth.']));
 }
 const PRIZES = [['Gilded Gull pin', 30, () => { S.items.charm = (S.items.charm || 0) + 2; return '2 Charms'; }], ['Bag of quills', 60, () => { S.items.quill = (S.items.quill || 0) + 3; return '3 Quills'; }],
-  ['Sea-glass tonic set', 120, () => { S.items.tonic = (S.items.tonic || 0) + 3; return '3 Bitter Tonics'; }], ['The Golden Gull', 400, () => { S.flags.goldenGull = 1; S.items.hearth = (S.items.hearth || 0) + 5; return 'a solid gold gull statuette, and 5 Hearths'; }]];
+  ['Sea-glass tonic set', 120, () => { S.items.tonic = (S.items.tonic || 0) + 3; return '3 Bitter Tonics'; }], ['The Golden Gull', 400, () => { S.flags.goldenGull = 1; S.items.hearth = (S.items.hearth || 0) + 5; return 'a solid gold gull statuette, and 5 Mending Lights'; }]];
 async function prizeCounter() {
   S.tokens = S.tokens || 0; const c = await ask(`Prize counter: What\'ll it be? (${S.tokens} tokens.)`, PRIZES.map(([n, p]) => ({ label:n, sub:`${p} tokens`, disabled:S.tokens < p })).concat(['Just looking']));
   if (c < 0 || c >= PRIZES.length) return; const [n, p, give] = PRIZES[c]; if (S.tokens < p) return; S.tokens -= p; sfx('level'); await say(`You win ${give()}.`);
@@ -9515,7 +9515,7 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
   IN(3).npcs = [npc('mae', 4, 4, 'up', 'Widow Mae', lk('#3a3a4a', '#f3e7c9', SK[2], '#d8d0c0', ['scarf']), async () => {
     await sayAs('Widow Mae', 'You\'re the stranger. I\'ve heard. They talk about you on every porch. Come in, I don\'t care what they say, I\'m too old to care what anyone says.');
     await sayAs('Widow Mae', 'My Walter\'s in the cemetery. Front row, just right of the path. If you\'re passing, you might put a flower down. He liked strangers. Hardly anyone ever came through.');
-    if (!S.flags.maeAsked) S.flags.maeAsked = 1; else if (S.flags.walterFlower && once('maeThanks')) { await sayAs('Widow Mae', 'You did. I saw from the window. Here: he\'d have wanted you to have this.'); pay(150); S.items.hearth = (S.items.hearth || 0) + 2; await say('(150 Marks and 2 Hearths, from a tin on the mantel.)'); } })];
+    if (!S.flags.maeAsked) S.flags.maeAsked = 1; else if (S.flags.walterFlower && once('maeThanks')) { await sayAs('Widow Mae', 'You did. I saw from the window. Here: he\'d have wanted you to have this.'); pay(150); S.items.hearth = (S.items.hearth || 0) + 2; await say('(150 Marks and 2 Mending Lights, from a tin on the mantel.)'); } })];
   REGION_NPCS.cobb_hollow = () => [
     npc('boone', 21, 18, 'down', 'Sheriff Boone', lk('#8a6a3a', '#d8b85a', SK[2], '#3a2414', ['cap', 'stout']), judged('Sheriff Boone', ['light', 'even'],
       () => sayAs('Sheriff Boone', 'Afternoon. Cobb Hollow\'s quiet and I like it quiet. Diner does a good pie. Mae\'s been asking after strangers. Don\'t ask me why.'),
@@ -12770,6 +12770,456 @@ function lastEnts(map, taken) {
   return out;
 }
 { const _cd = talkConductor; talkConductor = async function () { return postgame() && !S.flags.doom ? talkConductorAfter() : _cd(); }; }
+// =============================================================================
+//  FARTHER STILL (24 Nov) — five more places past the edges of the Welkin, each with its own piece of the story.
+//    Highcrest, west gate         → the Scholars' Way → QUILLSBY, the university city where Orrin taught
+//    The Long Siding, east        → the Switchback    → WHITECROWN, a snowbound observatory town; the Vale family's house
+//    The Cinder Cut, east         → the Ash Road      → CINDER REACH, the memorial town at the edge of burned Ash
+//    Rendering Ditch, west        → the Black Bayou   → GALLOWAY LANDING, a town on stilts; where the Choir ships its bottles out
+//    Tumbledown Fair, west        → the Dry Wash      → DRY FORK, a desert copper town; where the needles come from
+//  Like the other far places: no wild Manifs, people judge you by your aura, the grey never reaches them,
+//  and they remember the Chord if it was sung.
+// =============================================================================
+
+// ---------------------------------------------------------------- new things to look at
+SET.dome = p => { const g = new THREE.Group();   // the observatory: a white drum with a copper dome and the slot open to the sky
+  sCyl(g, 1.7, 1.8, 1.6, '#e8e4dc', 0, .8, 0, null, { seg:24 }); const d = sBall(g, 1.75, '#b8784a', 0, 1.6, 0, [1, .85, 1]); d.material.color.set('#b8784a');
+  sBox(g, .5, 1.5, 3.4, '#2a2830', 0, 2.3, 0, { ink:0 }); sCyl(g, .14, .2, 2.2, '#6a6a70', .4, 3, 0, [0, 0, -.7], { seg:10 });
+  sBox(g, .8, 1.1, .08, '#5a3a24', 0, .55, 1.8); return g; };
+SET.cablecar = p => { const g = new THREE.Group();   // a pylon, the cable, and the little red car halfway along it
+  sBox(g, .3, 4.6, .3, '#5a5a62', 0, 2.3, 0); sBox(g, 1.6, .16, .2, '#5a5a62', 0, 4.6, 0);
+  for (const s of [-1, 1]) sCyl(g, .025, .025, 9, '#2a2a2a', s * .7, 4.5, 0, [Math.PI / 2, 0, .12 * s], { ink:0, seg:6 });
+  sBox(g, .9, .8, 1.2, '#c0302a', .7, 3.4, 2.2); sBox(g, .92, .3, 1.0, '#d9e6ec', .7, 3.55, 2.2, { ink:0 }); sCyl(g, .03, .03, .7, '#2a2a2a', .7, 4.05, 2.2, null, { ink:0, seg:6 }); return g; };
+SET.snowman = p => { const g = new THREE.Group(); sBall(g, .45, '#f4f6f8', 0, .42, 0); sBall(g, .32, '#f4f6f8', 0, 1.05, 0); sBall(g, .22, '#f4f6f8', 0, 1.5, 0);
+  for (const s of [-1, 1]) sBall(g, .035, '#1a1a1a', s * .08, 1.56, .2);
+  const n = sCyl(g, 0, .04, .22, '#e07030', 0, 1.5, .3, [Math.PI / 2, 0, 0], { seg:8 }); sBox(g, .5, .08, .5, '#3a3a5a', 0, 1.68, 0); sBox(g, .32, .26, .32, '#3a3a5a', 0, 1.82, 0);
+  for (const s of [-1, 1]) { const a = sCyl(g, .02, .02, .55, '#5a3a24', s * .45, 1.15, 0, [0, 0, s * 1.1], { seg:5, ink:0 }); } return g; };   // two stick arms
+SET.namewall = p => { const g = new THREE.Group(), w = p.w || 8;   // the Wall of Names: long grey stone, thousands of names cut small
+  if (S && S.flags && S.flags.pavedWall) { sBox(g, w + .4, .3, 1.2, '#6a6a70', 0, .15, 0); sBox(g, w, .06, 1.0, '#7a7a80', 0, .32, 0, { ink:0 }); return g; }   // paved over by the Choir: a flat grey slab
+  sBox(g, w, 1.8, .5, '#8a8680', 0, .9, 0); sBox(g, w + .3, .14, .7, '#6e6a64', 0, 1.86, 0);
+  for (let i = 0; i < w * 3; i++) sBox(g, .22, .03, .02, '#4a4640', -w / 2 + .3 + (i % (w * 3)) * (w - .6) / (w * 3), .5 + (i % 7) * .17, .26, { ink:0 });
+  const lit = S && S.flags && S.flags.finalDone === 'light';   // after the well was closed, every name has a little lamp
+  if (lit) for (let i = 0; i < w; i++) { const l = glow('#ffd890', .5, .5); l.position.set(-w / 2 + .5 + i, 1.98, .2); g.add(l); }
+  for (let i = 0; i < Math.floor(w / 2); i++) sBall(g, .08, ['#d86a8a', '#f4cf5e', '#f4f1e8'][i % 3], -w / 2 + .8 + i * 2, .1, .45); return g; };
+SET.cactus = p => { const g = new THREE.Group(), c = '#5a7a3a', h = 1.4 + hsh(p.x, p.y) * .8;   // arms come in pairs
+  sCyl(g, .2, .24, h, c, 0, h / 2, 0, null, { seg:10 }); sBall(g, .2, c, 0, h, 0);
+  for (const s of [-1, 1]) { sCyl(g, .12, .12, .4, c, s * .3, h * .55, 0, [0, 0, Math.PI / 2], { seg:8 }); sCyl(g, .12, .12, .5, c, s * .46, h * .55 + .25, 0, null, { seg:8 }); sBall(g, .12, c, s * .46, h * .55 + .5, 0); }
+  return g; };
+SET.minecart = p => { const g = new THREE.Group(); sBox(g, 1.1, .5, .7, '#7a5a3a', 0, .45, 0); sBox(g, 1.0, .12, .6, '#b8784a', 0, .74, 0);
+  for (const sx of [-.35, .35]) for (const sz of [-.36, .36]) sCyl(g, .14, .14, .06, '#2a2826', sx, .16, sz, [Math.PI / 2, 0, 0], { seg:10 }); return g; };
+SET.stilts = p => { const g = new THREE.Group(), c = p.c || '#8a7a5a';   // a fishing shack on stilts over the water
+  for (const sx of [-.7, .7]) for (const sz of [-.6, .6]) sCyl(g, .06, .06, 1.2, '#4a3a2a', sx, .4, sz, null, { seg:6 });
+  sBox(g, 1.8, .1, 1.6, '#6a5a44', 0, 1.0, 0); sBox(g, 1.5, 1.0, 1.2, c, 0, 1.55, -.1); const r = sBox(g, 1.8, .1, 1.6, '#5a4a3a', 0, 2.15, -.1); r.rotation.x = .12;
+  sBox(g, .4, .7, .05, '#3a2a1a', 0, 1.4, .51); return g; };
+SET.saguaro = SET.cactus;
+
+// ---------------------------------------------------------------- items and shops
+Object.assign(ITEMS, {
+  cocoa:{ name:'Whitecrown Cocoa', heal:.45, desc:'Restores a fair bit of Composure', price:30 },
+  scone:{ name:'College Scone', heal:.35, desc:'Restores some Composure', price:20 },
+  boil:{ name:'Crawfish Boil', healAll:.45, desc:'A whole pot, shared round. Heals the whole Chorus', price:160 },
+  sweettea:{ name:'Sweet Tea', heal:.25, desc:'Restores a little Composure', price:8 },
+  beans:{ name:'Chuckwagon Beans', heal:.6, desc:'Restores most of one Manif\'s Composure', price:45 },
+  sarsaparilla:{ name:'Sarsaparilla', heal:.3, desc:'Restores some Composure', price:15 },
+  ashbread:{ name:'Remembrance Bread', healAll:.3, desc:'Baked with ash in the crust, the old way. Heals the whole Chorus a little', price:90 },
+  // keepsakes and story things
+  locket:{ name:'The Vale Locket', key:true, desc:'From the mantel of the Vale house', fieldUse:() => say('(A small silver locket. Inside, two children\'s faces, painted no bigger than fingernails, a boy and a girl, the same face twice.)') },
+  ribbon:{ name:'Wrenna\'s Ribbon', key:true, desc:'Given by Wren', fieldUse:() => say('(A child\'s blue hair ribbon, two hundred years old and kept perfectly.)') },
+  soldier:{ name:'Corvin\'s Tin Soldier', key:true, desc:'Given by the Conductor', fieldUse:() => say('(A tin soldier with the paint worn off one side, where a thumb held it for years.)') },
+  names:{ name:'Names of Ash', key:true, desc:'Rubbings from the Wall of Names', fieldUse:() => say('(Eight sheets of rubbings, charcoal on paper. A baker. A ferryman. Twins. A choir. A girl who was nine.)') },
+  penny:{ name:'The Copper Penny', key:true, desc:'From the Dry Fork saloon', fieldUse:() => say('(The saloon\'s lucky penny, given to the stranger who told the town the truth.)') },
+  medal:{ name:'Curator\'s Medal', key:true, desc:'From the Museum of Manifs, Quillsby', fieldUse:() => say('(A bronze medal: FOR A CODEX OF EVERY FEELING. Dr. Ashcombe engraved your name on the back herself.)') },
+  retraction:{ name:'Thorne\'s Retraction', key:true, desc:'Signed, under protest', fieldUse:() => say('(A note in a furious hand: "I, Aldric Thorne, concede that Manifs are real. I do not have to like it.")') } });
+Object.assign(ITEM_INFO, { cocoa:'Thick enough to stand a spoon in. They put a peppermint in it if they like you.', scone:'Baked in the college kitchen. Dense as a textbook.', boil:'Crawfish, corn, potatoes, too much pepper. Poured out on newspaper for everyone.',
+  sweettea:'So sweet it hums.', beans:'From a pot that\'s never been empty since the mine opened.', sarsaparilla:'Fizzy, rooty, served warm because the ice ran out in spring.', ashbread:'Dark bread with a grey crust. The people of Cinder Reach bake it on the day of names.' });
+BATTLE_ITEMS.push('cocoa', 'scone', 'boil', 'sweettea', 'beans', 'sarsaparilla', 'ashbread');
+SHOPS.inkwell = { name:'The Inkwell', stock:['scone', 'coffee', 'quill', 'charm'] };
+SHOPS.cocoa = { name:'The Kettle & Crown', stock:['cocoa', 'tonic', 'salts', 'waystone'] };
+SHOPS.reach = { name:'The Last Lamp', stock:['ashbread', 'tonic', 'hearth', 'veil'] };
+SHOPS.boil = { name:'The Loose Board', stock:['boil', 'sweettea', 'cake', 'salts'] };
+SHOPS.saloon = { name:'The Copper Penny', stock:['beans', 'sarsaparilla', 'ember'] };
+SHOPS.fork = { name:'Dry Fork General', stock:['tonic', 'salts', 'iron', 'ember', 'waystone'] };
+const farLv = () => postgame() ? 64 : Math.max(18, Math.min(46, 8 + Object.keys(S.hearts || {}).length * 4));   // fights out here follow how far along you are
+
+// ---------------------------------------------------------------- a road out to a far place
+function farRoad(id, o) {
+  const B = regionBuilder(id, 60, 20), m = B.m; border(m, 2); rect(m, 0, 9, 60, 2, '='); if (o.rail) rect(m, 0, 8, 60, 1, 't');
+  o.deco && o.deco(B);
+  const west = o.side === 'west';   // west: the origin is on the right and the town on the left
+  regionMap(id, B, { name:o.name, sub:o.sub, V:o.V, music:o.music, arrive:o.arrive, sign:o.sign,
+    exit:(nx, ny) => { const toOrigin = west ? nx >= 60 : nx < 0, toTown = west ? nx < 0 : nx >= 60;
+      if (toOrigin) return S.flags.ruin ? null : { ...o.origin };
+      if (toTown) return { ...o.town }; return null; } });
+  B.m[12][west ? 54 : 5] = 's';
+  REGION_NPCS[id] = () => [...(o.npcs ? o.npcs() : []), npc('sign_' + id, west ? 54 : 5, 12, 'up', 'Sign', null, () => say(o.sign), { invisible:true })];
+}
+// cut a gate in a map's edge, and send people through it
+function farGate(map, side, rows, dest) {
+  const M = MAPS[map]; for (const y of rows) for (let k = 0; k < 3; k++) { const x = side === 'west' ? k : M.w - 1 - k; if (M.tiles[y][x] !== 't') M.tiles[y][x] = '='; }
+  M.set = M.set || []; M.set.push({ k:'gatepost', x:side === 'west' ? 1 : M.w - 2, y:rows[0] + .5, r:0 });
+  const prev = M.exit; M.exit = (nx, ny) => (side === 'west' ? nx < 0 : nx >= M.w) && rows.includes(ny) ? (S.flags.ruin ? null : { ...dest }) : prev(nx, ny);
+  GATE_SHUT.add(map);
+}
+
+// =============================================================================
+//  QUILLSBY — the university city. Orrin Vale taught here. The museum fills with your own Codex.
+// =============================================================================
+const QUILL_V = REGION_VIBE({ sky:'#d8dccc', fog:'#d4d8c4', fogNear:20, fogFar:54, hemi:'#fff6e0', sun:1.8, ground:['#6f8a4a', '#668044', '#789452'], tall:['#4f6a34', '#5a7a3a', '#46602e'], trees:'oak', treeC:['#b8783a', '#c8903a', '#8a6a2a'], road:'#9a8a78', parts:'petals', partC:['#d8903a', '#c8783a', '#e8b05a'] });
+farRoad('r_scholars', { name:'The Scholars\' Way', sub:'Highcrest to Quillsby', V:QUILL_V, music:'scholars_way', side:'west', origin:{ map:'highcrest', x:1, y:9, dir:'right' }, town:{ map:'quillsby', x:44, y:16, dir:'left' },
+  arrive:'West of Highcrest the road goes soft and leafy. Milestones in Latin nobody can read any more. Somewhere ahead, a bell is ringing for a lecture.', sign:'QUILLSBY ← 4 miles. (Someone has corrected the spelling of "miles" in red ink.)',
+  deco:B => { for (const x of [8, 22, 36, 50]) B.piece('lamp', x, 7); B.piece('stand', 30, 12, 1, 1, { c:'#5a4a8a' }); B.piece('bench', 16, 12); B.piece('bench', 42, 12); rect(B.m, 4, 3, 50, 3, ','); rect(B.m, 4, 13, 50, 4, ','); },
+  npcs:() => [
+    npc('stud_r', 24, 11, 'down', 'Student', lk('#5a4a8a', '#f3e7c9', SK[1], '#7a3e1e', ['satchel', 'scarf']), () => sayAs('Student', sideLine({ light:'Are you going to Quillsby? Oh, you should see the museum. Somebody left them a whole Codex last year and they cried for a week.', even:'Exams. Don\'t talk to me about exams. Don\'t talk to me at all, actually, I\'m memorising.', shadow:'(She holds her books up in front of her and walks very fast past you.)' }))),
+    npc('books_r', 31, 11, 'down', 'Bookseller', lk('#6a5a3a', '#e8dcc0', SK[3], '#d8d0c0', ['glasses', 'apron']), judged('Bookseller', ['light', 'even', 'hurt'], async () => { await sayAs('Bookseller', 'Secondhand books, firsthand opinions. A Quill for the road, if you like.'); return openShop('inkwell'); }, () => sayAs('Bookseller', 'Closed for stocktaking. (There is nobody stocktaking.)'))) ] });
+(function buildQuillsby() {
+  const B = regionBuilder('quillsby', 46, 34), m = B.m; border(m, 2);
+  rect(m, 2, 16, 44, 2, '='); rect(m, 22, 4, 2, 26, '='); rect(m, 2, 9, 42, 1, '='); rect(m, 2, 28, 42, 1, '=');
+  // the quad: lawn, hedged, with a path across it
+  rect(m, 26, 19, 16, 8, ','); for (let x = 26; x <= 41; x++) { m[19][x] = 'h'; m[26][x] = 'h'; } for (let y = 19; y <= 26; y++) { m[y][26] = 'h'; m[y][41] = 'h'; } for (let x = 27; x <= 40; x++) m[22][x] = '='; m[22][26] = '='; m[22][41] = '=';
+  B.house(4, 11, 9, '#6a5a4a', '#d8ccb0', { name:'The Museum of Manifs', w:17, h:11, music:'scholars_way', floor:['#c8b898', '#b8a888'], wall:'#e8dcc0', furn:[['mirror', 2, 2], ['stand', 5, 2, { c:'#d8a83a' }], ['stand', 8, 2, { c:'#5a8aa8' }], ['stand', 11, 2, { c:'#8a3a3a' }], ['stand', 14, 2, { c:'#4f8a6a' }], ['bench', 5, 6], ['bench', 11, 6], ['desk', 8, 8]] });
+  B.house(14, 11, 7, '#4a3a5a', '#c8c0b0', { name:'Vale Lecture Hall', w:15, h:11, music:'scholars_way', floor:['#7a6450', '#6e5a48'], wall:'#d8ccb0', furn:[['desk', 7, 1], ['bench', 3, 4], ['bench', 7, 4], ['bench', 11, 4], ['bench', 3, 6], ['bench', 7, 6], ['bench', 11, 6], ['bookcase', 1, 1], ['bookcase', 13, 1]] });
+  B.house(26, 11, 8, '#5a4a3a', '#e0d4bc', { name:'The Bodley Library', w:15, h:11, music:'scholars_way', floor:['#8a7458', '#7e6a50'], wall:'#d8c8a8', furn:[[ 'bookcase', 1, 1], ['bookcase', 3, 1], ['bookcase', 5, 1], ['bookcase', 9, 1], ['bookcase', 11, 1], ['bookcase', 13, 1], ['table', 4, 5], ['table', 10, 5], ['desk', 7, 8], ['candle', 7, 3]] });
+  B.house(35, 11, 7, '#8a3a2a', '#e8dcc0', { name:'The Inkwell', w:13, h:9, music:'scholars_way', floor:['#6a5040', '#5e4838'], wall:'#c8b898', furn:[['table', 3, 2], ['table', 3, 5], ['table', 8, 2], ['stand', 10, 5, { c:'#8a3a2a' }], ['piano', 11, 1], ['stove', 1, 1, { lit:true }]] });
+  B.house(4, 19, 7, '#5a5a6a', '#e8e4d8', { name:'Halls of Residence', w:11, h:9, music:'scholars_way', floor:['#8a7458', '#7e6a50'], wall:'#e8d8c0', furn:[['bed', 1, 1], ['bed', 9, 1], ['desk', 5, 1], ['bookpile', 3, 5], ['bed', 1, 5]] });
+  B.house(12, 19, 7, '#4a3a5a', '#d8ccb0');
+  for (const [x, y] of [[3, 15], [21, 15], [25, 15], [43, 15], [25, 27], [43, 27]]) B.lamp(x, y);
+  B.piece('fountain', 33, 23, 2, 2); B.piece('bench', 29, 24); B.piece('bench', 38, 24); m[18][20] = 's';
+  regionMap('quillsby', B, { name:'Quillsby', sub:'A university city', V:QUILL_V, music:'quillsby', arrive:'Honey-coloured colleges round a green quad. Bells every quarter hour. Students in gowns arguing on the steps about whether feelings can be measured, and with what.',
+    exit:(nx, ny) => nx >= 46 ? { map:'r_scholars', x:1, y:9, dir:'right' } : null });
+  const IN = i => MAPS['quillsby_in' + i].room;
+  IN(0).npcs = [npc('ashcombe', 8, 6, 'down', 'Dr. Ashcombe', lk('#3a4a5a', '#e8dcc0', SK[2], '#d8d0c0', ['glasses', 'longcoat']), talkCurator),
+    npc('exhibit', 5, 3, 'up', 'Exhibit', null, () => say(`(The glass cases are labelled by feeling. ${codexMet()} of the ${CODEX.length} cases have something in them, and the cards beside them are in your own words, copied from your Codex.)`), { invisible:true })];
+  IN(1).npcs = [npc('thorne', 7, 2, 'down', 'Professor Thorne', lk('#2a2a2a', '#e8dcc0', SK[0], '#8a8078', ['glasses', 'tophat', 'longcoat']), talkThorne),
+    npc('orrin_notes', 7, 1, 'up', 'Lecture notes', null, async () => { await say('(Orrin Vale\'s lecture notes, kept under glass. The last one is dated two hundred and one years ago.)'); await say('"Lecture 40. A feeling is not a fault. It is weather passing through a person. The whole trouble of the world is that we keep trying to put the weather in jars."'); }, { invisible:true })];
+  IN(2).npcs = [npc('librarian', 7, 8, 'up', 'Librarian Mags', lk('#5a6a4a', '#e8dcc0', SK[4], '#3a2414', ['glasses', 'bun']), async () => {
+    await sayAs('Librarian Mags', sideLine({ light:'Whisper, please. Oh, it\'s you. I\'ve read about you. Well, I\'ve read about someone like you. Same thing, in a library.', even:'Whisper, please.', shadow:'(She very slowly slides the reference books out of your reach.)' }));
+    if (once('magsLetters')) { await sayAs('Librarian Mags', 'We have letters Orrin Vale wrote to his children. Two of them, twins. The letters are addressed to a house in Whitecrown, up past the Long Siding, in the snow.'); await sayAs('Librarian Mags', 'Nobody\'s lived there for two hundred years. The cold keeps everything. People say the kettle\'s still on the hob.'); S.flags.heard_hint_wc = 1; } })];
+  IN(3).npcs = [npc('inkbar', 10, 6, 'up', 'Barkeep Rhys', lk('#8a3a2a', '#e8dcc0', SK[3], '#7a3e1e', ['apron']), judged('Rhys', ['light', 'even', 'hurt'], async () => { await sayAs('Rhys', 'Scones, coffee, and a corner to cry about your thesis in. What\'ll it be?'); return openShop('inkwell'); }, () => sayAs('Rhys', 'We\'re a student bar. You are... not a student.'))),
+    npc('debater', 3, 3, 'right', 'Two students', lk('#4a5a8a', '#f3e7c9', SK[1], '#e2c070', ['scarf']), () => say('Student: It\'s obviously a feeling with a body. / Other student: It\'s obviously a body with a feeling. / (They have been having this argument since first year.)'))];
+  IN(4).npcs = [npc('homesick', 5, 4, 'up', 'First-year', lk('#6a7a4a', '#f3e7c9', SK[2], '#3a2414', ['scarf']), () => sayAs('First-year', sideLine({ light:'I\'m from Lowmere. I miss the rain. Isn\'t that stupid? Everyone here has opinions and nobody has rain.', even:'Do you know if they serve anything here that isn\'t a scone?', hurt:'You look how I feel. Want to sit? You don\'t have to say anything.', shadow:'(He pretends to be asleep with his eyes open.)' })))];
+  REGION_NPCS.quillsby = () => [
+    npc('chancellor', 24, 14, 'down', 'The Chancellor', lk('#4a3a5a', '#d8b85a', SK[0], '#d8d0c0', ['tophat', 'longcoat', 'book']), judged('The Chancellor', ['light', 'even'], () => sayAs('The Chancellor', 'Welcome to Quillsby. We study everything here, including you, so mind your posture. The museum is the one with the queue.'),
+      () => sayAs('The Chancellor', 'Quillsby admits anyone with a question. You don\'t seem to have one. You seem to have an answer, and I don\'t like it.'))),
+    npc('gown1', 30, 18, 'left', 'Student in a gown', lk('#2a2a2a', '#f3e7c9', SK[3], '#141014', ['scarf']), () => sayAs('Student in a gown', sideLine({ light:'I\'m writing my thesis on Reach Out. Would you mind if I watched you do one? From a distance. With a notebook.', even:'Can\'t stop. Late. Always late. It\'s practically my subject.', shadow:'Professor Thorne says Manifs aren\'t real. Looking at yours, I really, really hope he\'s right.' }))),
+    npc('porter', 21, 18, 'down', 'Porter', lk('#3a4a3a', '#d8b85a', SK[2], '#8a8078', ['cap']), () => sayAs('Porter', 'Keep off the grass. Not you, them. (He nods at a pigeon.) Actually, you too.')),
+    npc('kidq', 35, 27, 'up', 'Professor\'s kid', lk('#e8a83a', '#fff3d6', SK[1], '#7a3e1e', ['braids'], { small:true }), () => sayAs('Professor\'s kid', 'My dad says I can be anything. I\'m going to be a Manif. He says that\'s not a job. I say watch me.')),
+    npc('busker_q', 34, 21, 'down', 'Busker', lk('#5a4a8a', '#e8dcc0', SK[4], '#3a2414', ['bandana']), () => sayAs('Busker', 'I play the same four songs for every graduation. Nobody\'s noticed in eleven years.')) ];
+})();
+const codexMet = () => Object.keys((S.codex && S.codex.seen) || {}).length;
+async function talkCurator() {
+  const n = codexMet(), got = S.flags.curator || 0, steps = [[20, 'quill', 3, '3 Insight Quills'], [50, 'charm', 3, '3 Kindred Charms'], [90, 'hearth', 2, '2 Mending Lights and 500 Marks'], [Math.min(130, CODEX.length), 'medal', 1, 'the Curator\'s Medal and 1,000 Marks']];
+  await sayAs('Dr. Ashcombe', got ? 'Back again! Let me see the Codex.' : 'Dr. Wendeline Ashcombe, curator. You carry a Codex? Wonderful. Every Manif you\'ve met, we\'ll give a case to. People come from all over to read them.');
+  await say(`(Your Codex has met ${n} of the ${CODEX.length} Manifs.)`);
+  let k = got; while (k < steps.length && n >= steps[k][0]) { const [, it, c, what] = steps[k]; S.items[it] = (S.items[it] || 0) + c; if (k === 2) pay(500); if (k === 3) pay(1000); k++; await sayAs('Dr. Ashcombe', k === 4 ? 'Every case. Every single one. I\'m not crying, the museum is just very dusty. This is for you.' : 'Another wing filled! Take these, with the museum\'s thanks.'); await say(`(You received ${what}.)`); }
+  S.flags.curator = k; if (k < steps.length) await sayAs('Dr. Ashcombe', `Bring me ${steps[k][0]} and I\'ll open the next wing.`);
+}
+async function talkThorne() {
+  if (S.flags.thorne) return sayAs('Professor Thorne', 'Yes, yes, they\'re real. I signed the paper. Go and be right somewhere else.');
+  await sayAs('Professor Thorne', 'Aldric Thorne. Chair of Sensible Studies. I\'ve spent forty years proving that so-called Manifs are mass hysteria with good lighting.');
+  if (S.party && S.party.length) await sayAs('Professor Thorne', '(He looks at the Manifs beside you, then firmly at the ceiling.) Those are a trick of the light. Prove otherwise. Three questions. Get them all and I\'ll sign a retraction.');
+  const Q = [['If a Manif is made of Joy, what hits it twice as hard?', ['Sadness', 'Anger', 'Fear'], 0], ['A Calm Manif is hurting. When you Reach Out, what does it need?', ['Look ahead', 'Stay with it', 'Let it out'], 1], ['What was the Hush made of?', ['A curse from the war', 'Every feeling nobody would feel', 'The Choir\'s singing'], 1]];
+  for (const [q, o, a] of Q) { const c = await ask('Professor Thorne: ' + q, o); if (c !== a) return sayAs('Professor Thorne', c < 0 ? 'Running away from the evidence. Classic.' : 'Wrong! Ha! Hysteria! Come back when you\'ve studied.'); }
+  S.flags.thorne = 1; S.items.retraction = 1; S.items.quill = (S.items.quill || 0) + 2;
+  await sayAs('Professor Thorne', '...All three. (He takes off his glasses and cleans them for a long time.) My mother had a little Contentment that followed her about the kitchen. I told her it was the steam. I was nine.');
+  await say('(You received Thorne\'s Retraction and 2 Insight Quills.)');
+}
+
+// =============================================================================
+//  WHITECROWN — up the old branch line from the Long Siding, in the snow. An observatory, a cocoa lodge,
+//  and the house where Orrin Vale raised the twins, kept by the cold for two hundred years.
+// =============================================================================
+const SNOW_V = REGION_VIBE({ sky:'#dfe8f0', fog:'#e8eef4', fogNear:14, fogFar:44, hemi:'#ffffff', sun:1.7, ground:['#eef2f4', '#e4eaee', '#f4f6f8'], tall:['#c8d4dc', '#d4dee4', '#bcc8d0'], trees:'conifer', treeC:['#3a5a4a', '#46665a', '#2f4a3e'], road:'#a8a49c', parts:'petals', partC:['#ffffff', '#f4f8fc'], groundFog:'#f4f8fc', fogOp:.3 });
+farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecrown', V:SNOW_V, music:'switchback', side:'east', rail:true, origin:{ map:'r_siding', x:24, y:27, dir:'left' }, town:{ map:'whitecrown', x:1, y:16, dir:'right' },
+  arrive:'The old branch line climbs out of the Siding and into the snow. The air goes thin and sweet. Far above, a red cable car hangs on its wire, not moving, like a held breath.', sign:'WHITECROWN 2 → (Chains required. Hope required.)',
+  deco:B => { B.piece('cablecar', 20, 4); B.piece('cablecar', 44, 4); B.piece('snowman', 32, 12); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 46, 4, ','); },
+  npcs:() => [
+    npc('muleman', 14, 11, 'down', 'Mule driver', lk('#6a4a3a', '#e8dcc0', SK[3], '#3a2414', ['cap', 'scarf', 'beard']), () => sayAs('Mule driver', sideLine({ light:'Bessie and me carry the post up. She likes you. She doesn\'t like anybody.', even:'Mind the ice on the bends. Mind Bessie, too. She bites.', shadow:'(He moves the mule between you and the post bags.)' }))),
+    npc('hiker', 38, 11, 'down', 'Hiker', lk('#c0503a', '#f3e7c9', SK[1], '#e2c070', ['satchel', 'scarf']), async () => { await sayAs('Hiker', 'I came to see the observatory. Then I sat down to look at the view and my legs stopped agreeing with me.');
+      if (once('hikerHelp')) { const c = await ask('Hiker: You don\'t have anything warm, do you?', ['Share a Honey Cake', 'Keep walking']); if (c === 0 && (S.items.cake || 0) > 0) { S.items.cake--; pay(60); await sayAs('Hiker', 'Oh, that\'s better. Here, for your trouble. And look up when you get there. At night. Promise.'); } else if (c === 0) await say('(You don\'t have one.)'); } }) ] });
+(function buildWhitecrown() {
+  const B = regionBuilder('whitecrown', 42, 34), m = B.m; border(m, 2);
+  rect(m, 0, 16, 40, 2, '='); rect(m, 19, 6, 2, 24, '='); rect(m, 2, 26, 38, 1, '=');
+  B.piece('dome', 30, 4, 4, 4); B.piece('cablecar', 8, 4); B.piece('snowman', 14, 21); B.piece('snowman', 26, 22); B.piece('watertower', 36, 21, 2, 2);
+  B.house(4, 10, 7, '#3a4a5a', '#e8e4dc', { name:'The Kettle & Crown', w:13, h:9, music:'whitecrown', floor:['#8a6a4a', '#7e6044'], wall:'#e0d0b8', furn:[['stove', 1, 1, { lit:true }], ['table', 4, 3], ['table', 8, 3], ['bed', 11, 1], ['bed', 11, 5], ['armchair', 3, 6], ['rug', 6, 6]] });
+  B.house(22, 10, 6, '#2a3a4a', '#d8d4cc', { name:'The Observatory', w:13, h:11, music:'whitecrown', floor:['#5a5a62', '#4e4e56'], wall:'#c8c4bc', furn:[['desk', 2, 2], ['bookcase', 1, 5], ['spiral', 6, 3], ['table', 10, 6], ['candle', 3, 7]] });
+  B.house(4, 19, 7, '#5a3a3a', '#d8ccb8', { name:'The Vale House', w:13, h:10, music:'whitecrown', floor:['#6a5040', '#5e4838'], wall:'#c8b8a0', light:{ hemi:'#c8d8e8' }, furn:[['stove', 1, 1], ['table', 5, 3], ['chair', 4, 3], ['chair', 6, 3], ['bed', 10, 1], ['bed', 10, 5], ['bookcase', 1, 6], ['trunk', 7, 7]] });
+  B.house(28, 19, 6, '#4a5a4a', '#e8e4dc');
+  for (const [x, y] of [[3, 15], [18, 15], [21, 15], [36, 15], [18, 25]]) B.lamp(x, y);
+  m[18][17] = 's';
+  regionMap('whitecrown', B, { name:'Whitecrown', sub:'Above the snowline', V:SNOW_V, music:'whitecrown', arrive:'A handful of steep-roofed houses, a copper-domed observatory and a lodge with smoke coming out of every chimney. Everything is very white and very quiet, and your breath hangs in the air like a thing you said.',
+    exit:(nx, ny) => nx < 0 ? { map:'r_switchback', x:58, y:9, dir:'left' } : null });
+  const IN = i => MAPS['whitecrown_in' + i].room;
+  IN(0).npcs = [npc('innkeep_w', 8, 5, 'down', 'Gerda', lk('#8a3a2a', '#e8dcc0', SK[0], '#e2c070', ['apron', 'scarf']), judged('Gerda', ['light', 'even', 'hurt'], async () => { await sayAs('Gerda', 'Shoes off, snow off, sit by the stove. Cocoa\'s on. Beds are upstairs if you need one; they\'re yours.'); healAll(); await say('(You warm through by the stove. Everything you carry is composed again.)'); return openShop('cocoa'); },
+    async () => { await sayAs('Gerda', 'We\'re full.'); await say('(Every room key is hanging on its hook.)'); }))];
+  IN(1).npcs = [npc('astronomer', 6, 5, 'up', 'Astronomer Isolde', lk('#2a2a4a', '#d8d0e8', SK[1], '#d8d0c0', ['glasses', 'longcoat']), talkAstronomer)];
+  IN(2).npcs = [npc('valehouse', 5, 4, 'up', 'The kitchen', null, talkValeHouse, { invisible:true }),
+    npc('doorframe', 1, 3, 'up', 'Doorframe', null, () => say('(Pencil marks up the kitchen doorframe, two at every height. "W. 5" and "C. 5". "W. 8" and "C. 8", Corvin a finger taller. "W. 12" and "C. 12". At "13" there is only one mark, and it says "C.", and under it, in a grown-up\'s hand: "Wrenna wouldn\'t stand still. Said she\'d measure herself when she was ready.")'), { invisible:true }),
+    npc('valeletters', 1, 6, 'up', 'Letters', null, async () => { await say('(A bundle of letters in a drawer, from Orrin to the twins, posted from Quillsby.)'); await say('"My darlings. Your mother would have liked you to see the stars from the observatory together. Be kind to each other. One of you will always be braver, and one will always be kinder, and you will both think you are the other one. Papa."'); }, { invisible:true })];
+  REGION_NPCS.whitecrown = () => [
+    npc('mayor_w', 20, 14, 'down', 'Old Pieter', lk('#4a3a3a', '#e8dcc0', SK[0], '#f4f1e8', ['scarf', 'beard', 'cap']), judged('Old Pieter', ['light', 'even', 'hurt'], () => sayAs('Old Pieter', 'Whitecrown. Population forty. Forty-one when the cable car works. We\'ve got the stars, the cocoa and the Vale house, and we don\'t go in the Vale house.'),
+      () => sayAs('Old Pieter', 'Funny. The snow stopped when you came up the road. It does that for weather it doesn\'t like.'))),
+    npc('sledkid', 14, 23, 'up', 'Kids with a sled', lk('#4f8aa8', '#fff3d6', SK[2], '#7a3e1e', ['scarf'], { small:true }), () => sayAs('Kid with a sled', sideLine({ light:'Watch! Watch! (She goes down the slope on the sled, very slowly, and falls off at the bottom on purpose.) Did you see?', even:'You can have a go after us. After us after us.', shadow:'(They pick up the sled and go and play somewhere else.)' }))),
+    npc('shoveller', 30, 15, 'left', 'Snow-shoveller', lk('#5a6a3a', '#e8dcc0', SK[4], '#141014', ['cap']), () => sayAs('Snow-shoveller', 'I clear the road every morning so the post can get up. By noon it\'s snowed again. I\'m not complaining. It\'s a living. It\'s a living for snow, mostly.')),
+    npc('stargazer', 33, 9, 'down', 'Man by the dome', lk('#2a3a4a', '#e8dcc0', SK[3], '#8a8078', ['scarf', 'glasses']), () => sayAs('Man by the dome', clockHour() >= 19 || clockHour() < 5 ? 'Look up. No, really, look up. You can see all ten of them tonight.' : 'I\'m waiting for dark. I\'ve been waiting for dark every day for thirty years. It always comes. It\'s very reliable.')) ];
+})();
+async function talkAstronomer() {
+  const night = clockHour() >= 19 || clockHour() < 5;
+  await sayAs('Astronomer Isolde', sideLine({ light:'A visitor! Come in, mind the telescope, mind the other telescope.', even:'Mind the telescope.', hurt:'Come and look up for a bit. It makes everything the right size.', shadow:'(She puts herself between you and the telescope, the way you\'d stand in front of a child.)' }));
+  if (auraSide() === 'shadow') return;
+  if (!night) return sayAs('Astronomer Isolde', 'Come back after dark. Then I\'ll show you the Wheel.');
+  await say('(You look up through the long brass telescope. Ten small groups of stars, in a ring.)');
+  await sayAs('Astronomer Isolde', 'The Wheel. Ten constellations, one for every feeling. Sailors steer by the Hope, and lovers argue about which one\'s the Joy. That faint one is the Shame. It\'s always there. You just have to want to see it.');
+  if (once('starChart')) { S.items.charm = (S.items.charm || 0) + 2; await say('(She gives you a star chart rolled round 2 Kindred Charms "for luck, which isn\'t real, but neither are the constellations, and look how useful they are.")'); }
+}
+async function talkValeHouse() {
+  await say('(The Vale kitchen, exactly as it was left. Two small chairs. Two bowls. The cold has kept everything, even the smell of woodsmoke.)');
+  if (S.flags.locket) return say(S.flags.locketTo === 'wren' ? '(The mantel is bare where the locket was. Wren has it now.)' : S.flags.locketTo === 'corvin' ? '(The mantel is bare where the locket was. Corvin has it now.)' : '(The locket is in your bag.)');
+  await say('(On the mantel, a small silver locket on a broken chain.)');
+  const c = await ask('Take the locket?', ['Take it', 'Leave it']); if (c !== 0) return;
+  S.flags.locket = 1; S.items.locket = 1; await say('(Inside, two children\'s faces, painted no bigger than fingernails. The same face twice. One of them is trying not to laugh.)');
+  await say('(Someone should have this. Wren, at the Archive. Or her brother, in the dark of the Hollow Throat. Only one of them can.)');
+}
+// the locket goes to one twin or the other (called from h31 wrappers on Wren and the Conductor)
+async function giveLocket(to) {
+  if (!S.items.locket || S.flags.locketTo) return false;
+  const c = await ask(to === 'wren' ? 'Give Wren the locket from the Vale house?' : 'Give Corvin the locket from the Vale house?', ['Give it', 'Not now']); if (c !== 0) return true;
+  delete S.items.locket; S.flags.locketTo = to;
+  if (to === 'wren') { await say('Wren: (She opens it, and goes very still.) Mama painted these. I was nine. Corvin had just told me a joke about a goat. (She laughs, and then she cries, and then both.) Thank you. I didn\'t think anything of us was left.');
+    S.items.ribbon = 1; S.items.quill = (S.items.quill || 0) + 3; await say('(Wren gives you a blue hair ribbon, "the only other thing I kept", and 3 Insight Quills.)'); }
+  else { await say('The Conductor: (He turns the locket over and over in the dark.) She used to hold it up to my face when I was sulking, to show me what I looked like when I smiled. (A long pause.) Get out. Please.');
+    S.items.soldier = 1; S.items.ember = (S.items.ember || 0) + 5; await say('(He presses a tin soldier into your hand without looking at you. And 5 Ember Draughts. "For the brave one. Whichever of us that was.")'); }
+  return true;
+}
+{ const _w = talkWren; talkWren = async function () { if (S.items.locket && !S.flags.locketTo && !S.flags.wrenDrowned && introDone() && (!S.flags.doom || S.flags.atoned)) { if (await giveLocket('wren') && S.flags.locketTo) return; } return _w(); }; }
+{ const _c = talkConductor; talkConductor = async function () { if (S.items.locket && !S.flags.locketTo && !(S.c2 && S.c2.beat) && !(S.choir && S.choir.dead)) { if (await giveLocket('corvin') && S.flags.locketTo) return; } return _c(); }; }
+
+// =============================================================================
+//  CINDER REACH — the memorial town at the edge of Ash, the capital that burned. The Wall of Names.
+// =============================================================================
+const ASH_V = REGION_VIBE({ sky:'#c8c4bc', fog:'#c4c0b8', fogNear:14, fogFar:44, hemi:'#f0e8dc', sun:1.4, ground:['#7a7a6a', '#727262', '#828272'], tall:['#8a8a6a', '#7e7e60', '#949470'], trees:'charred', treeC:['#3a3632', '#2e2a26', '#46423c'], road:'#8a847a', parts:'motes', partC:['#e8e4dc', '#d8d4cc'], groundFog:'#d4d0c8', fogOp:.25 });
+farRoad('r_ashroad', { name:'The Ash Road', sub:'The Cinder Cut to Cinder Reach', V:ASH_V, music:'ash_road', side:'east', origin:{ map:'r_cindercut', x:24, y:17, dir:'left' }, town:{ map:'cinder_reach', x:1, y:16, dir:'right' },
+  arrive:'Past the barracks the land goes grey. Not burned: older than burned. Stumps, a fallen statue with its face in the grass, and wildflowers, thousands of them, growing out of the ash like they were planted on purpose.', sign:'CINDER REACH →. Walk softly. Two hundred years is not very long.',
+  deco:B => { B.piece('rubble', 12, 4, 2, 2); B.piece('rubble', 40, 14, 2, 2); B.piece('block', 26, 5); B.piece('block', 27, 5); B.piece('block', 47, 13); rect(B.m, 4, 13, 30, 4, ','); rect(B.m, 30, 3, 24, 3, ','); },
+  npcs:() => [
+    npc('pilgrim1', 22, 11, 'right', 'Pilgrim', lk('#5a5a5a', '#e8dcc0', SK[2], '#d8d0c0', ['hood', 'satchel']), () => sayAs('Pilgrim', sideLine({ light:'Are you going to the Wall too? I\'m taking my great-grandmother\'s name. She never got to see it. I carry her rubbing every year.', even:'One more mile. My feet have walked it every spring for fifty years.', hurt:'It\'s all right to cry on this road. Everyone does. That\'s what it\'s for.', shadow:'(He stops, and lets you pass, and doesn\'t walk again until you\'re well ahead.)' }))),
+    npc('flowercart', 46, 11, 'left', 'Flower seller', lk('#8a5a7a', '#f3e7c9', SK[1], '#7a3e1e', ['apron', 'scarf']), () => sayAs('Flower seller', 'Flowers for the Wall. Free. Nobody pays on this road. Take a yellow one; they\'re for people nobody remembers.')) ] });
+(function buildReach() {
+  const B = regionBuilder('cinder_reach', 44, 34), m = B.m; border(m, 2);
+  rect(m, 0, 16, 42, 2, '='); rect(m, 12, 4, 2, 26, '='); rect(m, 2, 26, 40, 1, '=');
+  // east half: the ruins of Ash. Broken walls, blackened stone, and wildflowers through all of it.
+  for (let y = 4; y < 30; y++) for (let x = 24; x < 42; x++) if (m[y][x] === '.') m[y][x] = hsh(x, y, 5) < .35 ? ',' : '.';
+  for (const [x, y, w, h] of [[26, 5, 4, 1], [34, 6, 1, 4], [28, 20, 1, 4], [36, 21, 4, 1], [25, 11, 1, 3], [38, 12, 3, 1]]) rect(m, x, y, w, h, '#');
+  for (const [x, y] of [[30, 8], [33, 13], [27, 23], [39, 24], [31, 27], [36, 4], [26, 14], [40, 18]]) B.piece('rubble', x, y);
+  B.piece('namewall', 18, 7, 9, 1, { w:9 }); B.piece('fountain', 6, 22, 2, 2);
+  B.house(2, 10, 7, '#5a5a5a', '#d8d4cc', { name:'Remembrance Hall', w:15, h:10, music:'cinder_reach', floor:['#8a8680', '#7e7a74'], wall:'#e0dcd4', furn:[['stand', 3, 2, { c:'#8a8680' }], ['stand', 7, 2, { c:'#8a8680' }], ['stand', 11, 2, { c:'#8a8680' }], ['bench', 4, 5], ['bench', 10, 5], ['candle', 7, 7]] });
+  B.house(2, 19, 7, '#6a4a3a', '#e8dcc0', { name:'The Last Lamp', w:13, h:9, music:'cinder_reach', floor:['#7a6450', '#6e5a48'], wall:'#d8c8b0', furn:[['stove', 1, 1, { lit:true }], ['table', 5, 3], ['bed', 10, 1], ['bed', 10, 5], ['stand', 5, 6, { c:'#c8a060' }]] });
+  B.house(15, 19, 6, '#4a4a4a', '#d8d4cc', { name:'The Ashdown House', w:11, h:8, music:'cinder_reach', floor:['#7a6450', '#6e5a48'], wall:'#e0d4c0', furn:[['table', 4, 3], ['bed', 8, 1], ['shelf', 1, 1], ['candle', 5, 1]] });
+  for (const [x, y] of [[11, 15], [14, 15], [22, 15], [11, 25]]) B.lamp(x, y);
+  m[18][10] = 's';
+  regionMap('cinder_reach', B, { name:'Cinder Reach', sub:'At the edge of Ash', V:ASH_V, music:'cinder_reach', arrive:'A small grey town built right up against the ruins of a city. On the edge of it, a long stone wall with names cut into it, so many and so small they look like weather. East of the wall, Ash: broken streets, and wildflowers through all of it.',
+    exit:(nx, ny) => nx < 0 ? { map:'r_ashroad', x:58, y:9, dir:'left' } : null });
+  const IN = i => MAPS['cinder_reach_in' + i].room;
+  IN(0).npcs = [npc('thea', 7, 4, 'down', 'Thea Ashdown', lk('#4a4a5a', '#e8dcc0', SK[3], '#3a2414', ['glasses', 'longcoat']), talkThea),
+    npc('ashexhibit', 3, 3, 'up', 'Exhibit', null, () => say('(Under glass: a child\'s shoe, a market weight stamped ASH, a ferry token, and a page of sheet music, burned at the edges. The card says: "Ash had a market, a river, three choirs and a famous bakery. We don\'t know what any of it sounded like. Nobody who heard it lived."'), { invisible:true })];
+  IN(1).npcs = [npc('lampkeep', 5, 5, 'up', 'Innkeep Moira', lk('#6a4a3a', '#e8dcc0', SK[2], '#8a8078', ['apron', 'bun']), judged('Moira', ['light', 'even', 'hurt'], async () => { await sayAs('Moira', 'Sit. Everyone who comes here needs to sit after the Wall. There\'s bread, and a bed, and nobody will ask you anything.'); healAll(); await say('(Everything you carry is composed again.)'); return openShop('reach'); },
+    () => sayAs('Moira', 'There\'s no room. There\'s never any room, for that.')))];
+  IN(2).npcs = [npc('ashdown', 4, 4, 'up', 'Old Benedict Ashdown', lk('#3a3a3a', '#e8dcc0', SK[1], '#f4f1e8', ['scarf']), async () => {
+    await sayAs('Old Benedict Ashdown', 'My family were in Ash. The ones who got out went straight to Vellum and queued up to have their grief poured out of them. Into the well.');
+    await sayAs('Old Benedict Ashdown', 'We\'ve been ashamed of that for two hundred years. Not of the grief. Of handing it to somebody else to carry. Thea thinks we should forgive them. I think I\'m nearly there.');
+    if (S.flags.finalDone === 'light' && once('benedictWell')) await sayAs('Old Benedict Ashdown', '(He takes your hand in both of his.) Someone came up out of that well and told us. That it\'s been felt. All of it. I don\'t know who you are. Thank you.'); })];
+  REGION_NPCS.cinder_reach = () => [
+    ...ASH_STONES.map(([x, y, nm], i) => npc('ashstone' + i, x, y, 'up', 'A name stone', null, () => takeRubbing(i, nm), { invisible:true })),
+    npc('wallkeep', 15, 9, 'down', 'Wall-keeper', lk('#5a5a5a', '#d8d4cc', SK[4], '#141014', ['cap']), () => sayAs('Wall-keeper', S.flags.pavedWall ? '(He is sitting on the grey slab where the Wall was, with his chisel in his lap. He doesn\'t look up.)' : S.flags.finalDone === 'light' ? 'They all lit on their own, one night. Every name. Nobody lit them. I\'ve stopped asking how.' : 'Forty-one thousand, two hundred and six names. We add one or two a year, when someone finds out about a great-great-somebody. I cut them myself.')),
+    npc('child_r', 8, 18, 'up', 'Girl with a rubbing', lk('#d86a8a', '#fff3d6', SK[2], '#3a2414', ['braids'], { small:true }), () => sayAs('Girl with a rubbing', 'This one\'s mine. It says Ottilie, same as me. She was nine. I\'m nine. I\'m going to be ten for both of us.')),
+    npc('rebuilder', 20, 23, 'left', 'Mason', lk('#6a6a5a', '#e8dcc0', SK[3], '#7a3e1e', ['apron', 'hammer']), () => sayAs('Mason', sideLine({ light:'We\'re rebuilding one street of Ash. Just one. So there\'s somewhere for the names to live.', even:'Stone by stone. You can\'t rush a city.', shadow:'(He doesn\'t put the hammer down.)' }))),
+    ...(S.flags.doom && !S.flags.atoned ? [npc('pavers', 22, 12, 'down', 'Choir paving crew', lk('#7a7a80', '#3a3a40', SK[2], '#141014', ['cap']), talkPavers, { noComp:true, gone:() => S.flags.pavedWall || S.flags.wallSaved })] : []) ];
+})();
+const ASH_STONES = [[27, 6, 'MAREK, baker, of Fish Street'], [35, 9, 'THE THREE CHOIRS OF ASH, all voices'], [29, 21, 'OTTILIE, aged nine'], [38, 22, 'HANNES AND HANNA, twins'], [26, 12, 'the ferryman, name unknown'], [39, 13, 'EDDA, who kept the river lamps'], [31, 26, 'the whole of Bell Street'], [36, 5, 'NOBODY KNOWS. Remembered anyway.']];
+async function takeRubbing(i, nm) {
+  S.rub = S.rub || {}; await say(`(A fallen stone in the ash, with a name still cut in it: ${nm}.)`);
+  if (S.rub[i]) return say('(You already took a rubbing of this one.)');
+  S.rub[i] = 1; const n = Object.keys(S.rub).length; await say(`(You take a rubbing with a stub of charcoal. ${n} of ${ASH_STONES.length}.)`);
+  if (n === ASH_STONES.length) await say('(That\'s all of them. Thea, at the Remembrance Hall, will want to see.)');
+}
+async function talkThea() {
+  const n = Object.keys(S.rub || {}).length;
+  if (S.flags.theaDone) return sayAs('Thea Ashdown', S.flags.finalDone === 'light' ? 'The names are lit now. All of them. I keep thinking I should be surprised.' : 'Every spring we read the names out loud. It takes three days. Come, if you can.');
+  await sayAs('Thea Ashdown', 'Thea Ashdown, keeper of the Hall. The names on the Wall are the ones we know. Out in the ruins there are stones with names nobody\'s copied yet. Eight that I know of.');
+  if (n < ASH_STONES.length) return sayAs('Thea Ashdown', `If you\'re going out there, take rubbings. You have ${n} of ${ASH_STONES.length}. Every one we bring in gets cut into the Wall.`);
+  S.flags.theaDone = 1; S.items.names = 1; S.items.quill = (S.items.quill || 0) + 2; pay(400);
+  await sayAs('Thea Ashdown', '(She lays them out on the table, one by one, and reads each one under her breath.) Marek. The three choirs. Ottilie. Hannes and Hanna. The ferryman. Edda. Bell Street. And nobody knows.');
+  await sayAs('Thea Ashdown', 'Eight more names on the Wall. Thank you. Keep the copies. Somebody should carry them who isn\'t from here.');
+  await say('(You received Names of Ash, 2 Insight Quills and 400 Marks.)');
+}
+async function talkPavers() {
+  await sayAs('Choir paving crew', 'Orders from Vellum. Pave over the Wall. No more names, no more remembering, no more weather. You\'re... (he recognises you) ...you\'re the one who rang it.');
+  const c = await ask('The paving crew waits for your word.', ['Pave it', 'Leave the Wall alone', 'Leave']); if (c === 2 || c < 0) return;
+  if (c === 0) { sin(3); pay(500); S.flags.pavedWall = 1; return say('(They start at the north end. The town comes out to watch, and nobody stops them, and nobody looks at you. 500 Marks from the Choir purse.)'); }
+  const ok = await trainerFight('the paving crew', [[spAt('DISGUST', 2, 2), farLv()], [spAt('FEAR', 2, 1), farLv() + 1]]); if (!ok) return;
+  S.flags.wallSaved = 1; await say('(The crew pick up their tools and go back up the Ash Road. Behind you the people of Cinder Reach come out of their doors, and don\'t say anything, and one of them puts a yellow flower in your hand.)');
+}
+
+// =============================================================================
+//  GALLOWAY LANDING — a town on stilts in the bayou. The Choir's export dock: bottled feelings go out from here.
+// =============================================================================
+const BAYOU_V = REGION_VIBE({ sky:'#c8d0b0', fog:'#b8c4a0', fogNear:12, fogFar:40, hemi:'#f0f0d0', sun:1.5, ground:['#4f6a3a', '#486234', '#567240'], tall:['#3a5a2a', '#46663a', '#2f4a24'], trees:'willow', treeC:['#4a6a3a', '#567a44', '#3e5a30'], road:'#7a6a50', parts:'fireflies', partC:['#f4f0a0', '#e8f088'], groundFog:'#c4ccb0', fogOp:.35 });
+farRoad('r_bayou', { name:'The Black Bayou', sub:'Rendering Ditch to Galloway Landing', V:BAYOU_V, music:'bayou_road', side:'west', origin:{ map:'r_ditch', x:1, y:11, dir:'right' }, town:{ map:'galloway', x:44, y:16, dir:'left' },
+  arrive:'West of the Ditch the ground goes soft and then goes under. Boardwalks over black water, moss hanging off the trees like washing. Something big moves in the water and decides not to bother you.',
+  sign:'GALLOWAY LANDING ← (Mind the gators. They mind you.)',
+  deco:B => { rect(B.m, 6, 3, 18, 4, '~'); rect(B.m, 30, 13, 22, 4, '~'); B.piece('stilts', 14, 13, 2, 2, { c:'#8a6a4a' }); B.piece('boat', 40, 4, 2, 1); B.piece('stilts', 44, 4, 2, 2, { c:'#6a7a5a' }); },
+  npcs:() => [
+    npc('fisher_b', 28, 11, 'up', 'Fisherman', lk('#5a6a4a', '#e8dcc0', SK[4], '#d8d0c0', ['cap', 'beard']), () => sayAs('Fisherman', sideLine({ light:'Catfish, mostly. Sometimes a boot. Once a whole piano. Didn\'t play, but it was a nice piano.', even:'They\'re biting. Not at you. At the bait.', shadow:'(He reels in, slowly, and holds the knife he cleans fish with where you can see it.)' }))),
+    npc('boatgirl', 18, 11, 'down', 'Girl with a pole-boat', lk('#e8a83a', '#fff3d6', SK[4], '#141014', ['braids'], { small:true }), () => sayAs('Girl with a pole-boat', 'I\'m racing Tee-Jean on Sunday. I\'m going to win. He doesn\'t know that yet. Nobody tell him.')) ] });
+(function buildGalloway() {
+  const B = regionBuilder('galloway', 46, 34), m = B.m; border(m, 2);
+  rect(m, 2, 16, 44, 2, '='); rect(m, 2, 21, 42, 5, '~'); for (const x of [10, 22, 34]) rect(m, x, 21, 2, 5, '=');   // the bayou through town, with three plank bridges
+  rect(m, 2, 28, 42, 1, '='); rect(m, 22, 4, 2, 12, '=');
+  B.house(4, 10, 8, '#6a3a2a', '#e8d0a0', { name:'The Loose Board', w:15, h:10, music:'galloway', floor:['#8a6a48', '#7e6040'], wall:'#e0c8a0', furn:[['piano', 1, 1], ['stand', 4, 1, { c:'#c0503a' }], ['table', 4, 4], ['table', 8, 4], ['table', 12, 4], ['rug', 7, 7], ['stove', 13, 1, { lit:true }]] });
+  B.house(26, 10, 7, '#3a5a4a', '#d8d0b0', { name:'Auntie Rose\'s Boarding House', w:11, h:9, music:'galloway', floor:['#7a6450', '#6e5a48'], wall:'#e8dcc0', furn:[['bed', 1, 1], ['bed', 9, 1], ['bed', 1, 5], ['table', 5, 3], ['plant', 9, 5]] });
+  B.house(14, 10, 6, '#5a4a3a', '#c8c0a8');
+  // the export dock, on the far bank: crates stencilled with feelings
+  for (const [x, y] of [[30, 30], [32, 30], [34, 30], [36, 30], [31, 31], [35, 31]]) B.piece('crates', x, y);
+  B.piece('boat', 40, 24, 2, 1); B.piece('stilts', 6, 23, 2, 2, { c:'#8a6a4a' }); B.piece('stilts', 16, 23, 2, 2, { c:'#6a8aa8' }); B.piece('stilts', 28, 23, 2, 2, { c:'#a86a6a' });
+  for (const [x, y] of [[3, 15], [21, 15], [25, 15], [43, 15], [21, 27], [43, 27]]) B.lamp(x, y);
+  m[18][20] = 's';
+  regionMap('galloway', B, { name:'Galloway Landing', sub:'A town on stilts', V:BAYOU_V, music:'galloway', arrive:'Houses on stilts over brown water, lanterns strung between them, a dance hall with its doors open and a fiddle going inside. Across the water, a long dock stacked with crates, and men in grey sleeves loading a boat.',
+    exit:(nx, ny) => nx >= 46 ? { map:'r_bayou', x:1, y:9, dir:'right' } : null });
+  const IN = i => MAPS['galloway_in' + i].room;
+  IN(0).npcs = [npc('band', 2, 2, 'down', 'The band', lk('#3a3a5a', '#e8a83a', SK[4], '#141014', ['tophat']), () => sayAs('Fiddler', sideLine({ light:'This one\'s called "Two Steps from the Water." Dance or don\'t, but tap something.', even:'Requests cost a Mark. Good requests cost two.', hurt:'Here. Slow one. For you. Nobody has to dance to a slow one.', shadow:'(The music stops. Every head in the room turns. Then it starts again, a lot louder.)' }))),
+    npc('boilcook', 13, 3, 'down', 'Big Celestine', lk('#c0503a', '#f3e7c9', SK[5], '#141014', ['apron', 'bandana']), judged('Big Celestine', ['light', 'even', 'hurt'], async () => { await sayAs('Big Celestine', 'Boil\'s on. Grab a paper and sit down wherever the table is.'); return openShop('boil'); },
+      () => sayAs('Big Celestine', 'Kitchen\'s closed, cher. Kitchen\'s been closed since you walked in.'))),
+    npc('dancer', 8, 7, 'up', 'Dancer', lk('#d86a8a', '#f3e7c9', SK[3], '#3a2414', ['earrings']), () => sayAs('Dancer', 'Every Saturday, since I was six. My mama danced here. Her mama too. The floor\'s got our feet worn into it.'))];
+  IN(1).npcs = [npc('rose', 5, 5, 'up', 'Auntie Rose', lk('#8a5a7a', '#f3e7c9', SK[5], '#d8d0c0', ['scarf', 'glasses']), judged('Auntie Rose', ['light', 'even', 'hurt'], async () => { await sayAs('Auntie Rose', 'Bed\'s made. Mosquito net\'s got a hole but the mosquitoes don\'t know. Lie down, baby.'); healAll(); await say('(Everything you carry is composed again.)'); },
+    () => sayAs('Auntie Rose', 'I got no rooms for what you\'re carrying. You can sleep on the dock with the rest of their cargo.')))];
+  REGION_NPCS.galloway = () => [
+    npc('factor', 33, 29, 'up', 'Factor Lacroix', lk('#7a7a80', '#3a3a40', SK[1], '#141014', ['tophat', 'longcoat']), talkFactor, { noComp:true, gone:() => S.flags.dockBust }),
+    npc('dockhand', 37, 29, 'left', 'Dockhand', lk('#5a5a5a', '#e8dcc0', SK[4], '#141014', ['cap']), () => sayAs('Dockhand', S.flags.dockBust ? 'No more grey crates. We load shrimp now. Shrimp don\'t cry when you lift them.' : 'I don\'t ask what\'s in them. They pay on Fridays. (A crate beside him is stencilled JOY, FRAGILE, KEEP DARK.)')),
+    npc('teejean', 12, 27, 'up', 'Tee-Jean', lk('#4f8aa8', '#fff3d6', SK[4], '#3a2414', ['cap']), boatRace),
+    npc('preacher_g', 24, 18, 'down', 'Reverend Dumas', lk('#1a1a1a', '#f3e7c9', SK[5], '#d8d0c0', ['book']), () => sayAs('Reverend Dumas', sideLine({ light:'Blessings. You walked in here like Sunday morning.', even:'The river gives and the river keeps. Mostly it keeps.', hurt:'Come to the water\'s edge at sundown. We sing. You can just listen.', shadow:'(He puts his hand on his Bible, not to swear on it. To hold on.)' }))),
+    npc('kid_g', 30, 18, 'down', 'Kid with a jar', lk('#e8a83a', '#fff3d6', SK[3], '#7a3e1e', [], { small:true }), () => sayAs('Kid with a jar', 'I catch fireflies and let them go. My brother catches them and keeps them. Mama says that\'s the difference between us and the men on the dock.')) ];
+})();
+async function talkFactor() {
+  const member = (S.choir && S.choir.rank >= 1) || S.flags.doom;
+  await sayAs('Factor Lacroix', member ? 'Ah. One of ours. Every bottle the Welkin cries goes out through this dock: south, west, over the sea. Feelings fetch a very good price where people have run out of their own.' : 'Lacroix. Import, export. Mostly export. What\'s in the crates? Feelings. Fresh. Somebody else\'s, so nobody minds.');
+  if (member) { if (!once('factorCut')) return sayAs('Factor Lacroix', 'Your cut went to Sable. As usual.');
+    const c = await ask('Factor Lacroix: The Choir sends its regards, and a share.', ['Take the share', 'Shut the dock down']); if (c === 0) { sin(3); pay(1500); return say('(1,500 Marks, in grey coin, from a box that smells of the sea.)'); } }
+  const c = await ask('The crates are full of bottled feelings: Joy, Calm, Hope, all of it taken from somebody.', ['Smash the crates', 'Leave it']); if (c !== 0) return;
+  await sayAs('Factor Lacroix', 'I wouldn\'t.'); const lv = farLv();
+  const ok = await trainerFight('Factor Lacroix', [[spAt('DISGUST', 2, 2), lv], [spAt('JOY', 1, 0), lv + 1], [spAt('CALM', 2, 1), lv + 2]]); if (!ok) return;
+  S.flags.dockBust = 1; pay(300); S.items.hearth = (S.items.hearth || 0) + 2;
+  await say('You break the crates open on the dock. Bottle after bottle shatters on the boards, and what\'s inside goes up like warm air off the water, back toward the Welkin, to whoever it came from.');
+  await say('(The dockhands stand back and let it happen. One of them is crying, and laughing, and doesn\'t know which. 300 Marks and 2 Mending Lights, from a town that\'s glad.)');
+}
+async function boatRace() {
+  await sayAs('Tee-Jean', 'Pole-boat race, to the cypress and back. Ten Marks to enter. Winner takes the pot. You in?');
+  const c = await ask('Race Tee-Jean? (10 Marks)', ['Race', 'Not now']); if (c !== 0) return; if ((S.marks || 0) < 10) return sayAs('Tee-Jean', 'Ten Marks. I\'m not running a charity, I\'m running a race.');
+  S.marks -= 10; let lead = 0;
+  for (const [q, opts, good] of [['Off the line!', ['Push hard', 'Push steady'], 1], ['The channel narrows round a log.', ['Go left of it', 'Go right of it'], Math.random() < .5 ? 0 : 1], ['Round the cypress, home stretch!', ['Everything you\'ve got', 'Keep it smooth'], 0]]) {
+    const k = await ask(q, opts); if (k === good) { lead++; await say('(You pull ahead.)'); } else await say('(Tee-Jean slides past you, grinning.)'); }
+  if (lead >= 2) { pay(40); if (once('raceWin')) S.items.charm = (S.items.charm || 0) + 2; return sayAs('Tee-Jean', 'Aw, MAN. Fine. Fine! Take the pot. (40 Marks, and the first time, 2 Kindred Charms out of his tackle box.)'); }
+  return sayAs('Tee-Jean', 'Ha! Born on this water. Come back when you\'ve got webbed feet.');
+}
+
+// =============================================================================
+//  DRY FORK — a desert copper town, half of it a ghost town. Where the Choir's needles come from.
+// =============================================================================
+const DESERT_V = REGION_VIBE({ sky:'#f0d8b0', fog:'#f0dcb8', fogNear:22, fogFar:60, hemi:'#fff4d8', sun:2.2, ground:['#d8b880', '#ccac74', '#e0c08a'], tall:['#c8a860', '#bc9c54', '#d0b068'], trees:'dead', treeC:['#7a6a54', '#6a5a46', '#8a7a62'], road:'#b8946a', parts:'motes', partC:['#f8e8c8', '#f0d8a8'] });
+farRoad('r_drywash', { name:'The Dry Wash', sub:'Tumbledown Fair to Dry Fork', V:DESERT_V, music:'dry_wash', side:'west', origin:{ map:'r_tumbledown', x:1, y:16, dir:'right' }, town:{ map:'dry_fork', x:44, y:16, dir:'left' },
+  arrive:'Out past the fair\'s back fence the grass gives up. Sand, rock, a dry riverbed full of white stones. The sky is enormous. A wagon wheel lies in the road like somebody\'s dropped sentence.',
+  sign:'DRY FORK ← 6. NEXT WATER 6.',
+  deco:B => { for (const [x, y] of [[8, 4], [15, 13], [26, 5], [33, 14], [44, 4], [50, 13], [20, 15]]) B.piece('cactus', x, y); B.piece('rubble', 38, 5); rect(B.m, 4, 3, 50, 1, ','); },
+  npcs:() => [
+    npc('prospector_r', 30, 11, 'down', 'Prospector', lk('#8a6a3a', '#e8dcc0', SK[2], '#d8d0c0', ['tophat', 'beard']), () => sayAs('Prospector', sideLine({ light:'Copper\'s in the hills, gold\'s in your head. That\'s what my pa said. Then he found gold. Still annoyed about it.', even:'Water\'s six miles that way, and so\'s whisky. Same building.', shadow:'(He puts one hand on his mule and one on the shotgun in the saddle.)' }))),
+    npc('lizardkid', 12, 11, 'up', 'Kid with a lizard', lk('#e8a83a', '#fff3d6', SK[3], '#7a3e1e', ['cap'], { small:true }), () => sayAs('Kid with a lizard', 'His name is Sir Lancelot. He bites. He\'s a knight.')) ] });
+(function buildDryFork() {
+  const B = regionBuilder('dry_fork', 46, 34), m = B.m; border(m, 2);
+  rect(m, 2, 16, 44, 2, '='); rect(m, 22, 4, 2, 26, '='); rect(m, 2, 28, 42, 1, '=');
+  rect(m, 26, 5, 10, 1, 't'); B.piece('tunnelmouth', 37, 4, 2, 2); B.piece('minecart', 30, 5); B.piece('watertower', 8, 24, 2, 2);
+  rect(m, 3, 30, 18, 1, '~');   // the trickle that gives the town its name
+  for (const [x, y] of [[4, 5], [16, 6], [40, 22], [30, 24], [14, 24]]) B.piece('cactus', x, y);
+  B.house(4, 10, 8, '#7a4a2a', '#d8b888', { name:'The Copper Penny', w:15, h:10, music:'dry_fork', floor:['#8a6a48', '#7e6040'], wall:'#d8b888', furn:[['piano', 1, 1], ['stand', 5, 1, { c:'#b8784a' }], ['stand', 8, 1, { c:'#b8784a' }], ['table', 4, 5], ['table', 9, 5], ['cardtable', 12, 3], ['rug', 7, 7]] });
+  B.house(14, 10, 7, '#6a5a3a', '#e0c8a0', { name:'Dry Fork General', w:11, h:9, music:'dry_fork', floor:['#8a7458', '#7e6a50'], wall:'#e0c8a0', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 7, 1], ['shelf', 9, 1], ['desk', 5, 4], ['sacks', 2, 6]] });
+  B.house(26, 10, 6, '#5a5a5a', '#c8b898', { name:'Assay Office', w:11, h:8, music:'dry_fork', floor:['#7a6450', '#6e5a48'], wall:'#c8b898', furn:[['desk', 5, 2], ['shelf', 1, 1], ['shelf', 9, 1], ['trunk', 2, 5]] });
+  B.house(33, 10, 6, '#8a7a5a', '#a89878', { name:'Boarded House', w:11, h:8, music:'dry_fork', floor:['#6a5a48', '#5e5040'], wall:'#a89878', furn:[['bed', 8, 1], ['table', 4, 3], ['candle', 4, 1]] });
+  B.house(4, 19, 7, '#8a7a5a', '#a89878'); B.house(26, 19, 6, '#8a7a5a', '#a89878'); B.house(34, 19, 6, '#7a4a2a', '#d8b888');
+  for (const [x, y] of [[3, 15], [21, 15], [25, 15], [43, 15]]) B.lamp(x, y);
+  m[18][20] = 's';
+  regionMap('dry_fork', B, { name:'Dry Fork', sub:'Copper town', V:DESERT_V, music:'dry_fork', arrive:'Half a town. One side of the street has painted fronts and people on the porches; the other side is boarded up and leaning. Up the hill, the mouth of a copper mine, and a little railway running out of it full of green-red stone.',
+    exit:(nx, ny) => nx >= 46 ? { map:'r_drywash', x:1, y:9, dir:'right' } : null });
+  const IN = i => MAPS['dry_fork_in' + i].room;
+  IN(0).npcs = [npc('pennykeep', 6, 2, 'down', 'Ruby Coombs', lk('#8a3a2a', '#f3e7c9', SK[2], '#7a3e1e', ['apron']), judged('Ruby', ['light', 'even', 'hurt'], async () => { await sayAs('Ruby Coombs', S.flags.forkTold ? 'On the house. You\'re the one who told us. Sit anywhere.' : 'Beans, sarsaparilla, and the Draughts the miners swear by. My husband\'s the foreman, so don\'t start anything.'); return openShop('saloon'); },
+      () => sayAs('Ruby Coombs', 'Bar\'s closed. Piano\'s closed. Air\'s closed.'))),
+    npc('pianist_f', 2, 2, 'down', 'Piano player', lk('#2a2a2a', '#e8dcc0', SK[4], '#141014', ['tophat']), () => sayAs('Piano player', 'Piano\'s two notes out. I play around them. Like everyone in this town.')),
+    npc('miners', 10, 6, 'up', 'Miners', lk('#5a4a3a', '#b8784a', SK[3], '#3a2414', ['cap', 'lantern']), () => sayAs('Miner', S.flags.forkTold === 'told' ? 'We walked out. Half of us. The other half went back down. Nobody\'s talking to anybody. It\'s better. It\'s worse. It\'s better.' : 'Fine-gauge copper, the order says. Fine as hair. Don\'t know what anyone needs it fine as hair for.'))];
+  IN(1).npcs = [npc('storekeep_f', 5, 3, 'down', 'Mr. Okonjo', lk('#4a5a3a', '#e8dcc0', SK[5], '#d8d0c0', ['glasses', 'apron']), judged('Mr. Okonjo', ['light', 'even', 'hurt', 'shadow'], async () => { await sayAs('Mr. Okonjo', 'General store. Generally everything. Specifically, not much.'); return openShop('fork'); }, () => {}))];
+  IN(2).npcs = [npc('ledger_f', 5, 1, 'up', 'Ledger', null, readAssayLedger, { invisible:true })];
+  IN(3).npcs = [npc('oldtimer', 4, 4, 'up', 'Gus the Old-timer', lk('#6a5a3a', '#e8dcc0', SK[2], '#f4f1e8', ['beard', 'tophat']), () => sayAs('Gus the Old-timer', 'Boarded my own house up, then remembered I live in it. Came in round the back. Still do. Town\'s half empty since the price of copper went funny. Went funny about the time the grey sleeves started buying it.'))];
+  REGION_NPCS.dry_fork = () => [
+    npc('foreman', 24, 7, 'down', 'Foreman Ezra Coombs', lk('#5a4a3a', '#b8784a', SK[3], '#3a2414', ['cap', 'lantern', 'beard']), talkForeman),
+    npc('panner', 10, 29, 'up', 'Panning stream', null, panForGold, { invisible:true }),
+    npc('cartride', 29, 6, 'down', 'Minecart', null, async () => { await say('(You climb into the empty minecart. Someone at the top gives it a shove.)'); await say('(It rattles down the little line, past the cacti, and stops very gently at the bottom. A child on a porch applauds.)'); }, { invisible:true }),
+    npc('sheriff_f', 21, 18, 'down', 'Deputy Marlow', lk('#8a6a3a', '#d8b85a', SK[1], '#7a3e1e', ['cap']), judged('Deputy Marlow', ['light', 'even'], () => sayAs('Deputy Marlow', 'Sheriff\'s up in the hills chasing a cow. I\'m in charge. Please don\'t do anything.'),
+      () => sayAs('Deputy Marlow', '(His hand goes to his belt and stays there.) Just passing through. Right? Right.'))),
+    npc('porchkid', 38, 24, 'up', 'Kid on a porch', lk('#d86a8a', '#fff3d6', SK[2], '#3a2414', ['braids'], { small:true }), () => sayAs('Kid on a porch', 'There\'s a ghost in the boarded house. It\'s Gus. He\'s not dead, he just likes it in there.')) ];
+})();
+async function readAssayLedger() {
+  await say('(The assay ledger. Shipments of copper wire, fine gauge, every month for eleven years. Every one to the same buyer.)');
+  await say('"Hollow Choir, care of Inkgutter Alley, Vellum. 40 drums, finest gauge. For needles. Payment in full, in grey."');
+  if (!S.flags.forkLedger) { S.flags.forkLedger = 1; await say('(The copper for the Choir\'s needles comes out of Dry Fork\'s hill. Foreman Coombs will want to know you\'ve seen this. Or he won\'t.)'); }
+}
+async function talkForeman() {
+  if (S.flags.forkTold) return sayAs('Foreman Ezra Coombs', S.flags.forkTold === 'told' ? 'The mine\'s shut. Half the town hates me. I sleep like a baby. Funny, that.' : '(He doesn\'t look up from the cart.)');
+  if (!S.flags.forkLedger) return sayAs('Foreman Ezra Coombs', 'Ezra Coombs, foreman. Copper\'s good, pay\'s good, don\'t go in the assay office. (A pause.) I mean it. Don\'t.');
+  await sayAs('Foreman Ezra Coombs', '(He sees your face and puts down his lantern.) You read it. Needles. I worked it out three winters ago. I\'ve been sending it anyway, because the town eats on it.');
+  const member = (S.choir && S.choir.rank >= 1) || S.flags.doom;
+  const c = await ask('What should Ezra do?', member ? ['Tell the town the truth', 'Keep quiet, and keep sending it', 'Double the order (for the Choir)'] : ['Tell the town the truth', 'Keep quiet, and keep sending it']);
+  if (c === 0) { S.flags.forkTold = 'told'; S.items.penny = 1; pay(250); await say('(He tells them in the saloon that night. It goes badly, and then it goes on all night, and in the morning half the miners won\'t go down. The order to Vellum goes unfilled for the first time in eleven years.)'); return say('(Ruby slides the saloon\'s lucky Copper Penny across the bar to you, and 250 Marks from the collection jar.)'); }
+  if (c === 1) { S.flags.forkTold = 'quiet'; sin(1); return sayAs('Foreman Ezra Coombs', 'Yeah. Yeah. That\'s what I thought too. (He picks the lantern back up.) Thanks for nothing, stranger.'); }
+  if (c === 2) { S.flags.forkTold = 'more'; sin(3); pay(1200); return say('(Ezra writes the new figure in the ledger with a very steady hand, and doesn\'t look at you again. The Choir pays 1,200 Marks for the introduction.)'); }
+}
+async function panForGold() {
+  await say('(A thin stream over white stones: the only water in Dry Fork, and what\'s left of the fork in the river.)');
+  const c = await ask('Pan for gold? (10 Marks for the pan)', ['Pan', 'Leave it']); if (c !== 0) return; if ((S.marks || 0) < 10) return say('(You can\'t afford the pan.)');
+  S.marks -= 10; const r = Math.random();
+  if (r < .45) return say('(Sand, sand, a very small snail. Nothing.)');
+  if (r < .85) { const g = 15 + Math.floor(Math.random() * 40); pay(g); return say(`(A few bright flakes in the bottom of the pan. ${g} Marks at the assay office.)`); }
+  if (r < .97) { pay(120); return say('(A nugget the size of a pea. 120 Marks!)'); }
+  S.items.quill = (S.items.quill || 0) + 1; return say('(In the pan: a gold nib from somebody\'s pen, lost a hundred years ago. You can still write with it. (An Insight Quill.))');
+}
+
+// ---------------------------------------------------------------- gates, hints, the map, the far line, the grey
+farGate('highcrest', 'west', [9, 10], { map:'r_scholars', x:58, y:9, dir:'left' });
+farGate('r_siding', 'east', [26, 27], { map:'r_switchback', x:1, y:9, dir:'right' });
+farGate('r_cindercut', 'east', [17, 18], { map:'r_ashroad', x:1, y:9, dir:'right' });
+farGate('r_ditch', 'west', [11, 12], { map:'r_bayou', x:58, y:9, dir:'left' });
+farGate('r_tumbledown', 'west', [16, 17], { map:'r_drywash', x:58, y:9, dir:'left' });
+for (const id of ['r_scholars', 'quillsby', 'r_switchback', 'whitecrown', 'r_ashroad', 'cinder_reach', 'r_bayou', 'galloway', 'r_drywash', 'dry_fork']) { FAR_PLACES.add(id); GATE_SHUT.add(id); }
+Object.assign(HINTS, {
+  highcrest:{ id:'hint_qb', x:6, y:11, name:'Visiting lecturer', look:lk('#4a3a5a', '#e8dcc0', SK[0], '#d8d0c0', ['glasses', 'book']), place:'Quillsby',
+    yes:'I teach at Quillsby. The west gate, out past the edge of the square, down the leafy road. Go and see the museum. Orrin Vale lectured there, you know. Two hundred years ago. We still have his notes.', no:'The west road? It goes to a university. You wouldn\'t like it. There are rules.' },
+  r_siding:{ id:'hint_wc', x:20, y:27, name:'Old platelayer', look:lk('#5a4a3a', '#e8dcc0', SK[3], '#8a8078', ['cap', 'scarf']), place:'Whitecrown',
+    yes:'See where the rails run off east, through the gap in the fence? Old branch line. Goes up the Switchback to Whitecrown, in the snow. Observatory up there. And the Vale house, if you\'re that sort of curious.', no:'The branch line? Closed. Snowed in. Go home.' },
+  r_cindercut:{ id:'hint_cr', x:21, y:16, name:'Off-duty soldier', look:lk('#4a5a3a', '#d8b85a', SK[2], '#3a2414', ['helmet']), place:'Cinder Reach',
+    yes:'East of the barracks, through the gap, there\'s the Ash Road. Leads to what\'s left of Ash, and a little town that keeps the names. I go every spring. My unit thinks I\'m going fishing.', no:'East? Nothing east. Nothing at all.' },
+  r_ditch:{ id:'hint_gl2', x:5, y:14, name:'Boat-mender', look:lk('#5a6a4a', '#e8dcc0', SK[4], '#d8d0c0', ['cap', 'beard']), place:'Galloway Landing',
+    yes:'Ditch drains west into the bayou, and so does the road. Galloway Landing, at the end. Dance hall, boil, the best fiddler you\'ll ever hear. And a dock I\'d keep away from.', no:'West is swamp. Swamp is swamp. Good day.' },
+  r_tumbledown:{ id:'hint_df', x:5, y:13, name:'Retired strongman', look:lk('#8a3a2a', '#f3e7c9', SK[3], '#141014', ['beard', 'stout']), place:'Dry Fork',
+    yes:'Out the fair\'s back fence, on the west side, there\'s the Dry Wash. Six miles of nothing, then Dry Fork. Copper town. I wrestled a man there once for a sarsaparilla. Lost. Best day of my life.', no:'The back fence? It\'s there to keep things in. Like you.' } });
+Object.assign(CHORD_FAR, {
+  quillsby:['Every lecture in Quillsby stopped mid-sentence. Thorne said it was mass hysteria. Then he sat down and didn\'t finish his.', 'The museum\'s closed. Dr. Ashcombe covered every case with a sheet. She said they shouldn\'t have to see.', 'They\'ve set up a whole department to study what you did. Nobody\'s enrolled.', 'Students from the Welkin came running down the Scholars\' Way. Some of them didn\'t make it all the way.', 'The bells rang on their own. Every college. One long note.', 'I\'m going to write about it. Someone has to write about it. I don\'t know which words to use.'],
+  whitecrown:['The snow stopped falling. Just stopped, in the air, for a whole minute. Then it came down again.', 'Isolde says one of the constellations went dark that night. The Hope. It\'s back now. She checks it every hour.', 'We\'re too high up to have heard it. We felt it in our teeth.', 'Nobody goes in the Vale house. Now nobody goes near it.', 'Pieter\'s sent the cable car down every day since, empty, in case anyone from below wants to come up.', 'Up here we can still see the stars. Down there, I hear, they don\'t look up any more.'],
+  cinder_reach:['Two hundred years ago they did this to Ash with bottles. You did it with a bell.', 'Thea read the names out loud all night after. All forty-one thousand. She wouldn\'t stop.', 'We\'ve had grey-sleeves on the Ash Road with shovels. They want the Wall. They won\'t get it.', 'My family poured their grief into that well, and I thought that was the worst thing anyone could do. I was wrong.', 'Even the wildflowers turned their heads away from the Welkin that night. I saw it.', 'You can stand at the Wall if you want. Nobody here will stop you. Read the names. All of them.'],
+  galloway:['The band stopped. First time since the flood of \'09. Then Celestine said "play," and they played.', 'The dock\'s busier than ever. Bottles going out by the boatload. Everyone in the Welkin\'s feelings, sold by the crate.', 'Reverend Dumas took everyone down to the water and we sang till the sun came up, to keep it out. It stayed out.', 'Gators went under and didn\'t come up for a week. Even they knew.', 'Auntie Rose has got Welkin children sleeping in every bed. Don\'t ask her how many. Don\'t ask her where from.', 'We\'re a long way from anywhere, cher. Not far enough, it turns out.'],
+  dry_fork:['Every pick in the mine stopped at once. Then the men came up and stood in the sun and didn\'t say anything for an hour.', 'The Choir\'s ordered twice the copper now. Ezra won\'t say what he told them.', 'Gus says he\'s seen a lot of strange weather. Never a quiet like that one.', 'Half the town wants to cut the copper off. The other half wants paying. Ruby\'s locked the saloon till they decide.', 'The desert didn\'t mind. The desert never minds. I\'m trying to learn that.', 'You\'re a long way from the Welkin. Are you running from it, or bringing it?'] });
+{ const _mn = mapNodes; mapNodes = function () { const R = _mn(), { N, L } = R, ang = t => (WHEEL.indexOf(t) / WHEEL.length) * Math.PI * 2 - Math.PI / 2;
+  const far = (id, name, from, t, r, da, heard) => { const a = ang(t) + da; N.push({ id, name, x:300 + Math.cos(a) * r, y:300 + Math.sin(a) * r, kind:id.startsWith('r_') ? 'farroad' : 'far', heard }); L.push([from, id]); };
+  far('r_scholars', 'The Scholars\' Way', 'highcrest', 'CONFIDENCE', 258, -.18, 'hint_qb'); far('quillsby', 'Quillsby', 'r_scholars', 'CONFIDENCE', 318, -.24, 'hint_qb');
+  far('r_switchback', 'The Switchback', 'r_siding', 'HOPE', 200, .32, 'hint_wc'); far('whitecrown', 'Whitecrown', 'r_switchback', 'HOPE', 262, .3, 'hint_wc');
+  far('r_ashroad', 'The Ash Road', 'r_cindercut', 'ANGER', 200, .3, 'hint_cr'); far('cinder_reach', 'Cinder Reach', 'r_ashroad', 'ANGER', 262, .3, 'hint_cr');
+  far('r_bayou', 'The Black Bayou', 'r_ditch', 'DISGUST', 200, -.3, 'hint_gl2'); far('galloway', 'Galloway Landing', 'r_bayou', 'DISGUST', 262, -.3, 'hint_gl2');
+  far('r_drywash', 'The Dry Wash', 'r_tumbledown', 'SURPRISE', 200, .3, 'hint_df'); far('dry_fork', 'Dry Fork', 'r_drywash', 'SURPRISE', 262, .3, 'hint_df');
+  return R; }; }
+FAR_LINE.push(['quillsby', 'Quillsby', 6], ['whitecrown', 'Whitecrown', 28], ['cinder_reach', 'Cinder Reach', 28], ['galloway', 'Galloway Landing', 19], ['dry_fork', 'Dry Fork', 26]);
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
