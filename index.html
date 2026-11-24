@@ -687,7 +687,7 @@ const RESPONSES = [
 // ---------------------------------------------------------------- items ------
 Object.assign(ITEMS, {
   salts:    { name:'Smelling Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
-  hearth:   { name:'Resurrection Orb',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
+  hearth:   { name:'Mending Light',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
   charm:    { name:'Kindred Charm',  res:30, desc:'+30 Understanding with the Manif you\'re facing', price:140 },
   ember:    { name:'Ember Draught',  atk:2, desc:'Sharply raises one Manif\'s Force', price:110 },
   iron:     { name:'Iron Tea',       def:2, desc:'Sharply raises one Manif\'s Poise', price:110 },
@@ -702,7 +702,7 @@ const ITEM_INFO = {
   tonic:'Restores all of one Manif\'s Composure. Use it in battle or from the Bag.',
   salts:'Brings back a Manif that was overwhelmed, with half its Composure. Use it in battle or from the Bag.',
   hearth:'Restores half the Composure of every Manif in your Chorus at once. Best saved for a hard battle.',
-  charm:'In battle: +30 Understanding with the Manif you\'re facing. At 100% a wild one settles and will stay with you; a Keeper\'s goes back to them, understood. No use when several face you at once, or on the Hush.',
+  charm:'In battle: +30 Understanding with the Manif you\'re facing. At 100% a wild one settles and will stay with you; a Holder\'s goes back to them, understood. No use when several face you at once, or on the Hush.',
   ember:'In battle: sharply raises one Manif\'s Force (how hard its Expressions hit) for the rest of the meeting.',
   iron:'In battle: sharply raises one Manif\'s Poise (how well it takes a hit) for the rest of the meeting.',
   quill:'From the Bag: one Manif you choose gains a level straight away.',
@@ -4505,7 +4505,7 @@ const ROOM_TXT = {
     res:'What are you looking at? …Sorry. Sorry. It\'s the Heart. It gets into the bricks.', calm:'We patched the wall. Together. He held the plaster and I didn\'t shout once.' }
 };
 const ROOM_HINTS = ['Opposites on the wheel hit twice as hard. Bring the feeling that undoes the one you face.', 'Two neighbouring feelings acting together can fuse. Keep a pair in your party.',
-  'Reach Out isn\'t weakness. The more a Manif feels heard, the likelier it is to stay.', 'Keepers on the routes judge your aura. Some will only spar with the bright, some only with the dark.',
+  'Reach Out isn\'t weakness. The more a Manif feels heard, the likelier it is to stay.', 'Holders on the routes judge your aura. Some will only spar with the bright, some only with the dark.',
   'The Hush wears whatever you\'ve carried longest. Think about what you\'re carrying.', 'Hearts are far stronger than anything on their road. Rest before you climb the shrine.',
   'There\'s a market in the Inkgutter for people with shadow on them. Cheaper, if you can stand it.', 'Every Manif is someone\'s real feeling. Listen to what it says when it settles.',
   'Waystones take you home in a blink. Worth carrying one.', 'Letting a Manif go isn\'t losing it. Your Codex remembers.'];
@@ -5769,8 +5769,8 @@ const WREN_TOPICS = [
     'Every Heart you settle stirs the rest of the Welkin up a little. Feelings everywhere grow a bit stronger and harder to reach, and the strongest learn to go for whoever they hurt most.']],
   ['people', 'People and trust', ['Out on the routes, people train Manifs. Some train them to protect, some train them for war. They\'ll spar with you if they trust you, and pay you for it.',
     'Others need help. Do them a favour and they\'ll give you something back. Whether anyone trusts you depends on your aura, and on what you\'re carrying.']],
-  ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from Keepers and from favours.',
-    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Resurrection Orb mends your whole Chorus by half. Smelling Salts wake a Manif that\'s been overwhelmed.',
+  ['money', 'Marks, items and jobs', ['Marks are money. You earn them by settling Manifs, from jobs in the cities, from Holders and from favours.',
+    'A Honey Cake brings back some of a Manif\'s Composure, and Bitter Tonic brings back all of it. A Mending Light heals your whole Chorus by half. Smelling Salts wake a Manif that\'s been overwhelmed.',
     'Look in the Bag in the menu to see everything you have. The Archive Supply here sells the basics.']],
   ['events', 'Trouble in the cities', ['Every city is in trouble right now, and it\'s the Choir\'s doing. Children who\'ve stopped laughing, a station held hostage, a whole town asleep. Somebody in each city will tell you about it. Look for the small gold marker over them.',
     'Until that trouble is dealt with, the city\'s Heart sleeps as a stone statue on its shrine, and the shrine stays shut. Help the city first, and the Heart wakes.',
@@ -7952,7 +7952,7 @@ async function meetNumbGirl(z) {
   const c = await ask('She holds out a grey hand.', ['Follow her', 'Gently send her home']); if (c !== 0) { S.zq[z] = 1; return say('(She stands where you left her, perfectly still, for the rest of the day.)'); }
   await say('She leads you behind the shrine to a cellar full of things the Numbed stopped caring about: wedding rings, letters, a child\'s shoe, a box of Marks nobody counted.');
   for (const k of ['tonic', 'salts', 'hearth']) S.items[k] = (S.items[k] || 0) + 1; pay(120);
-  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Resurrection Orb and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
+  zdone(z, '(You take a Bitter Tonic, Smelling Salts, a Mending Light and 120 Marks. The girl watches you without blinking. She doesn\'t mind. She doesn\'t mind anything.)');
 }
 async function meetCalloway(z) {
   await say('Brother Calloway: Forgive me. You have a face people tell things to. I have to tell someone before the Heart takes me too.');
@@ -8734,7 +8734,7 @@ async function giveBack(m) {
   removeManif(m, 'gave'); rebuildMinis(); S.sins = Math.max(0, (S.sins || 0) - 2);
   await say(`${nm(m)} drifts over to ${P.name} and settles against their chest. They cry for a long time. ${e[3] ? 'You hear it say, very quietly: "' + e[3] + '"' : ''}`);
   const marks = 300 + m.lvl * 25; pay(marks); S.items.quill = (S.items.quill || 0) + 2; S.items.hearth = (S.items.hearth || 0) + 1;
-  await say(`${P.name}: Take these. Please. It isn't enough. Nothing would be enough. (You received ${marks} Marks, 2 Insight Quills and a Resurrection Orb.)`);
+  await say(`${P.name}: Take these. Please. It isn't enough. Nothing would be enough. (You received ${marks} Marks, 2 Insight Quills and a Mending Light.)`);
   buildWorld(S.map);
 }
 // =============================================================================
@@ -10549,7 +10549,7 @@ const DND_TENDER = {
 async function dndTender(k) {
   const n = DND_NAME[k], f = hurtFam(), l = DND_TENDER[k][f];
   await sayMix(n, l);
-  if (k === 'tam' && f === 'SADNESS' && once('tamLamp')) { S.items.hearth = (S.items.hearth || 0) + 1; await say('(Tam gives you a little brass lamp. It is warm, and that is all it does. It counts as a Resurrection Orb.)'); }
+  if (k === 'tam' && f === 'SADNESS' && once('tamLamp')) { S.items.hearth = (S.items.hearth || 0) + 1; await say('(Tam gives you a little brass lamp. It is warm, and that is all it does. It counts as a Mending Light.)'); }
   if (k === 'saffi' && once('saffiCookie')) { S.items.cake = (S.items.cake || 0) + 1; await say('(Lio brings you a cookie, very carefully, with both hands. It counts as a Honey Cake.)'); }
 }
 async function dndTenderDoor() {
@@ -12377,7 +12377,7 @@ const keepChance = () => B && B.understood ? 100 : Math.round(clamp((B.opt.heart
 function renderBHUD() {
   const f = B.foe, li = ladderIdx(), fr = f.hp / B.foeMax, ft = typeOf(f);
   const lower = B.final ? `<div class="lbl"><span>Phase ${phaseOf()} of 3</span><span>${B.numb.size ? 'Numbing your Chorus' : ''}</span></div>`
-    : `<div class="lbl"><span>Understanding ${Math.round(B.res)}%${canUnderstand() ? ' · at 100% it settles' : ''}</span><span>${B.opt.owner ? 'Bound to ' + B.opt.owner : 'Keep chance ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
+    : `<div class="lbl"><span>Understanding ${Math.round(B.res)}%${canUnderstand() ? ' · at 100% it settles' : ''}</span><span>${B.opt.owner ? 'Held by ' + B.opt.owner : 'Keep chance ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
   $('#bhud').innerHTML = `<div class="top">${B.final ? `<span class="mi" style="background:#d8d4cc"></span>` : manifIcon(f)}<span class="nm">${B.final ? 'The Hush' : (B.opt.heart ? 'Heart · ' : B.opt.owner ? B.opt.owner + '\'s ' : 'Wild ') + nm(f)}</span>${B.final ? pill(ft) : pillsOf(f.sp)}<span class="lv">Lv ${f.lvl}</span></div>
     <div class="int">${f.hp <= 0 ? 'Settled' : B.final ? `Wearing ${TYPES[ft].name}` : SPECIES[f.sp].dyad ? `${TYPES[ft].name} + ${TYPES[SPECIES[f.sp].type2].name}` : TYPES[ft].ladder[li]} <small>${B.final ? 'it shifts' : 'intensity'}</small></div>
     <div class="bar"><i style="width:${fr * 100}%;background:${B.final ? '#f3efe6' : TYPES[ft].c}"></i></div>${lower}${B.group ? `<div class="grp">${B.group.map(g => `<span class="gc${g === B.cur ? ' on' : ''}${g.m.hp <= 0 ? ' down' : ''}"><em>${nm(g.m)}</em><b><i style="width:${Math.max(0, g.m.hp / g.max * 100)}%;background:${TYPES[typeOf(g.m)].c}"></i></b></span>`).join('')}${B.reserve.length ? `<span class="gc wait">+${B.reserve.length} waiting</span>` : ''}</div>` : ''}`;
@@ -12661,7 +12661,7 @@ async function useItem(m, k) {
   if (it.custom) return useForbidden(m, k, it);
   const pos = mm => modelOf(mm).position.clone().add(V3(0, .8, 0));
   if (it.heal) { const mx = maxHp(m), h = Math.min(mx - m.hp, Math.ceil(mx * it.heal)); m.hp += h; floatText(pos(m), '+' + h, 'heal'); sfx('heal'); renderBHUD(); return say(`You give ${nm(m)} a ${it.name}. It steadies.`); }
-  if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Resurrection Orb glows. Warmth settles over the whole Chorus.'); }
+  if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Mending Light glows. Warmth settles over the whole Chorus.'); }
   if (it.revive) {
     const down = S.party.filter(p => p.hp <= 0); if (!down.length) { S.items[k]++; return say('Nobody needs reviving.'); }
     const p = down[0]; p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
