@@ -12855,7 +12855,7 @@ function farRoad(id, o) {
 }
 // cut a gate in a map's edge, and send people through it
 function farGate(map, side, rows, dest) {
-  const M = MAPS[map]; for (const y of rows) for (let k = 0; k < 3; k++) { const x = side === 'west' ? k : M.w - 1 - k; if (M.tiles[y][x] !== 't') M.tiles[y][x] = '='; }
+  const M = MAPS[map]; for (const y of rows) for (let k = 0; k < 4; k++) { const x = side === 'west' ? k : M.w - 1 - k; if (M.tiles[y][x] !== 't' && M.tiles[y][x] !== 'o' && M.tiles[y][x] !== 'H' && M.tiles[y][x] !== 'D') M.tiles[y][x] = '='; }
   M.set = M.set || []; M.set.push({ k:'gatepost', x:side === 'west' ? 1 : M.w - 2, y:rows[0] + .5, r:0 });
   const prev = M.exit; M.exit = (nx, ny) => (side === 'west' ? nx < 0 : nx >= M.w) && rows.includes(ny) ? (S.flags.ruin ? null : { ...dest }) : prev(nx, ny);
   GATE_SHUT.add(map);
@@ -12950,14 +12950,24 @@ farRoad('r_scholars', { name:"The Scholars' Way", sub:'Highcrest to Quillsby', V
     furn:[['desk', 6, 1], ['bookcase', 1, 1], ['bookcase', 11, 1], ['armchair', 3, 5], ['armchair', 9, 5], ['rug', 6, 5], ['plant', 1, 6]] });   // 4
   B.house(12, 19, 7, '#5a4a3a', '#d8ccb0', { name:'The Penhallow House', w:11, h:8, music:'quillsby', floor:['#8a7458', '#7e6a50'], wall:'#e8dcc0',
     furn:[['table', 5, 3], ['bookcase', 1, 1], ['bed', 9, 1], ['rug', 5, 5], ['basket', 1, 5]] });   // 5
-  const U = 31, UH = 23;   // the University: one great building over the quad. Library stacks, a lecture theatre and a Manif lab.
-  const furn = [];
-  for (let x = 1; x < U - 1; x++) if (x !== 15) furn.push(['stacks', x, 1]);
-  for (const x of [3, 4, 5, 6, 7, 8, 9, 10, 11, 19, 20, 21, 22, 23, 24, 25, 26, 27]) furn.push(['stacks', x, 4]);
-  furn.push(['table', 4, 7], ['table', 8, 7], ['table', 22, 7], ['table', 26, 7], ['candle', 15, 2], ['stand', 15, 9, { c:'#8a6a3a' }], ['armchair', 1, 9]);
-  furn.push(['desk', 7, 11]); for (const y of [13, 15, 17]) for (const x of [3, 5, 7, 9, 11]) furn.push(['bench', x, y]);   // the lecture theatre
-  furn.push(['belljar', 23, 13], ['desk', 20, 11], ['desk', 26, 11], ['mirror', 28, 13], ['spiral', 19, 16], ['bookpile', 22, 17], ['crates', 28, 18], ['desk', 25, 16]);   // the Manif lab
-  furn.push(['plant', 1, 20], ['plant', 29, 20], ['bench', 2, 20], ['bench', 28, 20]);
+  const U = 31, UH = 27;   // the University: one great building over the quad. Library, lecture theatre, Manif lab, foyer, and stairs up to the gallery.
+  const furn = [], PI = Math.PI, wallC = '#d8c8a8';
+  // the library: stacks in ranges that face each other across the aisles, books inward
+  for (let x = 1; x < U - 1; x++) furn.push(x === 15 ? ['portrait', 15, 1] : ['stacks', x, 1]);
+  for (const x of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]) furn.push(['stacks', x, 3, { r:PI }], ['stacks', x, 4], ['stacks', x, 6, { r:PI }]);
+  furn.push(['table', 4, 8], ['table', 8, 8], ['table', 22, 8], ['table', 26, 8], ['chair', 5, 8], ['chair', 9, 8], ['chair', 21, 8], ['chair', 27, 8], ['desk', 15, 8], ['armchair', 1, 8]);
+  for (let x = 1; x < U - 1; x++) if (x < 14 || x > 16) furn.push(['iwall', x, 10, { c:wallC }]);   // the library wall, with an open arch in the middle
+  // the lecture theatre (west): chalkboard, lectern, and benches facing the lecturer
+  for (let y = 11; y <= 20; y++) furn.push(['iwall', 12, y, { c:wallC }]); for (let x = 1; x <= 11; x++) if (x !== 6) furn.push(['iwall', x, 21, { c:wallC }]);
+  furn.push(['chalkboard', 6, 11], ['lectern', 6, 13]);
+  for (const y of [15, 17, 19]) for (const x of [2, 3, 4, 8, 9, 10]) furn.push(['bench', x, y, { r:PI }]);
+  // the Manif lab (east)
+  for (let y = 11; y <= 20; y++) furn.push(['iwall', 18, y, { c:wallC }]); for (let x = 19; x <= 29; x++) if (x !== 24) furn.push(['iwall', x, 21, { c:wallC }]);
+  furn.push(['desk', 20, 12], ['desk', 26, 12], ['belljar', 23, 13], ['desk', 21, 16], ['desk', 27, 16], ['bookpile', 25, 18], ['crates', 28, 19], ['shelf', 29, 12], ['plant', 19, 20]);
+  // the centre hall: the stairs up to the gallery, Orrin's notes, the notice board
+  furn.push(['spiral', 13, 12], ['case', 17, 12], ['corkboard', 17, 16]);
+  // the foyer
+  furn.push(['desk', 12, 24], ['bench', 3, 24], ['bench', 5, 24], ['bench', 25, 24], ['bench', 27, 24], ['plant', 1, 25], ['plant', 29, 25], ['plant', 1, 22], ['plant', 29, 22], ['rug', 15, 23]);
   B.house(26, 19, 15, '#4a3a5a', '#e4d4b0', { name:'Quillsby University', w:U, h:UH, music:'quillsby', floor:['#8a7458', '#7a6650'], wall:'#e0d0b0', furn });   // 6
    B.piece('fountain', 32, 25, 2, 2); B.piece('bench', 28, 25); B.piece('bench', 38, 25);
   B.piece('belltower', 24, 20); B.piece('statue', 8, 25); B.piece('bench', 6, 25); B.piece('bench', 10, 25);
@@ -13085,74 +13095,74 @@ async function viva(kind, name) {
 }
 const vivaDone = () => Object.keys(VIVA).every(k => ((S.viva || {})[k] || 0) >= 3);
 function universityPeople() { return [
-  npc('qu_registrar', 13, 19, 'right', 'Registrar Pemberton', lk('#3a3a4a', '#d8b85a', SK[1], '#8a8078', ['glasses', 'book']), async () => {
+  npc('qu_registrar', 13, 24, 'right', 'Registrar Pemberton', lk('#3a3a4a', '#d8b85a', SK[1], '#8a8078', ['glasses', 'book']), async () => {
     if (vivaDone() && !S.flags.doctorate) { S.flags.doctorate = 1; S.items.doctorate = 1; pay(800); await sayAs('Registrar Pemberton', 'Four departments, four passes. By the power vested in me by a committee, I hereby make you an Honorary Doctor of Feeling.'); return say('(You received an Honorary Doctorate and 800 Marks. The Registrar has spelled your name right, which he says is a first.)'); }
     return talks('qu_registrar', 'Registrar Pemberton', [
       'Welcome to Quillsby University. Library at the back, lecture theatre on the left, the Manif lab on the right. Please don\'t let anything you carry eat the books.',
       () => { const v = S.viva || {}, done = Object.keys(VIVA).filter(k => (v[k] || 0) >= 3).map(k => VIVA[k][0]); return `Our Manif scholars like to test visitors. Pass all four of their vivas and the University will give you an honorary doctorate. ${done.length ? 'So far you\'ve passed with ' + done.join(', ') + '.' : 'Professor Penhallow, Professor Fairfax, Dr. Calloway and Felix Marsh, the postgraduate.'}`; },
       'The University was founded four hundred years ago by people who wanted to know things. It\'s still run by people who want to know things, and also by a finance committee.' ])(); }),
   // the lecture theatre
-  npc('thorne', 7, 12, 'down', 'Professor Thorne', lk('#2a2a2a', '#e8dcc0', SK[0], '#8a8078', ['glasses', 'tophat', 'longcoat']), talkThorne),
-  look('orrin_notes', 15, 9, 'Lecture notes', async () => { await say("(Orrin Vale's lecture notes, kept under glass in the middle of the hall. The last one is dated two hundred and one years ago.)"); await say('"Lecture 40. A feeling is not a fault. It is weather passing through a person. The whole trouble of the world is that we keep trying to put the weather in jars."'); }),
-  npc('qu_penhallow', 11, 12, 'left', 'Professor Penhallow', lk('#5a4a3a', '#e8dcc0', SK[3], '#3a2414', ['glasses', 'longcoat']), async () => {
+  npc('thorne', 6, 12, 'down', 'Professor Thorne', lk('#2a2a2a', '#e8dcc0', SK[0], '#8a8078', ['glasses', 'tophat', 'longcoat']), talkThorne),
+  look('orrin_notes', 17, 12, 'Lecture notes', async () => { await say("(Orrin Vale's lecture notes, kept under glass in the middle of the hall. The last one is dated two hundred and one years ago.)"); await say('"Lecture 40. A feeling is not a fault. It is weather passing through a person. The whole trouble of the world is that we keep trying to put the weather in jars."'); }),
+  npc('qu_penhallow', 10, 12, 'left', 'Professor Penhallow', lk('#5a4a3a', '#e8dcc0', SK[3], '#3a2414', ['glasses', 'longcoat']), async () => {
     await sayLine('Professor Penhallow', ['Elias Penhallow, Chair of Bonds. Who stands beside whom, and what it does to them. You carry three at a time in a fight? Then you\'re my favourite kind of experiment.',
       () => { const p = S.party || []; return p.length >= 2 ? `Look at yours: ${nm(p[0])} beside ${nm(p[1])}. ${SPECIES[p[0].sp].type === SPECIES[p[1].sp].type ? 'Echoing. Same feeling twice; they listen harder together.' : WHEEL[(WHEEL.indexOf(SPECIES[p[0].sp].type) + 5) % 10] === SPECIES[p[1].sp].type ? 'Steadied! Opposites. Lovely.' : 'Interesting. I\'d have to draw it.'}` : 'You carry only one? A bond needs two. Like a conversation. Or a seesaw.'; },
       'My wife says I rearrange the dining chairs. I say the dining chairs were badly bonded.'][rotIdx('qu_pen', 3)]);
     return viva('bonds', 'Professor Penhallow'); }),
-  npc('qu_student1', 4, 14, 'up', 'Note-taking student', lk('#4a5a8a', '#f3e7c9', SK[2], '#e2c070', ['scarf', 'satchel']), talks('qu_student1', 'Note-taking student', [
+  npc('qu_student1', 3, 15, 'up', 'Note-taking student', lk('#4a5a8a', '#f3e7c9', SK[2], '#e2c070', ['scarf', 'satchel']), talks('qu_student1', 'Note-taking student', [
     'Thorne\'s lecture today is called "Why Nobody Has Ever Seen a Manif." There are four Manifs in the room. Including yours. He hasn\'t looked down once.',
     'I write down everything he says, then everything he doesn\'t say, then I compare. The second list is longer.',
     () => `Can I draw your ${leadName()}? For my notes. (She draws it. It's very good. She labels it "EVIDENCE".)` ])),
-  npc('qu_student2', 8, 16, 'up', 'Student in the back row', lk('#6a3a3a', '#f3e7c9', SK[4], '#141014', ['cap']), talks('qu_student2', 'Student in the back row', [
+  npc('qu_student2', 9, 19, 'up', 'Student in the back row', lk('#6a3a3a', '#f3e7c9', SK[4], '#141014', ['cap']), talks('qu_student2', 'Student in the back row', [
     '(Asleep.) ...the Hush is a metaphor... (He wakes up.) What? I wasn\'t asleep. I was listening with my eyes shut.',
     'I\'m from Emberwick. Back home my dad works the forge. He doesn\'t understand why I want to study feelings. He\'s the angriest man I know. That\'s why.',
     () => heartsN() >= 10 ? 'Dad wrote. He says the forge is quieter since the strike ended, and he cried at a kettle. He wants to know if that\'s normal. I\'m writing him a reading list.' : 'I keep meaning to go home. Not until I understand it. Him, I mean. And it.' ])),
   // the library
-  npc('librarian', 14, 3, 'down', 'Librarian Mags', lk('#5a6a4a', '#e8dcc0', SK[4], '#3a2414', ['glasses', 'bun']), async () => {
+  npc('librarian', 15, 7, 'down', 'Librarian Mags', lk('#5a6a4a', '#e8dcc0', SK[4], '#3a2414', ['glasses', 'bun']), async () => {
     if (once('magsLetters')) { await sayAs('Librarian Mags', 'Whisper, please. You\'re the traveller. Then you\'ll want the Vale letters.'); await sayAs('Librarian Mags', "We have letters Orrin Vale wrote to his children. Twins. They're addressed to a house in Whitecrown, up past the Long Siding, in the snow."); await sayAs('Librarian Mags', "Nobody's lived there for two hundred years. The cold keeps everything. People say the kettle's still on the hob."); S.flags.heard_hint_wc = 1; return; }
     return talks('librarian', 'Librarian Mags', [
       { light:"Oh, it's you. I've read about you. Well, I've read about someone like you. Same thing, in a library.", even:'Whisper, please.', hurt:'There\'s a chair by the window in the poetry section nobody uses. Go and sit in it for a bit. That\'s what it\'s for.', shadow:'(She very slowly slides the reference books out of your reach.)' },
       'Four hundred thousand books, and the one everyone asks for is Orrin Vale\'s Weather Inside. We have eleven copies. All of them are out. All of them are overdue.',
       'The stacks go back further than the building. Don\'t ask me how. Just follow the numbers and come back the way you came.',
       'The Whitecrown letters are in the cabinet. If you go up there, tell the house we still have them. Somebody should.' ])(); }),
-  npc('qu_crisp', 2, 10, 'up', 'Professor Emeritus Crisp', lk('#3a3a3a', '#e8dcc0', SK[0], '#f4f1e8', ['glasses', 'scarf', 'beard']), talks('qu_crisp', 'Professor Emeritus Crisp', [
+  npc('qu_crisp', 2, 8, 'left', 'Professor Emeritus Crisp', lk('#3a3a3a', '#e8dcc0', SK[0], '#f4f1e8', ['glasses', 'scarf', 'beard']), talks('qu_crisp', 'Professor Emeritus Crisp', [
     'I\'m ninety-four. My teacher was taught by a woman who was taught by Orrin Vale himself. That\'s four people between him and me. It doesn\'t feel like very many.',
     'Orrin used to say the opposite of a feeling isn\'t another feeling. It\'s refusing to have one. We wrote it on the wall of the old hall. They painted over it for an exhibition. I\'m still annoyed.',
     'His children came to lectures, you know, when they were small. A boy and a girl. They sat at the back and drew Manifs on the desks. Some of the desks are still in the basement.',
     () => S.flags.locketTo ? `The Vale locket? Given to ${S.flags.locketTo === 'wren' ? 'the girl' : 'the boy'}? (He takes off his glasses.) Then something of that house got home. Good. Good.` : 'If you ever find yourself in Whitecrown, at the Vale house: be gentle with it. It\'s waited a long time for somebody to come in.' ])),
-  npc('qu_napper', 5, 8, 'up', 'Student asleep on a book', lk('#4a3a5a', '#f3e7c9', SK[2], '#7a3e1e', ['scarf']), talks('qu_napper', 'Student asleep on a book', [
+  npc('qu_napper', 5, 8, 'left', 'Student asleep on a book', lk('#4a3a5a', '#f3e7c9', SK[2], '#7a3e1e', ['scarf']), talks('qu_napper', 'Student asleep on a book', [
     '(Asleep, face down on A Short History of Ash. There is ink on their cheek, backwards. It says "IMPORTANT".)', '(Still asleep. Somebody has placed a library slip on their head: DUE BACK TUESDAY.)', 'Mm? Oh. Is it Tuesday? (They go back to sleep before you can answer.)' ])),
-  npc('qu_oduya', 22, 8, 'up', 'Dr. Oduya', lk('#4a2a4a', '#f4cf5e', SK[5], '#141014', ['glasses', 'longcoat']), talkOduya),
-  npc('qu_fairfax', 26, 8, 'up', 'Professor Fairfax', lk('#6a3a2a', '#e8dcc0', SK[1], '#d8d0c0', ['glasses', 'bun']), async () => {
+  npc('qu_oduya', 23, 9, 'up', 'Dr. Oduya', lk('#4a2a4a', '#f4cf5e', SK[5], '#141014', ['glasses', 'longcoat']), talkOduya),
+  npc('qu_fairfax', 27, 9, 'up', 'Professor Fairfax', lk('#6a3a2a', '#e8dcc0', SK[1], '#d8d0c0', ['glasses', 'bun']), async () => {
     await sayLine('Professor Fairfax', ['Ottoline Fairfax, Chair of Fusion. Two feelings at once, so close together they become a third thing. Nostalgia. Awe. Schadenfreude, which the students love far too much.',
       'Every fusion is a neighbour on the wheel. Never opposites. Opposites steady each other; they don\'t merge. That\'s a whole other department, and we don\'t speak to them.',
       'I\'ve catalogued ten fusions. There may be more. Quietly, the committee says. More fusions, more funding. I\'m looking.'][rotIdx('qu_fx', 3)]);
     return viva('fusion', 'Professor Fairfax'); }),
   // the Manif lab
-  npc('qu_calloway', 20, 12, 'down', 'Dr. Calloway', lk('#2a4a4a', '#e8dcc0', SK[2], '#e2c070', ['glasses', 'apron']), async () => {
+  npc('qu_calloway', 20, 13, 'down', 'Dr. Calloway', lk('#2a4a4a', '#e8dcc0', SK[2], '#e2c070', ['glasses', 'apron']), async () => {
     await sayLine('Dr. Calloway', ['Imogen Calloway, Arena Studies. When a feeling gets big enough it changes the weather around it. Rain. Wildfire. That bright light. I measure it with buckets. Mostly buckets.',
       'Last month a Fear Manif got loose from a visiting troupe and the whole lab went dark. Fascinating. I took readings with my hands over my eyes.',
       () => `Your ${leadName()}: what does the ground do when it\'s upset? Don\'t tell me. Let me guess. (She guesses. She\'s right, and she\'s very pleased.)`][rotIdx('qu_cal', 3)]);
     return viva('arena', 'Dr. Calloway'); }),
-  npc('qu_marsh', 25, 15, 'up', 'Felix Marsh', lk('#4a5a3a', '#f3e7c9', SK[3], '#7a3e1e', ['scarf', 'satchel']), async () => {
+  npc('qu_marsh', 26, 13, 'down', 'Felix Marsh', lk('#4a5a3a', '#f3e7c9', SK[3], '#7a3e1e', ['scarf', 'satchel']), async () => {
     await sayLine('Felix Marsh', ['Felix Marsh, postgraduate. My thesis is on Reach Out: what a hurting feeling actually needs. Stay with it, let it out, look ahead. Three answers for ten feelings. I\'ve been on page one for two years.',
       () => `May I watch, next time you Reach Out to something? (He looks at your ${leadName()} hopefully.) I've only ever seen it in drawings.`,
       'My supervisor says I\'m too close to the subject. I say that\'s the only place you can stand to see it.'][rotIdx('qu_fm', 3)]);
     return viva('needs', 'Felix Marsh'); }),
-  npc('qu_varnham', 27, 17, 'up', 'Dr. Varnham', lk('#7a7a80', '#3a3a40', SK[0], '#141014', ['glasses', 'longcoat']), talkVarnham, { gone:() => S.flags.varnham === 'reported' }),
+  npc('qu_varnham', 27, 18, 'up', 'Dr. Varnham', lk('#7a7a80', '#3a3a40', SK[0], '#141014', ['glasses', 'longcoat']), talkVarnham, { gone:() => S.flags.varnham === 'reported' }),
   look('qu_dome', 23, 13, 'Glass dome', () => say(S.flags.varnham === 'reported' ? '(The glass dome is empty and clean. A card on it says: RETURNED TO OWNER.)' : '(Under the glass dome, a tiny grey Manif turns slowly round and round, as if looking for the way out. The label says SPECIMEN 14. NUMBNESS (BOTTLED).)')),
-  look('qu_crates', 28, 18, 'Crates', async () => { await say(S.flags.varnham === 'reported' ? '(Empty crates, stacked for the carter.)' : '(Crates stamped LABORATORY GLASS. Under the stamp, half scraped off, a grey wax seal: a closed mouth. The Hollow Choir\'s mark.)'); if (!S.flags.varnham) S.flags.varnhamSeen = 1; }),
-  npc('qu_labkid', 19, 13, 'right', 'Lab assistant', lk('#5a5a6a', '#f3e7c9', SK[4], '#3a2414', ['glasses', 'apron']), talks('qu_labkid', 'Lab assistant', [
+  look('qu_crates', 28, 19, 'Crates', async () => { await say(S.flags.varnham === 'reported' ? '(Empty crates, stacked for the carter.)' : '(Crates stamped LABORATORY GLASS. Under the stamp, half scraped off, a grey wax seal: a closed mouth. The Hollow Choir\'s mark.)'); if (!S.flags.varnham) S.flags.varnhamSeen = 1; }),
+  npc('qu_labkid', 22, 17, 'up', 'Lab assistant', lk('#5a5a6a', '#f3e7c9', SK[4], '#3a2414', ['glasses', 'apron']), talks('qu_labkid', 'Lab assistant', [
     'I wash the glassware. Dr. Calloway\'s is full of rainwater. Dr. Varnham\'s is full of... I don\'t know. Grey. It doesn\'t pour, it sort of leans out.',
     () => S.flags.varnham === 'reported' ? 'They took Dr. Varnham\'s things away in a cart. The grey bottles went too. The lab smells like the river again.' : 'The thing in the dome doesn\'t sleep. I come in at night sometimes and it\'s just turning. I say goodnight to it. I don\'t know if that helps.',
     'One day I\'ll have my own bench. I\'m going to study Joy. Nobody studies Joy. They think it\'s too easy. It isn\'t.' ])),
   // students about the place
-  npc('qu_asker', 13, 15, 'right', 'Curious student', lk('#8a5a3a', '#f3e7c9', SK[1], '#141014', ['satchel']), talkAsker),
-  npc('qu_lark', 19, 19, 'left', 'Student from Larkhollow', lk('#e8a83a', '#f3e7c9', SK[1], '#e2c070', ['scarf']), talks('qu_lark', 'Student from Larkhollow', [
+  npc('qu_asker', 8, 23, 'up', 'Curious student', lk('#8a5a3a', '#f3e7c9', SK[1], '#141014', ['satchel']), talkAsker),
+  npc('qu_lark', 21, 23, 'up', 'Student from Larkhollow', lk('#e8a83a', '#f3e7c9', SK[1], '#e2c070', ['scarf']), talks('qu_lark', 'Student from Larkhollow', [
     'I\'m from Larkhollow. Everybody back home smiles all the time. Here, people frown when they think. It took me a month to realise they weren\'t cross with me.',
     () => S.ev && S.ev.JOY && S.ev.JOY.st === 9 ? (S.ev.JOY.dark ? 'My little brother doesn\'t laugh any more. He\'s very polite. I don\'t know what happened to him.' : 'My little brother wrote. Something about jars in the well, and glitter. He laughed so hard writing it the ink smudged.') : 'Mum says the children at home have gone quiet. I\'m going back at end of term to see.',
     'I\'m studying Joy, with the lab assistant. We\'re the whole department. We have a very nice time.' ])),
-  npc('qu_choirish', 28, 10, 'down', 'Student in grey', lk('#7a7a80', '#f3e7c9', SK[2], '#141014', ['scarf']), talks('qu_choirish', 'Student in grey', [
+  npc('qu_choirish', 27, 22, 'left', 'Student in grey', lk('#7a7a80', '#f3e7c9', SK[2], '#141014', ['scarf']), talks('qu_choirish', 'Student in grey', [
     { light:'Have you ever wondered if it\'d be easier not to feel anything? Just... a little less? (She looks away.) Sorry. Exam week.', even:'There\'s a society that meets on Thursdays. "The Quiet Club." They hand out grey scarves. I\'ve only been twice.', shadow:'You understand, don\'t you. The quiet. I can tell. (She smiles, a little too smoothly.)' },
     () => S.flags.doom ? 'The Quiet Club meets every night now. There\'s nobody left to stop them. I stopped going. I don\'t know why. Something in me didn\'t want to be told.' : 'A man from the Quiet Club gave me a little bottle. He said drink it before exams and I won\'t be scared. I haven\'t. I\'ve just been carrying it.',
     { light:'(She takes the little grey bottle out of her pocket and pours it into the plant pot.) There. Thank you. You didn\'t say anything. That\'s what helped.', even:'Maybe I\'ll just be scared. People have been scared before exams for four hundred years. It\'s practically tradition.', shadow:'(She holds the bottle out to you. You notice your hand has already moved.)' } ])) ]; }
@@ -13223,7 +13233,7 @@ ITEMS.doctorate = { name:'Honorary Doctorate', key:true, desc:'Quillsby Universi
 //  and the house where Orrin Vale raised the twins, kept by the cold for two hundred years.
 // =============================================================================
 const SNOW_V = REGION_VIBE({ sky:'#dfe8f0', fog:'#e8eef4', fogNear:14, fogFar:44, hemi:'#ffffff', sun:1.7, ground:['#eef2f4', '#e4eaee', '#f4f6f8'], tall:['#c8d4dc', '#d4dee4', '#bcc8d0'], trees:'conifer', treeC:['#3a5a4a', '#46665a', '#2f4a3e'], road:'#a8a49c', parts:'petals', partC:['#ffffff', '#f4f8fc'], groundFog:'#f4f8fc', fogOp:.3 });
-farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecrown', V:SNOW_V, music:'switchback', side:'east', rail:true, origin:{ map:'r_siding', x:24, y:27, dir:'left' }, town:{ map:'whitecrown', x:1, y:16, dir:'right' },
+farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecrown', V:SNOW_V, music:'switchback', side:'east', rail:true, origin:{ map:'r_siding', x:24, y:29, dir:'left' }, town:{ map:'whitecrown', x:1, y:16, dir:'right' },
   arrive:'The old branch line climbs out of the Siding and into the snow. The air goes thin and sweet. Far above, a red cable car hangs on its wire, not moving, like a held breath.', sign:'WHITECROWN 2 →. Chains required. (Someone has added, in pencil: "and patience".)',
   deco:B => { B.piece('cablecar', 20, 4); B.piece('cablecar', 44, 4); B.piece('snowman', 32, 12); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 46, 4, ','); },
   npcs:() => [
@@ -13711,7 +13721,7 @@ async function panForGold() {
 
 // ---------------------------------------------------------------- gates, hints, the map, the far line, the grey
 farGate('highcrest', 'west', [9, 10], { map:'r_scholars', x:58, y:9, dir:'left' });
-farGate('r_siding', 'east', [26, 27], { map:'r_switchback', x:1, y:9, dir:'right' });
+farGate('r_siding', 'east', [29, 30], { map:'r_switchback', x:1, y:9, dir:'right' });
 farGate('r_cindercut', 'east', [17, 18], { map:'r_ashroad', x:1, y:9, dir:'right' });
 farGate('r_ditch', 'west', [11, 12], { map:'r_bayou', x:58, y:9, dir:'left' });
 farGate('r_tumbledown', 'west', [16, 17], { map:'r_drywash', x:58, y:9, dir:'left' });
@@ -13719,8 +13729,8 @@ for (const id of ['r_scholars', 'quillsby', 'r_switchback', 'whitecrown', 'r_ash
 Object.assign(HINTS, {
   highcrest:{ id:'hint_qb', x:6, y:11, name:'Visiting lecturer', look:lk('#4a3a5a', '#e8dcc0', SK[0], '#d8d0c0', ['glasses', 'book']), place:'Quillsby',
     yes:'I teach at Quillsby. The west gate, out past the edge of the square, down the leafy road. Go and see the museum. Orrin Vale lectured there, you know. Two hundred years ago. We still have his notes.', no:'The west road? It goes to a university. You wouldn\'t like it. There are rules.' },
-  r_siding:{ id:'hint_wc', x:20, y:27, name:'Old platelayer', look:lk('#5a4a3a', '#e8dcc0', SK[3], '#8a8078', ['cap', 'scarf']), place:'Whitecrown',
-    yes:'See where the rails run off east, through the gap in the fence? Old branch line. Goes up the Switchback to Whitecrown, in the snow. Observatory up there. And the Vale house, if you\'re that sort of curious.', no:'The branch line? Closed. Snowed in. Go home.' },
+  r_siding:{ id:'hint_wc', x:20, y:29, name:'Old platelayer', look:lk('#5a4a3a', '#e8dcc0', SK[3], '#8a8078', ['cap', 'scarf']), place:'Whitecrown',
+    yes:'See the gate in the east fence, just below the rails? That\'s the old branch road. Goes up the Switchback to Whitecrown, in the snow. Observatory up there. And the Vale house, if you\'re that sort of curious.', no:'The branch road? Closed. Snowed in. Go home.' },
   r_cindercut:{ id:'hint_cr', x:21, y:16, name:'Off-duty soldier', look:lk('#4a5a3a', '#d8b85a', SK[2], '#3a2414', ['helmet']), place:'Cinder Reach',
     yes:'East of the barracks, through the gap, there\'s the Ash Road. Leads to what\'s left of Ash, and a little town that keeps the names. I go every spring. My unit thinks I\'m going fishing.', no:'East? Nothing east. Nothing at all.' },
   r_ditch:{ id:'hint_gl2', x:5, y:14, name:'Boat-mender', look:lk('#5a6a4a', '#e8dcc0', SK[4], '#d8d0c0', ['cap', 'beard']), place:'Galloway Landing',
@@ -13743,6 +13753,332 @@ Object.assign(CHORD_FAR, {
   return R; }; }
 FAR_LINE.push(['quillsby', 'Quillsby', 6], ['whitecrown', 'Whitecrown', 28], ['cinder_reach', 'Cinder Reach', 28], ['galloway', 'Galloway Landing', 19], ['dry_fork', 'Dry Fork', 26]);
 HINTS.vellum.yes = 'My map\'s got eight blank edges now. A sea city past Moonmoss, a hidden town in the woods off Gutterlight Lane, a farm town down a dirt road out of Veilham. A university past Highcrest\'s west gate. Snow, up a branch line off the Long Siding. Something old and grey past the Cinder Cut. A bayou west of Rendering Ditch. A copper town out the back of the fair. Look at the edges. There are always gates.';
+// =============================================================================
+//  UPSTAIRS AND OUTSIDE (24 Nov, second pass on the far places)
+//  - Staircases that work: the University gallery, the Observatory's telescope deck
+//  - The great telescope: look at the sky (the ten constellations of the Wheel)
+//  - The cable car runs to the Crown, the summit above Whitecrown
+//  - Galloway Landing's back: the Cypress Yard cemetery, the feu follet, and the old steamboat
+//  - Stilt houses you can go into; proper counters and cases instead of market carts indoors
+//  - Train lines no longer lead off the edge of a map
+// =============================================================================
+
+// ---------------------------------------------------------------- pieces
+SET.iwall = p => { const g = new THREE.Group(), c = p.c || '#d8c8a8'; sBox(g, 1, 1.5, 1, c, 0, .75, 0, { ink:0 }); sBox(g, 1.02, .06, 1.02, '#8a6a4a', 0, 1.5, 0, { ink:0 }); return g; };   // two plain boxes: rooms full of walls stay light
+SET.chalkboard = p => { const g = new THREE.Group(); sBox(g, 2.6, 1.3, .08, '#2f4a3a', 0, 1.3, -.4); sBox(g, 2.7, 1.4, .05, '#6a4a32', 0, 1.3, -.44);
+  for (const [x, y, w] of [[-.9, 1.7, .7], [-.4, 1.5, 1.1], [.5, 1.75, .6], [.3, 1.2, .9], [-.7, 1.0, .5]]) sBox(g, w, .03, .01, '#e8e4d8', x, y, -.35, { ink:0 });
+  const c = sCyl(g, .3, .3, .01, '#e8e4d8', .85, 1.35, -.35, [Math.PI / 2, 0, 0], { ink:0, seg:20 }); c.material.transparent = true; c.material.opacity = .5;
+  sBox(g, 2.6, .05, .12, '#6a4a32', 0, .62, -.34); return g; };
+SET.lectern = p => { const g = new THREE.Group(); sBox(g, .5, 1.0, .4, '#5a3a24', 0, .5, 0); const t = sBox(g, .62, .06, .5, '#6a4428', 0, 1.06, .02); t.rotation.x = -.25; sBox(g, .4, .03, .3, '#efe6d2', 0, 1.1, .04, { ink:0, rot:[-.25, 0, 0] }); return g; };
+SET.case = p => { const g = new THREE.Group(); sBox(g, .9, .7, .6, '#5a3a24', 0, .35, 0); const gl = new THREE.Mesh(new THREE.BoxGeometry(.86, .5, .56), new THREE.MeshLambertMaterial({ color:'#d9e6ec', transparent:true, opacity:.3 })); gl.position.set(0, .95, 0); g.add(gl);
+  sBall(g, .12, p.c || '#d8a83a', 0, .8, 0); sBox(g, .3, .02, .15, '#efe6d2', .25, .71, .15, { ink:0 }); return g; };
+SET.portrait = p => { const g = new THREE.Group(); sBox(g, .9, 1.1, .06, '#8a6a2a', 0, 1.5, -.42); sBox(g, .76, .96, .02, '#4a3a2e', 0, 1.5, -.39, { ink:0 });
+  sBall(g, .14, '#e8c8a8', 0, 1.66, -.37, [1, 1.2, .3], { ink:0 }); sBox(g, .4, .4, .02, '#2a2a3a', 0, 1.34, -.37, { ink:0 }); return g; };
+SET.counter = p => { const g = new THREE.Group(); sBox(g, 1.4, .95, .6, '#5a3a24', 0, .47, 0); sBox(g, 1.5, .07, .7, '#8a6a48', 0, .98, 0); for (const x of [-.45, -.15, .25]) sCyl(g, .05, .05, .18, pickA(['#c8a050', '#8a2a2a', '#4a6a3a']), x, 1.1, .1, null, { ink:0, seg:8 }); return g; };
+SET.oillamp = p => { const g = new THREE.Group(); sCyl(g, .3, .3, .05, '#6a4428', 0, .62, 0, null, { seg:14 }); sCyl(g, .04, .08, .6, '#4a2e1a', 0, .3, 0, null, { seg:8 });
+  sCyl(g, .1, .12, .08, '#b08a3a', 0, .69, 0, null, { seg:12 }); const gl = sBall(g, .12, '#fff2c8', 0, .82, 0, [1, 1.3, 1], { ink:0 }); gl.material.transparent = true; gl.material.opacity = .55;
+  const l = glow('#ffcf7a', 1.2, .55); l.position.set(0, .82, 0); g.add(l); return g; };
+SET.tomb = p => { const g = new THREE.Group(), c = p.c || '#e8e4dc'; sBox(g, 1, .9, .8, c, 0, .45, 0); const r = sBox(g, 1.1, .12, .9, '#d0ccc4', 0, .96, 0);
+  const pk = sCyl(g, 0, .6, .4, '#d8d4cc', 0, 1.2, 0, null, { seg:4 }); pk.rotation.y = Math.PI / 4; pk.scale.set(1, 1, .8); sBox(g, .4, .5, .02, '#a8a49c', 0, .5, .41, { ink:0 });
+  sBall(g, .07, ['#d86a8a', '#f4cf5e', '#f4f1e8'][Math.floor(hsh(p.x, p.y) * 3)], .3, .08, .5); return g; };
+SET.wisp = p => { const g = new THREE.Group(), l = glow('#c8f0a0', .9, .45); l.position.set(0, .9, 0); g.add(l); const k = sBall(g, .06, '#eaffd0', 0, .9, 0, null, { ink:0 }); k.material.transparent = true; k.material.opacity = .7; return g; };
+SET.steamer = p => { const g = new THREE.Group(), w = '#e8e4d8', r = '#a83a2a';   // an old sternwheeler, aground on the bank
+  sBox(g, 7.4, .7, 3.0, '#4a3a2e', 0, .35, 0); sBox(g, 7.6, .1, 3.2, '#6a5a48', 0, .75, 0);
+  sBox(g, 6.0, 1.0, 2.6, w, -.3, 1.3, 0); sBox(g, 6.4, .08, 3.0, r, -.3, 1.84, 0); sBox(g, 4.2, .8, 2.0, w, -.6, 2.3, 0); sBox(g, 4.6, .08, 2.4, r, -.6, 2.74, 0);
+  sBox(g, 1.4, .6, 1.4, w, -.4, 3.06, 0); for (const z of [-.6, .6]) { sCyl(g, .16, .16, 2.4, '#2a2826', 1.6, 3.6, z, null, { seg:10 }); sCyl(g, .26, .18, .2, '#2a2826', 1.6, 4.8, z, null, { seg:10 }); }
+  for (let i = 0; i < 6; i++) { const b = sBox(g, .1, 2.0, 2.4, r, -3.9, 1.1, 0); b.rotation.x = i * Math.PI / 6; }
+  for (let x = -2.6; x <= 2.2; x += .7) for (const z of [-1.31, 1.31]) sBox(g, .4, .4, .02, '#3a4a5a', x, 1.35, z, { ink:0 });
+  sBox(g, 2.2, .3, .04, '#1a1a2a', -.3, 1.95, 1.52, { ink:0 }); sBox(g, .8, .08, 1.8, '#6a5a48', .5, .5, 2.1, { rot:[-.3, 0, 0] });   // name board, gangplank
+  g.rotation.z = .04; g.rotation.x = -.03; return g; };
+SET.cairn = p => { const g = new THREE.Group(); for (let i = 0; i < 7; i++) { const s = .5 - i * .06; sBall(g, s, pickA(['#8a8680', '#7a766e', '#9a968c']), (hsh(p.x, i) - .5) * .15, .2 + i * .32, (hsh(i, p.y) - .5) * .15, [1.2, .6, 1], { lump:1 }); } return g; };
+SET.telescope = p => { const g = new THREE.Group(); sCyl(g, .5, .7, .5, '#3a3a40', 0, .25, 0, null, { seg:12 }); sCyl(g, .14, .14, 1.4, '#3a3a40', 0, 1.0, 0, null, { seg:10 });
+  const t = new THREE.Group(); t.position.set(0, 1.75, 0); t.rotation.z = .7; g.add(t); sCyl(t, .32, .26, 3.0, '#b8945a', 0, 0, 0, null, { seg:16 }); sCyl(t, .34, .34, .12, '#6a4a2a', 0, 1.5, 0, null, { seg:16 }); sCyl(t, .07, .07, .5, '#2a2a2a', 0, -1.6, 0, null, { seg:8 });
+  return g; };
+
+// ---------------------------------------------------------------- going places inside one building
+async function goTo(map, x, y, dir = 'down', ms = 600) { await fadeTo(1, ms); S.map = map; S.x = x; S.y = y; S.dir = dir; ENTC.t = 0; buildWorld(map); playMusic(themeFor(map)); await fadeTo(0, ms); }
+// an upstairs room: no door out, only the stairs back down
+function upRoom(id, d) { const W = d.w, H = d.h, m = grid(W, H, '.'); border(m, 1);
+  const set = (d.furn || []).map(([k, x, y, o]) => { if (k !== 'rug') m[y][x] = 'o'; return { k, x, y, tiles:[x, y, 1, 1], ...(o || {}) }; });
+  MAPS[id] = { kind:'inside', tiles:m, houses:[], set, name:d.name, sub:d.sub || '', route:d.route, room:{ floor:d.floor, wall:d.wall, light:d.light, ...d }, music:d.music, wild:null, w:W, h:H, region:true, exit:() => null };
+  return MAPS[id].room; }
+
+// ---------------------------------------------------------------- the University gallery (up the spiral stairs)
+const UNI = MAPS.quillsby_in6.room;
+{ const sitting = new Set(['qu_student1', 'qu_student2', 'qu_napper']);
+  for (const e of UNI.npcs) if (sitting.has(e.id)) e.model = () => { const g = buildPerson(e.look); g.userData.sit = true; return g; };   // on the benches, facing the lecturer
+  UNI.npcs.push(
+    look('qu_stairs', 13, 12, 'Stairs', () => goTo('quillsby_up', 3, 2, 'down')),
+    look('qu_board', 6, 11, 'Chalkboard', () => say(S.flags.thorne ? '(The chalkboard says, in Thorne\'s furious capitals: "LECTURE 1, REVISED: WHY I DIDN\'T." Someone has drawn a small smiling Manif in the corner. He hasn\'t rubbed it out.)' : '(The chalkboard says, in Thorne\'s furious capitals: "WHY NOBODY HAS EVER SEEN A MANIF." Underneath, smaller, in a student\'s hand: "we have though".)')),
+    look('qu_lectern', 6, 13, 'Lectern', '(Thorne\'s lecture notes, forty years old, the margins full of crossings-out. The last page just says "but what if" and stops.)'),
+    look('qu_notice', 17, 16, 'Notice board', () => say(`(The notice board. QUIET CLUB: THURSDAYS, ALL WELCOME (someone has written "don't" in front of it). ROWING: 5AM. LOST: ONE (1) SENSE OF PURPOSE, REWARD. And, in the middle, the chalk tally the bookseller mentioned: HEARTS SETTLED: ${heartsN()}.)`)),
+    look('qu_portrait', 15, 1, 'Portrait', '(A portrait of a tired, kind-faced man holding a book open in both hands. ORRIN VALE, FIRST ARCHIVIST, WHO TAUGHT HERE. The painter has given him ink on his cuff.)'),
+    look('qu_stacks', 7, 3, 'Stacks', () => say(pickA(['(Feeling, Volumes I to XL. Volume XXXIII is missing. There is a note where it should be: "borrowed by Thorne, 1987".)', '(A whole range on Joy. Most of the spines are uncracked. One is falling to pieces from being read.)', '(The Shame section. Somebody has turned every book the wrong way round, spines to the wall.)']))));
+}
+upRoom('quillsby_up', { w:17, h:11, name:'The Vale Gallery', sub:'Quillsby University, upstairs', route:'quillsby', music:'quillsby', floor:['#7a5a44', '#6e503c'], wall:'#e0d0b0',
+  furn:[['spiral', 2, 2], ['stacks', 6, 1], ['stacks', 7, 1], ['stacks', 8, 1], ['stacks', 9, 1], ['stacks', 10, 1], ['portrait', 12, 1], ['stacks', 14, 1], ['stacks', 15, 1],
+    ['case', 6, 4, { c:'#8a6a3a' }], ['case', 9, 4, { c:'#5a8aa8' }], ['case', 12, 4, { c:'#8a3a3a' }], ['desk', 3, 7], ['armchair', 14, 7], ['rug', 9, 7], ['table', 9, 8], ['plant', 15, 9], ['candle', 1, 9]] });
+MAPS.quillsby_up.room.npcs = [
+  look('qg_stairs', 2, 2, 'Stairs', () => goTo('quillsby_in6', 14, 12, 'right')),
+  npc('qg_hart', 4, 7, 'left', 'Archivist Hart', lk('#3a3a4a', '#e8dcc0', SK[3], '#8a8078', ['glasses', 'bun']), talkHart),
+  look('qg_case1', 6, 4, 'Glass case', '(The first page of Orrin Vale\'s The Weather Inside, in his own hand. The first line is crossed out and written again three times: "Every feeling is somebody\'s.")'),
+  look('qg_case2', 9, 4, 'Glass case', '(A child\'s desk lid, brought up from the basement, carved all over with little Manifs. In one corner, two sets of initials: W.V. and C.V., and a heart, and under it, in different handwriting, "C. is a goose".)'),
+  look('qg_case3', 12, 4, 'Glass case', '(A green bottle, unopened. The label says CALM, FOR THE WOUNDED, and the date of the war. The card says: "The University has decided not to open it. We are still deciding why."))'),
+  look('qg_window', 9, 9, 'Window seat', () => say(`(A window seat over the quad. Students on the grass, the fountain, the bell tower. ${nightNow() ? 'The lamps are on along the high street.' : 'Someone is asleep on the lawn with a book over their face.'})`)),
+  npc('qg_crispjr', 14, 8, 'up', 'Visiting scholar', lk('#5a3a5a', '#f3e7c9', SK[5], '#141014', ['glasses', 'scarf']), talks('qg_crispjr', 'Visiting scholar', [
+    'I came from over the sea to read Orrin\'s first draft. Where I come from, nobody keeps feelings, they just sell them. I wanted to see the people who decided not to.',
+    'Over the sea they buy bottles from the south docks. "Welkin Hope," it says on the label. I bought one once. It tasted like someone else\'s birthday. I cried for a week and I didn\'t know why.',
+    () => S.flags.dockBust ? 'They say the bottles stopped coming. Someone broke the crates at a place called Galloway. Over the sea, people are angry. And then, some of them, relieved.' : 'I\'m writing it all down. When I go home, I\'m going to tell them where the bottles come from.' ])) ];
+async function talkHart() {
+  if (!S.flags.hartRead) { await sayAs('Archivist Hart', 'The Vale Gallery. Rare books, Orrin\'s papers, and the desks his children carved. Please don\'t breathe on the cases. Breathe near them, that\'s fine.');
+    const c = await ask('Archivist Hart: Would you like to read Orrin\'s own copy of The Weather Inside? Gloves on.', ['Read it', 'Not now']); if (c !== 0) return;
+    S.flags.hartRead = 1; await say('(You turn the pages slowly. The handwriting gets smaller and smaller toward the end, as if he was running out of room.)');
+    await say('"If you are reading this and you carry something heavy: you are not broken. You are full. There is a difference, and the whole of this book is about it."');
+    S.items.quill = (S.items.quill || 0) + 1; return say('(You understand something a little better. You received an Insight Quill.)'); }
+  return talks('qg_hart', 'Archivist Hart', [
+    'Thorne comes up here sometimes, when he thinks nobody\'s about. He reads the last chapter of The Weather Inside and then goes very quiet. I pretend not to notice.',
+    () => S.flags.locketTo ? 'I heard something of the Vales went home. I\'ve added a card to the desk lid: "One of these children has been found." I didn\'t know what else to write.' : 'There are letters downstairs, from Orrin to the twins. Mags will show you. The house they went to is still standing, they say, up in the snow.',
+    'The bottle of Calm in the third case. Every year someone proposes opening it, to see. Every year the committee votes no. I vote no hardest.' ])();
+}
+
+// ---------------------------------------------------------------- the Observatory: up the stairs to the great telescope
+{ const OB = MAPS.whitecrown_in1.room; OB.npcs.push(look('wo_stairs', 6, 3, 'Stairs', () => goTo('whitecrown_up', 2, 3, 'right'))); }
+upRoom('whitecrown_up', { w:13, h:11, name:'The Telescope Deck', sub:'Whitecrown Observatory, under the dome', route:'whitecrown', music:'whitecrown', floor:['#4a4a52', '#424248'], wall:'#2a2a3a', light:{ sky:'#0a1020', hemi:'#9ab0d8', sun:.5 },
+  furn:[['spiral', 1, 3], ['telescope', 6, 5], ['desk', 10, 2], ['bookcase', 11, 7], ['chair', 9, 2], ['rug', 4, 8], ['candle', 1, 9]] });
+MAPS.whitecrown_up.room.npcs = [
+  look('wu_stairs', 1, 3, 'Stairs', () => goTo('whitecrown_in1', 7, 3, 'right')),
+  look('wu_scope', 6, 5, 'The great telescope', useTelescope),
+  look('wu_log', 10, 2, 'Observing log', () => say(`(The observing log, two hundred years of it. Tonight's entry, in Isolde's tidy hand: "Clear. All ten visible. ${heartsN() >= 10 ? 'The Hope brighter than I have ever logged it.' : 'The Shame faint, as always. Still there, as always.'}")`)),
+  npc('wu_isolde', 8, 7, 'up', 'Astronomer Isolde', lk('#2a2a4a', '#d8d0e8', SK[1], '#d8d0c0', ['glasses', 'longcoat']), talks('wu_isolde', 'Astronomer Isolde', [
+    'You found the stairs! Most visitors don\'t. Go on, look through her. She\'s called Margarethe. Don\'t ask; the first astronomer named her, and we\'re all too fond of her to change it.',
+    () => nightNow() ? 'The slot\'s open. Everything\'s up there tonight. Use the arrows to look round the sky; I\'ll tell you what you\'re looking at.' : 'In the day I close the shutter and put the dark plate in, so you can still see the stars. It\'s cheating. The stars don\'t mind.',
+    'The Vale children used to come up here. There\'s a mark on the floor by the eyepiece where somebody small always stood on a box.' ]), { gone:() => !nightNow() }) ];
+for (const e of MAPS.whitecrown_in1.room.npcs) if (e.id === 'astronomer') e.gone = () => nightNow();   // after dark she's up at the telescope
+// The view through the telescope: the ten constellations of the Wheel, drifting slowly. Arrows (or drag) to look about,
+// A to hear about what's in the middle of the view, B to step back from the eyepiece. Nothing flashes or twinkles.
+const SKY_LORE = {
+  JOY:"The Joy. Five stars like a hand held up. Lovers argue about which one it is; it's this one.", HOPE:'The Hope. Sailors steer by its brightest star, the Lantern. It is never quite where you left it, and it is always there.',
+  CALM:'The Calm. A long low line, like still water. Fishermen say if you can see all seven stars, tomorrow will be kind.', CONFIDENCE:'The Confidence. A straight back and a lifted chin. The brightest star is called the Crown, and the town is named after it.',
+  SURPRISE:'The Surprise. Nobody agrees what shape it is. It looks different every time anyone describes it.', SADNESS:'The Sadness. A slow falling curve, like rain on a window. It rises in autumn and stays all winter.',
+  FEAR:'The Fear. Small and tight and close together, like people huddled. The darkest part of the sky is right behind it.', ANGER:'The Anger. Red stars, all of them. A fist, or a forge. It burns low on the horizon in summer.',
+  SHAME:'The Shame. The faintest of the ten. You have to want to see it, Isolde says. It is always there.', DISGUST:'The Disgust. A turned shoulder. The old sky-books say it points away from something, but nobody agrees what.' };
+async function useTelescope() {
+  await say(nightNow() ? '(The shutter is open. You put your eye to Margarethe\'s eyepiece.)' : '(Isolde has slid the dark plate in, so the stars show even by day. You put your eye to the eyepiece.)');
+  if (once('skyFirst')) await sayAs('Astronomer Isolde', 'Arrows to look about. A to ask me what you\'re seeing. B when you\'ve had enough of the universe, which nobody ever has.');
+  await skyView();
+  if (once('skyGift')) { S.items.charm = (S.items.charm || 0) + 1; await sayAs('Astronomer Isolde', 'Everyone looks different when they come away from the eyepiece. A bit smaller. A bit better. Here, a charm, for your first time.'); await say('(You received a Kindred Charm.)'); }
+}
+function skyView() { return new Promise(resolve => {
+  const el = document.createElement('div'); el.id = 'skyview';
+  el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#03050c;opacity:0;transition:opacity 1s ease;touch-action:none;font-family:Lora,serif;color:#f3e7c9';
+  const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; el.appendChild(cv);
+  const cap = document.createElement('div'); cap.style.cssText = 'position:absolute;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(560px,88vw);text-align:center;font-size:16px;line-height:1.5;background:rgba(10,8,6,.72);border:1px solid #6a5434;border-radius:10px;padding:10px 16px;transition:opacity .8s ease;opacity:0'; el.appendChild(cap);
+  const hint = document.createElement('div'); hint.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);font-size:13px;color:#c9a35a;opacity:.85;text-align:center'; hint.textContent = '←↑↓→ or drag to look · A: what is that? · B: step back'; el.appendChild(hint);
+  document.body.appendChild(el); requestAnimationFrame(() => el.style.opacity = 1);
+  const SW = 3200, SH = 1400; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const stars = []; for (let i = 0; i < 900; i++) stars.push([rnd() * SW, rnd() * SH, rnd() < .9 ? .6 + rnd() * .9 : 1.4 + rnd() * 1.2, .35 + rnd() * .6, rnd() < .15 ? '#ffd8b0' : rnd() < .3 ? '#c8d8ff' : '#ffffff']);
+  // the ten constellations, spaced around the sky in wheel order, each a little shape of 5-7 stars
+  const cons = WHEEL.map((t, i) => { const cx = 160 + i * (SW - 320) / 9 + (i % 2 ? 40 : -40), cy = SH / 2 + Math.sin(i * 1.3) * 300; const n = 5 + (i % 3), pts = [];
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + i, r = 60 + ((k * 37 + i * 11) % 70); pts.push([cx + Math.cos(a) * r * (1 + (i % 2) * .4), cy + Math.sin(a) * r * .8]); }
+    if (t === 'CALM') pts.forEach((p, k) => { p[0] = cx - 150 + k * 50; p[1] = cy + Math.sin(k) * 14; });
+    return { t, cx, cy, pts, col:TYPES[t].c, faint:t === 'SHAME' }; });
+  const dark = { cx:(cons[2].cx + cons[3].cx) / 2, cy:SH / 2 - 120 };   // the dark patch between the Calm and the Confidence
+  let vx = cons[0].cx, vy = SH / 2, tx = vx, ty = vy, alive = true, drag = null, lastShown = null;
+  const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; }; fit(); addEventListener('resize', fit);
+  const show = txt => { cap.style.opacity = 0; setTimeout(() => { cap.innerHTML = txt; cap.style.opacity = txt ? 1 : 0; }, 300); };
+  const centred = () => { const r = Math.min(innerWidth, innerHeight) * .28; let best = null, bd = 1e9; for (const c of cons) { const d = Math.hypot(c.cx - vx, c.cy - vy); if (d < bd) { bd = d; best = c; } }
+    if (Math.hypot(dark.cx - vx, dark.cy - vy) < 90) return 'dark'; return bd < Math.max(140, r) ? best : null; };
+  const draw = () => { if (!alive) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = devicePixelRatio; vx += (tx - vx) * .08; vy += (ty - vy) * .08;
+    g.fillStyle = '#03050c'; g.fillRect(0, 0, W, H);
+    const ox = W / 2 - vx * s, oy = H / 2 - vy * s, t = performance.now() / 1000;
+    const neb = g.createRadialGradient(ox + SW * .55 * s, oy + SH * .4 * s, 0, ox + SW * .55 * s, oy + SH * .4 * s, 700 * s); neb.addColorStop(0, 'rgba(90,60,130,.22)'); neb.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = neb; g.fillRect(0, 0, W, H);
+    const neb2 = g.createRadialGradient(ox + SW * .18 * s, oy + SH * .65 * s, 0, ox + SW * .18 * s, oy + SH * .65 * s, 500 * s); neb2.addColorStop(0, 'rgba(40,90,120,.18)'); neb2.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = neb2; g.fillRect(0, 0, W, H);
+    for (const [x, y, r, a, c] of stars) { const px = ox + ((x + t * 2) % SW) * s, py = oy + y * s; if (px < -4 || py < -4 || px > W + 4 || py > H + 4) continue; g.globalAlpha = a; g.fillStyle = c; g.beginPath(); g.arc(px, py, r * s, 0, 7); g.fill(); }
+    g.globalAlpha = 1; const cen = centred();
+    for (const c of cons) { const on = cen === c, al = c.faint ? .45 : 1; g.strokeStyle = c.col; g.globalAlpha = (on ? .75 : .28) * al; g.lineWidth = 1.4 * s; g.beginPath();
+      c.pts.forEach(([x, y], k) => { const px = ox + (x + t * 2) * s, py = oy + y * s; k ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke();
+      for (const [x, y] of c.pts) { const px = ox + (x + t * 2) * s, py = oy + y * s; g.globalAlpha = al; const gr = g.createRadialGradient(px, py, 0, px, py, 9 * s); gr.addColorStop(0, '#ffffff'); gr.addColorStop(.25, c.col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(px, py, 9 * s, 0, 7); g.fill(); }
+      g.globalAlpha = (on ? .95 : .5) * al; g.fillStyle = '#f3e7c9'; g.font = `${13 * s}px Lora, serif`; g.textAlign = 'center'; g.fillText('The ' + TYPES[c.t].name, ox + (c.cx + t * 2) * s, oy + (c.cy + 150) * s); }
+    g.globalAlpha = 1; g.strokeStyle = 'rgba(201,163,90,.5)'; g.lineWidth = s; g.beginPath(); g.arc(W / 2, H / 2, 26 * s, 0, 7); g.stroke();   // the reticle
+    const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.85)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);   // the round edge of the eyepiece
+    if (cen !== lastShown) { lastShown = cen; show(cen === 'dark' ? '<i>A patch with no stars at all, between the Calm and the Confidence.</i>' : cen ? `<b>The ${TYPES[cen.t].name}</b>` : ''); }
+    requestAnimationFrame(draw); };
+  requestAnimationFrame(draw);
+  const step = 160, clamp = () => { tx = Math.max(80, Math.min(SW - 80, tx)); ty = Math.max(200, Math.min(SH - 200, ty)); };
+  const close = () => { if (!alive) return; alive = false; selectHandler = null; el.style.opacity = 0; removeEventListener('resize', fit); setTimeout(() => { el.remove(); resolve(); }, 1000); };
+  selectHandler = b => { if (b === 'left') tx -= step; else if (b === 'right') tx += step; else if (b === 'up') ty -= step * .7; else if (b === 'down') ty += step * .7;
+    else if (b === 'a') { const c = centred(); show(c === 'dark' ? "<i>Isolde:</i> Orrin thought that was the eleventh feeling. The one we refuse. I think it's just dark. I hope it's just dark." : c ? `<i>Isolde:</i> ${SKY_LORE[c.t]}` : '<i>Isolde:</i> Just stars there. Just stars. Isn\'t that enough?'); }
+    else if (b === 'b' || b === 'menu') close(); clamp(); };
+  el.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, tx, ty]; });
+  el.addEventListener('pointermove', e => { if (drag) { tx = drag[2] - (e.clientX - drag[0]); ty = drag[3] - (e.clientY - drag[1]); clamp(); } });
+  el.addEventListener('pointerup', e => { if (drag && Math.hypot(e.clientX - drag[0], e.clientY - drag[1]) < 6) selectHandler('a'); drag = null; });
+}); }
+
+// ---------------------------------------------------------------- the cable car and the Crown (the summit above Whitecrown)
+(function buildCrown() {
+  const B = regionBuilder('wc_summit', 30, 22), m = B.m; border(m, 2); rect(m, 3, 15, 8, 4, ','); rect(m, 20, 3, 6, 2, ',');
+  rect(m, 4, 5, 22, 1, '='); rect(m, 14, 5, 2, 12, '=');
+  B.piece('cablecar', 4, 3); B.piece('cairn', 14, 17); B.piece('snowman', 22, 9); rect(m, 18, 12, 8, 5, '~');   // the tarn, frozen
+  B.house(6, 9, 5, '#4a4a5a', '#d8d4cc', { name:"Magda's Hut", w:9, h:7, music:'switchback', floor:['#7a6450', '#6e5a48'], wall:'#c8b8a0', furn:[['stove', 1, 1, { lit:true }], ['bed', 7, 1], ['table', 4, 3], ['rug', 4, 5]] });
+  regionMap('wc_summit', B, { name:'The Crown', sub:'The summit above Whitecrown', V:SNOW_V, music:'switchback', arrive:'The cable car bumps to a stop on the summit. Wind, snow, and the whole Welkin laid out below like a map somebody dropped: ten cities in a ring around a small grey village.', exit:() => null });
+  MAPS.wc_summit_in0.room.npcs = [npc('cm_magda', 4, 4, 'up', 'Old Magda', lk('#5a3a5a', '#e8dcc0', SK[0], '#f4f1e8', ['scarf', 'hat']), talks('cm_magda', 'Old Magda', [
+    'Sit by the stove. Nobody comes up. Nils sends a loaf up in the car on Sundays and I send down the empty bag. That\'s my whole post.',
+    'I keep the cairn. Everyone who comes up adds a stone for somebody. Orrin Vale came up with his two, once. You can still read what they scratched.',
+    { light:'You\'ve a good face for a summit. Most people come up here to cry. You came up to look. That\'s rarer.', even:'Snow\'s coming. Snow\'s always coming, up here.', hurt:'Go and add a stone. You\'ll feel lighter coming down. Everyone does. It\'s the only magic I know of that works.', shadow:'(She puts another log on the stove and doesn\'t turn round.)' } ]))];
+  REGION_NPCS.wc_summit = () => [
+    look('cm_car', 4, 3, 'Cable car', async () => { const c = await ask('Ride the cable car back down to Whitecrown?', ['Ride down', 'Stay a while']); if (c === 0) { await say('(The car swings out over the drop and down the wire, slowly, into the white.)'); await goTo('whitecrown', 8, 5, 'down', 900); } }),
+    look('cm_cairn', 14, 17, 'The cairn', talkCairn),
+    look('cm_view', 27, 8, 'The edge', '(From the edge you can see all of it. Ten cities in a ring, smoke from Emberwick, rain over Sorrowmere, sun on Larkhollow, and in the middle Vellum, small and grey, with the Archive in it. From up here it looks like the Wheel in the sky. Maybe that\'s why they named them the same.)'),
+    look('cm_tarn', 18, 12, 'Frozen tarn', '(A small mountain lake, frozen solid. Under the ice, perfectly clear, a child\'s mitten, two hundred years old.)'),
+    look('cm_snowman', 22, 9, 'Snowman', '(A very old-looking snowman. Magda says she rebuilds it every winter in the same spot. "Somebody\'s got to keep him.")'),
+    npc('cm_climber', 24, 6, 'left', 'Climber', lk('#c0503a', '#f3e7c9', SK[2], '#7a3e1e', ['cap', 'scarf', 'satchel']), talks('cm_climber', 'Climber', [
+      'I climbed up. The whole way. Then I found out there was a cable car. I\'m choosing to feel proud anyway.',
+      'You can see Saltmere\'s lighthouse from here, just. On a clear night it blinks right at you. Well. It doesn\'t blink. It just sweeps round. Slowly. You know what I mean.',
+      () => `Your ${leadName()} looks cold. Mine would be, if I had one. I've got a hat instead. Not the same.` ])) ];
+})();
+async function talkCairn() {
+  await say('(A tall cairn of stones, every one carried up by somebody. Near the bottom, three are scratched with letters: "W.", "C.", and a larger one, "PAPA". Under them: "The summer we climbed. Corvin was scared. Wrenna held his hand. We could see everything.")');
+  if (S.flags.cairn) return say('(Your stone is there too, near the top, with the snow already settling on it.)');
+  const c = await ask('Add a stone to the cairn, for someone?', ['For the twins', 'For Orrin', 'For someone I lost', 'For me', 'Not now']); if (c < 0 || c === 4) return;
+  S.flags.cairn = 1; S.items.hearth = (S.items.hearth || 0) + 1;
+  await say(['(You set a stone beside the twins\' two. They are very small stones, for two people who carried so much.)', '(You set a stone beside "PAPA". The wind drops for a moment.)', '(You set a stone on the cairn, and say the name, quietly. The mountain keeps it.)', '(You set a stone on the cairn for yourself. It feels strange, and then it feels right.)'][c]);
+  await say('(You feel lighter, the way Magda said. You received a Mending Light.)');
+}
+// the Whitecrown end of the line: Nils runs it, now there's a reason
+{ const base = REGION_NPCS.whitecrown; REGION_NPCS.whitecrown = () => [...base().filter(e => e.id !== 'wc_cable'),
+  look('wc_cable', 8, 4, 'Cable car', rideUp),
+  npc('wc_nils', 9, 6, 'up', 'Nils the operator', lk('#3a4a5a', '#d8b85a', SK[3], '#8a8078', ['cap', 'scarf']), async () => {
+    if (!S.flags.cableOpen) { await sayAs('Nils', 'Cable car to the Crown. Closed until there\'s a reason. Forty years, nobody\'s given me one.');
+      const c = await ask('Nils: So. Have you got a reason?', ['I want to see the top', 'Someone up there needs company', 'No']);
+      if (c === 0 || c === 1) { S.flags.cableOpen = 1; return sayAs('Nils', c === 0 ? 'Want to see. (He laughs, and it turns into something else.) That\'s the oldest reason there is. All right. Climb in. No charge; I\'ve forgotten what I used to charge.' : 'Magda. You mean Magda. (He takes his cap off.) Forty years I\'ve sent her bread and never once gone up. All right. Climb in. Tell her Nils says hello.'); }
+      return sayAs('Nils', 'Fair enough. I\'ll be here. I\'m always here.'); }
+    return talks('wc_nils', 'Nils', ['She runs sweet as anything. I knew she would. Climb in whenever you like.', 'Pieter came up and watched me grease the wheel. Didn\'t say anything. Just stood there, smiling like a boy.', 'Tell Magda the bread\'s coming Sunday. Same as always. Tell her I\'m coming with it, this time.'])(); }) ]; }
+async function rideUp() {
+  if (!S.flags.cableOpen) return say('(The red cable car hangs at its station, door shut. A sign: CLOSED UNTIL THERE IS A REASON. Nils, the operator, is standing beside it.)');
+  const c = await ask('Ride the cable car up to the Crown?', ['Ride up', 'Not now']); if (c !== 0) return;
+  await say('(The car lurches, then rises, slow and swaying, up the wire. Whitecrown gets small. The snow gets close. Then there\'s only white, and the wire, and the sound of the wheel.)');
+  await goTo('wc_summit', 5, 5, 'down', 900);
+}
+FAR_PLACES.add('wc_summit'); GATE_SHUT.add('wc_summit'); CHORD_FAR.wc_summit = CHORD_FAR.whitecrown;
+
+// ---------------------------------------------------------------- Galloway Landing: the Cypress Yard, the feu follet, the Belle Marguerite, and the stilt houses
+(function backOfGalloway() {
+  const M = MAPS.galloway, m = M.tiles, set = M.set, doors = DOOR_TILES.galloway;
+  const piece = (k, x, y, w = 1, h = 1, o = {}) => { if (!o.keep) rect(m, x, y, w, h, 'o'); set.push({ k, x:x + (w - 1) / 2, y:y + (h - 1) / 2, tiles:[x, y, w, h], ...o }); };
+  // the Cypress Yard: whitewashed tombs above the ground, because the water table is too high to dig
+  for (let x = 3; x <= 19; x++) { m[2][x] = 'h'; m[9][x] = x === 12 ? '.' : 'h'; } for (let y = 2; y <= 9; y++) { m[y][2] = 'h'; m[y][20] = 'h'; }
+  for (const y of [4, 7]) for (const x of [5, 8, 14, 17]) piece('tomb', x, y);
+  piece('tomb', 11, 4, 1, 1, { c:'#d8d0c0' });
+  for (const [x, y] of [[6, 5], [15, 7]]) set.push({ k:'wisp', x, y });
+  // the Belle Marguerite, aground on the bank of a back channel
+  rect(m, 25, 2, 20, 3, '~'); piece('steamer', 28, 3, 9, 4); m[6][32] = 'D'; m[7][32] = '='; piece('lamp', 30, 8, 1, 1, { lit:true }); piece('lamp', 35, 8, 1, 1, { lit:true });
+  set.push({ k:'wisp', x:40, y:6 });
+  doors['32,6'] = regionRoom('galloway', 4, [32, 6], { name:'The Belle Marguerite', w:15, h:8, music:'galloway', floor:['#7a5a3a', '#6e503c'], wall:'#e8e0c8',
+    furn:[['counter', 2, 1], ['table', 6, 3], ['table', 10, 3], ['piano', 13, 1], ['cardtable', 6, 5], ['armchair', 12, 5], ['rug', 9, 5], ['portrait', 8, 1]] });
+  // stilt houses: a plank out from the south bank to each front door
+  [[6, 'The Robichaux House', 5], [16, "Odalie's", 6], [28, "Tee-Jean's House", 7]].forEach(([x, name, i]) => {
+    m[24][x] = 'D'; m[25][x] = '='; doors[x + ',24'] = regionRoom('galloway', i, [x, 24], { name, w:9, h:7, music:'galloway', floor:['#7a6450', '#6e5a48'], wall:'#d8c8a8',
+      furn:i === 5 ? [['table', 4, 2], ['bed', 1, 1], ['bed', 7, 1], ['basket', 7, 4]] : i === 6 ? [['shelf', 1, 1], ['shelf', 2, 1], ['bed', 7, 1], ['stove', 7, 4, { lit:true }], ['plant', 1, 4]] : [['bed', 1, 1], ['kayak', 6, 1], ['table', 4, 3], ['radio', 7, 4]] }); });
+  const IN = i => MAPS['galloway_in' + i].room;
+  IN(4).npcs = [npc('gs_captain', 7, 2, 'down', 'Captain Thibodeaux', lk('#2a3a5a', '#d8b85a', SK[1], '#d8d0c0', ['cap', 'longcoat']), talkCaptain),
+    look('gs_portrait', 8, 1, 'Portrait', '(A stern man in a captain\'s coat. CAPT. ÉTIENNE THIBODEAUX, MASTER OF THE BELLE MARGUERITE. Under the frame, a newer card: "He carried bottles to the war. We carry him.")'),
+    npc('gs_cards', 6, 6, 'up', 'Card players', lk('#4a3a2a', '#e8dcc0', SK[4], '#141014', ['hat']), talks('gs_cards', 'Card players', [
+      'Pull up a crate. Penny a hand. The captain lets us play here as long as nobody cheats and everybody lies.',
+      'This boat hasn\'t moved since before my grandpa. Rocks when the wind\'s up, though. Like she remembers.',
+      { light:'Deal you in? You\'ve got a lucky face. Or an honest one. Hard to tell on a boat.', even:'Shh. I\'m counting.', shadow:'(They gather the pennies off the table without looking at you.)' } ]))];
+  IN(5).npcs = [npc('gs_robichaux', 4, 4, 'up', 'Mrs. Robichaux', lk('#8a5a3a', '#f3e7c9', SK[5], '#141014', ['apron', 'bandana']), talks('gs_robichaux', 'Mrs. Robichaux', [
+      'Mind the third plank coming in; it sings. Every house on stilts has one plank that sings. Means it knows you.',
+      'Four children, one room, and the bayou for a garden. The bayou\'s the easy part.',
+      () => S.flags.feuDone ? 'Achille stopped by. He looked ten years younger. You did that? Here, take a praline. Take two.' : 'Achille Boudreaux sits by the Cypress Yard every night watching for lights. Poor man. Somebody ought to sit with him.' ])),
+    npc('gs_rkid', 7, 3, 'left', 'Little Robichaux', lk('#e8a83a', '#fff3d6', SK[5], '#141014', ['braids'], { small:true }), talks('gs_rkid', 'Little Robichaux', [
+      'There are lights in the graveyard at night! Green ones! Mama says don\'t follow them. I\'m going to follow them when I\'m nine.',
+      'Remy the gator lives under our house. Not really. Probably not. Maybe.', () => `Can your ${leadName()} swim? Everything round here swims or it doesn't stay round here.` ]))];
+  IN(6).npcs = [npc('gs_odalie', 4, 3, 'down', 'Odalie', lk('#4a3a4a', '#e8dcc0', SK[5], '#d8d0c0', ['scarf', 'glasses']), judged('Odalie', ['light', 'even', 'hurt'], async () => {
+      await sayLine('Odalie', ['Traiteur. I treat. Sit down, give me your hands. No, both of them.', 'Back again? Good. Some things take two visits.', () => auraSide() === 'hurt' ? 'You\'re carrying more than you came in with. Sit. This one\'s on the house, and so is the next.' : 'A little prayer, a little tea, a little sitting quiet. Most of the cure is the sitting.'][rotIdx('odalie', 3)]);
+      healAll(); return say('(She holds your hands and says something under her breath, and the tea is very bitter. Everything you carry is composed again.)'); },
+    () => sayAs('Odalie', 'I treat what can be treated. Go on, now.')))];
+  IN(7).npcs = [npc('gs_tjmama', 4, 4, 'up', "Tee-Jean's mama", lk('#4f8aa8', '#f3e7c9', SK[4], '#3a2414', ['apron']), talks('gs_tjmama', "Tee-Jean's mama", [
+      'If you\'re looking for Tee-Jean, he\'s at the water. He\'s always at the water. I\'ve stopped calling him in for supper; I just float it out to him.',
+      () => S.flags.raceWin ? 'You beat him? (She laughs till she has to sit down.) Good. He needed beating. He\'s been impossible since he was four.' : 'He\'s saving for a motor. On a pole-boat. I\'ve told him that\'s not a pole-boat any more. He says details.',
+      'His papa raced too. Won every Sunday for twelve years. Then the flood. Tee-Jean races for both of them. Don\'t tell him I told you.' ]))];
+  const base = REGION_NPCS.galloway;
+  REGION_NPCS.galloway = () => [...base(),
+    sign('gl_yardsign', 11, 9, 'THE CYPRESS YARD. Whitewash on All Saints. Please close the gate; the gators are not family.'),
+    npc('gl_achille', 13, 10, 'down', 'Achille Boudreaux', lk('#4a4a3a', '#e8dcc0', SK[4], '#8a8078', ['hat', 'beard']), talkAchille),
+    ...[[5, 4], [8, 4], [11, 4], [14, 4], [17, 4], [5, 7], [8, 7], [14, 7], [17, 7]].map(([x, y], i) => look('gl_tomb' + i, x, y, 'Tomb', () => say(['(BOUDREAUX. Seven names, the last one blank, waiting.)', '(FONTENOT. Whitewashed so recently the paint is still soft.)', '(The oldest tomb, older than the town. No name, only a carved boat.)', '(ROBICHAUX. A child\'s toy pirogue has been left on the step.)', '(DUMAS. Reverend Dumas\'s father, and his father, and his.)', '(LACROIX. Weeds, and no flowers. Nobody visits.)', '(CELESTINE MARIE. A wooden spoon laid on top, and a pinch of pepper.)', '(THE FLOOD OF \'09. Eleven names, and a space for one more that has never been filled.)', '(GUIDRY. Somebody has written "miss you, mean old man" on the step in chalk.)'][i]))),
+    ...[['gl_wisp1', 6, 5], ['gl_wisp2', 15, 7], ['gl_wisp3', 40, 6]].map(([id, x, y], i) => look(id, x, y, 'A faint light', () => followWisp(i))),
+    look('gl_belle', 29, 6, 'The Belle Marguerite', '(An old sternwheeler, aground on the bank of the back channel and painted every spring, though she hasn\'t moved in a century. The name board says BELLE MARGUERITE. Light and voices from the saloon.)'),
+    npc('gl_painter', 37, 7, 'left', 'Painter', lk('#d86a8a', '#f3e7c9', SK[2], '#3a2414', ['apron', 'cap']), talks('gl_painter', 'Painter', [
+      'Every spring the whole town paints the Belle. Red and white. She doesn\'t go anywhere. That\'s not the point.',
+      'The captain lives aboard. Thibodeaux. Her great-great-grandpa ran bottles up the river in the war. She says she\'s keeping the boat so it never carries anything again.',
+      'I paint the tombs too, on All Saints. Same white. Same brush. Everybody in Galloway ends up the same colour in the end.' ])) ];
+})();
+// the feu follet: three soft lights, after dark, that lead to something lost in the flood of '09
+async function talkAchille() {
+  if (S.flags.feuDone) return talks('gl_achille2', 'Achille Boudreaux', ['Théo\'s in with the family now. I sleep. I\'d forgotten how.', 'I painted the tomb myself this year. Seven names. All of them filled.', 'If you see a green light over the water, it\'s not him. I know that. I wave anyway.'])();
+  if (S.items.medal09) { delete S.items.medal09; S.flags.feuDone = 1; pay(200); S.items.hearth = (S.items.hearth || 0) + 2;
+    await sayAs('Achille Boudreaux', '(He takes the little tin medal and turns it over. PIROGUE RACE, 1st, and a name scratched on the back.) Théo. That\'s Théo\'s. He won it the summer before the flood. He wore it everywhere.');
+    await sayAs('Achille Boudreaux', 'We never found him. Forty years I\'ve sat here waiting for a light to show me. And you just walked up and followed them.');
+    await say('(At dawn he and Reverend Dumas set the medal inside the Boudreaux tomb, and he chalks the seventh name onto the stone himself. 200 Marks and 2 Mending Lights, "from the family".)'); return; }
+  await sayLine('Achille Boudreaux', [['My brother Théo went in the flood of \'09. Never found him. The old folks say the feu follet, the lights in the marsh, lead to lost things.', 'I\'m too old to follow them. Too scared, maybe. Every night I sit here and watch them and don\'t go.'],
+    () => nightNow() ? 'Look. There. (A faint green light hangs over a tomb in the yard.) There\'s one. Go on, if you\'re going. They don\'t wait.' : 'They only come out after dark. Come back when the lamps are lit.',
+    'If you follow them, don\'t run. Lights don\'t like to be chased. Nothing does.'][rotIdx('achille', 3)]);
+}
+async function followWisp(i) {
+  const got = S.feu || 0;
+  if (S.flags.feuDone) return say('(Nothing there now. Just the yard, and the water, and the night.)');
+  if (!nightNow()) return say('(In the daylight you can barely see it: a little green shimmer in the air, like heat. Come back after dark.)');
+  if (i > got) return say('(A faint green light, hanging very still. It seems to be waiting for you to find another one first.)');
+  if (i < got) return say('(Only the cool air where the light was.)');
+  S.feu = got + 1;
+  if (i === 0) return say('(A soft green light hangs over the old tomb. As you come close it drifts away, slowly, toward the back of the yard, and stops over another.)');
+  if (i === 1) return say('(The light rises off the tomb that says THE FLOOD OF \'09 and drifts out of the yard, east, low over the ground, toward the old steamboat\'s channel.)');
+  S.items.medal09 = 1; await say('(The light sinks into the reeds by the water and goes out. Where it was, half in the mud, something small and round. A tin medal on a rotten ribbon: PIROGUE RACE, 1st.)');
+  await say('(Achille Boudreaux, by the Cypress Yard, should have this.)');
+}
+async function talkCaptain() {
+  return talks('gs_captain', 'Captain Thibodeaux', [
+    'Aurélie Thibodeaux. Master of the Belle Marguerite, which hasn\'t gone anywhere in ninety years, so I\'m master of a very large living room.',
+    'My great-great-grandfather ran bottles up the river for the war. Rage for the front, Calm for the hospitals. Every trip. Then Ash burned, and he never sailed again.',
+    () => S.flags.dockBust ? 'Somebody smashed Lacroix\'s crates. (She raises a glass to you without asking whether it was you.) Two hundred years late, but somebody finally sank that cargo.' : 'Lacroix\'s grey boat goes past my windows every week. Same cargo as Grandpa\'s. I keep the Belle here so there\'s one boat on this river that will never carry it again.',
+    { light:'Stay for a hand of cards. They cheat. I let them. It\'s a family boat.', even:'Mind the deck. It lists a little to port. So do I, after supper.', hurt:'Sit in the armchair. It was my grandmother\'s. It has seen worse days than yours, I promise.', shadow:'(She puts her glass down and keeps her hand flat on the bar, near something under it.)' } ])();
+}
+ITEMS.medal09 = { name:"Théo's Medal", key:true, desc:'Found where the light went out', fieldUse:() => say('(A tin medal on a rotten ribbon. PIROGUE RACE, 1st. Scratched on the back: THÉO.)') };
+
+// ---------------------------------------------------------------- the stilt shacks on the Black Bayou
+(function bayouShacks() {
+  const M = MAPS.r_bayou, m = M.tiles, doors = DOOR_TILES.r_bayou;
+  m[14][14] = 'D'; doors['14,14'] = regionRoom('r_bayou', 0, [14, 14], { name:"Fisherman's Shack", w:9, h:7, music:'bayou_road', floor:['#6a5a48', '#5e5040'], wall:'#a89878', furn:[['bed', 1, 1], ['radio', 4, 1], ['crates', 7, 1], ['table', 6, 4]] });
+  m[5][44] = 'D'; doors['44,5'] = regionRoom('r_bayou', 1, [44, 5], { name:'The Heron Hide', w:9, h:7, music:'bayou_road', floor:['#6a5a48', '#5e5040'], wall:'#a89878', furn:[['bench', 4, 1], ['bookpile', 1, 4], ['table', 6, 4]] });
+  MAPS.r_bayou_in0.room.npcs = [npc('bs_fisher', 4, 4, 'up', 'Old Guidry', lk('#5a6a4a', '#e8dcc0', SK[4], '#f4f1e8', ['cap', 'beard']), talks('bs_fisher', 'Old Guidry', [
+      'This is my shack. Or my brother\'s, who\'s dead, so mine. There\'s a chalk thing on his tomb in town. I wrote it. He\'d have liked it.',
+      'Radio picks up the dance hall on a still night. I sit out on the porch and listen and pretend I\'m not lonely. Mostly I\'m not.',
+      { light:'Want some catfish? I\'ve got too much catfish. I always have too much catfish.', even:'Shut the door, the skeeters get in.', hurt:'Sit on the bed if you want. Bayou\'s good for being sad near. It doesn\'t mind.', shadow:'(He doesn\'t get up. The shotgun is on the wall, behind him, where he can reach it.)' } ]))];
+  MAPS.r_bayou_in1.room.npcs = [npc('bs_birder', 4, 3, 'up', 'Bird-watcher', lk('#4a5a3a', '#f3e7c9', SK[1], '#7a3e1e', ['hat', 'glasses']), talks('bs_birder', 'Bird-watcher', [
+      'Shh. Heron. No. Gone. (She lowers the glasses.) This is a hide. You sit very still and the bayou forgets you\'re here.',
+      'Forty-one kinds of bird this month. And one Manif, a little Calm, standing on one leg like it was a heron. I wrote it down as a heron. I don\'t know which one it was.',
+      () => `Your ${leadName()} is very good at sitting still. Better than most of my students. Would it like the window seat?` ]))];
+  const base = REGION_NPCS.r_bayou; REGION_NPCS.r_bayou = () => [...base().filter(e => e.id !== 'br_shack'), look('br_shack', 15, 13, 'Stilt shack', '(A fishing shack on stilts. The door is open and a radio is playing.)')];
+})();
+
+// ---------------------------------------------------------------- carts don't belong indoors
+{ const swap = (room, from, to, o = {}) => { for (const p of MAPS[room].set) if (p.k === from) Object.assign(p, { k:to }, o); };
+  swap('quillsby_in0', 'stand', 'case'); swap('quillsby_in1', 'stand', 'counter'); swap('cinder_reach_in0', 'stand', 'case', { c:'#8a8680' });
+  swap('cinder_reach_in1', 'stand', 'oillamp'); swap('galloway_in0', 'stand', 'counter'); swap('dry_fork_in0', 'stand', 'counter');
+  MAPS.cinder_reach_in1.room.npcs.push(look('cl_lamp', 5, 6, 'The Last Lamp', async () => {
+    await say('(An oil lamp in a brass collar, burning low and steady on a little table by the window. Moira\'s family carried it out of Ash. It hasn\'t gone out in two hundred years.)');
+    if (S.flags.lampLit) return say('(Beside it, the small candle you lit is still burning.)');
+    const c = await ask('There are new candles on the sill, for anyone who wants to light one from the Lamp.', ['Light one', 'Leave it']);
+    if (c === 0) { S.flags.lampLit = 1; await say('(You tip a candle to the old flame and set it on the sill. Moira doesn\'t say anything. She just moves it a little, so it\'s in the window where it can be seen from the road.)'); } })); }
+
+// ---------------------------------------------------------------- tracks don't lead anywhere you can walk
+// The far line runs to the edge of a town, but you can't walk off the map along it; and the Switchback road's
+// branch line ends at a buffer, not a doorway.
+for (const [id, , y] of FAR_LINE) { const M = MAPS[id]; if (!M) continue; const prev = M.exit; M.exit = (nx, ny) => ny === y ? null : prev(nx, ny); }
+{ const M = MAPS.r_switchback, prev = M.exit; M.exit = (nx, ny) => (ny === 9 || ny === 10) ? prev(nx, ny) : null; }
+
+// people in far-place rooms come and go (Varnham after he's reported, Isolde up and down the stairs)
+for (const [id, M] of Object.entries(MAPS)) if (M.region && M.kind === 'inside' && M.room && M.room.npcs && !M.room.npcsFn) { const R = M.room; R.npcsFn = () => R.npcs.filter(n => !(n.gone && n.gone())); }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
