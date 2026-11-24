@@ -12749,7 +12749,7 @@ async function showCredits() {
 function waitKey(ms) { return new Promise(res => { let done = false; const fin = () => { if (done) return; done = true; selectHandler = null; res(); }; setTimeout(fin, ms); selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) fin(); }; }); }
 const CREDITS = [
   ['Created by', 'Blaine Triplet'], ['Story, world and Manifs', 'Blaine Triplet'], ['Energy-creature paintings', 'Blaine Triplet'], ['Music', 'Blaine Triplet, with scores written for the cities and events'],
-  ['Built with', 'Claude, by Anthropic'], ['At the Dragon\'s Table', 'Mary · Shannon · Liam · Tony · Blaine'], ['On the beach at Saltmere', 'Ashlynn'], ['In the cabin off the Pinewind', 'Clover'],
+['At the Dragon\'s Table', 'Mary · Shannon · Liam · Tony · Blaine'], ['On the beach at Saltmere', 'Ashlynn'], ['In the cabin off the Pinewind', 'Clover'],
   ['The Sharyn Lighthouse', 'For Mom. Strong and steady, who weathered a storm that lasted years and never once took her eyes off the light.'] ];
 
 // ---- the feeling at the bottom of the well
