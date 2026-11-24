@@ -5964,8 +5964,9 @@ async function viewMenu() {
 }
 async function openMenu() {
   for (;;) {
-    const c = await choose(['Carried', 'Satchel', 'Codex', 'Aura', 'Journal', 'Save', { label:'Controller', sub:padState.connected ? 'Connected' : 'Settings' }, { label:'Bag', sub:`${S.marks || 0} Marks` }, { label:'Map', sub:'The whole world' }, { label:'View', sub:TP.on ? 'Over the shoulder' : 'From above' }, 'Close'], { start: openMenu.last || 0 });
-    if (c < 0 || c === 10) return;
+    const c = await choose(['Carried', 'Satchel', 'Codex', 'Aura', 'Journal', 'Save', { label:'Controller', sub:padState.connected ? 'Connected' : 'Settings' }, { label:'Bag', sub:`${S.marks || 0} Marks` }, { label:'Map', sub:'The whole world' }, { label:'View', sub:TP.on ? 'Over the shoulder' : 'From above' }, 'Credits', 'Close'], { start: openMenu.last || 0 });
+    if (c < 0 || c === 11) return;
+    if (c === 10) { openMenu.last = 10; $('#hud').classList.add('hidden'); await showCredits(); $('#hud').classList.remove('hidden'); continue; }
     if (c === 9) { openMenu.last = 9; await viewMenu(); continue; }
     if (c === 8) { openMenu.last = 8; showSheet(worldMapSheet()); await say(mapLine()); closeSheet(); continue; }
     if (c === 6) { openMenu.last = 6; await controllerMenu(); continue; }
@@ -12730,6 +12731,20 @@ async function theEnd(side) {
   S.map = 'vellum'; S.x = 16; S.y = 18; S.dir = 'down'; healAll(); ENTC.t = 0; buildWorld('vellum'); playMusic(themeFor('vellum')); saveGame && saveGame();
   toast('Ink & Aura', 'The end · keep walking');
 }
+// the credits on their own, from the title screen or the menu: B leaves, A skips a card
+async function showCredits() {
+  const el = document.createElement('div'); el.id = 'credits';
+  el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#120e0b;color:#f3e7c9;display:flex;align-items:center;justify-content:center;text-align:center;font-family:Lora,serif;opacity:0;transition:opacity 1.2s ease';
+  document.body.appendChild(el); await wait(50); el.style.opacity = 1; let left = false, skip = false;
+  selectHandler = b => { if (b === 'b' || b === 'menu') left = true; else if (b === 'a') skip = true; };   // one handler for the whole roll, so no press is ever missed
+  const card = async (html, ms) => { if (left) return; skip = false; el.innerHTML = `<div style="max-width:560px;padding:24px;opacity:0;transition:opacity 1.2s ease" id="credp">${html}</div>`; await wait(60); $('#credp').style.opacity = 1;
+    for (let t = 0; t < ms && !left && !skip; t += 100) await wait(100);
+    if ($('#credp')) $('#credp').style.opacity = 0; await wait(left ? 300 : 1200); };
+  await card(`<div style="font-size:34px;letter-spacing:.02em">Ink <i>&amp;</i> Aura</div><div style="font-size:14px;color:#c9a35a;margin-top:10px">Every feeling was somebody's</div>`, 4000);
+  for (const [h, p] of CREDITS) await card(`<div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c9a35a;margin-bottom:8px">${h}</div><div style="font-size:18px;line-height:1.6">${p}</div>`, 3600);
+  await card(`<div style="font-size:16px;line-height:1.6;color:#c9a35a">Thank you for carrying them.</div>`, 3600);
+  selectHandler = null; el.style.opacity = 0; await wait(1200); el.remove();
+}
 // wait for a key or the time, whichever comes first (A skips ahead gently; nothing flashes)
 function waitKey(ms) { return new Promise(res => { let done = false; const fin = () => { if (done) return; done = true; selectHandler = null; res(); }; setTimeout(fin, ms); selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) fin(); }; }); }
 const CREDITS = [
@@ -14237,7 +14252,7 @@ async function titleFlow() {
   else { S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
     $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
     await fadeTo(0, 600); await titleGate();
-    c = await choose(saved ? ['Continue', 'New Journey'] : ['New Journey'], { layout:'center', cancel:false }); }
+    while (true) { const opts = saved ? ['Continue', 'New Journey', 'Credits'] : ['New Journey', 'Credits']; c = await choose(opts, { layout:'center', cancel:false }); if (opts[c] !== 'Credits') { if (!saved) c = c + 1; break; } $('#title').classList.add('hidden'); await showCredits(); $('#title').classList.remove('hidden'); } }
   if (saved && c === 1) { const y = await ask('Start over? Your saved journey will be written over next time you save.', ['Start over', 'Go back'], { cancel:false }); if (y !== 0) { $('#title').classList.add('hidden'); return titleFlow(); } }
   $('#title').classList.add('hidden');
   if (saved && c === 0) {
@@ -14395,8 +14410,9 @@ async function testTitle() {
   S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
   $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
   await fadeTo(0, 600); await titleGate();
-  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · the Archive floor is open' }, { label:'After the good ending', sub:'The world restored' }, { label:'After the evil ending', sub:'The Grand Chord sung' }, { label:'New Journey', sub:'From the very beginning' }], { layout:'center', cancel:false });
+  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · the Archive floor is open' }, { label:'After the good ending', sub:'The world restored' }, { label:'After the evil ending', sub:'The Grand Chord sung' }, { label:'New Journey', sub:'From the very beginning' }, { label:'Credits' }], { layout:'center', cancel:false });
   $('#title').classList.add('hidden');
+  if (c === 4) { await showCredits(); return testTitle(); }
   if (c === 3) return 'new';
   await fadeTo(1, 400); S = makeTestSave(['final', 'good', 'evil'][c]); if (S.flags.restored) applyRestored();
   buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
