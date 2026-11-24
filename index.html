@@ -4570,7 +4570,7 @@ for (const t of WHEEL) { const T = TOWNS[t], X = ROOM_TXT[t], wc = new THREE.Col
     { name:`The ${['Copper', 'Lantern', 'Willow', 'Anvil', 'Riddle', 'Raincloud', 'Bolted Door', 'Drawn Curtain', 'Clean Step', 'Broken Mug'][TOWN_ORDER.indexOf(t)]}`   /* names follow the road order: Veilham's Drawn Curtain, Spurnhold's Clean Step, Emberwick's Broken Mug */, w:11, wall:tint(3),
       furn:[['table', 2, 2], ['table', 2, 5], ['table', 8, 2], ['table', 8, 5], ['desk', 5, 1], ['shelf', 9, 1]],
       item:{ x:5, y:5, id:'ct_' + t, key:'cake', n:2 },
-      npcs:[{ id:'res_bar', x:5, y:2, dir:'down', look:roomLook(t, i + 2, { dark:true }), name:'Barkeep', talk:async () => { await say(S.hearts[t] ? `Barkeep: First round's on the house for you, {name}. Whole town's drinking to the Heart settling.` : `Barkeep: ${BAR_QUIET[t] || 'Quiet night. Every night\'s quiet since the Heart got restless. People drink to it, not with each other.'}`); } },
+      npcs:[{ id:'res_bar', x:5, y:2, dir:'down', look:roomLook(t, i + 2, { dark:true }), name:'Barkeep', talk:async () => { await say(S.flags.doom && (S.freed || {})[t] ? 'Barkeep: (She pours you one and doesn\'t charge you. She doesn\'t say anything, either. Nobody at the bar does.)' : S.hearts[t] ? `Barkeep: First round's on the house for you, {name}. Whole town's drinking to the Heart settling.` : `Barkeep: ${BAR_QUIET[t] || 'Quiet night. Every night\'s quiet since the Heart got restless. People drink to it, not with each other.'}`); } },
         { id:'res_drink', x:3, y:3, dir:'right', look:roomLook(t, i + 3), name:'Drinker', talk:async () => { await say(`Drinker: ${ROOM_HINTS[(i + 3) % ROOM_HINTS.length]}`); } }] },
     { name:'A quiet house', wall:tint(4), furn:[['bed', 1, 1, { c:'#8a8a8a' }], ['table', 5, 3], ['mirror', 7, 1], ['stove', 1, 5]],
       npcs:[{ id:'numb_res', x:4, y:5, dir:'up', look:roomLook(t, i + 6), name:'Numbed', numb:true,
@@ -5938,7 +5938,7 @@ async function talkHeart(t) {
   await fadeTo(1, 500); buildWorld(S.map); await fadeTo(0, 700);
   await say(wasBound ? `The Heart of ${T.name} is bound. The Numbed stay grey, and every one of them is facing you.` : `The Heart of ${T.name} has settled. Colour creeps back into the faces of the Numbed. For the first time in years, the city can feel something else.`);
   await gainFrag(HEART_FRAG[t], 'In the stillness after, a scrap of old Archive paper drifts down from the shrine and lands at your feet.');
-  await say(`(${Object.keys(S.hearts).length} of ${WN} Hearts settled.)`);
+  { const nb = WHEEL.filter(k => bound()[k]).length, ns = Object.keys(S.hearts).length - nb; await say(nb ? `(${ns} of ${WN} Hearts settled, ${nb} bound.)` : `(${ns} of ${WN} Hearts settled.)`); }
   if (Object.keys(S.hearts).length >= WN) await say('(Far away, in Vellum, something gives way. The floor of the Archive splits open, and stone steps lead down into still, dark water.)');
 }
 async function blackout() {
@@ -6081,7 +6081,7 @@ async function auraMenu() {
 async function journal() {
   const byType = {}; for (const m of S.party.concat(S.satchel)) byType[typeOf(m)] = (byType[typeOf(m)] || 0) + (m.c || 0); for (const r of S.released) byType[r.type] = (byType[r.type] || 0) + r.c;
   const tot = Object.values(byType).reduce((a, b) => a + b, 0) || 1;
-  showSheet(`<h2><img src="${PORTRAITS[S.hero]}" style="height:56px"> Journal</h2><div class="subt">Time walked: ${fmtTime(S.time)} · Hearts settled: ${Object.keys(S.hearts).length}/${WN} · Let go: ${S.released.length + S.declined.length}</div>
+  showSheet(`<h2><img src="${PORTRAITS[S.hero]}" style="height:56px"> Journal</h2><div class="subt">Time walked: ${fmtTime(S.time)} · Hearts settled: ${Object.keys(S.hearts).length - WHEEL.filter(k => bound()[k]).length}/${WN}${WHEEL.some(k => bound()[k]) ? ` · bound: ${WHEEL.filter(k => bound()[k]).length}` : ''} · Let go: ${S.released.length + S.declined.length}</div>
     <div style="font-weight:800;margin:6px 0 4px">What you've carried, by feeling</div>
     ${WHEEL.filter(t => byType[t]).sort((a, b) => byType[b] - byType[a]).map(t => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13px;font-weight:700"><span style="width:90px">${TYPES[t].name}</span><i style="display:block;height:10px;border-radius:5px;border:1.5px solid #1b1512;background:${TYPES[t].c};width:${Math.max(4, byType[t] / tot * 70)}%"></i><span style="color:var(--muted)">${fmtTime(byType[t])}</span></div>`).join('') || '<p style="color:var(--muted)">Nothing yet.</p>'}
     <div style="font-weight:800;margin:12px 0 4px">Marks: ${S.marks || 0}</div><div style="font-weight:800;margin:8px 0 4px">Active jobs</div>${activeJobsHTML()}<div style="font-weight:800;margin:12px 0 4px">Hearts of the Welkin</div>
@@ -6197,6 +6197,8 @@ function removeManif(m, how, marks) {
 function priceMult(shop) { const b = priceMult0(shop); return b == null ? b : Math.round(b * auraPriceMod() * 100) / 100; }
 function priceMult0(shop) {
   const t = shownTier();
+  if (S.flags && S.flags.doom && !shop.dark && !S.flags.atoned) return 1;
+  if (S.flags && S.flags.doom && shop === SHOPS.archive) return 1.25;   // Ilse keeps the Archive open for anyone, even you, at a price   // after the Chord the Numbed serve anyone who asks
   if (shop.dark) return ['shadowed', 'abyssal'].includes(t) ? shop.discount || 1 : null;
   if (shop.bright) return t === 'radiant' ? .8 : t === 'warm' ? .9 : t === 'neutral' ? 1 : t === 'shadowed' ? 1.4 : null;
   return 1;
@@ -6206,7 +6208,7 @@ async function openShop0(key) {
   const shop = SHOPS[key], mult = priceMult(shop);
   if (mult == null) return say(shop.dark ? 'Sable: Market\'s closed to your sort. Come back with some shadow on you.' : 'The shopkeeper won\'t meet your eyes. "We\'re closed," they say. To you, at least.');
   if (shop.bright && mult > 1) await say('The shopkeeper eyes your company. "Prices are... higher today."');
-  if (shop.bright && mult < 1) await say('"For you? A little off. You\'ve got a good feel about you."');
+  if (shop.bright && mult < 1) await say(['radiant', 'warm'].includes(shownTier()) ? '"For you? A little off. You\'ve got a good feel about you."' : '(They knock a little off the price without being asked, and don\'t look up while they do it.)');
   for (;;) {
     const top = await ask(`${shop.name}. You have ${S.marks || 0} Marks.`, ['Buy', 'Sell', 'Done']);
     if (top === 0) { await shopBuy(shop, mult); continue; }
@@ -6315,8 +6317,10 @@ const canRun = e => isFolk(e) && !STAY_IDS.has(e.id) && !isChild(e);   // childr
 function mapMood(map) {
   const M = MAPS[map]; if (!M) return 'calm';
   const P = M.kind === 'inside' ? MAPS[M.route] : M, hearts = Object.keys(S.hearts).length;
-  if (P.kind === 'city') return S.hearts[P.vibe] ? 'relieved' : 'uneasy';
-  if (P.kind === 'hub') return S.flags.doom ? 'dread' : S.flags.hushDone ? 'joyful' : hearts >= WN ? 'dread' : hearts ? 'hopeful' : 'calm';
+  if (greyMap(map)) return 'grey';   // after the Chord: no tremors, no emotes, nobody runs
+  if (P.kind === 'city' && S.flags.doom && (S.freed || {})[P.vibe]) return 'woken';
+  if (P.kind === 'city') return S.hearts[P.vibe] && !(S.bound || {})[P.vibe] ? 'relieved' : S.hearts[P.vibe] ? 'grey' : 'uneasy';
+  if (P.kind === 'hub') return S.flags.doom ? (S.flags.atoned ? 'calm' : 'grey') : S.flags.hushDone ? 'joyful' : hearts >= WN ? 'dread' : hearts ? 'hopeful' : 'calm';
   if (P.kind === 'route' && P.theme === 'cut') return 'tense';
   if (P.kind === 'way') return S.hearts[P.vibe] ? 'hopeful' : 'calm';
   return 'calm';
@@ -6429,7 +6433,7 @@ const VENT = {
     'If you\'re selling something, keep walking. If you\'re lost, keep walking. If you\'re neither, keep walking anyway.'] };
 // What they say first, depending on what's happening. Returns 'refuse' if they won't talk at all.
 async function moodPreTalk(e) {
-  if (!isFolk(e) || isChild(e)) return;
+  if (!isFolk(e) || isChild(e) || e.numb || greyMap(S.map)) return;
   if (MOOD.grudge && MOOD.grudge[e.id]) { delete MOOD.grudge[e.id]; await grudgeFight(e); return 'refuse'; }
   const sayE = l => say((e.name ? e.name + ': ' : '') + l);
   const mood = mapMood(S.map);
@@ -6443,6 +6447,7 @@ async function moodPreTalk(e) {
     await sayVoice(e, m); return; }
   if (savedHere() && wouldSnub(e)) return;   // the ungrateful don't thank you first (auraPreTalk deals with them)
   if (MOOD.greeted[key]) return; MOOD.greeted[key] = 1;
+  if (mood === 'woken') return sayE(pickA(['I can feel things again. I\'m not sure I want to thank you for it.', '(They look at you for a long time.) You were the one who rang it. And the one who came back. I don\'t know what to do with that.', 'Everything hurts. Everything. It\'s wonderful. Go away.']));
   if (mood === 'relieved') await sayE(pickA(['It feels like I can breathe again.', 'Did you hear? The Heart settled! The whole street\'s been crying and laughing all morning.', '{name}! People are saying it was you who settled the Heart.']));
   else if (mood === 'joyful') await sayE(pickA(['Everything feels so loud now. In a good way. Mostly.', 'The Stillwell\'s quiet. You did it, {name}. You actually did it.']));
   else if (mood === 'dread') await sayE('(They keep glancing at the Archive.) The floor in there split open. There are steps going down. Nobody will go near it. Are you going down there, {name}?');
@@ -6721,6 +6726,13 @@ async function talkFallenWren() {
   if (lab === 'Take from the Archive stores') return openShop('archive');
   if (lab === 'The Stillwell') return enterStillwell();
 }
+async function talkWrenGone() {
+  await say('(Wren\'s spectacles lie folded on the Archive step, where she always stood. Nobody has moved them.)');
+  if (S.flags.atoned) await say('(Someone has left flowers beside them, real ones, with colour in them. Ilse keeps the Archive door open now, for anyone.)');
+  const c = await ask(S.flags.atoned ? 'Ilse: (from the doorway) Come in, if you need to. She\'d have let you.' : '(The Archive door stands unlocked. Nobody is minding it.)', ['Take from the Archive stores', 'Rest a while', 'Leave']);
+  if (c === 0) return openShop('archive');
+  if (c === 1) { healAll(); return say('(You sit on the Archive step a while. Everything you carry is composed again.)'); }
+}
 // The Stillwell, on the Choir's path: kneel, and the Conductor comes to claim the Chord for themself.
 async function choirKneel() {
   await say('You kneel at the edge of the still water and open the Codex. The pages turn by themselves. The Hush leans down over you, curious, and every colour turning in it goes grey.');
@@ -6840,6 +6852,7 @@ function questFilter(map, list) {
   list = list.map(e => e.role && e.look && !e.look.gear ? { ...e, look:{ ...e.look, gear:ROLE_GEAR[e.role] ? ROLE_GEAR[e.role][(e.id.length + e.id.charCodeAt(0)) % ROLE_GEAR[e.role].length] : ['satchel'] } } : e);
   return list.filter(e => !(map === 'r_siding' && c.burned && /ada/i.test(e.id))).map(e => {
     if (e.id === 'wren' && MAPS[map].kind === 'hub' && wrenCold()) return { ...e, dir:'up', talk:talkWrenCold };
+    if (e.id === 'wren' && MAPS[map].kind === 'hub' && S.flags.doom && S.flags.superDone) return { id:'wren', note:true, x:e.x, y:e.y, dir:'down', talk:talkWrenGone };   // she went into the Stillwell and didn't come back
     if (e.id === 'wren' && MAPS[map].kind === 'hub' && S.flags.wrenFallen) return { ...e, look:S.flags.wrenFallen === 'numbed' ? { ...LOOKS.wren, coat:'#8f8a84', skin:'#d2c8bd' } : LOOKS.wren, talk:talkFallenWren };
     return e;
   });
@@ -7878,6 +7891,7 @@ const EXPLOIT_FAMS = ['SADNESS', 'FEAR', 'SHAME', 'CALM', 'HOPE'];
 const GONE = {};
 const DARK_FAM5 = ['SADNESS', 'FEAR', 'ANGER', 'SHAME', 'DISGUST'];
 async function auraPreTalk(e) {
+  if (e.numb || greyMap(S.map)) return;   // the Numbed don't react to anything
   if (!isFolk(e) || STAY_IDS.has(e.id) && e.id !== 'res_ilse') return;
   const fam0 = dominantFam(); if (!fam0 || !REACT[fam0]) return;
   const moral = moralOf(e), sayE = l => say((e.name ? e.name + ': ' : '') + l), z = zoneOf(), read = z.read, fam = leadFam() || fam0;
@@ -8285,11 +8299,32 @@ function endingFilter(map, list) {
       if (e.invisible) { out.push(e); continue; }
       n++; out.push(n % 3 === 0 ? { ...e, body:true, talk:() => say('(They are dead. Something with a great deal of feeling in it went through them, and out the other side.)') } : { ...e, numb:true, talk:() => say(deal('ruintalk', ['(They don\'t look at you.)', '(They are standing exactly where the note found them.)', '(Their lips move. Nothing comes out.)', '(They have been sitting here so long the dust has settled on their shoulders.)', '(Their eyes follow you without interest.)'])) }); }
     return out; }
+  if (greyMap(map)) return list.map(e => greyOne(e, map));
   // the world is saved: nobody stays Numbed, not in the towns, not in the houses, not down in the Stillwell
   const far = offMainland(map);   // the far places never lost their feelings, so nobody there walks with a Manif
   if (fl.restored && !fl.doom) return list.map(e => e.numb || e.look === NUMBED_LOOK ? unNumb(e, map) : e).map(e => e.look && !e.numb && isFolk(e) && !far ? { ...e, pet:true } : e);
   if (fl.restored) return list.map(e => e.look && !e.numb && isFolk(e) && !far ? { ...e, pet:true } : e);
   return list;
+}
+// ---- after the Grand Chord: the mainland stops. Everyone who wasn't Choir stands where they were and waits for orders.
+// A city wakes again when its Heart is unbound (A Way Back); Vellum and the Stillwell wake once all ten are free.
+function greyMap(map) {
+  if (!S.flags || !S.flags.doom || offMainland(map)) return false; const M = MAPS[map]; if (!M) return false;
+  const P = M.kind === 'inside' && MAPS[M.route] ? MAPS[M.route] : M, t = TYPES[P.vibe] ? P.vibe : null;
+  return t ? !(S.freed || {})[t] : !S.flags.atoned; }
+const GREY_KEEP = /^(zone_|frag|hesk|conductor|rogue|elder|superboss|lectern|statue|gban|hollow_|hc_|chancel|ledger|warden|wren$|sable|lookout|mercer|spirit|hush|rift|dnd_|it_|note|oil|stair|sign|animal)/;
+const GREY_LINES = ['...Yes. Whatever you say.', '...I was standing here when it rang. I\'ll stand here until someone says otherwise.', '...Do you need something? Tell me what to do and I\'ll do it.', '...There was something I was going to do today. It doesn\'t matter now.',
+  '...You can go past. Nobody minds.', '...I had a shop. I think it was mine. It doesn\'t matter whose it is.', '...Is it time yet? For whatever comes next?', '...My hands were busy with something. I let go of it. It was easier.',
+  '...You\'re the one who rang it. Everyone knows your face. It\'s a quiet face.', '...I don\'t mind. I don\'t mind. I don\'t mind.', '...The kettle boiled dry this morning. I watched it. It didn\'t seem important.', '...Order me. Please. It\'s so quiet when nobody does.',
+  '...I used to argue with my neighbour every day. We stand next to each other now. It\'s very peaceful.', '...If you want the house, take the house.', '...Somebody was crying earlier. Then they stopped. Then it was quiet.', '...I think I was a person who liked mornings.'];
+const GREY_KID = ['...Mum hasn\'t called me in. I\'m waiting for her to call me in.', '...I was playing a game. I forget the rules.', '...Are you going to tell us what to do now? Everyone\'s waiting.', '...I\'m not scared. I\'m not anything.', '...My friend\'s standing over there. We don\'t play any more.', '...Is it bedtime? Nobody says.'];
+function greyOne(e, map) {
+  if (e.numb || e.body || e.item || e.note || e.invisible || e.animal || e.manif || e.manifComp || e.real || e.noComp || e.rift || !e.talk || !(e.look || e.model) || GREY_KEEP.test(e.id)) return e;
+  if (e.model && !e.look) return e;   // things, not people
+  if (e.id === 'keeper') return { ...e, numb:true, talk:async () => { healAll(); await say('(The keeper looks through you, and reaches for the stock without being asked.) ...Rest. Buy. Whatever you want.'); await say('(Everything you carry is composed again.)'); const t = MAPS[map].vibe; return openShop(MAPS[map].kind === 'way' ? 'way' : 'keeper'); } };
+  if (e.id === 'maribel') return { ...e, numb:true, talk:async () => { await say('Maribel: (Flour to the elbows, kneading nothing.) ...Bread? There\'s bread. Take what you like.'); return openShop('bakery'); } };
+  if (e.id === 'clerk') return { ...e, numb:true, talk:async () => { await say('(The notice clerk pins up new bounties without reading them.)'); return e.talk(); } };
+  return { ...e, numb:true, talk:() => say((isChild(e) ? '' : (e.name && !/^(Child|Numbed)$/.test(e.name) ? e.name + ': ' : '')) + deal(isChild(e) ? 'greykid' : 'grey', isChild(e) ? GREY_KID : GREY_LINES)) };
 }
 const PET_POOL = () => ROSTER.filter(r => r[2] === 0 && r[3] !== 4).map(r => r[0]);
 function petFor(e) { if (e.petSp && SPECIES[e.petSp]) return e.petSp; const C = S.comp && S.comp[S.map + ':' + e.id]; if (C && C.sp && SPECIES[C.sp]) return C.sp;   // the same Manif you saw them with before
@@ -9263,7 +9298,7 @@ const CLOVER_FURN = [...[1, 2, 3, 4, 8, 9, 10, 11].map(x => ['bookcase', x, 1]),
     npc('marsh_h', 4, 14, 'right', 'Marsh', lk('#3a4a2a', '#8a7a5a', SK[3], '#3a2414', ['cap', 'stout']), talkMarsh),
     npc('mags_h', 28, 11, 'down', 'Mags', lk('#5a5a3a', '#e8a83a', SK[0], '#7a3e1e', ['bandana']), () => sayAs('Mags', sideLine({ light:'Sandbags. Four hundred so far. You can help if you like, but you\'ll be doing it wrong.', even:'Bags won\'t fill themselves.', shadow:'(She keeps filling sandbags and does not take her eyes off you once.)' }))),
     npc('cole_h', 12, 13, 'right', 'Cole', lk('#6a3a2a', '#8a7a5a', SK[2], '#141014', ['beard', 'hammer']), () => sayAs('Cole', sideLine({ light:'Firewood for two winters. You can\'t have too much firewood. You can, actually. I have.', even:'Stand back from the axe.', shadow:'(He stops chopping. He holds the axe the other way now.) Help you?' }))),
-    npc('ruth_h', 22, 13, 'left', 'Harriet', lk('#5a4a6a', '#f3e7c9', SK[1], '#3a2414', ['scarf']), () => sayAs('Harriet', sideLine({ light:'Posy\'s been dying to meet someone new. Say hi, she\'ll talk your ear off about canned peaches.', even:'We don\'t get many visitors.', shadow:'Pip. Inside. Now.' }))),
+    npc('ruth_h', 22, 13, 'left', 'Harriet', lk('#5a4a6a', '#f3e7c9', SK[1], '#3a2414', ['scarf']), () => sayAs('Harriet', sideLine({ light:'Posy\'s been dying to meet someone new. Say hi, she\'ll talk your ear off about canned peaches.', even:'We don\'t get many visitors.', shadow:'Posy. Inside. Now.' }))),
     npc('pip_h', 20, 12, 'down', 'Posy', lk('#e8a83a', '#fff3d6', SK[1], '#3a2414', ['bun'], { small:true }), () => sayAs('Posy', 'We have four hundred cans of peaches. Four hundred and two. I counted twice like the list says.')),
     npc('abe_h', 30, 16, 'left', 'Abe', lk('#4a4a3a', '#8a7a5a', SK[5], '#d8d0c0', ['cap', 'glasses', 'lantern']), () => sayAs('Abe', 'They said it was the end of the world. Then it was the grey years. Then it wasn\'t. I\'m not unpacking. Next one\'s coming. It\'ll walk up the road on two legs, same as last time.')),
     npc('doreen_h', 26, 25, 'up', 'Doreen\'s husband', lk('#5a6a3a', '#f3e7c9', SK[2], '#8a8078', ['cap']), () => sayAs('Wendel', 'Beans. Potatoes. More beans. You can live a long time on beans. You can\'t enjoy it, but you can live.'))
@@ -9680,6 +9715,7 @@ const DND_ROAST = {
 };
 // Real-people rule: anyone based on a real person is marked real:true. They never die or go numb; in the ruin they have left.
 function dndPeople() {
+  if (S.flags.doom && greyMap(TOWNS.JOY.id)) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the table, held down with a die.) "Heard every bell in the Welkin ring at once, and then nobody moving. Packed up the campaign and the kid and went west. All five of us, safe. We\'ll come back when Larkhollow does. — M."') }];
   if (S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the empty table, held down with a die.) "Packed up the campaign and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Don\'t wait up. Session\'s paused, not cancelled. — M."') }];
   const hide = S.flags.dndHide && !(S.flags.dndTrust >= 3);
   return ['morwen', 'saffi', 'lio', 'brand', 'tam'].map(k => { const [x, y, dir] = DND_POS[k] || (k === 'lio' && hide ? DND_HIDE : DND_SEAT[k]);
@@ -9732,7 +9768,7 @@ const DND_OUT = () => { const [dx, dy] = DND_DOOR, map = TOWNS.JOY.id, taken = [
   for (const [k, x, y, d] of [['tam', dx - 1, dy + 1, 'down'], ['brand', dx + 1, dy + 1, 'down'], ['saffi', dx - 2, dy + 1, 'down'], ['morwen', dx + 2, dy + 1, 'down']]) {
     const [fx, fy] = freeNear(map, x, y, taken); taken.push({ x:fx, y:fy }); out[k] = [fx, fy, d]; } return out; };
 function dndOutsideEnts(map) {
-  if (map !== TOWNS.JOY.id || S.flags.ruin || !(S.flags.dndOutside || S.flags.dndEscort)) return [];
+  if (map !== TOWNS.JOY.id || S.flags.ruin || (S.flags.doom && greyMap(map)) || !(S.flags.dndOutside || S.flags.dndEscort)) return [];
   const P = DND_OUT(), keys = S.flags.dndOutside ? ['tam', 'brand', 'saffi', 'morwen'] : ['tam', 'brand'];
   return keys.filter(k => !(S.flags.dndGone || {})[k]).map(k => { const [x, y, dir] = DND_POS[k] || P[k];
     return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => sayAs(DND_NAME[k], k === 'saffi' ? 'Walk. Away.' : 'Nope.') }; });
@@ -11468,6 +11504,7 @@ const isPerson = e => e && !e.animal && !e.item && !e.note && !e.invisible && !e
 async function sayVoice(e, m) { m = m || (S.party.length ? noticedManif(e) : null); if (!m) return; await say(`${e.name || 'They'}: ${voiceNext(e, m)}`); }
 // After the aura talk: anyone who hasn't yet said something about your Manifs this time does.
 async function voicePreTalk(e) {
+  if (e.numb || greyMap(S.map)) return;
   if (!isPerson(e) || VOICED === S.map + ':' + e.id || VOICED_VISIT.set.has(voicedKey(e))) return;
   if (S.flags.doom && !S.flags.atoned && !e.real && farRoot(S.map) && !(S.flags.cfHeard || {})[S.map + e.id]) { (S.flags.cfHeard = S.flags.cfHeard || {})[S.map + e.id] = 1; VOICED = S.map + ':' + e.id; if (await chordFarLine(e)) return; }   // the far places heard the Chord (h18): once per person
   if (!S.party.length || S.flags.ruin || S.flags.doom && S.flags.hushDone) return;
@@ -13949,7 +13986,7 @@ async function ending(final, kind) {
   else if (final) pages.push({ k:'The Stillwell', h:'The Welkin wakes', p:'Beneath Vellum, ten colours seep back into the water. Above, the whole Welkin feels everything at once: the grief and the joy, the rage and the trust. It is loud. It hurts. It is alive.', extra:'<p style="font-size:14px;color:var(--muted)">The Numbed of every city remember how to cry, and how to laugh, and how to be angry about the years they lost. Nobody calls it a happy ending. Everybody calls it an ending they can feel.</p>' });
   pages.push(
     { k:'The Codex closes', h:`The Codex of ${pname()}`, p:`You walked the Welkin for ${fmtTime(S.time)}.`,
-      extra:`<div class="stats"><span>Marks earned and kept</span><b>${S.marks || 0}</b><span>Jobs done</span><b>${Object.values(S.jobs || {}).filter(v => v === 'done').length}</b><span>Manifs met</span><b>${Object.keys(S.codex.seen).length} / ${CODEX.length}</b><span>Manifs kept</span><b>${Object.keys(S.codex.kept).length}</b><span>Hearts settled</span><b>${Object.keys(S.hearts).length} / ${WN}</b><span>Let go</span><b>${E.letGoCount}</b><span>Intensified</span><b>${S.intensified}</b><span>Fusions</span><b>${S.dyads}</b></div>` }
+      extra:`<div class="stats"><span>Marks earned and kept</span><b>${S.marks || 0}</b><span>Jobs done</span><b>${Object.values(S.jobs || {}).filter(v => v === 'done').length}</b><span>Manifs met</span><b>${Object.keys(S.codex.seen).length} / ${CODEX.length}</b><span>Manifs kept</span><b>${Object.keys(S.codex.kept).length}</b>${(() => { const nb = WHEEL.filter(k => (S.bound || {})[k]).length; return nb ? `<span>Hearts settled</span><b>${Object.keys(S.hearts).length - nb} / ${WN}</b><span>Hearts bound</span><b>${nb} / ${WN}</b>` : `<span>Hearts settled</span><b>${Object.keys(S.hearts).length} / ${WN}</b>`; })()}<span>Let go</span><b>${E.letGoCount}</b><span>Intensified</span><b>${S.intensified}</b><span>Fusions</span><b>${S.dyads}</b></div>` }
   );
   const spn = sp => SPECIES[sp] ? SPECIES[sp].name : '';
   const fam = t => TYPES[t] ? TYPES[t].name : '';
