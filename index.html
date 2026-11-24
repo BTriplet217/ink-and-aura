@@ -6,7 +6,7 @@
 <title>Ink &amp; Aura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Schoolbell&family=Gochi+Hand&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Schoolbell&family=Gochi+Hand&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
 <style>
 :root{--ink:#1b1512;--ink2:#2c221c;--parch:#f3e7c9;--parch2:#e4d3ae;--gold:#e8b84a;--gold2:#c48a2c;--muted:#6a5a48}
@@ -23,9 +23,9 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:non
 #bottom>*{pointer-events:auto}
 #dlg{width:100%;padding:16px 20px 14px;font-size:16px;line-height:1.5;min-height:72px;cursor:pointer}
 #dlg .who{position:absolute;top:-17px;left:16px;background:var(--ink);color:var(--gold);font:19px 'IM Fell English SC',serif;padding:3px 14px 4px;border-radius:8px;letter-spacing:.5px}
-#dlg .sd{color:#6a5a48;font-style:italic}
+#dlg .sd{color:#5e4e3e;font-style:italic;font-family:'Lora',Georgia,serif;font-weight:500;font-size:.94em}
 /* descriptions: what's happening, with no one speaking. A darker, quieter box, centred, in italics. */
-#dlg.narr{background:rgba(30,24,20,.9);color:#efe4cc;font-style:italic;font-family:'IM Fell English',Georgia,serif;font-size:17px;text-align:center;border-color:rgba(196,138,44,.6)}
+#dlg.narr{background:rgba(30,24,20,.92);color:#f6ecd6;font-style:italic;font-family:'Lora',Georgia,serif;font-weight:500;font-size:18px;line-height:1.55;letter-spacing:.01em;text-align:center;border-color:rgba(196,138,44,.6)}
 #dlg.narr::before{border-color:rgba(196,138,44,.35)}
 #dlg.narr .nxt{color:#d8b870}
 #dlg.you{background:#dfe9ea;color:#1e2e32;border-color:#4a7a82}
@@ -1856,6 +1856,7 @@ function animHero(g, k, moving, t) {
   const u = g.userData, sw = moving ? Math.sin(k * Math.PI * 2) * .55 : 0;
   if (u.sitP) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; u.inner.position.y = -.42; u.inner.rotation.x = 0; const p = Math.sin(t * 3.2); u.arms[0].rotation.set(-1.25 - p * .3, 0, -.15); u.arms[1].rotation.set(-1.25 + p * .3, 0, .15); for (const a of u.arms) if (a.userData.el) a.userData.el.rotation.x = -.5;
     if (u.oar) strokeOar(u.oar, t); return; }
+  if (u.rideP) { u.legs[0].rotation.x = u.legs[1].rotation.x = -1.5; u.inner.position.y = -.42; u.inner.rotation.x = 0; u.arms[0].rotation.set(-.55, 0, -.2); u.arms[1].rotation.set(-.55, 0, .2); for (const a of u.arms) if (a.userData.el) a.userData.el.rotation.x = -.4; return; }   // sitting on a ride
   if (u.kneelP) { u.legs[0].rotation.x = u.legs[1].rotation.x = 1.45; u.arms[0].rotation.set(-.2, 0, -.7); u.arms[1].rotation.set(-.2, 0, .7); u.inner.position.y = -.36; u.inner.rotation.x = .12; return; }
   u.arms[0].rotation.y = u.arms[1].rotation.y = 0; u.inner.rotation.x = 0;
   u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw;
@@ -8484,8 +8485,8 @@ function stationEnts(map, base) {
 // An open observation coach so you can see yourself riding.
 SET.coach = p => { const g = new THREE.Group(), c = '#3f5a3a', trim = '#c9a24a';
   sBox(g, 2.8, .12, 1.1, '#262322', 0, .58, 0); sBox(g, 2.8, .45, 1.1, c, 0, .86, 0); sBox(g, 2.9, .06, 1.16, trim, 0, 1.1, 0);
-  for (const s of [-1, 1]) { for (const x of [-.95, -.6, .6, .95]) sCyl(g, .16, .16, .07, '#2c2826', x, .17, s * .5, [Math.PI / 2, 0, 0]); for (const x of [-1.3, 0, 1.3]) sBox(g, .07, .8, .07, '#3a2c20', x, 1.5, s * .52); }
-  sBox(g, 3.0, .08, 1.3, '#7a2a2a', 0, 1.92, 0); return g; };
+  for (const s of [-1, 1]) { for (const x of [-.95, -.6, .6, .95]) sCyl(g, .16, .16, .07, '#2c2826', x, .17, s * .5, [Math.PI / 2, 0, 0]); for (const x of [-1.3, 0, 1.3]) sBox(g, .07, 1.1, .07, '#3a2c20', x, 1.65, s * .52); }
+  sBox(g, 3.0, .08, 1.3, '#7a2a2a', 0, 2.2, 0); return g; };
 function buildTrain() {
   SET_CLEAN = true; const g = new THREE.Group();
   const [L, T, C] = withSurf('metal', () => [buildSet({ k:'loco', x:0, y:0 }), buildSet({ k:'tender', x:0, y:0 }), buildSet({ k:'coach', x:0, y:0 })]);
@@ -8593,8 +8594,10 @@ function stepOffTrain(id, sp) {
 }
 function rideTick(dt) {
   for (const s of SPIN) s.o.rotation[s.axis] += s.speed * dt;
+  if (W.player && W.player.userData.rideP && !RIDE.on) W.player.userData.rideP = false;
   if (!RIDE.on || !RIDE.anchor || !W.player) return;
   const p = new THREE.Vector3(); RIDE.anchor.getWorldPosition(p); W.player.position.copy(p); camTarget.copy(p); updateCamera(dt);
+  W.player.userData.rideP = true;   // sit down for the ride, so your head stays under the coach roof
 }
 // ---------------------------------------------------------------- the fair
 const FAIR_FOOD = { apple:{ name:'Candied Apple', heal:.35, desc:'Restores some Composure', price:25 }, cocoa:{ name:'Fair Cocoa', heal:.6, desc:'Restores most of one Manif\'s Composure', price:60 }, fritter:{ name:'Honey Fritter', healAll:.3, desc:'Heals the whole Chorus a little', price:90 } };
@@ -12773,7 +12776,7 @@ function lastEnts(map, taken) {
 // =============================================================================
 //  FARTHER STILL (24 Nov) — five more places past the edges of the Welkin, each with its own piece of the story.
 //    Highcrest, west gate         → the Scholars' Way → QUILLSBY, the university city where Orrin taught
-//    The Long Siding, east        → the Switchback    → WHITECROWN, a snowbound observatory town; the Vale family's house
+//    The Long Siding, east        → the Switchback    → WHITECROWN, a snowbound town; the Vale family's house, and a cable car to the summit
 //    The Cinder Cut, east         → the Ash Road      → CINDER REACH, the memorial town at the edge of burned Ash
 //    Rendering Ditch, west        → the Black Bayou   → GALLOWAY LANDING, a town on stilts; where the Choir ships its bottles out
 //    Tumbledown Fair, west        → the Dry Wash      → DRY FORK, a desert copper town; where the needles come from
@@ -13239,14 +13242,14 @@ farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecr
   npcs:() => [
     npc('muleman', 14, 11, 'down', 'Mule driver', lk('#6a4a3a', '#e8dcc0', SK[3], '#3a2414', ['cap', 'scarf', 'beard']), talks('muleman', 'Mule driver', [
       { light:"Bessie and me carry the post up. She likes you. She doesn't like anybody.", even:'Mind the ice on the bends. Mind Bessie, too. She bites.', hurt:'Put your hand on Bessie\'s neck. Go on. She\'s warm, and she doesn\'t ask questions.', shadow:'(He moves the mule between you and the post bags.)' },
-      'Letters up, letters down. Half of what goes up is from Quillsby. Professors writing to the observatory about stars. The stars never write back, Isolde says.',
+      'Letters up, letters down. Half of what goes up is from Quillsby. Professors writing to the Vale house, still, two hundred years on. Nobody writes back. They keep writing.',
       () => S.flags.locket ? 'You were in the Vale house? Folk up top say they saw a light in the kitchen window. First time in two hundred years.' : 'The Vale house is up top, at the bottom of the lane. Nobody goes in. I leave a letter on the step at midwinter. Don\'t know who for. My dad did too.' ])),
     npc('hiker', 38, 11, 'down', 'Hiker', lk('#c0503a', '#f3e7c9', SK[1], '#e2c070', ['satchel', 'scarf']), async () => {
-      if (!S.flags.hikerHelp) { await sayAs('Hiker', 'I came to see the observatory. Then I sat down to look at the view and my legs stopped agreeing with me.');
+      if (!S.flags.hikerHelp) { await sayAs('Hiker', 'I came up to see the snow. Then I sat down to look at the view and my legs stopped agreeing with me.');
         const c = await ask("Hiker: You don't have anything warm, do you?", ['Share a Honey Cake', 'Keep walking']);
         if (c === 0 && (S.items.cake || 0) > 0) { S.items.cake--; S.flags.hikerHelp = 1; pay(60); return sayAs('Hiker', "Oh, that's better. Here, 60 Marks, for your trouble. And look up when you get there. At night. Promise."); }
         if (c === 0) return say('(You don\'t have a Honey Cake.)'); return; }
-      return talks('hiker2', 'Hiker', ['Legs are agreeing again. Mostly. I\'ll go up tonight. Isolde says the Wheel is clearest after midnight.', 'I\'m from Trothaven. Down there everyone waits for trains. Up here everyone waits for dark. I like it better.', () => nightNow() ? 'Look. (She points up.) That\'s the Hope. That\'s mine. I\'m having it.' : 'I\'ll wait for dark. Everyone up here does. It\'s the local hobby.'])(); }),
+      return talks('hiker2', 'Hiker', ['Legs are agreeing again. Mostly. I\'m going to stay for the stars tonight. They say you can see all ten from up here, if the snow stops.', 'I\'m from Trothaven. Down there everyone waits for trains. Up here everyone waits for dark. I like it better.', () => nightNow() ? 'Look. (She points up.) That\'s the Hope. That\'s mine. I\'m having it.' : 'I\'ll wait for dark. Everyone up here does. It\'s the local hobby.'])(); }),
     npc('wr_skier', 26, 11, 'down', 'Skier', lk('#2a6a8a', '#f3e7c9', SK[2], '#141014', ['cap', 'scarf']), talks('wr_skier', 'Skier', [
       'I came up for the slopes. There aren\'t any slopes. It\'s all one slope, at a slant. I\'ve been going down it for three days.',
       'The cable car hasn\'t run since the old operator retired. Pieter says the new one\'s waiting for "a reason". I don\'t know what that means.',
@@ -13256,14 +13259,14 @@ farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecr
 (function buildWhitecrown() {
   const B = regionBuilder('whitecrown', 42, 34), m = B.m; border(m, 2);
   rect(m, 0, 16, 40, 2, '='); rect(m, 19, 6, 2, 24, '='); rect(m, 2, 26, 38, 1, '=');
-  B.piece('dome', 30, 4, 4, 4); B.piece('cablecar', 8, 4); B.piece('snowman', 14, 21); B.piece('snowman', 26, 22); B.piece('watertower', 36, 21, 2, 2);
+  B.piece('hut', 30, 5, 2, 2); B.piece('snowman', 32, 7); B.piece('cablecar', 8, 4); B.piece('snowman', 14, 21); B.piece('snowman', 26, 22); B.piece('watertower', 36, 21, 2, 2);
   B.house(4, 10, 7, '#3a4a5a', '#e8e4dc', { name:'The Kettle & Crown', w:13, h:9, music:'whitecrown', floor:['#8a6a4a', '#7e6044'], wall:'#e0d0b8', furn:[['stove', 1, 1, { lit:true }], ['table', 4, 3], ['table', 8, 3], ['bed', 11, 1], ['bed', 11, 5], ['armchair', 3, 6], ['rug', 6, 6]] });   // 0
-  B.house(22, 10, 6, '#2a3a4a', '#d8d4cc', { name:'The Observatory', w:13, h:11, music:'whitecrown', floor:['#5a5a62', '#4e4e56'], wall:'#c8c4bc', furn:[['desk', 2, 2], ['bookcase', 1, 5], ['spiral', 6, 3], ['table', 10, 6], ['candle', 3, 7]] });   // 1
+  B.house(22, 10, 6, '#6a3a2a', '#e8dcc0', { name:'Schoolhouse', w:11, h:9, music:'whitecrown', floor:['#8a7458', '#7e6a50'], wall:'#e8dcc0', furn:[['desk', 5, 1], ['chalkboard', 5, 0], ['bench', 2, 4], ['bench', 5, 4], ['bench', 8, 4], ['bench', 2, 6], ['bench', 8, 6], ['stove', 9, 1, { lit:true }]] });   // 1
   B.house(4, 19, 7, '#5a3a3a', '#d8ccb8', { name:'The Vale House', w:13, h:10, music:'whitecrown', floor:['#6a5040', '#5e4838'], wall:'#c8b8a0', light:{ hemi:'#c8d8e8' }, furn:[['stove', 1, 1], ['table', 5, 3], ['chair', 4, 3], ['chair', 6, 3], ['bed', 10, 1], ['bed', 10, 5], ['bookcase', 1, 6], ['trunk', 7, 7]] });   // 2
   B.house(28, 19, 6, '#4a5a4a', '#e8e4dc', { name:'Post Office', w:11, h:8, music:'whitecrown', floor:['#7a6450', '#6e5a48'], wall:'#e0d4c0', furn:[['desk', 5, 2], ['shelf', 1, 1], ['shelf', 9, 1], ['sacks', 2, 5], ['stove', 9, 5, { lit:true }]] });   // 3
   for (const [x, y] of [[3, 15], [18, 15], [21, 15], [36, 15], [18, 25]]) B.lamp(x, y);
   m[18][17] = 's';
-  regionMap('whitecrown', B, { name:'Whitecrown', sub:'Above the snowline', V:SNOW_V, music:'whitecrown', arrive:'A handful of steep-roofed houses, a copper-domed observatory and a lodge with smoke coming out of every chimney. Everything is very white and very quiet, and your breath hangs in the air like a thing you said.',
+  regionMap('whitecrown', B, { name:'Whitecrown', sub:'Above the snowline', V:SNOW_V, music:'whitecrown', arrive:'A handful of steep-roofed houses, a one-room schoolhouse and a lodge with smoke coming out of every chimney. Everything is very white and very quiet, and your breath hangs in the air like a thing you said.',
     exit:(nx, ny) => nx < 0 ? { map:'r_switchback', x:58, y:9, dir:'left' } : null });
   const IN = i => MAPS['whitecrown_in' + i].room;
   IN(0).npcs = [npc('innkeep_w', 8, 5, 'down', 'Gerda', lk('#8a3a2a', '#e8dcc0', SK[0], '#e2c070', ['apron', 'scarf']), judged('Gerda', ['light', 'even', 'hurt'], async () => {
@@ -13272,21 +13275,26 @@ farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecr
     async () => { await sayAs('Gerda', "We're full."); await say('(Every room key is hanging on its hook.)'); })),
     npc('wk_old', 2, 6, 'up', 'Old woman by the fire', lk('#5a3a5a', '#e8dcc0', SK[0], '#f4f1e8', ['scarf', 'glasses']), talks('wk_old', 'Old woman by the fire', [
       'Eighty-eight winters up here. My grandmother knew a woman who used to do the Vales\' washing. Two children\'s nightshirts, she said, every week. Always one with ink on the sleeve.',
-      'The girl used to climb the dome at night to see the stars. The boy used to wait at the bottom and worry. Funny, which one people say was the brave one.',
+      'The girl used to climb onto the schoolhouse roof at night to see the stars. The boy used to wait at the bottom and worry. Funny, which one people say was the brave one.',
       { light:'Sit with me a while. I like company that doesn\'t talk too much. You\'ll do.', even:'(She knits. The fire pops. Nobody needs to say anything.)', hurt:'You carry heavy things. I can see it in your shoulders. Put them down by the fire a minute. They\'ll still be there.', shadow:'(She stops knitting and holds the needles very still, like something she could use.)' } ])),
     npc('wk_traveller', 10, 6, 'left', 'Snowed-in traveller', lk('#4a5a3a', '#f3e7c9', SK[3], '#7a3e1e', ['satchel', 'cap']), talks('wk_traveller', 'Snowed-in traveller', [
       'I came up for one night. That was a week ago. The road shut behind me. I\'ve read every book in the lodge. Twice. There are four.',
       'I\'ve started helping in the kitchen. Gerda says I\'m terrible. She also says stay till spring. I think that\'s a compliment.',
       'Honestly? I don\'t want the road to open. Don\'t tell anyone.' ]))];
-  IN(1).npcs = [npc('astronomer', 6, 5, 'up', 'Astronomer Isolde', lk('#2a2a4a', '#d8d0e8', SK[1], '#d8d0c0', ['glasses', 'longcoat']), talkAstronomer),
-    look('wo_charts', 2, 2, 'Star charts', '(Star charts pinned over the desk, two hundred years of them, all of the same ring of ten small constellations. In the margin of the oldest, in a child\'s hand: "W. saw a shooting star. C. says it doesn\'t count if you don\'t make a wish. W. says she did.")'),
-    npc('wo_apprentice', 10, 5, 'up', 'Apprentice', lk('#4a4a6a', '#f3e7c9', SK[4], '#3a2414', ['scarf', 'glasses']), talks('wo_apprentice', 'Apprentice', [
-      'I polish the lenses. That\'s my whole job for the first year. Isolde says when I can see my own eye in them, I can look through them.',
-      'I came from Quillsby. Professor Calloway sent me to measure whether stars have weather. They don\'t. Or they do, and it\'s very far away.',
-      () => nightNow() ? 'It\'s dark! Go on, ask her. She pretends she doesn\'t like showing people, but she does.' : 'Come back after seven. Everything worth seeing up here happens after seven.' ]))];
+  IN(1).npcs = [npc('df_teacher', 5, 2, 'down', 'Miss Lund', lk('#3a4a5a', '#e8dcc0', SK[1], '#e2c070', ['glasses', 'bun', 'scarf']), talks('df_teacher', 'Miss Lund', [
+      'Nine pupils, every age from five to fourteen, all in one room. In winter they ski in. In spring they slide in. Same thing, wetter.',
+      'Today\'s lesson was the emotion wheel. A boy asked why Disgust and Surprise are opposite. I said because you can\'t be both at once. He said his grandma can. I gave him a gold star.',
+      () => `May I borrow your ${leadName()} for ten minutes? For a lesson? (The children in the front row are already leaning out of their benches.) Oh. Too late. They've seen it.`,
+      'The Vale children went to school in this room, they say. Two hundred years ago. One of the benches has a W. and a C. carved under the seat. I don\'t tell the pupils which. They\'d fight over it.' ])),
+    npc('df_pupil', 2, 5, 'up', 'Pupil', lk('#4f8aa8', '#fff3d6', SK[4], '#141014', ['cap', 'scarf'], { small:true }), talks('df_pupil', 'Pupil', [
+      'I know all ten! Joy Hope Calm Confidence Surprise Sadness Fear Anger Shame Disgust. (He takes a very large breath.)',
+      'Miss says opposites hit twice as hard. My sister\'s my opposite. She hits more than twice as hard. With snowballs.',
+      () => `Is that a ${leadType()} Manif? I KNEW it. I knew it from the door.` ])),
+    look('wo_bench', 8, 6, 'Old bench', '(Under the seat of the oldest bench, carved small with a penknife: W. and C., and a lopsided star.)')];
   IN(2).npcs = [look('valehouse', 5, 4, 'The kitchen', talkValeHouse),
     look('doorframe', 1, 3, 'Doorframe', '(Pencil marks up the kitchen doorframe, two at every height. "W. 5" and "C. 5". "W. 8" and "C. 8", Corvin a finger taller. "W. 12" and "C. 12". At "13" there is only one mark, and it says "C.", and under it, in a grown-up\'s hand: "Wrenna wouldn\'t stand still. Said she\'d measure herself when she was ready.")'),
-    look('valeletters', 1, 6, 'Letters', async () => { await say('(A bundle of letters in a drawer, from Orrin to the twins, posted from Quillsby.)'); await say('"My darlings. Your mother would have liked you to see the stars from the observatory together. Be kind to each other. One of you will always be braver, and one will always be kinder, and you will both think you are the other one. Papa."'); }),
+    look('wo_charts', 7, 1, 'Star chart', '(A child\'s star chart pinned over the beds: ten little constellations drawn in coloured pencil. In the margin: "W. saw a shooting star. C. says it doesn\'t count if you don\'t make a wish. W. says she did.")'),
+    look('valeletters', 1, 6, 'Letters', async () => { await say('(A bundle of letters in a drawer, from Orrin to the twins, posted from Quillsby.)'); await say('"My darlings. Your mother would have liked you to see the stars from the top of the hill together. Be kind to each other. One of you will always be braver, and one will always be kinder, and you will both think you are the other one. Papa."'); }),
     look('valebeds', 10, 3, 'Two beds', '(Two small beds under the eaves, made up tight. On one pillow, a wooden Manif carved badly with a penknife. On the other, a better one, carved to show how.)'),
     look('valetrunk', 7, 7, 'Trunk', '(A trunk of children\'s things. Mittens, one pair, two sizes. A book of constellations with the Fear coloured in black crayon, very hard, and then, later, carefully coloured back in yellow.)')];
   IN(3).npcs = [npc('wp_post', 5, 3, 'down', 'Postmistress Hilde', lk('#3a4a6a', '#d8b85a', SK[2], '#e2c070', ['glasses', 'cap']), talks('wp_post', 'Postmistress Hilde', [
@@ -13295,8 +13303,8 @@ farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecr
       () => S.flags.locketTo ? `I heard something of the Vales went home. I've put a note in the pigeonhole: DELIVERED. First time.` : 'If you ever find who those letters are really for, tell me. I\'ll put them on the mule myself.' ])),
     look('wp_holes', 1, 1, 'Pigeonholes', '(Pigeonholes, one for every house. The one marked VALE is stuffed so full of envelopes that the wood has bowed.)')];
   REGION_NPCS.whitecrown = () => [
-    sign('wc_sign', 17, 18, 'WHITECROWN. Above the snowline. ← The Switchback. ↑ The Kettle & Crown, the Observatory. ↓ The Vale House (please knock), the Post Office.'),
-    look('wc_dome', 31, 7, 'The great dome', () => say(nightNow() ? '(The dome\'s slot is open to the sky. Inside, the brass telescope is pointed at a ring of ten small constellations.)' : '(The copper dome is shut for the day, ticking as it warms in the sun.)')),
+    sign('wc_sign', 17, 18, 'WHITECROWN. Above the snowline. ← The Switchback. ↑ The Kettle & Crown, the Schoolhouse. ↓ The Vale House (please knock), the Post Office.'),
+    look('wc_dome', 30, 5, 'Ski hut', '(A wooden hut full of skis, sleds and one very old pair of snowshoes nobody will admit to owning. A sign: BORROW, DON\'T KEEP.'),
     look('wc_cable', 8, 4, 'Cable car', () => say(postgame() && epiSide() === 'light' ? '(The cable car runs now. It creaks up the wire, empty, and creaks down again full of children from the Siding who have never seen snow.)' : '(The red cable car hangs halfway up its wire, empty. A sign on the pylon: CLOSED UNTIL THERE IS A REASON.)')),
     npc('mayor_w', 17, 14, 'down', 'Old Pieter', lk('#4a3a3a', '#e8dcc0', SK[0], '#f4f1e8', ['scarf', 'beard', 'cap']), judged('Old Pieter', ['light', 'even', 'hurt'], talks('mayor_w', 'Old Pieter', [
       "Whitecrown. Population forty. Forty-one when the cable car works. We've got the stars, the cocoa and the Vale house, and we don't go in the Vale house.",
@@ -13311,9 +13319,9 @@ farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecr
       "I clear the road every morning so the post can get up. By noon it's snowed again. I'm not complaining. It's a living. It's a living for snow, mostly.",
       'I shovel round the Vale house too. Every day. Nobody asked me to. Seemed rude not to.',
       { light:'Here, borrow the spare. (He hands you a shovel. You shovel one patch. It is immediately snowed on.)', even:'Snow\'s coming. Snow\'s always coming.', shadow:'(He leans on the shovel, holding it a bit too much like a weapon.)' } ])),
-    npc('stargazer', 33, 9, 'down', 'Man by the dome', lk('#2a3a4a', '#e8dcc0', SK[3], '#8a8078', ['scarf', 'glasses']), talks('stargazer', 'Man by the dome', [
+    npc('stargazer', 34, 9, 'down', 'Man on the bench', lk('#2a3a4a', '#e8dcc0', SK[3], '#8a8078', ['scarf', 'glasses']), talks('stargazer', 'Man on the bench', [
       () => nightNow() ? 'Look up. No, really, look up. You can see all ten of them tonight.' : "I'm waiting for dark. I've been waiting for dark every day for thirty years. It always comes. It's very reliable.",
-      'There\'s a story the Shame is only faint because nobody likes to look at it. Isolde says that\'s nonsense, it\'s just far away. I think they might both be right.',
+      'There\'s a story the Shame is only faint because nobody likes to look at it. Miss Lund at the school says that\'s nonsense, it\'s just far away. I think they might both be right.',
       () => S.flags.doom && !S.flags.atoned ? 'The Hope went dark for a whole night after the bell. I counted. It\'s back. I still count.' : 'My wife\'s favourite was the Joy. I look at it for both of us now.' ])),
     npc('wc_widow', 9, 24, 'up', 'Woman at the Vale gate', lk('#4a3a4a', '#e8dcc0', SK[1], '#3a2414', ['scarf', 'hat']), talks('wc_widow', 'Woman at the Vale gate', [
       'I come and stand at the gate. Never go in. My husband always said he would, one day, and then he didn\'t, and then he was gone.',
@@ -13324,10 +13332,10 @@ async function talkAstronomer() {
   const night = nightNow();
   await sayAs('Astronomer Isolde', sideLine({ light:'A visitor! Come in, mind the telescope, mind the other telescope.', even:'Mind the telescope.', hurt:'Come and look up for a bit. It makes everything the right size.', shadow:"(She puts herself between you and the telescope, the way you'd stand in front of a child.)" }));
   if (auraSide() === 'shadow') return;
-  if (!night) return talks('isolde_day', 'Astronomer Isolde', ["Come back after dark. Then I'll show you the Wheel.", 'In the day I write to Quillsby about the night. They write back about the day. It\'s a very slow argument.', 'The Vale children used to sit on that bench. I have their charts. Somebody should.'])();
-  await say('(You look up through the long brass telescope. Ten small groups of stars, in a ring.)');
+  if (!night) return talks('isolde_day', 'Astronomer Isolde', ["Come back after dark. Then I'll show you the Wheel.", 'In the day I write to Quillsby about the night. They write back about the day. It\'s a very slow argument.', 'We moved her out of the snow eighty years ago. Out here the air\'s so dry the stars don\'t even shimmer. Best seeing in the Welkin.'])();
+  await say('(You look up through the little brass finder telescope. The big one is upstairs, under the dome.)');
   await sayLine('Astronomer Isolde', ["The Wheel. Ten constellations, one for every feeling. Sailors steer by the Hope, and lovers argue about which one's the Joy. That faint one is the Shame. It's always there. You just have to want to see it.",
-    () => `Find the ${leadType()}. There, three stars and a fourth that comes and goes. That's the one you carry most of, isn't it? I can always tell.`,
+    () => `Find the ${leadType()} when you go up. ${SKY_FIG[lead() ? SPECIES[lead().sp].type : 'JOY'] ? 'It makes ' + SKY_FIG[lead() ? SPECIES[lead().sp].type : 'JOY'][0] + '.' : ''} That's the one you carry most of, isn't it? I can always tell.`,
     'Look between the Calm and the Confidence. That dark patch. Orrin\'s notes say he thought it was the eleventh feeling, the one we refuse. I think it\'s just dark. I hope it\'s just dark.'][rotIdx('isolde', 3)]);
   if (once('starChart')) { S.items.charm = (S.items.charm || 0) + 2; await say('(She gives you a star chart rolled round 2 Kindred Charms "for luck, which isn\'t real, but neither are the constellations, and look how useful they are.")'); }
 }
@@ -13613,14 +13621,15 @@ farRoad('r_drywash', { name:'The Dry Wash', sub:'Tumbledown Fair to Dry Fork', V
   rect(m, 2, 16, 44, 2, '='); rect(m, 22, 4, 2, 26, '='); rect(m, 2, 28, 42, 1, '=');
   rect(m, 26, 5, 10, 1, 't'); B.piece('tunnelmouth', 37, 4, 2, 2); B.piece('minecart', 30, 5); B.piece('watertower', 8, 24, 2, 2);
   rect(m, 3, 30, 18, 1, '~');   // the trickle that gives the town its name
-  for (const [x, y] of [[4, 5], [16, 6], [40, 22], [30, 24], [14, 24]]) B.piece('cactus', x, y);
+  for (const [x, y] of [[4, 5], [16, 6], [38, 25], [30, 24], [14, 24]]) B.piece('cactus', x, y);
   B.house(4, 10, 8, '#7a4a2a', '#d8b888', { name:'The Copper Penny', w:15, h:10, music:'dry_fork', floor:['#8a6a48', '#7e6040'], wall:'#d8b888', furn:[['piano', 1, 1], ['stand', 5, 1, { c:'#b8784a' }], ['stand', 8, 1, { c:'#b8784a' }], ['table', 4, 5], ['table', 9, 5], ['cardtable', 12, 3], ['rug', 7, 7]] });   // 0
   B.house(14, 10, 7, '#6a5a3a', '#e0c8a0', { name:'Dry Fork General', w:11, h:9, music:'dry_fork', floor:['#8a7458', '#7e6a50'], wall:'#e0c8a0', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 7, 1], ['shelf', 9, 1], ['desk', 5, 4], ['sacks', 2, 6]] });   // 1
   B.house(26, 10, 6, '#5a5a5a', '#c8b898', { name:'Assay Office', w:11, h:8, music:'dry_fork', floor:['#7a6450', '#6e5a48'], wall:'#c8b898', furn:[['desk', 5, 2], ['shelf', 1, 1], ['shelf', 9, 1], ['trunk', 2, 5]] });   // 2
   B.house(33, 10, 6, '#8a7a5a', '#a89878', { name:"Gus's (boarded)", w:11, h:8, music:'dry_fork', floor:['#6a5a48', '#5e5040'], wall:'#a89878', furn:[['bed', 8, 1], ['table', 4, 3], ['candle', 4, 1]] });   // 3
   B.house(4, 19, 7, '#8a7a5a', '#a89878', { name:'Empty house', w:11, h:8, music:'dry_fork', floor:['#6a5a48', '#5e5040'], wall:'#a89878', furn:[['table', 4, 3], ['bed', 8, 1], ['chair', 3, 3]] });   // 4
   B.house(26, 19, 6, '#7a4a2a', '#d8b888', { name:'The Coombs House', w:11, h:8, music:'dry_fork', floor:['#8a7458', '#7e6a50'], wall:'#e0c8a0', furn:[['table', 5, 3], ['bed', 1, 1], ['bed', 9, 1], ['stove', 9, 5, { lit:true }], ['rug', 5, 5]] });   // 5
-  B.house(34, 19, 6, '#8a5a3a', '#e8d0a8', { name:'Schoolhouse', w:11, h:9, music:'dry_fork', floor:['#8a7458', '#7e6a50'], wall:'#e8dcc0', furn:[['desk', 5, 1], ['bench', 2, 4], ['bench', 5, 4], ['bench', 8, 4], ['bench', 2, 6], ['bench', 8, 6]] });   // 6
+  B.house(34, 19, 6, '#2a3a4a', '#d8d4cc', { name:'The Observatory', w:13, h:11, music:'dry_fork', floor:['#5a5a62', '#4e4e56'], wall:'#c8c4bc', furn:[['desk', 2, 2], ['bookcase', 1, 5], ['spiral', 6, 3], ['table', 10, 6], ['candle', 3, 7]] });   // 6
+  B.piece('dome', 40, 19, 4, 4);   // the clearest skies in the Welkin: no snow, no cloud, no city lights
   for (const [x, y] of [[3, 15], [21, 15], [25, 15], [43, 15]]) B.lamp(x, y);
   m[18][20] = 's';
   regionMap('dry_fork', B, { name:'Dry Fork', sub:'Copper town', V:DESERT_V, music:'dry_fork', arrive:'Half a town. One side of the street has painted fronts and people on the porches; the other side is boarded up and leaning. Up the hill, the mouth of a copper mine, and a little railway running out of it full of green-red stone.',
@@ -13664,16 +13673,14 @@ farRoad('r_drywash', { name:'The Dry Wash', sub:'Tumbledown Fair to Dry Fork', V
       () => S.flags.forkTold === 'told' ? 'Pa told everyone something at the saloon and now he\'s home every evening. We play cards. He\'s terrible at cards. I like it.' : 'Pa doesn\'t sing any more. He used to sing in the bath. Now he just sits in it till it\'s cold.',
       'When I grow up I\'m going to dig for something nice. Not copper. Something you can just look at.' ])),
     look('df_jar', 9, 5, 'Jar', '(A jam jar on the shelf by the stove, full of fine copper wire, coiled like hair. The label says: PA\'S. MATTIE\'S NOW.)')];
-  IN(6).npcs = [npc('df_teacher', 5, 2, 'down', 'Miss Abernethy-Cole', lk('#3a4a5a', '#e8dcc0', SK[1], '#3a2414', ['glasses', 'bun']), talks('df_teacher', 'Miss Abernethy-Cole', [
-      'Twelve pupils, last year. Seven this year. Families keep leaving for the fair. I keep the desks out anyway. For when they come back.',
-      'Today\'s lesson was the emotion wheel. A boy asked why Disgust and Surprise are opposite. I said because you can\'t be both at once. He said his grandma can. I gave him a gold star.',
-      () => `May I borrow your ${leadName()} for ten minutes? For a lesson? (The children in the front row are already leaning out of their benches.) Oh. Too late. They've seen it.` ])),
-    npc('df_pupil', 2, 5, 'up', 'Pupil', lk('#4f8aa8', '#fff3d6', SK[4], '#141014', ['cap'], { small:true }), talks('df_pupil', 'Pupil', [
-      'I know all ten! Joy Hope Calm Confidence Surprise Sadness Fear Anger Shame Disgust. (He takes a very large breath.)',
-      'Miss says opposites hit twice as hard. My sister\'s my opposite. She hits more than twice as hard.',
-      () => `Is that a ${leadType()} Manif? I KNEW it. I knew it from the door.` ]))];
+  IN(6).npcs = [npc('astronomer', 6, 5, 'up', 'Astronomer Isolde', lk('#2a2a4a', '#d8d0e8', SK[1], '#d8d0c0', ['glasses', 'longcoat']), talkAstronomer),
+    look('wo_charts2', 2, 2, 'Star charts', '(Star charts pinned over the desk, eighty years of them, all of the same ring of ten constellations. The oldest says WHITECROWN at the top, crossed out, and DRY FORK written underneath: "Snow on the lens again. Moving her somewhere it never snows.")'),
+    npc('wo_apprentice', 10, 5, 'up', 'Apprentice', lk('#4a4a6a', '#f3e7c9', SK[4], '#3a2414', ['scarf', 'glasses']), talks('wo_apprentice', 'Apprentice', [
+      'I polish the lenses. That\'s my whole job for the first year. Out here it\'s mostly sand. Isolde says sand is better than snow. Sand doesn\'t melt on the mirror.',
+      'I came from Quillsby. Professor Calloway sent me to measure whether stars have weather. They don\'t. Or they do, and it\'s very far away.',
+      () => nightNow() ? 'It\'s dark! She\'s up the stairs, at the big telescope. Go on. She pretends she doesn\'t like showing people, but she does.' : 'Come back after seven. Everything worth seeing out here happens after seven. Except the heat. That happens all day.' ]))];
   REGION_NPCS.dry_fork = () => [
-    sign('df_sign', 20, 18, 'DRY FORK. Copper town. Pop. 212 (crossed out) 140 (crossed out) 97. ↑ The Copper Penny, Dry Fork General, the Assay Office, Gus. ↓ The Coombs House, the Schoolhouse. Up the hill: the mine. PLEASE DO NOT RIDE THE MINECART. (Everyone rides the minecart.)'),
+    sign('df_sign', 20, 18, 'DRY FORK. Copper town. Pop. 212 (crossed out) 140 (crossed out) 97. ↑ The Copper Penny, Dry Fork General, the Assay Office, Gus. ↓ The Coombs House. Up the hill: the Observatory. Up the hill: the mine. PLEASE DO NOT RIDE THE MINECART. (Everyone rides the minecart.)'),
     look('df_tunnel', 37, 5, 'Mine mouth', () => say(S.flags.forkTold === 'told' ? '(The mine mouth, chained across. A hand-painted sign: CLOSED FOR THINKING.)' : '(The mouth of the copper mine. Cold air breathes out of it, smelling of stone and metal. Somewhere deep inside, picks.)')),
     look('df_tower', 8, 24, 'Water tower', '(The town water tower, painted with a big copper penny. Below it, smaller: "IF YOU CAN READ THIS, YOU\'RE IN THE SHADE. YOU\'RE WELCOME.")'),
     npc('foreman', 24, 7, 'down', 'Foreman Ezra Coombs', lk('#5a4a3a', '#b8784a', SK[3], '#3a2414', ['cap', 'lantern', 'beard']), talkForeman),
@@ -13730,19 +13737,19 @@ Object.assign(HINTS, {
   highcrest:{ id:'hint_qb', x:6, y:11, name:'Visiting lecturer', look:lk('#4a3a5a', '#e8dcc0', SK[0], '#d8d0c0', ['glasses', 'book']), place:'Quillsby',
     yes:'I teach at Quillsby. The west gate, out past the edge of the square, down the leafy road. Go and see the museum. Orrin Vale lectured there, you know. Two hundred years ago. We still have his notes.', no:'The west road? It goes to a university. You wouldn\'t like it. There are rules.' },
   r_siding:{ id:'hint_wc', x:20, y:29, name:'Old platelayer', look:lk('#5a4a3a', '#e8dcc0', SK[3], '#8a8078', ['cap', 'scarf']), place:'Whitecrown',
-    yes:'See the gate in the east fence, just below the rails? That\'s the old branch road. Goes up the Switchback to Whitecrown, in the snow. Observatory up there. And the Vale house, if you\'re that sort of curious.', no:'The branch road? Closed. Snowed in. Go home.' },
+    yes:'See the gate in the east fence, just below the rails? That\'s the old branch road. Goes up the Switchback to Whitecrown, in the snow. Cocoa up there, and a cable car. And the Vale house, if you\'re that sort of curious.', no:'The branch road? Closed. Snowed in. Go home.' },
   r_cindercut:{ id:'hint_cr', x:21, y:16, name:'Off-duty soldier', look:lk('#4a5a3a', '#d8b85a', SK[2], '#3a2414', ['helmet']), place:'Cinder Reach',
     yes:'East of the barracks, through the gap, there\'s the Ash Road. Leads to what\'s left of Ash, and a little town that keeps the names. I go every spring. My unit thinks I\'m going fishing.', no:'East? Nothing east. Nothing at all.' },
   r_ditch:{ id:'hint_gl2', x:5, y:14, name:'Boat-mender', look:lk('#5a6a4a', '#e8dcc0', SK[4], '#d8d0c0', ['cap', 'beard']), place:'Galloway Landing',
     yes:'Ditch drains west into the bayou, and so does the road. Galloway Landing, at the end. Dance hall, boil, the best fiddler you\'ll ever hear. And a dock I\'d keep away from.', no:'West is swamp. Swamp is swamp. Good day.' },
   r_tumbledown:{ id:'hint_df', x:5, y:13, name:'Retired strongman', look:lk('#8a3a2a', '#f3e7c9', SK[3], '#141014', ['beard', 'stout']), place:'Dry Fork',
-    yes:'Out the fair\'s back fence, on the west side, there\'s the Dry Wash. Six miles of nothing, then Dry Fork. Copper town. I wrestled a man there once for a sarsaparilla. Lost. Best day of my life.', no:'The back fence? It\'s there to keep things in. Like you.' } });
+    yes:'Out the fair\'s back fence, on the west side, there\'s the Dry Wash. Six miles of nothing, then Dry Fork. Copper town, and an observatory on the hill. Clearest sky in the Welkin, they say. I wrestled a man there once for a sarsaparilla. Lost. Best day of my life.', no:'The back fence? It\'s there to keep things in. Like you.' } });
 Object.assign(CHORD_FAR, {
   quillsby:['Every lecture in Quillsby stopped mid-sentence. Thorne said it was mass hysteria. Then he sat down and didn\'t finish his.', 'The museum\'s closed. Dr. Ashcombe covered every case with a sheet. She said they shouldn\'t have to see.', 'They\'ve set up a whole department to study what you did. Nobody\'s enrolled.', 'Students from the Welkin came running down the Scholars\' Way. Some of them didn\'t make it all the way.', 'The bells rang on their own. Every college. One long note.', 'I\'m going to write about it. Someone has to write about it. I don\'t know which words to use.'],
-  whitecrown:['The snow stopped falling. Just stopped, in the air, for a whole minute. Then it came down again.', 'Isolde says one of the constellations went dark that night. The Hope. It\'s back now. She checks it every hour.', 'We\'re too high up to have heard it. We felt it in our teeth.', 'Nobody goes in the Vale house. Now nobody goes near it.', 'Pieter\'s sent the cable car down every day since, empty, in case anyone from below wants to come up.', 'Up here we can still see the stars. Down there, I hear, they don\'t look up any more.'],
+  whitecrown:['The snow stopped falling. Just stopped, in the air, for a whole minute. Then it came down again.', 'The stars went out up here for a whole night after the bell. Even the snow looked grey.', 'We\'re too high up to have heard it. We felt it in our teeth.', 'Nobody goes in the Vale house. Now nobody goes near it.', 'Pieter\'s sent the cable car down every day since, empty, in case anyone from below wants to come up.', 'Up here we can still see the stars. Down there, I hear, they don\'t look up any more.'],
   cinder_reach:['Two hundred years ago they did this to Ash with bottles. You did it with a bell.', 'Thea read the names out loud all night after. All forty-one thousand. She wouldn\'t stop.', 'We\'ve had grey-sleeves on the Ash Road with shovels. They want the Wall. They won\'t get it.', 'My family poured their grief into that well, and I thought that was the worst thing anyone could do. I was wrong.', 'Even the wildflowers turned their heads away from the Welkin that night. I saw it.', 'You can stand at the Wall if you want. Nobody here will stop you. Read the names. All of them.'],
   galloway:['The band stopped. First time since the flood of \'09. Then Celestine said "play," and they played.', 'The dock\'s busier than ever. Bottles going out by the boatload. Everyone in the Welkin\'s feelings, sold by the crate.', 'Reverend Dumas took everyone down to the water and we sang till the sun came up, to keep it out. It stayed out.', 'Gators went under and didn\'t come up for a week. Even they knew.', 'Auntie Rose has got Welkin children sleeping in every bed. Don\'t ask her how many. Don\'t ask her where from.', 'We\'re a long way from anywhere, cher. Not far enough, it turns out.'],
-  dry_fork:['Every pick in the mine stopped at once. Then the men came up and stood in the sun and didn\'t say anything for an hour.', 'The Choir\'s ordered twice the copper now. Ezra won\'t say what he told them.', 'Gus says he\'s seen a lot of strange weather. Never a quiet like that one.', 'Half the town wants to cut the copper off. The other half wants paying. Ruby\'s locked the saloon till they decide.', 'The desert didn\'t mind. The desert never minds. I\'m trying to learn that.', 'You\'re a long way from the Welkin. Are you running from it, or bringing it?'] });
+  dry_fork:['Isolde at the observatory says one of the constellations went dark that night. The Hope. It\'s back now. She checks it every hour.', 'Every pick in the mine stopped at once. Then the men came up and stood in the sun and didn\'t say anything for an hour.', 'The Choir\'s ordered twice the copper now. Ezra won\'t say what he told them.', 'Gus says he\'s seen a lot of strange weather. Never a quiet like that one.', 'Half the town wants to cut the copper off. The other half wants paying. Ruby\'s locked the saloon till they decide.', 'The desert didn\'t mind. The desert never minds. I\'m trying to learn that.', 'You\'re a long way from the Welkin. Are you running from it, or bringing it?'] });
 { const _mn = mapNodes; mapNodes = function () { const R = _mn(), { N, L } = R, ang = t => (WHEEL.indexOf(t) / WHEEL.length) * Math.PI * 2 - Math.PI / 2;
   const far = (id, name, from, t, r, da, heard) => { const a = ang(t) + da; N.push({ id, name, x:300 + Math.cos(a) * r, y:300 + Math.sin(a) * r, kind:id.startsWith('r_') ? 'farroad' : 'far', heard }); L.push([from, id]); };
   far('r_scholars', 'The Scholars\' Way', 'highcrest', 'CONFIDENCE', 258, -.18, 'hint_qb'); far('quillsby', 'Quillsby', 'r_scholars', 'CONFIDENCE', 318, -.24, 'hint_qb');
@@ -13842,26 +13849,38 @@ async function talkHart() {
 }
 
 // ---------------------------------------------------------------- the Observatory: up the stairs to the great telescope
-{ const OB = MAPS.whitecrown_in1.room; OB.npcs.push(look('wo_stairs', 6, 3, 'Stairs', () => goTo('whitecrown_up', 2, 3, 'right'))); }
-upRoom('whitecrown_up', { w:13, h:11, name:'The Telescope Deck', sub:'Whitecrown Observatory, under the dome', route:'whitecrown', music:'whitecrown', floor:['#4a4a52', '#424248'], wall:'#2a2a3a', light:{ sky:'#0a1020', hemi:'#9ab0d8', sun:.5 },
+{ const OB = MAPS.dry_fork_in6.room; OB.npcs.push(look('wo_stairs', 6, 3, 'Stairs', () => goTo('dry_fork_up', 2, 3, 'right'))); }
+upRoom('dry_fork_up', { w:13, h:11, name:'The Telescope Deck', sub:'Dry Fork Observatory, under the dome', route:'dry_fork', music:'dry_fork', floor:['#4a4a52', '#424248'], wall:'#2a2a3a', light:{ sky:'#0a1020', hemi:'#9ab0d8', sun:.5 },
   furn:[['spiral', 1, 3], ['telescope', 6, 5], ['desk', 10, 2], ['bookcase', 11, 7], ['chair', 9, 2], ['rug', 4, 8], ['candle', 1, 9]] });
-MAPS.whitecrown_up.room.npcs = [
-  look('wu_stairs', 1, 3, 'Stairs', () => goTo('whitecrown_in1', 7, 3, 'right')),
+MAPS.dry_fork_up.room.npcs = [
+  look('wu_stairs', 1, 3, 'Stairs', () => goTo('dry_fork_in6', 7, 3, 'right')),
   look('wu_scope', 6, 5, 'The great telescope', useTelescope),
   look('wu_log', 10, 2, 'Observing log', () => say(`(The observing log, two hundred years of it. Tonight's entry, in Isolde's tidy hand: "Clear. All ten visible. ${heartsN() >= 10 ? 'The Hope brighter than I have ever logged it.' : 'The Shame faint, as always. Still there, as always.'}")`)),
   npc('wu_isolde', 8, 7, 'up', 'Astronomer Isolde', lk('#2a2a4a', '#d8d0e8', SK[1], '#d8d0c0', ['glasses', 'longcoat']), talks('wu_isolde', 'Astronomer Isolde', [
-    'You found the stairs! Most visitors don\'t. Go on, look through her. She\'s called Margarethe. Don\'t ask; the first astronomer named her, and we\'re all too fond of her to change it.',
-    () => nightNow() ? 'The slot\'s open. Everything\'s up there tonight. Use the arrows to look round the sky; I\'ll tell you what you\'re looking at.' : 'In the day I close the shutter and put the dark plate in, so you can still see the stars. It\'s cheating. The stars don\'t mind.',
-    'The Vale children used to come up here. There\'s a mark on the floor by the eyepiece where somebody small always stood on a box.' ]), { gone:() => !nightNow() }) ];
-for (const e of MAPS.whitecrown_in1.room.npcs) if (e.id === 'astronomer') e.gone = () => nightNow();   // after dark she's up at the telescope
+    'You found the stairs! Most visitors don\'t. Go on, look through her. Dry air, no snow, no city lights: best seeing in the Welkin. She\'s called Margarethe. Don\'t ask; the first astronomer named her, and we\'re all too fond of her to change it.',
+    () => nightNow() ? 'The slot\'s open. Everything\'s up there tonight. Use the arrows to look round the sky. Put something in the circle and ask me, and I\'ll show you what it makes.' : 'In the day I close the shutter and put the dark plate in, so you can still see the stars. It\'s cheating. The stars don\'t mind.',
+    'The first astronomer had her up in Whitecrown, in the snow. Snow on the dome, frost on the mirror, half the year blind. My great-grandmother brought her down here on a mule cart. Best thing anyone ever did for her.' ]), { gone:() => !nightNow() }) ];
+for (const e of MAPS.dry_fork_in6.room.npcs) if (e.id === 'astronomer') e.gone = () => nightNow();   // after dark she's up at the telescope
 // The view through the telescope: the ten constellations of the Wheel, drifting slowly. Arrows (or drag) to look about,
 // A to hear about what's in the middle of the view, B to step back from the eyepiece. Nothing flashes or twinkles.
+// Each constellation is a picture made of stars: [figure name, star positions (grid units), lines (pairs of star indexes)]
+const SKY_FIG = {
+  JOY:['the Kite', [[3, 0], [6, 4], [3, 9], [0, 4], [4, 11], [2, 13], [4, 15]], [[0, 1], [1, 2], [2, 3], [3, 0], [0, 2], [1, 3], [2, 4], [4, 5], [5, 6]]],
+  HOPE:['the Lantern', [[3, 0], [1.5, 1.5], [4.5, 1.5], [1, 2.6], [5, 2.6], [4.5, 7.5], [1.5, 7.5], [3, 5]], [[1, 0], [0, 2], [3, 4], [4, 5], [5, 6], [6, 3], [1, 3], [2, 4]]],
+  CALM:['the Heron', [[0, 1.2], [2, 1.5], [2.8, 3.5], [2.2, 5.6], [2.8, 6.8], [6, 6.2], [7.4, 7.2], [4.2, 7.6], [4.2, 11.5]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [4, 7], [7, 8]]],
+  CONFIDENCE:['the Crown', [[0, 6], [0, 1], [2, 4], [4, 0], [6, 4], [8, 1], [8, 6]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 0]]],
+  SURPRISE:['the Burst', [[4, 4], [4, 0], [7.4, 2], [7.4, 6], [4, 8], [0.6, 6], [0.6, 2]], [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6]]],
+  SADNESS:['the Teardrop', [[3, 0], [1.6, 3.6], [1, 6.4], [3, 8.6], [5, 6.4], [4.4, 3.6]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0]]],
+  FEAR:['the Hare', [[2, 0], [3.6, .4], [3, 3], [4.8, 3.6], [1, 4.6], [-1.2, 6.2], [4, 7.2], [-.2, 7.8]], [[0, 2], [1, 2], [2, 3], [2, 4], [4, 5], [5, 7], [3, 6]]],
+  ANGER:['the Hammer', [[0, 0], [6, 0], [6, 2.2], [0, 2.2], [3, 2.2], [3, 10]], [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5]]],
+  SHAME:['the Bowed Head', [[3, 0], [1, 2], [.4, 5], [2, 8], [4.2, 2], [5.2, 4.6], [4.2, 6.4], [-1.2, 9.4], [6.6, 9.4]], [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [3, 7], [6, 8]]],
+  DISGUST:['the Serpent', [[0, 9], [2, 7.4], [1, 5], [3, 3], [5, 4], [6, 2], [7.6, 1.4], [8.4, 2]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]]] };
 const SKY_LORE = {
-  JOY:"The Joy. Five stars like a hand held up. Lovers argue about which one it is; it's this one.", HOPE:'The Hope. Sailors steer by its brightest star, the Lantern. It is never quite where you left it, and it is always there.',
-  CALM:'The Calm. A long low line, like still water. Fishermen say if you can see all seven stars, tomorrow will be kind.', CONFIDENCE:'The Confidence. A straight back and a lifted chin. The brightest star is called the Crown, and the town is named after it.',
-  SURPRISE:'The Surprise. Nobody agrees what shape it is. It looks different every time anyone describes it.', SADNESS:'The Sadness. A slow falling curve, like rain on a window. It rises in autumn and stays all winter.',
-  FEAR:'The Fear. Small and tight and close together, like people huddled. The darkest part of the sky is right behind it.', ANGER:'The Anger. Red stars, all of them. A fist, or a forge. It burns low on the horizon in summer.',
-  SHAME:'The Shame. The faintest of the ten. You have to want to see it, Isolde says. It is always there.', DISGUST:'The Disgust. A turned shoulder. The old sky-books say it points away from something, but nobody agrees what.' };
+  JOY:"The Joy. Most people see a kite, tail and all. Lovers argue about which star is the knot where you'd hold the string.", HOPE:'The Hope. A lantern, with the brightest star burning in the middle. Sailors steer by it. It is never quite where you left it, and it is always there.',
+  CALM:'The Calm. A heron, standing on one leg in still water. Fishermen say if you can see all nine stars, tomorrow will be kind.', CONFIDENCE:'The Confidence. A crown, three points high. The middle star is the brightest in the sky, and every proud town in the Welkin claims it.',
+  SURPRISE:'The Surprise. A burst, like a firework, six rays from one star. Nobody ever sees it the first time they look. Then they can\'t stop seeing it.', SADNESS:'The Sadness. A single teardrop. It rises in autumn and stays all winter, and it is the first one children learn.',
+  FEAR:'The Fear. A hare, crouched, ears up. The darkest patch of sky is right behind it, which is the whole point of a hare.', ANGER:'The Anger. A hammer, head and handle. Red stars, all of them. It hangs low over the forges in summer.',
+  SHAME:'The Shame. A hooded head, bowed. The faintest of the ten. You have to want to see it. It is always there.', DISGUST:'The Disgust. A serpent, turning away. The old sky-books say it\'s leaving something behind, and that is the hardest kind of turning.' };
 async function useTelescope() {
   await say(nightNow() ? '(The shutter is open. You put your eye to Margarethe\'s eyepiece.)' : '(Isolde has slid the dark plate in, so the stars show even by day. You put your eye to the eyepiece.)');
   if (once('skyFirst')) await sayAs('Astronomer Isolde', 'Arrows to look about. A to ask me what you\'re seeing. B when you\'ve had enough of the universe, which nobody ever has.');
@@ -13872,46 +13891,48 @@ function skyView() { return new Promise(resolve => {
   const el = document.createElement('div'); el.id = 'skyview';
   el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#03050c;opacity:0;transition:opacity 1s ease;touch-action:none;font-family:Lora,serif;color:#f3e7c9';
   const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; el.appendChild(cv);
-  const cap = document.createElement('div'); cap.style.cssText = 'position:absolute;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(560px,88vw);text-align:center;font-size:16px;line-height:1.5;background:rgba(10,8,6,.72);border:1px solid #6a5434;border-radius:10px;padding:10px 16px;transition:opacity .8s ease;opacity:0'; el.appendChild(cap);
-  const hint = document.createElement('div'); hint.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);font-size:13px;color:#c9a35a;opacity:.85;text-align:center'; hint.textContent = '←↑↓→ or drag to look · A: what is that? · B: step back'; el.appendChild(hint);
+  const cap = document.createElement('div'); cap.style.cssText = 'position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(560px,88vw);text-align:center;font-size:17px;font-weight:500;line-height:1.55;background:rgba(10,8,6,.78);border:1px solid #6a5434;border-radius:10px;padding:10px 16px;transition:opacity .6s ease;opacity:0'; el.appendChild(cap);
+  const hint = document.createElement('div'); hint.style.cssText = 'position:absolute;left:50%;top:16px;transform:translateX(-50%);width:90vw;font-size:14px;color:#d8b46a;text-align:center'; hint.textContent = 'Arrows or drag to look · A: ask about the stars in the circle · B: step back'; el.appendChild(hint);
   document.body.appendChild(el); requestAnimationFrame(() => el.style.opacity = 1);
-  const SW = 3200, SH = 1400; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const stars = []; for (let i = 0; i < 900; i++) stars.push([rnd() * SW, rnd() * SH, rnd() < .9 ? .6 + rnd() * .9 : 1.4 + rnd() * 1.2, .35 + rnd() * .6, rnd() < .15 ? '#ffd8b0' : rnd() < .3 ? '#c8d8ff' : '#ffffff']);
-  // the ten constellations, spaced around the sky in wheel order, each a little shape of 5-7 stars
-  const cons = WHEEL.map((t, i) => { const cx = 160 + i * (SW - 320) / 9 + (i % 2 ? 40 : -40), cy = SH / 2 + Math.sin(i * 1.3) * 300; const n = 5 + (i % 3), pts = [];
-    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + i, r = 60 + ((k * 37 + i * 11) % 70); pts.push([cx + Math.cos(a) * r * (1 + (i % 2) * .4), cy + Math.sin(a) * r * .8]); }
-    if (t === 'CALM') pts.forEach((p, k) => { p[0] = cx - 150 + k * 50; p[1] = cy + Math.sin(k) * 14; });
-    return { t, cx, cy, pts, col:TYPES[t].c, faint:t === 'SHAME' }; });
-  const dark = { cx:(cons[2].cx + cons[3].cx) / 2, cy:SH / 2 - 120 };   // the dark patch between the Calm and the Confidence
-  let vx = cons[0].cx, vy = SH / 2, tx = vx, ty = vy, alive = true, drag = null, lastShown = null;
+  S.skySeen = S.skySeen || {};
+  const GAP = 380, U = 26, SW = GAP * 10 + 400, SH = 1500; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const stars = []; for (let i = 0; i < 1000; i++) stars.push([rnd() * SW, rnd() * SH, rnd() < .9 ? .5 + rnd() * .8 : 1.2 + rnd() * 1.0, .3 + rnd() * .55, rnd() < .15 ? '#ffd8b0' : rnd() < .3 ? '#c8d8ff' : '#ffffff']);
+  // the ten pictures, in wheel order, laid along the sky (positions are fixed: nothing drifts, so the circle always names what's in it)
+  const cons = WHEEL.map((t, i) => { const [fig, P, L] = SKY_FIG[t], xs = P.map(p => p[0]), ys = P.map(p => p[1]), mx = (Math.min(...xs) + Math.max(...xs)) / 2, my = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const cx = 300 + i * GAP, cy = SH / 2 + Math.sin(i * 1.3) * 260; return { t, fig, cx, cy, pts:P.map(([x, y]) => [cx + (x - mx) * U, cy + (y - my) * U]), lines:L, col:TYPES[t].c, faint:t === 'SHAME', revealT:S.skySeen[t] ? -1e9 : null }; });
+  const dark = { cx:(cons[2].cx + cons[3].cx) / 2, cy:SH / 2 - 330 };
+  let vx = cons[0].cx, vy = cons[0].cy, tx = vx, ty = vy, alive = true, drag = null, lastShown = null;
   const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; }; fit(); addEventListener('resize', fit);
-  const show = txt => { cap.style.opacity = 0; setTimeout(() => { cap.innerHTML = txt; cap.style.opacity = txt ? 1 : 0; }, 300); };
-  const centred = () => { const r = Math.min(innerWidth, innerHeight) * .28; let best = null, bd = 1e9; for (const c of cons) { const d = Math.hypot(c.cx - vx, c.cy - vy); if (d < bd) { bd = d; best = c; } }
-    if (Math.hypot(dark.cx - vx, dark.cy - vy) < 90) return 'dark'; return bd < Math.max(140, r) ? best : null; };
-  const draw = () => { if (!alive) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = devicePixelRatio; vx += (tx - vx) * .08; vy += (ty - vy) * .08;
-    g.fillStyle = '#03050c'; g.fillRect(0, 0, W, H);
-    const ox = W / 2 - vx * s, oy = H / 2 - vy * s, t = performance.now() / 1000;
-    const neb = g.createRadialGradient(ox + SW * .55 * s, oy + SH * .4 * s, 0, ox + SW * .55 * s, oy + SH * .4 * s, 700 * s); neb.addColorStop(0, 'rgba(90,60,130,.22)'); neb.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = neb; g.fillRect(0, 0, W, H);
-    const neb2 = g.createRadialGradient(ox + SW * .18 * s, oy + SH * .65 * s, 0, ox + SW * .18 * s, oy + SH * .65 * s, 500 * s); neb2.addColorStop(0, 'rgba(40,90,120,.18)'); neb2.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = neb2; g.fillRect(0, 0, W, H);
-    for (const [x, y, r, a, c] of stars) { const px = ox + ((x + t * 2) % SW) * s, py = oy + y * s; if (px < -4 || py < -4 || px > W + 4 || py > H + 4) continue; g.globalAlpha = a; g.fillStyle = c; g.beginPath(); g.arc(px, py, r * s, 0, 7); g.fill(); }
-    g.globalAlpha = 1; const cen = centred();
-    for (const c of cons) { const on = cen === c, al = c.faint ? .45 : 1; g.strokeStyle = c.col; g.globalAlpha = (on ? .75 : .28) * al; g.lineWidth = 1.4 * s; g.beginPath();
-      c.pts.forEach(([x, y], k) => { const px = ox + (x + t * 2) * s, py = oy + y * s; k ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke();
-      for (const [x, y] of c.pts) { const px = ox + (x + t * 2) * s, py = oy + y * s; g.globalAlpha = al; const gr = g.createRadialGradient(px, py, 0, px, py, 9 * s); gr.addColorStop(0, '#ffffff'); gr.addColorStop(.25, c.col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(px, py, 9 * s, 0, 7); g.fill(); }
-      g.globalAlpha = (on ? .95 : .5) * al; g.fillStyle = '#f3e7c9'; g.font = `${13 * s}px Lora, serif`; g.textAlign = 'center'; g.fillText('The ' + TYPES[c.t].name, ox + (c.cx + t * 2) * s, oy + (c.cy + 150) * s); }
-    g.globalAlpha = 1; g.strokeStyle = 'rgba(201,163,90,.5)'; g.lineWidth = s; g.beginPath(); g.arc(W / 2, H / 2, 26 * s, 0, 7); g.stroke();   // the reticle
-    const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.85)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);   // the round edge of the eyepiece
-    if (cen !== lastShown) { lastShown = cen; show(cen === 'dark' ? '<i>A patch with no stars at all, between the Calm and the Confidence.</i>' : cen ? `<b>The ${TYPES[cen.t].name}</b>` : ''); }
+  const show = html => { cap.style.opacity = 0; setTimeout(() => { cap.innerHTML = html; cap.style.opacity = html ? 1 : 0; }, 250); };
+  const ring = () => Math.max(110, Math.min(innerWidth, innerHeight) * .2);
+  const centred = () => { if (Math.hypot(dark.cx - vx, dark.cy - vy) < 100) return 'dark'; let best = null, bd = 1e9; for (const c of cons) { const d = Math.hypot(c.cx - vx, c.cy - vy); if (d < bd) { bd = d; best = c; } } return bd < ring() * 1.3 ? best : null; };
+  const label = c => S.skySeen[c.t] ? `<b>The ${TYPES[c.t].name}</b> &middot; ${c.fig}` : '<i>A cluster of stars. Press A to ask Isolde what it is.</i>';
+  const draw = () => { if (!alive) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = devicePixelRatio, now = performance.now(); vx += (tx - vx) * .1; vy += (ty - vy) * .1;
+    g.fillStyle = '#03050c'; g.fillRect(0, 0, W, H); const X = x => W / 2 + (x - vx) * s, Y = y => H / 2 + (y - vy) * s;
+    for (const [nx, ny, nr, col] of [[SW * .55, SH * .4, 750, 'rgba(90,60,130,.22)'], [SW * .18, SH * .65, 520, 'rgba(40,90,120,.18)'], [SW * .82, SH * .3, 480, 'rgba(120,70,60,.14)']]) { const gr = g.createRadialGradient(X(nx), Y(ny), 0, X(nx), Y(ny), nr * s); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+    for (const [x, y, r, a, c] of stars) { const px = X(x), py = Y(y); if (px < -4 || py < -4 || px > W + 4 || py > H + 4) continue; g.globalAlpha = a; g.fillStyle = c; g.beginPath(); g.arc(px, py, r * s, 0, 7); g.fill(); }
+    const cen = centred();
+    for (const c of cons) { const on = cen === c, al = c.faint ? .55 : 1;
+      if (c.revealT != null) { const p = Math.min(1, (now - c.revealT) / 1800), n = c.lines.length * p; g.strokeStyle = c.col; g.lineWidth = (on ? 2.2 : 1.4) * s; g.lineCap = 'round'; g.globalAlpha = (on ? .85 : .4) * al;   // the stars join up, one line after another
+        c.lines.forEach(([i, j], k) => { if (k >= n) return; const f = Math.min(1, n - k), [x1, y1] = c.pts[i], [x2, y2] = c.pts[j]; g.beginPath(); g.moveTo(X(x1), Y(y1)); g.lineTo(X(x1 + (x2 - x1) * f), Y(y1 + (y2 - y1) * f)); g.stroke(); }); }
+      for (const [x, y] of c.pts) { const px = X(x), py = Y(y), rr = (on ? 11 : 9) * s; g.globalAlpha = al; const gr = g.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, '#ffffff'); gr.addColorStop(.22, c.col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(px, py, rr, 0, 7); g.fill(); }
+      if (S.skySeen[c.t]) { g.globalAlpha = (on ? .95 : .5) * al; g.fillStyle = '#f3e7c9'; g.font = `500 ${14 * s}px Lora, serif`; g.textAlign = 'center'; g.fillText('The ' + TYPES[c.t].name, X(c.cx), Y(c.cy + 9 * U)); } }
+    g.globalAlpha = 1; g.strokeStyle = 'rgba(216,180,106,.55)'; g.lineWidth = 1.2 * s; g.beginPath(); g.arc(W / 2, H / 2, ring() * s, 0, 7); g.stroke();   // the circle: whatever's inside it is what you're asking about
+    const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .38, W / 2, H / 2, Math.max(W, H) * .72); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.85)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    if (cen !== lastShown) { lastShown = cen; show(cen === 'dark' ? '<i>A patch with no stars at all.</i>' : cen ? label(cen) : ''); }
     requestAnimationFrame(draw); };
   requestAnimationFrame(draw);
-  const step = 160, clamp = () => { tx = Math.max(80, Math.min(SW - 80, tx)); ty = Math.max(200, Math.min(SH - 200, ty)); };
+  const step = 190, clamp = () => { tx = Math.max(100, Math.min(SW - 100, tx)); ty = Math.max(250, Math.min(SH - 250, ty)); };
+  const ask = () => { const c = centred();
+    if (c === 'dark') return show("<i>Isolde:</i> That empty patch, between the Calm and the Confidence. Orrin thought it was the eleventh feeling, the one we refuse. I think it's just dark. I hope it's just dark.");
+    if (!c) return show("<i>Isolde:</i> Just stars there. Just stars. Isn't that enough?");
+    if (!S.skySeen[c.t]) { S.skySeen[c.t] = 1; c.revealT = performance.now(); tx = c.cx; ty = c.cy; }   // centre it, and let the lines draw in
+    lastShown = c; show(`<b>The ${TYPES[c.t].name}: ${c.fig}.</b><br><i>Isolde:</i> ${SKY_LORE[c.t].replace(/^The \w+\. /, '')}`); };
   const close = () => { if (!alive) return; alive = false; selectHandler = null; el.style.opacity = 0; removeEventListener('resize', fit); setTimeout(() => { el.remove(); resolve(); }, 1000); };
-  selectHandler = b => { if (b === 'left') tx -= step; else if (b === 'right') tx += step; else if (b === 'up') ty -= step * .7; else if (b === 'down') ty += step * .7;
-    else if (b === 'a') { const c = centred(); show(c === 'dark' ? "<i>Isolde:</i> Orrin thought that was the eleventh feeling. The one we refuse. I think it's just dark. I hope it's just dark." : c ? `<i>Isolde:</i> ${SKY_LORE[c.t]}` : '<i>Isolde:</i> Just stars there. Just stars. Isn\'t that enough?'); }
-    else if (b === 'b' || b === 'menu') close(); clamp(); };
+  selectHandler = b => { if (b === 'left') tx -= step; else if (b === 'right') tx += step; else if (b === 'up') ty -= step * .7; else if (b === 'down') ty += step * .7; else if (b === 'a') ask(); else if (b === 'b' || b === 'menu') close(); clamp(); };
   el.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, tx, ty]; });
   el.addEventListener('pointermove', e => { if (drag) { tx = drag[2] - (e.clientX - drag[0]); ty = drag[3] - (e.clientY - drag[1]); clamp(); } });
-  el.addEventListener('pointerup', e => { if (drag && Math.hypot(e.clientX - drag[0], e.clientY - drag[1]) < 6) selectHandler('a'); drag = null; });
+  el.addEventListener('pointerup', e => { if (drag && Math.hypot(e.clientX - drag[0], e.clientY - drag[1]) < 6) ask(); drag = null; });
 }); }
 
 // ---------------------------------------------------------------- the cable car and the Crown (the summit above Whitecrown)
@@ -14079,6 +14100,36 @@ for (const [id, , y] of FAR_LINE) { const M = MAPS[id]; if (!M) continue; const 
 
 // people in far-place rooms come and go (Varnham after he's reported, Isolde up and down the stairs)
 for (const [id, M] of Object.entries(MAPS)) if (M.region && M.kind === 'inside' && M.room && M.room.npcs && !M.room.npcsFn) { const R = M.room; R.npcsFn = () => R.npcs.filter(n => !(n.gone && n.gone())); }
+
+// ---------------------------------------------------------------- Dry Fork: the minecart, ridden for real
+// Pete, the cart boy, walks round behind the cart and gives it a shove; you roll down the little line to the buffer,
+// and he trots after you and pushes you back up.
+const easeIO = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+const PETE_LOOK = lk('#7a4a2a', '#d8b85a', SK[3], '#7a3e1e', ['cap']);
+async function rideMinecart() {
+  const so = SETOBJS.find(s => s.p.k === 'minecart'); if (!so || S.map !== 'dry_fork') return;
+  if (!S.flags.peteMet) { S.flags.peteMet = 1; await sayAs('Pete', 'Want a go? Hop in. Sign says don\'t. Everybody does. The sign\'s mostly there so the deputy has something to point at.'); }
+  const c = await ask('Ride the minecart down the line?', ['Hop in', 'Not now']); if (c !== 0) return;
+  const cart = so.o, x0 = cart.position.x, zc = cart.position.z, gy = (x) => groundY(Math.round(x), Math.round(zc));
+  const real = W.npcs.df_pete, ghost = buildPerson(PETE_LOOK); ghost.position.copy(real ? real.position : new THREE.Vector3(x0 + 1, gy(x0), zc + 1)); world.add(ghost); if (real) real.visible = false;
+  const walk = (x1, z1, ms, face) => { const xa = ghost.position.x, za = ghost.position.z; return tween(ms, k => { ghost.position.set(xa + (x1 - xa) * k, gy(xa + (x1 - xa) * k), za + (z1 - za) * k); ghost.rotation.y = face; animPerson(ghost, k < 1, performance.now() / 1000, .016); }); };
+  await walk(x0 + 1.05, zc, 700, -Math.PI / 2);   // round behind the cart
+  const seat = new THREE.Object3D(); seat.position.set(0, .32, 0); cart.add(seat); const dir0 = S.dir; S.dir = 'left'; RIDE.on = true; RIDE.anchor = seat;
+  await tween(500, () => animPerson(ghost, false, performance.now() / 1000, .016));
+  // the shove, then the roll down to the buffer
+  const run = 3.7; let px = x0 + 1.05;
+  await tween(2800, k => { const e = easeIO(k), cx = x0 - run * e; cart.position.set(cx, gy(cx), zc); if (k < .4) { px = cx + 1.05; ghost.position.set(px, gy(px), zc); } animPerson(ghost, k < .4, performance.now() / 1000, .016); });
+  await tween(600, () => {});
+  // back up the hill: Pete trots round to the low side and pushes
+  await walk(x0 - run - 1.05, zc + .9, 900, -Math.PI / 2); await walk(x0 - run - 1.05, zc, 300, Math.PI / 2);
+  await tween(2400, k => { const e = easeIO(k), cx = x0 - run + run * e; cart.position.set(cx, gy(cx), zc); ghost.position.set(cx - 1.05, gy(cx - 1.05), zc); ghost.rotation.y = Math.PI / 2; animPerson(ghost, true, performance.now() / 1000, .016); });
+  RIDE.on = false; cart.remove(seat); S.dir = dir0;
+  await walk(real ? real.position.x : x0 + 1, real ? real.position.z : zc + 1, 700, 0); world.remove(ghost); disposeTree(ghost); if (real) real.visible = true;
+  await sayAs('Pete', pickA(['Again? Again costs nothing. Again\'s always free.', 'Ha! You should\'ve seen your face. Well. Your back. It looked happy.', 'Kid on the porch clapped. She always claps.']));
+}
+{ const base = REGION_NPCS.dry_fork; REGION_NPCS.dry_fork = () => [...base().filter(e => e.id !== 'cartride'),
+  look('cartride', 30, 5, 'Minecart', rideMinecart),
+  npc('df_pete', 31, 6, 'up', 'Pete', PETE_LOOK, async () => { await sayLine('Pete', ['Pete. I push the cart. Well. I push people in the cart. The ore cart goes on its own. Nobody pushes ore for fun.', () => S.flags.forkTold === 'told' ? 'Mine\'s shut, so the cart\'s all mine now. Best summer I\'ve ever had. Don\'t tell my dad I said that.' : 'My dad\'s a miner. He says the cart\'s not a toy. Then on Sundays he has three goes.', 'Fastest I ever got it was with the deputy in. He screamed. Don\'t tell him I told you.'][rotIdx('pete', 3)]); return rideMinecart(); }) ]; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -15384,7 +15435,7 @@ try { if (navigator.storage && navigator.storage.persist) navigator.storage.pers
 function loopBody(now) {
   const dt = Math.min(.05, (now - lastT) / 1000); lastT = now; const t = now / 1000;
   pollPad(dt);
-  if (UI.dlg) { const d = UI.dlg; if (d.shown < d.text.length) { d.shown = Math.min(d.text.length, d.shown + dt * 60); if (d.shown >= d.text.length && !d.readyAt) d.readyAt = performance.now() + 160; } dlgShow(d, d.shown >= d.text.length ? d.text.length : d.shown); nxtEl.style.visibility = d.shown >= d.text.length && d.res ? 'visible' : 'hidden'; }
+  if (UI.dlg) { const d = UI.dlg; if (d.shown < d.text.length) { d.shown = Math.min(d.text.length, d.shown + dt * (dlgEl.classList.contains('narr') ? 36 : 60)); if (d.shown >= d.text.length && !d.readyAt) d.readyAt = performance.now() + 160; } dlgShow(d, d.shown >= d.text.length ? d.text.length : d.shown); nxtEl.style.visibility = d.shown >= d.text.length && d.res ? 'visible' : 'hidden'; }
   else if (!dlgEl.classList.contains('hidden')) dlgEl.classList.add('hidden');
   auraPulse = Math.max(0, auraPulse - dt);
   // the touch pad shows while you can move: walking, or paddling a kayak (a script, but you steer it)
