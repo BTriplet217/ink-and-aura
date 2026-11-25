@@ -297,7 +297,7 @@ const LEARN = {
 const LEARN_AT = [1, 1, 10, 22];
 const INTENSIFY_AT = [14, 28];      // mild → core at 14, core → intense at 28
 let MAX_LVL = 50;   // the main story's cap; after either ending it rises to 75 (Manifs grow stronger, held or trained)
-const MAXLV = () => (typeof S !== 'undefined' && S && S.flags && (S.flags.hushDone || S.flags.doom)) ? 75 : MAX_LVL;
+const MAXLV = () => window.IA_TEST ? 100 : (typeof S !== 'undefined' && S && S.flags && (S.flags.hushDone || S.flags.doom)) ? 75 : MAX_LVL;
 
 // 13 per family: four intensify chains (line 0–3: mild → core → intense) and the family's Heart (line 4),
 // which lives at the city shrine and can't be found in the wild.
@@ -16277,9 +16277,9 @@ function makeTestSave(kind = 'final') {
   for (const k of CODEX.slice(0, 60)) T.codex.seen[k] = 1;
   T.items = { cake:20, tonic:10, salts:10, hearth:5, charm:5, ember:5, iron:5, quill:3, veil:2, waystone:5 };
   T.marks = 5000; T.steps = 4000; T.time = 3 * 3600;
-  // Every checkpoint: all ten Hearts settled and every Manif at Lv 50, standing in the Archive.
+  // Every checkpoint: all ten Hearts settled and every Manif at Lv 100 (testers asked for it, for ease), standing in the Archive.
   // Before the final battle plays as the woman, after the good ending as the nonbinary hero, after the evil ending as the man.
-  const TLV = kind === 'final' ? MAX_LVL : 75;
+  const TLV = 100;
   for (const t of WHEEL) { T.hearts[t] = 1; for (const id of [WAYTOWNS[t].id, ROUTES[t].id, TOWNS[t].id]) T.visited[id] = 1; }
   for (const m of [...T.party, ...T.satchel]) { m.lvl = TLV; m.moves = movesForSp(m.sp, TLV); m.hp = maxHp(m); }
   // testers carry every Manif in the game (not Love or Imaginative: those are earned gifts)
@@ -16469,7 +16469,7 @@ async function testTitle() {
   S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
   $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
   await fadeTo(0, 600); await titleGate();
-  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · the Archive floor is open' }, { label:'After the good ending', sub:'The world restored' }, { label:'After the evil ending', sub:'The Grand Chord sung' }, { label:'New Journey', sub:'From the very beginning' }, { label:'Credits' }], { layout:'center', cancel:false });
+  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · every Manif Lv 100' }, { label:'After the good ending', sub:'The world restored · every Manif Lv 100' }, { label:'After the evil ending', sub:'The Grand Chord sung · every Manif Lv 100' }, { label:'New Journey', sub:'From the very beginning' }, { label:'Credits' }], { layout:'center', cancel:false });
   $('#title').classList.add('hidden');
   if (c === 4) { await showCredits(); return testTitle(); }
   if (c === 3) return 'new';
