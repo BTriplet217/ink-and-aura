@@ -12897,7 +12897,29 @@ SET.belltower = p => { const g = new THREE.Group();   // a college bell tower; t
   sBox(g, .5, .7, .1, '#2a2830', 0, 3.1, .56, { ink:0 }); return g; };
 function setClockHands(g) { const c = g.userData.clock; if (!c) return; const mins = (S && S.clock != null ? S.clock : 540) % 720;
   c.m.rotation.z = -(mins % 60) / 60 * Math.PI * 2; c.h.rotation.z = -mins / 720 * Math.PI * 2; }
-setInterval(() => { for (const so of SETOBJS) if (so.p.k === 'belltower') setClockHands(so.o); }, 1000);   // the hands follow the game clock
+// The bell: struck like a real tower bell, one deep stroke per hour on the clock face. A bell's voice is a stack of
+// overtones (hum, strike, the minor-third tierce, quint, nominal...) that each fade at their own rate, the low hum last.
+function bellStroke(t, vol) { const c = AC.ctx, out = c.createGain(); out.gain.value = vol; out.connect(AC.sfx); if (AC.verb) { const v = c.createGain(); v.gain.value = vol * .6; out.connect(v); v.connect(AC.verb); }
+  const f = 98;   // the strike note: G, two octaves under middle C
+  for (const [r, a, d] of [[.5, .55, 5.5], [1, .5, 4.2], [1.19, .32, 3.8], [1.5, .2, 2.8], [2, .3, 3.2], [2.51, .12, 1.8], [2.66, .1, 1.6], [3.01, .09, 1.4], [4.17, .06, .9], [5.43, .04, .6]]) {
+    const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f * r * (1 + (Math.random() - .5) * .002);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + .006); g.gain.exponentialRampToValueAtTime(.0005, t + d);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + d + .1); }
+  const n = c.createBufferSource(), nf = c.createBiquadFilter(), ng = c.createGain(); n.buffer = AC.noise; nf.type = 'bandpass'; nf.frequency.value = 1800; nf.Q.value = 1.2;   // the clapper hitting bronze
+  ng.gain.setValueAtTime(.25, t); ng.gain.exponentialRampToValueAtTime(.001, t + .08); n.connect(nf); nf.connect(ng); ng.connect(out); n.start(t); n.stop(t + .1); }
+function strikeHours(h24) { if (!AC.ctx || AC.muted) return;
+  const m = S.map || '', where = m === 'quillsby' ? 1 : /^quillsby_(in\d+|up)$/.test(m) ? .45 : m === 'r_scholars' ? .3 : 0; if (!where) return;
+  // A game minute is three-quarters of a real second, so every count has to finish well inside ten game minutes:
+  // all the strokes fit in about 6.5 real seconds (under nine game minutes, even at twelve), closer together as the count grows.
+  const night = h24 >= 22 || h24 < 6, n = h24 % 12 || 12, gap = Math.min(1.4, 6.5 / n), t0 = AC.ctx.currentTime + .1;
+  const vol = .5 * where * (night ? .5 : 1) * Math.min(1, Math.sqrt(gap / 1.4) * 1.1);   // overlapping strokes are struck a little lighter
+  for (let i = 0; i < n; i++) bellStroke(t0 + i * gap, vol);
+  if (AC.music) { const g = AC.music.gain; g.cancelScheduledValues(t0); g.setTargetAtTime(.45, t0, .4); g.setTargetAtTime(.8, t0 + n * gap + 2, 1.2); }   // the music steps back while the bell speaks
+  if (where === 1) toast(`The bell tower strikes ${['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'][n]}.`); }
+let lastHourStruck = null;
+setInterval(() => { for (const so of SETOBJS) if (so.p.k === 'belltower') setClockHands(so.o);   // the hands follow the game clock
+  if (!S || S.clock == null) return; const h = Math.floor(S.clock / 60) % 24;
+  if (lastHourStruck !== null && h !== lastHourStruck && !B) strikeHours(h); lastHourStruck = h; }, 1000);
 const clockWords = () => { const m = Math.floor(S.clock || 540) % 1440, h = Math.floor(m / 60), mm = m % 60, h12 = h % 12 || 12, nx = (h + 1) % 12 || 12;
   const sayH = n => ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'][n];
   const q = Math.round(mm / 15) % 4, near = mm >= 53 ? nx : h12, part = mm < 8 || mm >= 53 ? `${sayH(near)} o'clock` : q === 1 ? `quarter past ${sayH(h12)}` : q === 2 ? `half past ${sayH(h12)}` : `quarter to ${sayH(nx)}`;
@@ -13038,7 +13060,7 @@ farRoad('r_scholars', { name:"The Scholars' Way", sub:'Highcrest to Quillsby', V
   REGION_NPCS.quillsby = () => [
     sign('qs_sign', 20, 18, 'QUILLSBY. University city. ↑ North: the Museum of Manifs, the Inkwell, Quill & Margin, the Halls. ↓ South: Quillsby University, the Chancellor\'s Lodge. (Underneath, in chalk: "Thorne is wrong.")'),
     look('qs_statue', 8, 25, 'Statue', '(A stone man reading from a book held open in both hands. The plinth says: ORRIN VALE, WHO TAUGHT HERE, AND THEN WENT DOWN. Students have tucked notes into the cracks: "please help with my exam", "thank you", "I\'m sorry".)'),
-    look('qs_bell', 24, 20, 'Bell tower', () => { const h = clockHour(), lesson = h >= 9 && h < 17; return say(`(The university bell tower. The clock says ${clockWords()}. ${lesson ? 'The next lecture bell is due on the hour, and students are already running for it.' : h >= 17 && h < 22 ? 'Lectures are over for the day. Somebody has tied a scarf round the bell rope.' : 'The tower is dark except for the lit clock face. The bell is quiet at night, by order of the Chancellor and the residents of the Halls.'} A small plaque at the door: THE BELL RINGS FOR LECTURES, AND FOR ANYONE WHO HAS PASSED ANYTHING.)`); }),
+    look('qs_bell', 24, 20, 'Bell tower', () => { const h = clockHour(), lesson = h >= 9 && h < 17; return say(`(The university bell tower. The clock says ${clockWords()}. ${lesson ? 'It strikes on the hour, every hour, and students are already running for the next lecture.' : h >= 17 && h < 22 ? 'Lectures are over for the day. Somebody has tied a scarf round the bell rope.' : 'The tower is dark except for the lit clock face. No lecture bells at night, by order of the Chancellor, but the clock still strikes the hours, softly.'} A small plaque at the door: THE BELL RINGS FOR LECTURES, AND FOR ANYONE WHO HAS PASSED ANYTHING.)`); }),
     npc('porter', 21, 18, 'down', 'Porter', lk('#3a4a3a', '#d8b85a', SK[2], '#8a8078', ['cap']), talks('porter', 'Porter', [
       'Keep off the grass. Not you, them. (He nods at a pigeon.) Actually, you too.',
       'The University\'s the long building across the green. Library at the back, lectures on the left, the Manif lab on the right. Lab smells funny. Don\'t ask me why.',
