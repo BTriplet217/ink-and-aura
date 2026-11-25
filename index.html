@@ -8152,11 +8152,28 @@ async function stepIn(adult, kid) {
 }
 function clearStep(adult, kid) { for (const e of [adult, kid]) if (e) delete ENT_OVR[S.map + ':' + e.id]; ENTC.t = 0; }
 function nearestAdult(e) { let best = null, bd = 1e9; for (const a of ents(S.map)) { if (a === e || a.invisible || !a.look || isChild(a) || a.numb || a.item || a.note) continue; const d = Math.abs(a.x - e.x) + Math.abs(a.y - e.y); if (d < bd) { bd = d; best = a; } } return best; }
+// The child who gives you a honey cake really does run off: a short dash away from you along open ground, tile by tile,
+// and they stay where they stopped for the rest of the visit. Returns the run (a promise), or null if there's nowhere to go.
+const RUN_KEYS = new Set();
+{ const _bw = buildWorld; buildWorld = function (id) { for (const k of RUN_KEYS) delete ENT_OVR[k]; RUN_KEYS.clear(); return _bw(id); }; }   // back in their usual spot next visit
+function runOff(kid) {
+  const M = MAPS[S.map], others = ents(S.map).filter(o => o !== kid && o.id !== kid.id);
+  const free = (x, y) => { const c = (M.tiles[y] || [])[x]; return c != null && !SOLID.has(c) && c !== 'D' && c !== '~' && !(x === S.x && y === S.y) && !others.some(o => o.x === x && o.y === y); };
+  const prev = new Map([[kid.x + ',' + kid.y, null]]), q = [[kid.x, kid.y, 0]]; let best = null, bestScore = -1;
+  while (q.length) { const [x, y, d] = q.shift(); if (d >= 7) continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = nx + ',' + ny; if (prev.has(k) || !free(nx, ny)) continue; prev.set(k, [x, y]); q.push([nx, ny, d + 1]);
+      const far = Math.abs(nx - S.x) + Math.abs(ny - S.y); if (d + 1 >= 4 && far > bestScore) { bestScore = far; best = [nx, ny]; } } }
+  if (!best || bestScore < 4) return null;
+  const path = []; for (let c = best; c; c = prev.get(c[0] + ',' + c[1])) path.unshift(c); path.shift();
+  const key = S.map + ':' + kid.id; RUN_KEYS.add(key); const dirOf = (a, b) => b[0] > a[0] ? 'right' : b[0] < a[0] ? 'left' : b[1] > a[1] ? 'down' : 'up';
+  return (async () => { let at = [kid.x, kid.y]; for (const step of path) { ENT_OVR[key] = [step[0], step[1], dirOf(at, step)]; ENTC.t = 0; at = step; await wait(170); } })();
+}
 async function childTalk(e, z, town, menace) {
   S.kidTalks = S.kidTalks || {}; const key = S.map + ':' + e.id, n = (S.kidTalks[key] = (S.kidTalks[key] || 0) + 1);
   const adult = nearestAdult(e), who = adult && adult.name ? adult.name : 'A grown-up';
   if (z.x === 'shadow' && z.read === 'hurt') return S.party.length ? sayVoice(e) : say('Child: ' + deal('kidtender:' + hurtFam(), KID_TENDER[hurtFam()]));
-  { const P = worldProfile(); if (P.kids >= 4 && z.read !== 'menace' && once('kidgift:' + key)) { S.items.cake = (S.items.cake || 0) + 1; if (S.party.length) await sayVoice(e); else await say('Child: ' + deal('kid', KID_LINES)); return say('(The child presses a slightly squashed honey cake into your hand, then runs off giggling.)'); }
+  { const P = worldProfile(); if (P.kids >= 4 && z.read !== 'menace' && once('kidgift:' + key)) { S.items.cake = (S.items.cake || 0) + 1; if (S.party.length) await sayVoice(e); else await say('Child: ' + deal('kid', KID_LINES)); const run = runOff(e); if (!run) return say('(The child presses a slightly squashed honey cake into your hand and giggles.)');
+      await say('(The child presses a slightly squashed honey cake into your hand, then runs off giggling.)'); return run; }
     if (P.kids <= -4 && z.read !== 'menace' && n === 1) return say('(The child takes one look at you and hides behind the nearest grown-up\'s legs.)'); }
   if (z.x === 'shadow') {
     if (n < 2) { await say(deal('kiduneasy', ['(The child goes quiet when you come close, and looks around for someone.)', '(The child takes a small step back.)', '(The child\'s smile slips. They grip their sleeve.)'])); return; }
