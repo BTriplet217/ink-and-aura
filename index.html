@@ -14992,11 +14992,11 @@ async function battleTurn() {
       const ci = await choose(its.map(k => ({ label:ITEMS[k].name, sub:`×${S.items[k]} · ${ITEMS[k].desc}` })).concat([{ label:'Back' }]), { onSel:j => setDlg(j < its.length ? `${ITEMS[its[j]].name}: ${itemInfo(its[j])}` : 'Back to the Expressions.', true) }); UI.dlg = null;
       if (ci < 0 || ci >= its.length) continue;
       const it = ITEMS[its[ci]]; let on = m;
-      if (it.revive || it.heal) {   // you choose who gets it
+      if (it.revive || it.heal || it.atk || it.def) {   // you choose who gets it: any Manif can give an item to any other
         const used = acts.filter(a => a.kind === 'item' && ITEMS[a.item].revive).map(a => a.on);
-        const pool = it.revive ? S.party.filter(p => p.hp <= 0 && !used.includes(p)) : chorusActive();
+        const pool = it.revive ? S.party.filter(p => p.hp <= 0 && !used.includes(p)) : chorusActive().slice().sort((a, b) => (a === m) - (b === m));   // the others first
         if (!pool.length) { await say(it.revive ? 'Nobody needs reviving.' : 'Nobody to give it to.'); continue; }
-        const pi = await choose(pool.map(p => ({ label:nm(p), sub:`${Math.max(0, p.hp)}/${maxHp(p)}${p === m ? ' · this one' : ''}` })).concat([{ label:'Back' }]), { cancel:true });
+        const pi = await choose(pool.map(p => ({ label:nm(p), sub:`${Math.max(0, p.hp)}/${maxHp(p)}${p === m ? ' · itself' : ''}${B.numb.has(p) ? ' · numb' : ''}` })).concat([{ label:'Back' }]), { cancel:true });
         if (pi < 0 || pi >= pool.length) continue; on = pool[pi]; }
       acts.push({ m, kind:'item', item:its[ci], on });
     } else if (c === nmv + 3) {
@@ -15143,10 +15143,11 @@ async function doReach(m) {
 }
 async function useItem(m, k, on) {
   const it = ITEMS[k]; if (!(S.items[k] > 0)) return; S.items[k]--;
-  if (it.heal && on && on.hp > 0) m = on;   // heal whoever you chose
+  const giver = m; if ((it.heal || it.atk || it.def) && on && on.hp > 0) m = on;   // whoever you chose
+  const from = giver !== m ? `${nm(giver)} passes ${nm(m)} ` : '';
   if (it.custom) return useForbidden(m, k, it);
   const pos = mm => modelOf(mm).position.clone().add(V3(0, .8, 0));
-  if (it.heal) { const mx = maxHp(m), h = Math.min(mx - m.hp, Math.ceil(mx * it.heal)); m.hp += h; floatText(pos(m), '+' + h, 'heal'); sfx('heal'); renderBHUD(); return say(`You give ${nm(m)} a ${it.name}. It steadies.`); }
+  if (it.heal) { const mx = maxHp(m), h = Math.min(mx - m.hp, Math.ceil(mx * it.heal)); m.hp += h; floatText(pos(m), '+' + h, 'heal'); sfx('heal'); renderBHUD(); return say(from ? `${from}a ${it.name}. It steadies.` : `You give ${nm(m)} a ${it.name}. It steadies.`); }
   if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Mending Light glows. Warmth settles over the whole Chorus.'); }
   if (it.revive) {
     const p = on && on.hp <= 0 ? on : S.party.find(q => q.hp <= 0); if (!p) { S.items[k]++; return say('Nobody needs reviving.'); }
@@ -15154,8 +15155,8 @@ async function useItem(m, k, on) {
     sfx('heal'); renderBHUD(); return say(it.revive >= 1 ? `${nm(p)} takes a Second Wind and comes back to itself, whole.` : `The Smelling Salts sting. ${nm(p)} comes back to itself.`);
   }
   if (it.res) { if (B.final) { S.items[k]++; return say('The Hush has nobody left inside to befriend. Not like that.'); } if (!canUnderstand()) { S.items[k]++; return say('There are too many of them at once. The charm can\'t find just one to reach.'); } B.res = Math.min(100, B.res + it.res); floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + it.res, 'heal'); renderBHUD(); return say(`You hold out the Kindred Charm. ${cap(bname(B.foe))} leans toward it.`); }
-  if (it.atk) { B.atk.set(m, Math.min(3, (B.atk.get(m) || 0) + it.atk)); floatText(pos(m), 'Force ▲▲', 'heal'); sfx('buff'); return say(`${nm(m)} drinks the Ember Draught. Its Force surges.`); }
-  if (it.def) { B.def.set(m, Math.min(3, (B.def.get(m) || 0) + it.def)); floatText(pos(m), 'Poise ▲▲', 'heal'); sfx('buff'); return say(`${nm(m)} sips the Iron Tea. It sets its feet.`); }
+  if (it.atk) { B.atk.set(m, Math.min(3, (B.atk.get(m) || 0) + it.atk)); floatText(pos(m), 'Force ▲▲', 'heal'); sfx('buff'); return say(`${from ? from + 'an Ember Draught. ' : ''}${nm(m)} drinks the Ember Draught. Its Force surges.`); }
+  if (it.def) { B.def.set(m, Math.min(3, (B.def.get(m) || 0) + it.def)); floatText(pos(m), 'Poise ▲▲', 'heal'); sfx('buff'); return say(`${from ? from + 'a cup of Iron Tea. ' : ''}${nm(m)} sips the Iron Tea. It sets its feet.`); }
 }
 function foeMoveChoice() {
   const f = B.foe, ms = f.moves, heal = ms.find(k => MOVES[k].fx === 'heal' || MOVES[k].fx === 'healall'), status = ms.filter(k => MOVES[k].fx && !MOVES[k].fx.startsWith('heal')), atk = ms.filter(k => MOVES[k].pow);
