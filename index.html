@@ -6011,10 +6011,11 @@ function partyRow(m, i) { return manifRow(m).replace('<small>Lv', `<small>${SLOT
 // Pick a spot for m. arr is the list it will be in; from is its index there now (or -1 if it's arriving).
 async function chooseSpot(m, arr, from, title, slotLabels) {
   const n = from < 0 ? arr.length + 1 : arr.length, spots = [...Array(n).keys()];
-  const order = j => { const a = arr.slice(); if (from >= 0) a.splice(from, 1); a.splice(j, 0, m); return a; };
+  // Moving swaps two places; nothing else shifts (26 Nov). Carrying a new one into a taken place sends the one there to the end.
+  const order = j => { const a = arr.slice(); if (from >= 0) { [a[from], a[j]] = [a[j], a[from]]; return a; } if (j < a.length) { a.push(a[j]); a[j] = m; } else a.push(m); return a; };
   const j = await listChoose(spots, { title, sub:slotLabels ? 'The first three healthy Manifs form your Chorus. The middle one stands beside both others.' : 'Choose where it goes in your Satchel.', start:Math.max(0, from),
     render:j => { const a = order(j), here = j === from;
-      return `<span class="rowname">${j + 1}. ${slotLabels ? slotLabels[j] : 'Place ' + (j + 1)}<br><small>${here ? 'Where it is now' : from < 0 ? (arr[j] ? `before ${nm(arr[j])}` : 'at the end') : `${j < from ? 'before' : 'after'} ${nm(arr[j])}`}</small>${slotLabels ? bondNote(bondsAt(a, j)) : ''}</span>`; } });
+      return `<span class="rowname">${j + 1}. ${slotLabels ? slotLabels[j] : 'Place ' + (j + 1)}<br><small>${here ? 'Where it is now' : from < 0 ? (arr[j] ? `${nm(arr[j])} moves to the end` : 'at the end') : `swap with ${nm(arr[j])}`}</small>${slotLabels ? bondNote(bondsAt(a, j)) : ''}</span>`; } });
   return j;
 }
 async function partyMenu() {
@@ -6029,7 +6030,7 @@ async function partyMenu() {
     const c = await choose(opts), lab = opts[c];
     if (lab === 'Listen') await listen(m);
     if (lab === 'Summary') { idx = await summary(m, S.party); continue; }
-    if (lab === 'Move to…') { const j = await chooseSpot(m, S.party, i, `Move ${nm(m)} to…`, SLOT_NAMES); if (j >= 0 && j !== i) { S.party.splice(i, 1); S.party.splice(j, 0, m); idx = j; rebuildMinis(); sfx('ok'); } }
+    if (lab === 'Move to…') { const j = await chooseSpot(m, S.party, i, `Move ${nm(m)} to…`, SLOT_NAMES); if (j >= 0 && j !== i) { [S.party[i], S.party[j]] = [S.party[j], S.party[i]]; idx = j; rebuildMinis(); sfx('ok'); } }
     if (lab === 'Set down') {
       if (S.party.length <= 1) { await say('You can\'t set down the last thing you\'re carrying.'); continue; }
       const before = auraName(); S.party.splice(i, 1); S.satchel.push(m); idx = Math.max(0, i - 1); rebuildMinis();
@@ -6049,7 +6050,7 @@ async function satchelMenu() {
     if (lab === 'Listen') { await listen(m); continue; }
     if (lab === 'Carry') {
       const j = await chooseSpot(m, S.party, -1, `Carry ${nm(m)} where?`, SLOT_NAMES); if (j < 0) continue;
-      const before = auraName(); S.satchel.splice(i, 1); S.party.splice(j, 0, m); idx = Math.max(0, i - 1); rebuildMinis();
+      const before = auraName(); S.satchel.splice(i, 1); if (j < S.party.length) { S.party.push(S.party[j]); S.party[j] = m; } else S.party.push(m); idx = Math.max(0, i - 1); rebuildMinis();
       await say(`You carry ${nm(m)} again. It stands ${SLOT_NAMES[j] === 'Waiting' ? 'with the ones waiting' : 'in your Chorus, ' + SLOT_NAMES[j].split('· ')[1]}.`); await announceShift(before);
     }
     if (lab === 'Swap in for…') {
@@ -6059,7 +6060,7 @@ async function satchelMenu() {
       const before = auraName(), out = S.party[j]; S.party[j] = m; S.satchel[i] = out; rebuildMinis();
       await say(`${nm(m)} takes ${nm(out)}'s place. ${nm(out)} rests in your Satchel.`); await announceShift(before);
     }
-    if (lab === 'Move to…') { const j = await chooseSpot(m, S.satchel, i, `Move ${nm(m)} to…`); if (j >= 0 && j !== i) { S.satchel.splice(i, 1); S.satchel.splice(j, 0, m); idx = j; sfx('ok'); } }
+    if (lab === 'Move to…') { const j = await chooseSpot(m, S.satchel, i, `Move ${nm(m)} to…`); if (j >= 0 && j !== i) { [S.satchel[i], S.satchel[j]] = [S.satchel[j], S.satchel[i]]; idx = j; sfx('ok'); } }
     if (lab === 'Summary') { idx = await summary(m, S.satchel); continue; }
     if (lab === 'Let go') { const y = await ask('Let ' + nm(m) + ' go back into the Welkin? It won\'t return.', ['Let it go', 'Keep it']); if (y === 0) { recordRelease(m); S.satchel.splice(i, 1); idx = Math.max(0, i - 1); sfx('release'); await say(nm(m) + ' drifts up and away, back into the weather.'); } }
   }
