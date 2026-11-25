@@ -5937,7 +5937,7 @@ async function talkHeart(t) {
   const r = await battle(newManif(sp, T.heart), { heart:t });
   if (r === 'blackout') return blackout();
   if (r === 'fled') return;
-  const wasBound = await maybeBind(t);
+  const wasBound = await maybeBind(t); if (wasBound === 'left') return;
   S.hearts[t] = 1; if (W.heart) { world.remove(W.heart); W.heart = null; } 
   await fadeTo(1, 500); buildWorld(S.map); await fadeTo(0, 700);
   await say(wasBound ? `The Heart of ${T.name} is bound. The Numbed stay grey, and every one of them is facing you.` : `The Heart of ${T.name} has settled. Colour creeps back into the faces of the Numbed. For the first time in years, the city can feel something else.`);
@@ -8526,7 +8526,12 @@ function applyRestoredTowns() {
   const R = MAPS.r_siding; if (R) { R.set = (R.set || []).filter(p => { if (!['loco', 'tender', 'logcar'].includes(p.k)) return true; const [x, y, w, h] = p.tiles || [p.x, p.y, 1, 1]; for (let j = y; j < y + (h || 1); j++) for (let i = x; i < x + (w || 1); i++) if (R.tiles[j] && R.tiles[j][i] === 'o') R.tiles[j][i] = j === 26 ? 't' : '.'; return false; });
     for (let x = 0; x < R.w; x++) { R.tiles[26][x] = 't'; for (const dy of [-1, 1]) if (R.tiles[26 + dy][x] === '#') R.tiles[26 + dy][x] = '.'; } const rl = R.rails.find(r => r.y === 26); if (rl) { rl.x0 = 0; rl.x1 = R.w - 1; } }
 }
-function trainStops() { const out = [['r_siding', 'The Long Siding']]; for (const t of TOWN_ORDER) { out.push([WAYTOWNS[t].id, WAYTOWNS[t].name], [TOWNS[t].id, TOWNS[t].name]); } for (const [id, n] of FAR_LINE) out.push([id, n + ' (far line)']); return out; }
+function trainStops() { const out = [['r_siding', 'The Long Siding', 'HOPE']]; for (const t of TOWN_ORDER) { out.push([WAYTOWNS[t].id, WAYTOWNS[t].name, t], [TOWNS[t].id, TOWNS[t].name, t]); } for (const [id, n] of FAR_LINE) out.push([id, n, null]); return out; }
+// each stop wears its feeling's colour (a darker shade, so it reads on parchment); the places beyond the Welkin are bronze
+const FAR_INK = '#8a5a2a';
+function inkOf(t) { if (!t) return FAR_INK; const h = TYPES[t].c.replace('#', ''), c = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); const L = (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000, k = L > 180 ? .38 : L > 150 ? .45 : L > 110 ? .62 : .8; return '#' + c.map(v => Math.round(v * k).toString(16).padStart(2, '0')).join(''); }
+function stopLabel(name, t) { const col = t ? TYPES[t].c : FAR_INK, mark = t ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${col};border:1.5px solid #2a2018;margin-right:7px;vertical-align:-1px"></span>` : `<span style="display:inline-block;width:10px;height:10px;transform:rotate(45deg);background:${FAR_INK};border:1.5px solid #2a2018;margin:0 8px 0 2px;vertical-align:0"></span>`;
+  return `${mark}<span style="color:${inkOf(t)}">${name}</span>`; }
 function stationEnts(map, base) {
   if (!S.flags || !S.flags.restored) return [];
   const M = MAPS[map]; if (map === 'r_siding') { const [x, y] = spotNear(map, 9, 27, base); return [{ id:'engineer', x, y, dir:'up', look:{ coat:'#3a4a5a', accent:'#b08a3a', skin:'#c79a78', hair:'#8a8078', legs:'#2a2a2a', hat:'#2a2a2a', gear:['cap', 'scarf', 'beard'] }, name:'Engineer', talk:rideTrain }]; }
@@ -8584,8 +8589,8 @@ async function rideTrain() {
     await offTheRails(); }
   const stops = trainStops().filter(([id]) => id !== S.map);
   await say(S.map === 'r_siding' ? 'Engineer: She runs again! Every line in the Welkin, cleared and relaid. Where to?' : pickA(['Station master: All aboard who\'s going aboard. Where are we headed?', 'Station master: Trains every hour, near enough. Pick a stop.']));
-  const opts = stops.map(([, n]) => n).concat(['Stay here']);
-  const c = await ask('Choose a stop.', opts); if (c < 0 || c >= stops.length) { if (opts[c] === 'Beyond the Welkin (not yet)') await say('Engineer: The far line\'s still being laid. Till then you\'ll have to walk: there\'s a sea city past Moonmoss, a hidden town in the woods off Gutterlight Lane, and a farm town down the dirt road out of Veilham.'); return; }
+  const opts = stops.map(([, n, t]) => ({ label:stopLabel(n, t) })).concat(['Stay here']);
+  const c = await ask('Choose a stop. (Every town is in the colour of its feeling. The places beyond the Welkin are marked in bronze.)', opts, { layout:'grid' }); if (c < 0 || c >= stops.length) { if (opts[c] === 'Beyond the Welkin (not yet)') await say('Engineer: The far line\'s still being laid. Till then you\'ll have to walk: there\'s a sea city past Moonmoss, a hidden town in the woods off Gutterlight Lane, and a farm town down the dirt road out of Veilham.'); return; }
   const [id, name] = stops[c], sp0 = trainSpot(S.map), y0 = sp0.y, sx0 = sp0.x;
   let tr = W.train;
   if (!tr) { // the train comes in from the east, the way it always runs
@@ -14435,6 +14440,231 @@ saveMenu = async function () {
   if (k === 'lfile') return loadFile();
 };
 // =============================================================================
+//  WHAT THE FAR PLACES KNOW (25 Nov)
+//  The Stillwell's pull reaches only as far as the edge of the Welkin. Past it, feelings stay inside the people who
+//  feel them and never take shape as Manifs (which is why the far places have no wild ones). The Hearts are the oldest
+//  Manifs of all: feelings that have gone so long without anyone to feel them that they've forgotten what being
+//  carried is like. Before eight of them will settle, you have to bring back how a person out there carries that
+//  feeling. The words come back as a stronger Reach Out in the Heart fight.
+//  Joy (the first Heart) and Fear are left as they were. Binding a Heart with the Hollow Bell skips all of this.
+// =============================================================================
+const FAR_WORD = {
+  HOPE:{ id:'wp_post', who:'Postmistress Hilde', place:'Whitecrown', hint:'hint_wc', where:'Whitecrown, up in the snow. On the Long Siding, follow the rails off the east edge and up the Switchback. Ask for Postmistress Hilde at the Post Office.',
+    lines:['You\'ve come up from the Welkin. You\'ve got the look: like feelings are weather that happens to you. Up here they don\'t come out of anybody. They stay in you, and you carry them up the hill like the coal.',
+      'This office has held letters for the Vale children for two hundred years. Nobody has ever come for one. Every winter we dust the pigeonholes anyway.',
+      'That\'s hope, the way a person carries it. Not something bright flying over a town. A duster, and a pigeonhole, and doing it again next winter.'],
+    word:'Hope is a chore you keep doing for someone who might still come.', recall:'You think of Hilde, dusting two hundred years of empty pigeonholes.' },
+  CALM:{ id:'keeper_lh', who:'Keeper Ardis', place:'Saltmere', hint:'hint_mm', where:'Saltmere, by the sea. Out through the old gate in the back-left corner of Moonmoss\'s wall, then down the Coast Road. Ask for Keeper Ardis at the Sharyn Lighthouse.',
+    lines:['Forty years I lit that lamp, and not one ship. Out here the waiting stayed in me. It never got up and walked about on its own, the way it does in the Welkin.',
+      'They think in Moonmoss that calm is never having a wave. That\'s not calm. That\'s a pond with a lid on.',
+      'Calm is when the storm comes in, and you\'re frightened, and your hands still know how to trim the wick. You do the next small thing.'],
+    word:'Calm is your hands still knowing the next small thing.', recall:'You think of Ardis\'s hands on the wick while the storm came in.' },
+  CONFIDENCE:{ id:'qg_hart', who:'Archivist Hart', place:'Quillsby', hint:'hint_qb', where:'Quillsby, the university town. Out the west edge of Highcrest\'s square, along the Scholars\' Way. Ask for Archivist Hart in the Vale Gallery, up the spiral stairs in the University.',
+    lines:['Orrin\'s own lecture notes. Read the margin. "Taught it badly today. Will teach it again tomorrow." Nearly every page has one.',
+      'In Highcrest they think confidence means never being wrong where people can see. Orrin was wrong in front of a full hall twice a week for thirty years.',
+      'He didn\'t get loud, and he didn\'t stop. He walked back into the hall the next morning with his notes. That\'s all it ever was.'],
+    word:'Confidence is walking back into the room where you were wrong.', recall:'You think of Orrin\'s margins: "Will teach it again tomorrow."' },
+  SURPRISE:{ id:['astronomer', 'wu_isolde'], who:'Astronomer Isolde', place:'Dry Fork', hint:'hint_df', where:'Dry Fork, the copper town. Through the back fence of Tumbledown Fair on the west side, then across the Dry Wash. Ask for Astronomer Isolde at the Observatory, up the hill.',
+    lines:['Every night I point the telescope somewhere I\'ve already looked, and every night something has moved. The stars don\'t jump out at you. They wait for you to notice.',
+      'In Caprice they think surprise is a box that springs open in your face. Out here it\'s slower. It sits in you for weeks.',
+      'It\'s letting the thing you were sure of turn out to be bigger than you thought. You have to leave room for it.'],
+    word:'Surprise is letting what you were sure of turn out bigger.', recall:'You think of Isolde at the telescope, waiting for the sky to move.' },
+  SADNESS:{ id:'vosk_h', who:'Elder Vosk', place:'Holdfast', hint:'hint_gl', where:'Holdfast, in the pines. Off Gutterlight Lane, through the gatepost past the third house and along the Pinewind. Ask for Elder Vosk in the Meeting Hall.',
+    lines:['We bury our own up here. Nobody gets drained and nobody goes grey. When my wife died I was sad for a year. Then less. Then, on her birthday, all over again.',
+      'That\'s how it\'s meant to go. Sorrowmere\'s rain has been falling for two hundred years because nobody there has been let finish.',
+      'Sadness wants company while it\'s happening. Then it wants to be allowed to end, a little at a time.'],
+    word:'Sadness needs company, and to be allowed to finish.', recall:'You think of Vosk, sad all over again on his wife\'s birthday, and then less.' },
+  SHAME:{ id:'dutch', who:'Dutch', place:'Cobb Hollow', hint:'hint_vh', where:'Cobb Hollow, the farm town. Out past the tracks at Veilham\'s front-right corner, then down the Dustline. Ask for Dutch at the garage.',
+    lines:['Twelve years back I drove home from the Fourth drunk. Put my truck through Irma Pruitt\'s fence, and her old dog with it. Whole town knows. I paid for the fence. Couldn\'t pay for the dog.',
+      'I feel it every time I drive past her porch. And every time, Irma nods at me. Sixty-one people, every one of them knows, and they still bring me their tractors.',
+      'Shame\'s for telling you what you did. Then you go on living where folks can see you. Veilham\'s been behind its curtains so long it forgot the second part.'],
+    word:'Shame tells you what you did. Then you live where people can see you.', recall:'You think of Dutch, driving past Irma\'s porch, and Irma nodding.' },
+  DISGUST:{ id:'gs_odalie', who:'Odalie', place:'Galloway Landing', hint:'hint_gl2', where:'Galloway Landing, on the bayou. Off the west edge of Rendering Ditch, through the Black Bayou. Ask for Odalie, the traiteur, in the stilt houses out over the water.',
+    lines:['(She\'s cleaning a cut on a fisherman\'s arm, quick and steady.) You see this? Smells bad, looks bad. My stomach turns every time.',
+      'That\'s good, cher. That\'s what shows me where the rot is. A traiteur with no stomach for it would leave it in.',
+      'Disgust is a nose for what will hurt you. Spurnhold turned it on people. You point it at the wound. Never at the man.'],
+    word:'Disgust points at the wound, never at the person.', recall:'You think of Odalie\'s steady hands on the fisherman\'s cut.' },
+  ANGER:{ id:'thea', who:'Thea Ashdown', place:'Cinder Reach', hint:'hint_cr', where:'Cinder Reach, by the Wall of Names. Off the east edge of the Cinder Cut, past the barracks, along the Ash Road. Ask for Thea Ashdown in Remembrance Hall.',
+    lines:['Forty-one thousand names. I\'m angry every single day I stand in front of that Wall. Twenty years of it, and I\'ve never once broken anything.',
+      'Anger says: this was wrong, and it mattered. It\'s meant to say that. It\'s the truest thing in me.',
+      'Then you pick up the chisel and carve the next name, carefully, so nobody gets lost. Emberwick forgot that part. It just hammers.'],
+    word:'Anger says it mattered. Then you carve carefully.', recall:'You think of Thea at the Wall, carving the next name carefully.' }
+};
+const farWordOf = id => { for (const t in FAR_WORD) { const w = FAR_WORD[t], ids = [].concat(w.id); if (ids.includes(id)) return t; } return null; };
+const hasWord = t => !FAR_WORD[t] || !!(S.farWord && S.farWord[t]);
+async function tellWord(t) {   // the conversation, the first time you talk to them (any aura: they'd tell anyone who asked)
+  const w = FAR_WORD[t]; for (const l of w.lines) await sayAs(w.who, l);
+  await sayAs(w.who, w.word);
+  S.farWord = S.farWord || {}; S.farWord[t] = 1;
+  await say(S.hearts[t] ? `(You think of the Heart of ${TOWNS[t].name}. It would have liked to hear that.)` : `(You'll carry that back to the Heart of ${TOWNS[t].name}.)`);
+}
+// wrap the talk of each of the eight, wherever they stand (rooms, upstairs, day or night)
+{ const _e0 = ents0; ents0 = function (map) { return _e0(map).map(e => { const t = e && e.id && farWordOf(e.id); if (!t || hasWord(t) || !e.talk) return e;
+  return { ...e, talk:async () => { await tellWord(t); } }; }); }; }
+
+// at the shrine: the event is done, but the Heart won't come to you yet
+async function farGateHeart(t) {
+  const w = FAR_WORD[t], T = TOWNS[t]; S.flags['heard_' + w.hint] = 1;
+  await say(`(The Heart of ${T.name} stirs as you come near, then turns away. It has been a feeling with no one to feel it for two hundred years, and it has forgotten what being carried is like.)`);
+  if (!S.flags.farLore) { S.flags.farLore = 1;
+    await say('Shrine keeper: It won\'t come to you. Not yet. It\'s been loose from people so long it doesn\'t remember them.');
+    await say('Shrine keeper: My gran used to say the old well under the Archive only ever reached as far as the edge of the Welkin. Past the edge, folk still carry their feelings the old way, inside them. Nothing climbs out and walks about. That\'s why you never see a wild Manif out there.');
+    await say('Shrine keeper: Go and ask one of them what it\'s like. Bring it back. The Heart will listen to that.'); }
+  await say(`(Someone in ${w.place} still carries ${TYPES[t].name.toLowerCase()} the old way. ${w.where})`);
+}
+{ const _th = talkHeart; talkHeart = async function (t) {
+  if (!S.hearts[t] && evDone(t) && !hasWord(t) && !S.flags.doom && !choir().bell) return farGateHeart(t);
+  return _th(t); }; }
+// with the Hollow Bell and no word, the Heart can only be bound: it won't settle for you
+{ const _mb = maybeBind; maybeBind = async function (t) {
+  if (!choir().bell || S.flags.hushDone || hasWord(t)) return _mb(t);
+  const c = await ask(`The Heart of ${TOWNS[t].name} lies spent at your feet. It doesn't know you, and it won't settle. The Hollow Bell is cold in your pocket.`, ['Bind it with the Bell', 'Leave it']);
+  if (c !== 0) return 'left';
+  bound()[t] = 1; sfx('debuff'); S.sins = (S.sins || 0) + 3;
+  await say('You ring the Hollow Bell. It makes no sound. The Heart folds in on itself like a fist closing, and goes the grey of old ash.');
+  await say(`All across ${TOWNS[t].name}, the Numbed turn toward the shrine at once, and kneel.`);
+  return true; }; }
+// =============================================================================
+//  THE MAP, DRAWN LIKE A MAP (25 Nov)
+//  A parchment chart of the Welkin: each feeling's country tinted its own colour, with little landmarks (meadows, rails,
+//  reeds, peaks, fair tents, rain, dark woods, shutters, marsh, smokestacks), towns as clusters of roofs, roads as
+//  dotted tracks, the dashed Edge of the Welkin, and the far places past it in bronze. Places you haven't heard of
+//  stay hidden under the fog; places you've heard of but not seen are faded.
+//  Node positions come from mapNodes(); far places are pushed out past the edge here, for drawing only.
+// =============================================================================
+const MAP_C = 300, MAP_K = 1.3, MAP_EDGE = 316, MAP_LAND = 462, MAP_G = 1.35;   // MAP_K: the Welkin drawn bigger than mapNodes() places it; MAP_G: glyph scale
+const mapRng = seed => { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; };
+const MAP_INK = '#3a2c20', MAP_PAPER = '#efe4c8', MAP_FAR = '#8a5a2a';
+const mapPol = (a, r) => [MAP_C + Math.cos(a) * r, MAP_C + Math.sin(a) * r];
+const mapAng = t => (WHEEL.indexOf(t) / WHEEL.length) * Math.PI * 2 - Math.PI / 2;
+const f1 = v => Math.round(v * 10) / 10;
+const mapG = (name, x, y, k = MAP_G) => `<g transform="translate(${f1(x)} ${f1(y)}) scale(${k}) translate(${f1(-x)} ${f1(-y)})">${MAP_GLYPH[name](f1(x), f1(y))}</g>`;
+
+// a wobbly closed outline (coast, edge), as an SVG path
+function mapBlob(r, wob, seed, n = 90) { const R = mapRng(seed), ph = [R() * 6, R() * 6, R() * 6]; let d = '';
+  for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, rr = r + wob * (Math.sin(a * 3 + ph[0]) * .5 + Math.sin(a * 7 + ph[1]) * .3 + Math.sin(a * 13 + ph[2]) * .2);
+    const [x, y] = mapPol(a, rr); d += (i ? 'L' : 'M') + f1(x) + ' ' + f1(y); } return d + 'Z'; }
+// one feeling's country: a wedge of the Welkin
+function mapWedge(t) { const a = mapAng(t), h = Math.PI / WHEEL.length; let d = `M${MAP_C} ${MAP_C}`;
+  for (let i = 0; i <= 12; i++) { const [x, y] = mapPol(a - h + i / 12 * 2 * h, MAP_EDGE); d += `L${f1(x)} ${f1(y)}`; } return d + 'Z'; }
+
+// little landmark glyphs, drawn in ink at (x, y)
+const MAP_GLYPH = {
+  flowers:(x, y) => `<g stroke="${MAP_INK}" stroke-width="1" fill="none"><path d="M${x - 5} ${y + 4}q2-6 0-9M${x} ${y + 4}q-1-7 1-10M${x + 5} ${y + 4}q-2-6 1-8"/></g><circle cx="${x}" cy="${y - 6}" r="2" fill="#e88a3a"/><circle cx="${x - 5}" cy="${y - 5}" r="1.6" fill="#f0c040"/><circle cx="${x + 6}" cy="${y - 4}" r="1.6" fill="#e86a6a"/>`,
+  rails:(x, y) => `<g stroke="${MAP_INK}" stroke-width="1"><path d="M${x - 12} ${y - 2}L${x + 12} ${y - 2}M${x - 12} ${y + 2}L${x + 12} ${y + 2}"/>${[-9, -3, 3, 9].map(d => `<path d="M${x + d} ${y - 4}L${x + d} ${y + 4}"/>`).join('')}</g>`,
+  hills:(x, y) => `<path d="M${x - 11} ${y + 4}q5-9 10 0q5-7 11 0" fill="none" stroke="${MAP_INK}" stroke-width="1.2"/>`,
+  reeds:(x, y) => `<ellipse cx="${x}" cy="${y + 2}" rx="10" ry="4" fill="#9ccfd4" stroke="${MAP_INK}" stroke-width=".8"/><path d="M${x - 6} ${y}l-1-8M${x - 3} ${y}l1-9M${x + 5} ${y}l2-7" stroke="#4a6a3a" stroke-width="1.2"/>`,
+  peaks:(x, y) => `<path d="M${x - 12} ${y + 5}L${x - 4} ${y - 8}L${x + 1} ${y - 1}L${x + 5} ${y - 7}L${x + 12} ${y + 5}Z" fill="#d8ccb0" stroke="${MAP_INK}" stroke-width="1.1"/><path d="M${x - 6} ${y - 5}L${x - 4} ${y - 8}L${x - 2} ${y - 5}" fill="#fff" stroke="none"/>`,
+  snowpeaks:(x, y) => `<path d="M${x - 13} ${y + 5}L${x - 4} ${y - 10}L${x + 2} ${y - 2}L${x + 6} ${y - 8}L${x + 13} ${y + 5}Z" fill="#e8eef2" stroke="${MAP_INK}" stroke-width="1.1"/><path d="M${x - 9} ${y - 2}l2 2 2-2 2 2" stroke="#8aa0b0" fill="none" stroke-width=".8"/>`,
+  tent:(x, y) => `<path d="M${x - 8} ${y + 5}L${x} ${y - 7}L${x + 8} ${y + 5}Z" fill="#e8d860" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 3} ${y + 5}L${x} ${y - 7}L${x + 3} ${y + 5}" fill="#d86a4a" stroke="none"/><path d="M${x} ${y - 7}l0-4l4 1.5l-4 1.5" fill="#d86a4a" stroke="${MAP_INK}" stroke-width=".6"/>`,
+  rain:(x, y) => `<path d="M${x - 9} ${y - 2}q0-6 6-5q2-5 8-1q6 0 5 6z" fill="#b8c4d0" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 5} ${y + 1}l-2 5M${x} ${y + 1}l-2 5M${x + 5} ${y + 1}l-2 5" stroke="#5c7ea2" stroke-width="1.1"/>`,
+  pines:(x, y) => [-6, 0, 6].map((d, i) => `<path d="M${x + d} ${y - 9 + (i % 2) * 3}l-5 12h10z" fill="#4a5a3a" stroke="${MAP_INK}" stroke-width=".8"/>`).join(''),
+  darkwood:(x, y) => [-7, 0, 7].map((d, i) => `<path d="M${x + d} ${y - 10 + (i % 2) * 3}l-5 12h10z" fill="#3a3448" stroke="${MAP_INK}" stroke-width=".8"/>`).join('') + `<circle cx="${x + 2}" cy="${y - 1}" r="1" fill="#f0e070"/><circle cx="${x + 4}" cy="${y - 1}" r="1" fill="#f0e070"/>`,
+  cave:(x, y) => `<path d="M${x - 11} ${y + 5}q2-13 11-13q9 0 11 13z" fill="#a89a84" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 4} ${y + 5}q0-7 4-7q4 0 4 7z" fill="#2a2018"/>`,
+  shutters:(x, y) => `<rect x="${x - 7}" y="${y - 6}" width="14" height="11" fill="#d8c8b0" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 9} ${y - 6}L${x} ${y - 12}L${x + 9} ${y - 6}Z" fill="#b87090" stroke="${MAP_INK}" stroke-width="1"/><rect x="${x - 4}" y="${y - 3}" width="3" height="4" fill="#5a3a4a"/><rect x="${x + 1}" y="${y - 3}" width="3" height="4" fill="#5a3a4a"/>`,
+  marsh:(x, y) => `<path d="M${x - 11} ${y}q3-3 6 0t6 0t6 0t5 0" fill="none" stroke="#7f9440" stroke-width="1.3"/><path d="M${x - 8} ${y + 4}q3-3 6 0t6 0t5 0" fill="none" stroke="#7f9440" stroke-width="1"/><path d="M${x - 2} ${y - 1}l-1-6M${x + 3} ${y - 1}l1-5" stroke="${MAP_INK}" stroke-width=".9"/>`,
+  smoke:(x, y) => `<rect x="${x - 6}" y="${y - 6}" width="4" height="11" fill="#7a6a5a" stroke="${MAP_INK}" stroke-width=".9"/><rect x="${x + 2}" y="${y - 3}" width="4" height="8" fill="#7a6a5a" stroke="${MAP_INK}" stroke-width=".9"/><path d="M${x - 4} ${y - 7}q-3-4 1-7q4-2 2-6" fill="none" stroke="#a89888" stroke-width="1.4"/><path d="M${x - 1} ${y + 5}h7" stroke="#cf4430" stroke-width="1.4"/>`,
+  sea:(x, y) => `<path d="M${x - 9} ${y}q3-3 6 0t6 0t6 0" fill="none" stroke="#5a8aa0" stroke-width="1.1"/>`,
+  lighthouse:(x, y) => `<path d="M${x - 3} ${y + 6}L${x - 2} ${y - 7}L${x + 2} ${y - 7}L${x + 3} ${y + 6}Z" fill="#f3efe4" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 2.5} ${y}h5M${x - 2.8} ${y + 3}h5.6" stroke="#cf4430" stroke-width="1.4"/><circle cx="${x}" cy="${y - 9}" r="2.2" fill="#f0d060" stroke="${MAP_INK}" stroke-width=".8"/>`,
+  book:(x, y) => `<path d="M${x - 9} ${y - 5}q4-2 9 0q5-2 9 0v10q-4-2-9 0q-5-2-9 0z" fill="#f3efe4" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x} ${y - 5}v10" stroke="${MAP_INK}" stroke-width=".8"/>`,
+  cactus:(x, y) => `<path d="M${x} ${y + 6}v-14M${x} ${y - 1}h-4v-4M${x} ${y - 3}h4v-3" fill="none" stroke="#5a7a3a" stroke-width="2.4" stroke-linecap="round"/>`,
+  dome:(x, y) => `<path d="M${x - 7} ${y + 4}v-4a7 7 0 0 1 14 0v4z" fill="#e8e0d0" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x + 1} ${y - 6}l6-4" stroke="${MAP_INK}" stroke-width="1.4"/>`,
+  barn:(x, y) => `<path d="M${x - 8} ${y + 5}v-8l8-6l8 6v8z" fill="#b8503a" stroke="${MAP_INK}" stroke-width="1"/><rect x="${x - 3}" y="${y}" width="6" height="5" fill="#f3efe4" stroke="${MAP_INK}" stroke-width=".6"/>`,
+  cypress:(x, y) => `<path d="M${x} ${y + 6}v-6M${x - 6} ${y}q6-14 12 0z" fill="#5a6a3a" stroke="${MAP_INK}" stroke-width=".9"/><path d="M${x - 9} ${y + 6}q3-2 6 0t6 0t6 0" fill="none" stroke="#7f9440" stroke-width="1"/>`,
+  wall:(x, y) => `<rect x="${x - 10}" y="${y - 6}" width="20" height="10" fill="#9a948a" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 10} ${y - 1}h20M${x - 4} ${y - 6}v5M${x + 3} ${y - 1}v5" stroke="${MAP_INK}" stroke-width=".6"/><path d="M${x + 7} ${y - 6}l0-4" stroke="#e8a030" stroke-width="1.6"/>`,
+  shelter:(x, y) => `<path d="M${x - 8} ${y + 4}h16M${x - 5} ${y + 4}v-6h10v6M${x} ${y - 2}v4" fill="none" stroke="${MAP_INK}" stroke-width="1.1"/><path d="M${x - 2} ${y + 4}v-3h4v3" fill="#2a2018"/>`
+};
+const MAP_LAND_GLYPHS = { JOY:['flowers', 'hills', 'flowers'], HOPE:['rails', 'hills', 'hills'], CALM:['reeds', 'reeds', 'hills'], CONFIDENCE:['peaks', 'peaks', 'hills'], SURPRISE:['tent', 'tent', 'hills'],
+  SADNESS:['rain', 'rain', 'hills'], FEAR:['darkwood', 'cave', 'darkwood'], SHAME:['shutters', 'hills', 'shutters'], DISGUST:['marsh', 'marsh', 'hills'], ANGER:['smoke', 'smoke', 'peaks'] };
+const MAP_FAR_GLYPH = { saltmere:'lighthouse', holdfast:'pines', holdfast_deep:'shelter', cobb_hollow:'barn', quillsby:'book', whitecrown:'snowpeaks', cinder_reach:'wall', galloway:'cypress', dry_fork:'cactus' };
+const MAP_FAR_EXTRA = { saltmere:'sea', whitecrown:'snowpeaks', dry_fork:'dome', holdfast:'pines', galloway:'cypress', quillsby:'hills', cobb_hollow:'hills', cinder_reach:'smoke' };
+
+// a town: a little cluster of roofs in its feeling's colour (cities bigger, with a shrine spire)
+function mapTown(x, y, col, big, faded) { const R = mapRng(Math.round(x * 31 + y * 17)); let g = '';
+  const n = big ? 5 : 3, spots = big ? [[-8, 2], [0, -4], [8, 2], [-4, 7], [5, 8]] : [[-5, 2], [4, 0], [0, 6]];
+  for (let i = 0; i < n; i++) { const [dx, dy] = spots[i], w = big ? 7 : 6;
+    g += `<rect x="${f1(x + dx - w / 2)}" y="${f1(y + dy - 2)}" width="${w}" height="${w - 1}" fill="#f3ecda" stroke="${MAP_INK}" stroke-width=".9"/><path d="M${f1(x + dx - w / 2 - 1)} ${f1(y + dy - 2)}L${f1(x + dx)} ${f1(y + dy - 2 - w * .7 - R() * 2)}L${f1(x + dx + w / 2 + 1)} ${f1(y + dy - 2)}Z" fill="${col}" stroke="${MAP_INK}" stroke-width=".9"/>`; }
+  if (big) g += `<path d="M${x} ${y - 18}l-3 9h6z" fill="${col}" stroke="${MAP_INK}" stroke-width=".9"/><path d="M${x} ${y - 18}v-4" stroke="${MAP_INK}" stroke-width="1"/>`;
+  return `<g opacity="${faded ? .45 : 1}">${g}</g>`; }
+function mapVellum(x, y) {   // the Archive under its dome, ringed by the wheel mosaic
+  let g = `<circle cx="${x}" cy="${y}" r="20" fill="none" stroke="${MAP_INK}" stroke-width="1" stroke-dasharray="2 3"/>`;
+  WHEEL.forEach((t, i) => { const a = (i / WHEEL.length) * Math.PI * 2 - Math.PI / 2; g += `<circle cx="${f1(x + Math.cos(a) * 20)}" cy="${f1(y + Math.sin(a) * 20)}" r="2.6" fill="${TYPES[t].c}" stroke="${MAP_INK}" stroke-width=".6"/>`; });
+  g += `<rect x="${x - 9}" y="${y - 3}" width="18" height="10" fill="#f3ecda" stroke="${MAP_INK}" stroke-width="1"/><path d="M${x - 9} ${y - 3}a9 8 0 0 1 18 0z" fill="#c8a060" stroke="${MAP_INK}" stroke-width="1"/><rect x="${x - 2}" y="${y + 2}" width="4" height="5" fill="${MAP_INK}"/>`;
+  return g; }
+function mapCompass(x, y) { let g = `<g transform="translate(${x} ${y})"><circle r="22" fill="none" stroke="${MAP_INK}" stroke-width="1"/><circle r="17" fill="none" stroke="${MAP_INK}" stroke-width=".5"/>`;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, L = i % 2 ? 13 : 24, w = i % 2 ? 3 : 5, p = (r, d) => `${f1(Math.cos(a + d) * r)} ${f1(Math.sin(a + d) * r)}`;
+    g += `<path d="M0 0L${p(w, Math.PI / 2)}L${p(L, 0)}Z" fill="${MAP_INK}"/><path d="M0 0L${p(w, -Math.PI / 2)}L${p(L, 0)}Z" fill="${MAP_PAPER}" stroke="${MAP_INK}" stroke-width=".6"/>`; }
+  return g + `<text y="-27" text-anchor="middle" font-size="11" font-weight="700" fill="${MAP_INK}" font-family="Lora,serif">N</text></g>`; }
+
+// a road between two places: a gently bowed, dotted track
+function mapRoad(A, B, solid, far) { const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, bow = ((A.x * 7 + B.y * 3) % 2 ? 1 : -1) * Math.min(10, L * .12);
+  const cx = mx - dy / L * bow, cy = my + dx / L * bow;
+  return `<path d="M${f1(A.x)} ${f1(A.y)}Q${f1(cx)} ${f1(cy)} ${f1(B.x)} ${f1(B.y)}" fill="none" stroke="${far ? MAP_FAR : '#6a5236'}" stroke-width="${solid ? 2.2 : 1.5}" stroke-dasharray="${solid ? '5 3' : '2 4'}" stroke-linecap="round" opacity="${solid ? .95 : .6}"/>`; }
+
+worldMapSheet = function () {
+  const { N, L } = mapNodes(), V = S.visited || {}, here = hereId(), seen = n => V[n.id] || n.id === 'vellum';
+  const isFar = n => n.kind === 'far' || n.kind === 'farroad';
+  const known = n => seen(n) || !isFar(n) || (n.heard && S.flags['heard_' + n.heard]);
+  // far places sit past the edge on the drawn map
+  const P = {}; for (const n of N) { let { x, y } = n; const a = Math.atan2(y - MAP_C, x - MAP_C), r0 = Math.hypot(x - MAP_C, y - MAP_C);
+    const r = !isFar(n) ? r0 * MAP_K : n.id === 'holdfast_deep' ? 440 : n.kind === 'farroad' ? 350 : 402; P[n.id] = { ...n, a, r }; }
+  // far places that would land on top of each other are eased apart round the rim
+  for (let pass = 0; pass < 30; pass++) { let moved = false; const F = Object.values(P).filter(n => isFar(n));
+    for (const A of F) for (const B of F) { if (A === B || Math.abs(A.r - B.r) > 20) continue; let d = B.a - A.a; d = Math.atan2(Math.sin(d), Math.cos(d)); const need = 110 / A.r;
+      if (Math.abs(d) < need) { const push = (need - Math.abs(d)) / 2 * (d >= 0 ? 1 : -1); A.a -= push; B.a += push; moved = true; } }
+    if (!moved) break; }
+  for (const n of Object.values(P)) [n.x, n.y] = mapPol(n.a, n.r);
+  const pad = 18, x0 = MAP_C - MAP_LAND - pad, w = (MAP_LAND + pad) * 2;
+  let s = `<svg viewBox="${x0} ${x0} ${w} ${w}" style="width:100%;max-height:74vh;border-radius:12px;border:2px solid ${MAP_INK};background:#c9dde0;font-family:Lora,serif" role="img" aria-label="Map of the Welkin">`;
+  s += `<defs><filter id="mpaper"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .45  0 0 0 0 .35  0 0 0 0 .2  0 0 0 .08 0"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in="SourceGraphic" mode="multiply"/></filter>
+    <clipPath id="mwel"><path d="${mapBlob(MAP_EDGE, 6, 11)}"/></clipPath><radialGradient id="mvig" cx="50%" cy="50%" r="50%"><stop offset="70%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#3a2410" stop-opacity=".18"/></radialGradient></defs>`;
+  // the sea, with a few waves
+  { const R = mapRng(5); for (let i = 0; i < 40; i++) { const a = R() * Math.PI * 2, r = MAP_LAND + 8 + R() * 22, [x, y] = mapPol(a, r); s += MAP_GLYPH.sea(f1(x), f1(y)); } }
+  // the land, the countries, the edge
+  s += `<path d="${mapBlob(MAP_LAND, 14, 3)}" fill="${MAP_PAPER}" stroke="${MAP_INK}" stroke-width="2" filter="url(#mpaper)"/>`;
+  s += `<path d="${mapBlob(MAP_LAND - 6, 14, 3)}" fill="none" stroke="${MAP_INK}" stroke-width=".6" opacity=".5"/>`;
+  s += `<g clip-path="url(#mwel)">${WHEEL.map(t => `<path d="${mapWedge(t)}" fill="${TYPES[t].c}" opacity=".2"/>`).join('')}</g>`;
+  s += `<path d="${mapBlob(MAP_EDGE, 6, 11)}" fill="none" stroke="${MAP_INK}" stroke-width="1.4" stroke-dasharray="7 4 1 4"/>`;
+  { const [ex, ey] = mapPol(-Math.PI / 2 - .45, MAP_EDGE + 14); s += `<text x="${f1(ex)}" y="${f1(ey)}" font-size="12" font-style="italic" fill="${MAP_INK}" opacity=".75" transform="rotate(-28 ${f1(ex)} ${f1(ey)})">the Edge of the Welkin</text>`; }
+  // landmarks in each country (kept clear of the towns and their names)
+  const busy = Object.values(P).filter(known).map(n => [n.x, n.y]);
+  const clear = (x, y, d) => busy.every(([bx, by]) => Math.hypot(bx - x, by - y + 8) > d);
+  WHEEL.forEach((t, i) => { const R = mapRng(101 + i * 37), a0 = mapAng(t), h = Math.PI / WHEEL.length; let placed = 0;
+    for (let k = 0; k < 60 && placed < 5; k++) { const a = a0 + (R() * 1.6 - .8) * h, r = 60 + R() * (MAP_EDGE - 90), [x, y] = mapPol(a, r);
+      if (!clear(x, y, 32)) continue; busy.push([x, y]); placed++; const gl = MAP_LAND_GLYPHS[t][placed % 3]; s += `<g opacity=".85">${mapG(gl, x, y)}</g>`; } });
+  // the wide country past the edge: faint woods and hills, nobody's feelings in particular
+  { const R = mapRng(77); let n = 0; for (let k = 0; k < 400 && n < 34; k++) { const a = R() * Math.PI * 2, r = MAP_EDGE + 22 + R() * (MAP_LAND - MAP_EDGE - 50), [x, y] = mapPol(a, r);
+      if (!clear(x, y, 46)) continue; busy.push([x, y]); n++; s += `<g opacity=".35">${mapG(['hills', 'pines', 'hills'][n % 3], x, y, 1.2)}</g>`; } }
+  // the far countries: unknown ones are fog
+  for (const n of Object.values(P)) { if (n.kind !== 'far') continue; const R = mapRng(n.id.length * 97 + n.x);
+    if (!known(n)) { s += `<g opacity=".75">${[0, 1, 2].map(i => `<ellipse cx="${f1(n.x + (i - 1) * 20)}" cy="${f1(n.y + (i % 2) * 8)}" rx="${26 + R() * 8}" ry="${13 + R() * 4}" fill="#f6f0e2"/>`).join('')}</g>`; continue; }
+    const ex = MAP_FAR_EXTRA[n.id]; if (ex) { for (let k = 0; k < 6; k++) { const a = R() * Math.PI * 2, x = n.x + Math.cos(a) * (34 + R() * 10), y = n.y + Math.sin(a) * (28 + R() * 8); if (clear(x, y, 28)) { busy.push([x, y]); s += `<g opacity=".8">${mapG(ex, x, y)}</g>`; } } } }
+  // roads
+  for (const [a, b] of L) { const A = P[a], B = P[b]; if (!A || !B || !known(A) || !known(B)) continue; s += mapRoad(A, B, seen(A) && seen(B), isFar(A) || isFar(B)); }
+  // places
+  for (const n of Object.values(P)) { if (!known(n)) continue; const v = seen(n), col = n.t ? TYPES[n.t].c : MAP_FAR, ink = n.t ? inkOf(n.t) : MAP_FAR;
+    if (n.kind === 'hub') s += `<g transform="translate(${f1(n.x)} ${f1(n.y)}) scale(1.3) translate(${f1(-n.x)} ${f1(-n.y)})">${mapVellum(n.x, n.y)}</g>`;
+    else if (n.kind === 'city' || n.kind === 'way') s += `<g transform="translate(${f1(n.x)} ${f1(n.y)}) scale(1.35) translate(${f1(-n.x)} ${f1(-n.y)})">${mapTown(n.x, n.y, col, n.kind === 'city', !v)}</g>`;
+    else if (n.kind === 'far') s += `<g opacity="${v ? 1 : .45}">${mapG(MAP_FAR_GLYPH[n.id] || 'hills', n.x, n.y, 1.6)}</g>`;
+    else s += `<circle cx="${f1(n.x)}" cy="${f1(n.y)}" r="2.6" fill="${v ? ink : MAP_PAPER}" stroke="${MAP_INK}" stroke-width=".8"/>`;
+    if (n.kind === 'city' && S.hearts && S.hearts[n.t]) s += `<text x="${f1(n.x + 17)}" y="${f1(n.y - 14)}" font-size="15" fill="${(typeof bound === 'function' && bound()[n.t]) ? '#7a7a7a' : '#c0302a'}" paint-order="stroke" stroke="${MAP_PAPER}" stroke-width="2.5">♥</text>`;
+    if (n.id === here) s += `<circle cx="${f1(n.x)}" cy="${f1(n.y)}" r="22" fill="none" stroke="#c0302a" stroke-width="3"><animate attributeName="r" values="20;26;20" dur="3s" repeatCount="indefinite"/></circle>`;
+    const small = n.kind === 'route' || n.kind === 'farroad', ly = n.y + (n.kind === 'hub' ? 44 : n.kind === 'city' ? 28 : n.kind === 'far' ? 30 : small ? 15 : 22);
+    const label = v || n.kind === 'hub' ? n.name : n.kind === 'far' || n.kind === 'farroad' ? n.name : '?';
+    s += `<text x="${f1(n.x)}" y="${f1(ly)}" text-anchor="middle" font-size="${n.kind === 'hub' ? 20 : n.kind === 'city' || n.kind === 'far' ? 15 : small ? 11 : 13}" font-weight="${small ? 600 : 700}" ${small ? 'font-style="italic"' : ''} fill="${v ? ink : '#9a8a70'}" paint-order="stroke" stroke="${MAP_PAPER}" stroke-width="3" stroke-linejoin="round">${label}</text>`; }
+  // each country's name, round the rim
+  WHEEL.forEach(t => { const a = mapAng(t), [x, y] = mapPol(a, MAP_EDGE - 16), deg = a * 180 / Math.PI + 90, flip = deg > 90 && deg < 270;
+    s += `<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" dominant-baseline="middle" font-size="13" letter-spacing="4" font-weight="700" fill="${inkOf(t)}" opacity=".85" transform="rotate(${f1(flip ? deg - 180 : deg)} ${f1(x)} ${f1(y)})">${TYPES[t].name.toUpperCase()}</text>`; });
+  // the furniture: title cartouche, compass, vignette
+  const tx = x0 + 30, ty = x0 + 44;
+  s += `<g transform="translate(${tx} ${ty}) scale(1.4)"><path d="M0 -20h150l-8 20l8 20h-150l8-20z" fill="${MAP_PAPER}" stroke="${MAP_INK}" stroke-width="1.4"/><text x="75" y="6" text-anchor="middle" font-size="19" font-weight="700" font-style="italic" fill="${MAP_INK}">The Welkin</text></g>`;
+  s += `<g transform="translate(${x0 + w - 60} ${x0 + w - 64}) scale(1.4)">${mapCompass(0, 0)}</g>`;
+  s += `<rect x="${x0}" y="${x0}" width="${w}" height="${w}" fill="url(#mvig)" pointer-events="none"/></svg>`;
+  const settled = WHEEL.filter(t => S.hearts && S.hearts[t]).length, been = N.filter(seen).length;
+  return `<h2>The Welkin</h2><div class="subt">Red ring: you are here. ♥: a Heart you settled. Each country is the colour of its feeling. Past the dashed Edge of the Welkin, in bronze, are the far places; the ones you haven't heard of are still under the fog.</div>${s}
+    <p style="text-align:center;font-size:13px;margin:8px 0 0">${settled} of ${WHEEL.length} Hearts settled · ${been} of ${N.length} places visited</p>`;
+};
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -14773,8 +15003,10 @@ async function doReach(m) {
   const adj = isAdj(t, ft);
   const amt = Math.max(6, (right ? 38 : 14) + (t === ft ? 10 : adj ? 4 : 0) - (isOpp(t, ft) ? 10 : 0) - (B.opt.heart ? 8 : 0));
   const amt2 = Math.max(4, Math.round(amt * bondReach(m) * fieldReach() * climbReach() * (B.opt.feelOnly ? .3 : 1)));   // two hundred years of grief doesn't settle in one sitting
-  B.res = Math.min(100, B.res + amt2); renderBHUD();
-  floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + amt2, 'heal');
+  let word = 1; if (right && B.opt.heart && typeof FAR_WORD !== 'undefined' && FAR_WORD[B.opt.heart] && S.farWord && S.farWord[B.opt.heart] && !B.wordUsed) { B.wordUsed = 1; word = 1.6;   // what the far places told you (h34)
+    await say(`(${FAR_WORD[B.opt.heart].recall} "${FAR_WORD[B.opt.heart].word}")`); }
+  const amt3 = Math.round(amt2 * word); B.res = Math.min(100, B.res + amt3); renderBHUD();
+  floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + amt3, 'heal');
   await say(right ? 'It goes very still, and listens. That was what it needed.' : 'It hesitates. That wasn\'t quite what it needed, but it heard you.');
 }
 async function useItem(m, k) {
