@@ -6980,14 +6980,14 @@ async function evHopeOrla() { const s = evS('HOPE');
 const LISSA = pLook('#5a8a9a', '#c8a060', SKINS[4], ['scarf'], { accent:'#e8f0f0' });
 async function evCalmLissa() { const s = evS('CALM');
   if (s.st === 0) {
-    await say('Lissa Tull: (She is sitting beside a sleeping woman on a doorstep, holding her hand.) She won\'t wake up. Nobody will. Half of Moonmoss just lay down where they stood.');
-    await say('Lissa Tull: Grandad fell asleep in the reeds this morning, by the pond. The water came up over him. He didn\'t even move.');
-    await say('Lissa Tull: Men in grey brought crates down to the pond three nights running. Old Ruddock on the boardwalk used to wake the whole town with his ferry horn for the spring fair. If anything can wake them, that can.');
-    const c = await ask('Help Lissa?', ['I\'ll find the horn', 'Not now']); if (c !== 0) return;
-    s.st = 1; return say('Lissa Tull: The horn hangs at the far end of the Reedwater Boardwalk. Please be quick. Mum\'s breathing is so slow.');
+    await say('Lissa Tull: (She is sitting beside a sleeping woman on a doorstep, holding her hand.) Mum went down to the pond this morning to look at the crates. She walked back up, sat down here, and went to sleep. She won\'t wake up.');
+    await say('Lissa Tull: Men in grey tipped crates into the pond three nights running. Now everyone who goes near it lies down on the bank and sleeps. Grandad waded in to pull a crate out. He lay down in the shallows and the water came over him. He didn\'t even move.');
+    await say('Lissa Tull: Shaking them does nothing. Shouting does nothing. But Old Ruddock\'s ferry horn used to wake the whole town for the spring fair. He always said it could wake the dead.');
+    const c = await ask('Help Lissa?', ['I\'ll fetch the horn', 'Not now']); if (c !== 0) return;
+    s.st = 1; return say('Lissa Tull: It hangs at the far end of the Reedwater Boardwalk, past the last lantern. Bring it to the pond and blow it right at the water. Don\'t stand there long, or you\'ll lie down too.');
   }
-  if (s.st === 1) return say('Lissa Tull: The horn. At the end of the Reedwater Boardwalk. Please.');
-  if (s.st === 2) return say('Lissa Tull: You found it! Blow it at the pond. Where the crates went in.');
+  if (s.st === 1) return say('Lissa Tull: The ferry horn. At the end of the Reedwater Boardwalk. Please be quick. Mum\'s breathing is so slow.');
+  if (s.st === 2) return say('Lissa Tull: You found it! Go to the edge of the pond, the one just down the lane with the sleepers on the bank, and blow it as loud as you can.');
   return say(s.dark ? 'Lissa Tull: Mum sleeps most of the day now. Most of the town does. It\'s very peaceful. (Her voice isn\'t.)' : 'Lissa Tull: Mum woke up and asked what\'s for supper. We buried Grandad by the pond. He liked it there.');
 }
 async function evCalmHorn() { const s = evS('CALM'); if (s.st !== 1) return;
@@ -7100,9 +7100,10 @@ function eventEnts(map, taken) {
   if (city('HOPE')) { const s = evS('HOPE'); at({ id:'ev_orla', look:ORLA, name:'Orla Hollis', talk:evHopeOrla, mark:ask0('HOPE') }, cx - 4, cy); wall('ev_station', EV_PROP.station, evHopeStation, 38, 'HOPE', 3.7);
     mem('ev_rusk', 41, 3, s.st >= 9 ? '(Flowers under the departures board, and a hat. "E. RUSK — WAITED FOR THE 4:10 FOR 30 YEARS.")' : '(Through the station\'s front window you can see a man lying under the departures board. Nobody has moved him.)'); }
   // 3 CALM
-  if (city('CALM')) { const s = evS('CALM'); at({ id:'ev_lissa', look:LISSA, name:'Lissa Tull', talk:evCalmLissa, mark:ask0('CALM') }, cx - 4, cy); prop('ev_pond', 'pond', evCalmPond, cx + 5, cy + 3, 'CALM', 1.4);
+  if (city('CALM')) { const s = evS('CALM'); at({ id:'ev_lissa', look:LISSA, name:'Lissa Tull', talk:evCalmLissa, mark:ask0('CALM') }, cx - 4, cy); prop('ev_pond', 'mooring', evCalmPond, cx + 5, cy + 3, 'CALM', 1.9);
     if (s.st < 9) at({ id:'ev_sleeper', look:pLook('#6a8a9a', '#5a3a2a', SKINS[1], ['scarf']), numb:true, name:'Sleeping woman', talk:() => say('(Lissa\'s mother. Asleep sitting up, breathing very slowly. She doesn\'t wake when you touch her shoulder.)') }, cx - 3, cy + 1);
-    mem('ev_tull', cx + 7, cy + 4, s.st >= 9 ? '(A fresh grave by the pond, with a ferryman\'s cap on the marker. "GAFFER TULL. HE LIKED IT HERE.")' : '(Reeds, flattened in the shape of a man. The water has gone back over the place.)'); }
+    mem('ev_tull', cx + 7, cy + 4, s.st >= 9 ? '(A fresh grave by the pond, with a ferryman\'s cap on the marker. "GAFFER TULL. HE LIKED IT HERE.")' : '(Reeds, flattened in the shape of a man. The water has gone back over the place.)');
+    out.push(...calmPondEnts(map, s, cx, cy, at, all)); }
   if (map === ROUTES.CALM.id && evS('CALM').st === 1) at({ id:'ev_horn', item:true, talk:evCalmHorn, mark:true, markH:1.2 }, 13, 4);
   // 4 CONFIDENCE
   if (city('CONFIDENCE')) { const s = evS('CONFIDENCE'); at({ id:'ev_herald', look:HERALD, name:'Herald', talk:evConfHerald, mark:ask0('CONFIDENCE') }, cx - 4, cy); at({ id:'ev_stair', model:EV_PROP.stair, talk:evConfHerald }, cx - 6, cy);
@@ -7230,6 +7231,10 @@ const EV_PROP = {
     g.add(place(inkBox(.9, 1.4, .9, PM('#3a6a5a')), 0, .7, 0)); g.add(place(inkBox(.95, .35, .95, PM('#e8dcc0')), 0, 1.1, 0));
     const roof = new THREE.Mesh(new THREE.ConeGeometry(.78, .5, 4), PM('#4a3428')); roof.rotation.y = Math.PI / 4; g.add(place(roof, 0, 1.68, 0));
     g.add(place(inkBox(.7, .22, .05, PM('#1a1814')), 0, .45, .47)); g.add(place(inkBox(.06, .7, .06, PM('#c8a03a')), .55, .35, .2)); g.add(place(cyl(.07, .07, .1, '#c83a2a', 10), .55, .72, .2)); return g; },
+  mooring:() => { const g = new THREE.Group(), wood = new THREE.MeshLambertMaterial({ color:'#6a4a30' }), rope = new THREE.MeshLambertMaterial({ color:'#c8b48a' });   // an old mooring post at the water's edge
+    g.add(place(new THREE.Mesh(new THREE.CylinderGeometry(.09, .11, 1.1, 8), wood), 0, .55, 0)); g.add(place(new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, .06, 8), wood), 0, 1.12, 0));
+    const r = new THREE.Mesh(new THREE.TorusGeometry(.13, .025, 6, 14), rope); r.rotation.x = Math.PI / 2; g.add(place(r, 0, .8, 0));
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(.13, .025, 6, 14), rope); r2.rotation.x = Math.PI / 2; g.add(place(r2, 0, .72, 0)); return g; },
   pond:() => { const g = new THREE.Group(); const w = new THREE.Mesh(new THREE.CircleGeometry(.62, 24), new THREE.MeshBasicMaterial({ color:'#3a5a6a' })); w.rotation.x = -Math.PI / 2; g.add(place(w, 0, .03, 0));
     for (const [x, z, r] of [[-.2, .1, .3], [.25, -.15, -.4]]) { const c = inkBox(.32, .22, .26, PM('#8a6a44')); c.rotation.y = r; c.rotation.z = .25; g.add(place(c, x, .06, z)); }
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.add(place(cyl(.015, .02, .5, '#6a7a3a', 5), Math.cos(a) * .62, .25, Math.sin(a) * .62)); } return g; },
@@ -7311,7 +7316,7 @@ function sceneEnts(map) {
 // Someone walks across the scene (eased start and stop). Several can walk at once.
 async function evWalk(t, moves, ms = 1100) {
   const s = evS(t); s.pos = s.pos || {}; s.dirs = s.dirs || {};
-  const L = sceneEnts(S.map), st = moves.map(([k, x, y, dir]) => { const e = L.find(o => o.id === 'evs_' + k); const g = W.npcs['evs_' + k]; return { k, g, x0:e ? e.x : x, y0:e ? e.y : y, x, y, dir }; });
+  const L = EVSC[S.map] ? sceneEnts(S.map) : ents(S.map), st = moves.map(([k, x, y, dir]) => { const e = L.find(o => o.id === 'evs_' + k); const g = W.npcs['evs_' + k]; return { k, g, x0:e ? e.x : x, y0:e ? e.y : y, x, y, dir }; });
   for (const m of st) { if (m.g) m.g.userData.forceWalk = true; if (m.dir) s.dirs[m.k] = m.dir; }
   await tween(ms, k => { const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
     for (const m of st) { const x = m.x0 + (m.x - m.x0) * e, y = m.y0 + (m.y - m.y0) * e; s.pos[m.k] = [x, y]; if (m.g) m.g.position.set(x, groundY(x, y), y); } ENTC.t = 0; });
@@ -7496,20 +7501,59 @@ defScene('CALM', { name:'The Reeds at Dusk', sub:'Moonmoss pond', start:[8, 11],
     const r = await battle(newManif(spAt('CALM', 2, 1), evLv('CALM')), { owner:'the pond' }); if (r === 'blackout') return blackout(); if (r !== 'won') return say('(It sinks back under. The sleepers sigh. You\'ll have to blow the horn again.)');
     s.sc = 1; evRedraw(); await say('(All along the bank, people sit up, blinking. And on the far side of the pond, a man in grey is trying very quietly to drag a crate back into the reeds.)');
     await evWalk('CALM', [['sloe', 9, 8, 'down']], 1800); await evCalmSloe(); } });
+// The Sleepers happens at Moonmoss's own pond, in the town (25 Nov): no separate scene. The old evsc_calm scene stays
+// defined only so a save made inside it still loads and can finish.
+function calmPondEnts(map, s, cx, cy, at, all) {
+  const M = MAPS[map], out = [], P = s.pos || {}, D = s.dirs || {}, gone = s.gone || {};
+  let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+  for (let y = cy - 2; y <= cy + 9; y++) for (let x = cx - 2; x <= cx + 12; x++) if (M.tiles[y] && M.tiles[y][x] === '~') { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  if (x1 < 0) return out; const mx = Math.round((x0 + x1) / 2), my = Math.round((y0 + y1) / 2);
+  const put = (key, e, x, y, exact) => { if (gone[key]) return; const id = 'evs_' + key;
+    let p = { x, y }; if (!exact) { p = evSpot(map, all().concat(out), x, y); }
+    const q = P[key]; out.push({ ...e, id, x:q ? q[0] : p.x, y:q ? q[1] : p.y, dir:D[key] || e.dir || 'down' }); };
+  const sc = s.sc || 0, asleep = s.st < 9 ? sc < 1 : !!s.dark;
+  if (s.st >= 1 || s.dark) {   // the crates, half under the water
+    const crate = s.smashed ? EV_PROP.shards : EV_PROP.crates;
+    put('crates', { model:crate, talk:() => say(s.smashed ? '(Broken glass in the shallows. The water is just water now.)' : '(Wooden crates, half sunk at the edge of the pond. Bottles inside, packed in straw, every one of them faintly cold.)') }, x0 + 1, y0, true);
+    put('crates2', { model:crate, talk:() => say(s.smashed ? '(More broken glass, and splinters of crate.)' : '(More crates. Stencilled on the side: HOLLOW CHOIR — HANDLE WITHOUT FEELING.)') }, x1 - 1, y0, true); }
+  if (s.st < 9 || s.dark) {   // people asleep along the bank, or awake and blinking once it's over
+    const spots = [[x0 - 1, my], [mx - 1, y1 + 1], [mx + 2, y1 + 1], [x1 + 1, y0]];
+    spots.forEach(([x, y], i) => put('sl' + i, asleep
+      ? { model:sleeperModel(folkLook('CALM', i + 1)), talk:() => say(['(Asleep in the grass, breathing slow and even, in time with the water. They don\'t wake when you shake them.)', '(A man asleep on his side, one boot still in the pond. He smiles at something in a dream.)', '(An old woman, asleep sitting up, her knitting still in her lap.)', '(A boy asleep with his head on his arms. A fishing line trails from his hand into the pond.)'][i]) }
+      : { look:folkLook('CALM', i + 1), name:'Townsfolk', dir:'up', talk:() => say(['(They\'re blinking at the water like they\'ve never seen it before.)', 'Townsfolk: How long was I...? Is it still Tuesday?', 'Townsfolk: I dreamed I was underwater. I could breathe. I didn\'t want to come up.', 'Townsfolk: (Shivering.) Thank you. I think. Thank you.'][i]) }, x, y));
+  }
+  if (s.st >= 1 && s.st < 9 && sc < 1) put('pondm', { manif:spAt('CALM', 2, 1), big:true, talk:() => say('(Something huge and pale lies just under the water, breathing with the whole town.)') }, mx, my, true);
+  if (s.st === 2 && s.sc >= 1 && s.sc < 2) put('sloe', { look:{ ...CHOIR(5), gear:['longcoat', 'satchel'] }, name:'Sloe', talk:evCalmSloe }, x1 + 2, y1 + 1);
+  return out;
+}
+const calmPondMid = () => { const L = ents(S.map).filter(e => e.id === 'evs_crates' || e.id === 'evs_crates2'); return L.length ? [Math.round((L[0].x + L[L.length - 1].x) / 2), L[0].y + 1] : [S.x, S.y - 2]; };
 async function evCalmPond() { const s = evS('CALM');
-  if (s.st >= 9) return say('(The pond ripples in the wind, like a pond should.)');
-  if (s.st < 2) return say(s.st === 1 ? '(The pond is glass-still. Under the surface, the edges of wooden crates. You need something loud enough to wake a whole town.)' : '(The pond is very still.)');
-  await evEnter('CALM', '(You go down to the water\'s edge with the ferry horn.)'); }
+  if (s.st >= 9) return say(s.dark ? '(The crates sit in the shallows. On the bank, people sleep in the sun.)' : '(The pond ripples in the wind, like a pond should.)');
+  if (s.st < 1) return say('(The pond is very still. People lie asleep along the bank, wherever they stopped.)');
+  if (s.st === 1) return say('(The pond is glass-still. Crates sit just under the surface, and the people on the bank breathe in time with the water. Standing here, your own eyes start to close. You need something loud.)');
+  if (s.sc >= 1) return evCalmSloe();
+  try { playMusic({ id:'ev_CALM', score:'ev_CALM', vol:.72 }); } catch (e) {}
+  await say('(You stand at the edge of the pond. The sleepers on the bank breathe in time with the water, and the air smells of cold water and something sweet.)');
+  await evHoldUp(EV_HELD.horn(), '(You raise Old Ruddock\'s ferry horn and blow. The note rolls out across Moonmoss, low and long.)');
+  const [mx, my] = calmPondMid(); evMist(mx, my, '#d8e8f0', 18, 2.4, 3000); await say('(The pond shudders. Something huge and pale rises out of it, made of every sleep that\'s been poured in.)');
+  const r = await battle(newManif(spAt('CALM', 2, 1), evLv('CALM')), { owner:'the pond' }); if (r === 'blackout') return blackout();
+  if (r !== 'won') { try { playMusic(themeFor(S.map)); } catch (e) {} return say('(It sinks back under. The sleepers sigh. Blow the horn again when you\'re ready.)'); }
+  s.sc = 1; evRedraw(); await say('(All along the bank, people sit up, blinking. And on the far side of the pond, a man in grey is trying very quietly to drag a crate back out of the water.)');
+  await evCalmSloe(); }
 async function evCalmSloe() { const s = evS('CALM'); if (s.sc >= 2) return;
+  if (S.map !== 'evsc_calm') { const e = ents(S.map).find(o => o.id === 'evs_sloe'); if (e) { const occ = new Set(ents(S.map).map(o => o.x + ',' + o.y)), side = e.x > S.x ? 1 : -1;
+    const spot = [[side, 0], [-side, 0], [0, 1], [0, -1]].map(([dx, dy]) => [S.x + dx, S.y + dy]).find(([x, y]) => !SOLID.has(tileAt(x, y)) && !occ.has(x + ',' + y));
+    if (spot) await evWalk('CALM', [['sloe', spot[0], spot[1], spot[0] > S.x ? 'left' : spot[0] < S.x ? 'right' : spot[1] > S.y ? 'up' : 'down']], 1600); } }
   await say('Sloe (Choir carter): I just carry the crates. That\'s all. I just carry them.');
   if (!await evFight('Sloe', [[spAt('CALM', 1, 0), evLv('CALM', -2)], [spAt('CALM', 1, 2), evLv('CALM', -1)], [spAt('FEAR', 1, 0), evLv('CALM', -1)]])) return;
   s.sc = 2; evRedraw();
   const c = await ask('The crates of bottled Calm', ['Smash every one', 'Sell them back to Sloe\'s buyer']);
-  if (c === 0) { s.smashed = 1; evRedrawOne('crates'); evMist(7, 6, '#d8e8f0', 14, 3, 2800); await wait(500); evRedrawOne('crates2'); await evMist(10, 6, '#d8e8f0', 14, 3, 2800);
-    await evExit('CALM', ['sloe'], 15, 11, 1400);
+  if (c === 0) { const onsite = S.map !== 'evsc_calm', C = ents(S.map), c1 = C.find(o => o.id === 'evs_crates'), c2 = C.find(o => o.id === 'evs_crates2');
+    s.smashed = 1; evRedrawOne('crates'); evMist(c1 ? c1.x : 7, c1 ? c1.y : 6, '#d8e8f0', 14, 3, 2800); await wait(500); evRedrawOne('crates2'); await evMist(c2 ? c2.x : 10, c2 ? c2.y : 6, '#d8e8f0', 14, 3, 2800);
+    if (onsite) { s.gone = s.gone || {}; s.gone.sloe = 1; evRedrawOne('sloe'); } else await evExit('CALM', ['sloe'], 15, 11, 1400);
     await say('(The bottles break against the stones, and the sleep in them drifts off over the water like mist off a kettle. Behind you, someone starts to cry, and someone else laughs at them for it, and then they\'re both laughing.)'); s.st = 9; await evReward(350, [['iron', 2], ['quill', 2]]); }
   else { s.st = 9; s.dark = 1; evSin(2); await evHoldUp(EV_HELD.purse()); await say('(Sloe\'s buyer pays well and asks no questions. The crates go back into the pond that night. Moonmoss gets very peaceful.)'); await evDark('CALM', 800); }
-  await evLeave('CALM'); }
+  if (S.map === 'evsc_calm') await evLeave('CALM'); else { evRedraw(); try { playMusic(themeFor(S.map)); } catch (e) {} } }
 
 // ---------------------------------------------------------------- 4. CONFIDENCE — the Proving ring
 defScene('CONFIDENCE', { name:'The Proving Ring', sub:'Highcrest', start:[8, 12], V:sceneV({ inside:true, sky:'#c8a868', fog:'#d8b878', fogNear:10, fogFar:30, hemi:'#fff0c8', sun:1, ground:['#c8b088', '#bca47e', '#d4bc92'], wall:'#8a7458', parts:'motes', partC:['#fff0c0', '#ffe08f'] }),
@@ -7665,7 +7709,7 @@ defScene('FEAR', { name:'The Clearing', sub:'Hushwood', start:[8, 13], V:sceneV(
   ],
   intro:async s => { if (s.sc) return; await say('(A clearing deep in the Hushwood. Cages in a ring. In each, a child with wide, sleepless eyes. Two men in grey walk round the outside, tapping the bars with sticks, never letting them rest.)');
     await say('Fear farmer: Someone\'s here.'); await evWalk('FEAR', [['f1', 7, 11, 'down'], ['f2', 9, 11, 'down']], 1500); await evFearFarmers(); } });
-async function evFearCamp() { const s = evS('FEAR'); if (s.st !== 1) return say(s.st >= 9 ? '(Wheel ruts going off into the trees. Nobody goes that way any more.)' : '(Wheel ruts going off into the trees.)');
+async function evFearCamp() { const s = evS('FEAR'); if (s.st !== 1) return say(s.st >= 9 ? '(Wheel ruts going off into the trees. Nobody goes that way any more.)' : '(An empty cage on a cart, left at the edge of the trees, and wheel ruts going off into the wood. A child\'s mitten is caught in the bars. Folk here say a woman in Quailmoor, Delphine Crane, is looking for her boy.)');
   await evEnter('FEAR', '(You follow the wheel ruts into the trees, until the lanterns of Hushwood are far behind you.)'); }
 async function evFearFarmers() { const s = evS('FEAR'); if (s.sc >= 2) return;
   if (s.sc < 1) { if (!await evFight('Fear farmer', [[spAt('FEAR', 1, 0), evLv('FEAR', -3)], [spAt('FEAR', 1, 1), evLv('FEAR', -2)]])) return; s.sc = 1; evRedraw(); }
