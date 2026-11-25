@@ -97,7 +97,7 @@ body.padmode #tourbar{display:none}
   .tb{height:30px}
   #toast{top:46px;font-size:20px}
   #hint{display:none}
-  #bhud{top:8px;left:calc(10px + env(safe-area-inset-left));transform:none;width:min(320px,38vw);padding:8px 12px}
+  #bhud{top:8px;left:calc(10px + env(safe-area-inset-left));transform:none;width:min(520px,46vw)}
   #ecard{padding:14px 16px 12px}#ecard img{width:min(110px,18vw)}#ecard p{font-size:14px;margin:0 0 6px}#ecard h3{font-size:24px}
   .coarse #tourhint{top:auto;bottom:10px;max-width:calc(100vw - 260px)}
 }
@@ -158,15 +158,19 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 .hero span{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:1px;text-transform:uppercase}
 .hero.sel{background:rgba(243,231,201,.75);border-color:var(--ink);box-shadow:0 0 0 3px var(--gold)}
 .hero.sel img{transform:translateY(-6px) scale(1.03)}
-#bhud .grp{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}#bhud .gc{flex:1 1 0;min-width:0;font-size:10px;line-height:1.1;padding:3px 5px;border-radius:7px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)}#bhud .gc em{font-style:normal;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bhud .gc b{display:block;height:4px;border-radius:3px;background:rgba(0,0,0,.35);margin-top:2px;overflow:hidden}#bhud .gc b i{display:block;height:100%}#bhud .gc.on{border-color:#f4cf5e}#bhud .gc.down{opacity:.4}#bhud .gc.wait{flex:0 0 auto;align-self:center}
-#bhud{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:min(440px,92vw);z-index:14;padding:12px 16px 12px}
-@media (min-aspect-ratio:5/4){#bhud{left:16px;transform:none;width:min(340px,40vw)}}
+#bhud{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:min(560px,94vw);z-index:14;padding:0!important;background:none!important;border:0!important;box-shadow:none!important}
+@media (min-aspect-ratio:5/4){#bhud{left:16px;transform:none;width:min(560px,46vw)}}
+#bhud .fcs{display:flex;gap:6px;align-items:flex-start}
+#bhud .fc{flex:1 1 0;min-width:0;max-width:300px;padding:7px 10px 8px;border-radius:12px}
+#bhud .mi{width:20px;height:20px;border-width:1.5px}#bhud .fc.on{box-shadow:0 0 0 2px var(--gold)}#bhud .fc.down{opacity:.45}
+#bhud .fc.wait{flex:0 0 auto;align-self:center;font:800 14px 'Nunito Sans';text-align:center;padding:6px 9px}#bhud .fc.wait small{display:block;font-size:9px;color:var(--muted);text-transform:uppercase}
+#bhud .own{display:inline-block;font:800 10px 'Nunito Sans';color:#f3e7c9;background:rgba(31,23,7,.82);border-radius:20px;padding:3px 9px;text-transform:uppercase;letter-spacing:.6px;margin:0 0 4px}
 #bhud .top{display:flex;align-items:center;gap:8px}
-#bhud .nm{font-weight:800;font-size:16px}
-#bhud .lv{margin-left:auto;font-size:13px;color:var(--muted);font-weight:800}
-#bhud .int{font:24px 'IM Fell English',serif;margin:2px 0 4px;display:flex;align-items:baseline;gap:8px}
+#bhud .nm{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#bhud .lv{margin-left:auto;font-size:12px;color:var(--muted);font-weight:800;white-space:nowrap}
+#bhud .int{font:17px 'IM Fell English',serif;margin:1px 0 3px;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden}#bhud .int .lv{font:800 11px 'Nunito Sans'}
 #bhud .int small{font:600 11px 'Nunito Sans';color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
-#bhud .lbl{display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:var(--muted);margin:6px 0 3px;text-transform:uppercase;letter-spacing:.5px}
+#bhud .lbl{display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);margin:4px 0 2px;text-transform:uppercase;letter-spacing:.5px}
 #chorus{display:flex;gap:6px;width:100%}
 .cc{flex:1;padding:8px 10px 9px;min-width:0}
 .cc.act{background:#fff3cf;box-shadow:0 0 0 3px var(--gold),0 8px 20px rgba(27,21,18,.25)}
@@ -210,6 +214,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 #qty button{font:inherit;border:0;border-radius:9px;background:var(--parch2);color:var(--ink);padding:8px 12px;min-width:40px;cursor:pointer}
 #qty .qb{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}#qty .qb .go{background:var(--gold);font-weight:700}
 #qty .qh{font-size:11px;color:var(--muted);margin-top:8px}#qty .qf{outline:3px solid var(--gold2);outline-offset:3px;border-radius:9px}
+@media (max-width:560px){#bhud{top:calc(6px + env(safe-area-inset-top));width:calc(100vw - 16px)}#bhud .fc{padding:5px 8px 6px;border-radius:10px}#bhud .nm{font-size:12px}#bhud .lv{font-size:10.5px}#bhud .int{font-size:13.5px;margin:0 0 2px}#bhud .int small{font-size:9px}#bhud .lbl{font-size:9px;margin:3px 0 2px}#bhud .bar{height:6px}#bhud .fcs .fc .mi{display:none}#bhud .fcs{gap:4px}}
 </style>
 </head>
 <body>
@@ -224,7 +229,7 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
   <div class="sub">Type it, or pick letters with the arrows / D-pad and A. B deletes. Start / Enter when done.</div></div>
 <div id="select" class="hidden"><h1>Who walks the Welkin?</h1><div class="sub">Choose who you'll play as.</div><div id="heroes"></div></div>
 <div id="ending" class="hidden"><div id="ecard" class="card"></div></div>
-<div id="bhud" class="card hidden"></div>
+<div id="bhud" class="hidden"></div>
 <div id="bloodv"></div><div id="banner"></div>
 <div id="sheet" class="card hidden"></div>
 <div id="bottom"><div id="chorus" class="hidden"></div><div id="cho" class="hidden"></div><div id="dlg" class="card hidden"><span class="who"></span><span class="txt"></span><span class="nxt">▼</span></div></div>
@@ -4339,7 +4344,7 @@ for (const t of WHEEL) {
 const ROUTE_LOOK = {
   garden:{ trees:'blossom', prop:null, parts:'petals' },
   rail:{ trees:'conifer', treeC:['#3a5a3a', '#4a6a40', '#2e4a30'], ground:['#9a9070', '#8e8466', '#a69c7a'], parts:'motes' },
-  marsh:{ trees:'willow', groundFog:'#c8d8d0', fogOp:.35, water:'#6a8a7a' },
+  marsh:{ trees:'mushroom', treeC:['#8fd8dc', '#6cc6cc', '#b2e8ea'], groundFog:'#c8e0dc', fogOp:.35, water:'#6a8a7a', parts:'fireflies', partC:['#e8ffb0', '#bff4f6'] },   // Reedwater: a fairytale marsh
   quarry:{ trees:'conifer', ground:['#c4b8a2', '#b8ac96', '#ccc0aa'], parts:'motes' },
   fair:{ trees:'round', parts:'petals', partC:['#f4cf5e', '#c0503a', '#4f8a8a'] },
   lane:{ road:'#5c6064', trees:'dead', parts:'rain', ground:['#6a7068', '#62685e', '#727a70'], sky:'#8a909a', fog:'#8a909a', fogNear:10, fogFar:30, sun:.8 },
@@ -4799,7 +4804,8 @@ function vibeOf(id) {
   if (WAY_VIBES[M.vibe]) return WAY_VIBES[M.vibe];
   const mix = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k).getStyle();
   return (WAY_VIBES[M.vibe] = { ...C, sky:mix(HUB_VIBE.sky, C.sky, .45), fog:mix(HUB_VIBE.fog, C.fog, .45), fogNear:16, fogFar:40, hemi:mix(HUB_VIBE.hemi, C.hemi, .4), sun:(HUB_VIBE.sun + C.sun) / 2,
-    ground:C.ground.map((c, i) => mix(HUB_VIBE.ground[i], c, .45)), tall:C.tall.map((c, i) => mix(HUB_VIBE.tall[i], c, .5)), trees: ['dead','crystal','charred','mushroom'].includes(C.trees) ? 'round' : C.trees,
+    ground:C.ground.map((c, i) => mix(HUB_VIBE.ground[i], c, .45)), tall:C.tall.map((c, i) => mix(HUB_VIBE.tall[i], c, .5)), trees: M.vibe === 'CALM' ? 'mushroom' : ['dead','crystal','charred','mushroom'].includes(C.trees) ? 'round' : C.trees,   // Calm's road is mushroom trees all the way (26 Nov)
+   
     treeC:C.treeC.map((c, i) => mix(HUB_VIBE.treeC[i], c, .5)), groundFog: C.groundFog, fogOp: C.fogOp * .45 });
 }
 const RAY_GEO = new THREE.PlaneGeometry(1, 1); let RAY_TEX = null;
@@ -4830,6 +4836,9 @@ function groundY(x, z) {
 }
 function tileColor(M, V, x, y) {
   const ch = M.tiles[y][x], r = hsh(x, y);
+  if (M.kind === 'hub' && (ch === '=' || ch === 'w')) {   // Vellum is paved in brick everywhere but the grass, each stretch faintly tinted toward the road it leads to
+    const c = new THREE.Color('#b8b2a8').lerp(new THREE.Color(TYPES[wedgeAt(x, y)].c), ch === 'w' ? .24 : .2).offsetHSL(0, 0, (r - .5) * .05);
+    c.r = Math.max(c.r, c.g / 1.03); return c.getStyle(); }   // keep it reading as stone (the shader draws cobbles on stone-coloured ground)
   if (ch === '=') return V.road ? new THREE.Color(V.road).offsetHSL(0, 0, (r - .5) * .05).getStyle() : r < .5 ? '#dcc495' : '#d2b988';
   if (ch === 'w') { const t = wedgeAt(x, y); return new THREE.Color(TYPES[t].c).lerp(new THREE.Color('#f3e7c9'), r < .5 ? .18 : .3).getStyle(); }
   if (ch === ',') return V.tall[Math.floor(r * 3)];
@@ -4925,6 +4934,7 @@ function fitLamps(M) {
     const nb = pathNb(x, y); if (nb.length) { const [dx, dy] = nb[0]; p.rotY = Math.atan2(-dy, dx); p.onPath = 1; p.x = x - dx * .32; p.y = y - dy * .32; } }   // pole at the far side of its tile, arm out over the path
 }
 function buildWorld(id) {
+  if (MAPS[id] && typeof decoBlockReset === 'function') decoBlockReset(MAPS[id]);   // put back any tiles a prop filled last time
   MAP_VISIT++; ENTC.t = 0; SETOBJS = []; SPIN.length = 0; if (S.flags && S.flags.dndOutside && id !== TOWNS.JOY.id && id !== DND_ID) S.flags.dndOutside = 0; if (id === 'r_tumbledown' && postWorld() && !S.flags.doom) applyRestoredFair();
   if (world) { worldScene.remove(world); disposeTree(world); }
   world = new THREE.Group(); worldScene.add(world);
@@ -4998,10 +5008,11 @@ function buildWorld(id) {
     const sz = rnd(3.5, 7); s.scale.set(sz * 1.6, sz * .55, 1); s.position.set(rnd(0, M.w), rnd(.4, .85), rnd(0, M.h)); s.userData.v = rnd(.15, .4) * (Math.random() < .5 ? -1 : 1);
     world.add(s); W.fog.push(s);
   }
+  worldExtras(id, M, V); ENTC.t = 0;   // props first, so the people are placed around them
   W.npcs = {};
   for (const e of ents(id)) { renderEnt(e); evMarkOn(e); }
   W.entKeys = new Set(Object.keys(W.npcs));
-  worldExtras(id, M, V); S.visited = S.visited || {}; S.visited[M.kind === 'inside' ? (M.route || id) : id] = 1;
+  S.visited = S.visited || {}; S.visited[M.kind === 'inside' ? (M.route || id) : id] = 1;
   W.train = null; if (S.trainAt && S.trainAt !== id) S.trainAt = null; parkedTrain(id);   // one train: parked where you left it, home again once you leave
   W.player = buildHero(S.hero); world.add(W.player); if (S.flags && S.flags.burned) burnMarks(W.player);
   W.light = new THREE.PointLight('#ffd98a', 0, 4.5, 1.6); world.add(W.light);
@@ -5097,7 +5108,7 @@ function stepParts(P, data, kind, partC, dt, t, px, pz) {
     pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
     // Every particle fades in and out smoothly; nothing blinks or pops (seizure-safe).
     const env = Math.min(1, p.life * 3, (1 - p.life) * 4 + .05);
-    let b = kind === 'fireflies' ? (.6 + .25 * Math.sin(t * 1.2 + p.ph)) * env : kind === 'rain' ? Math.min(1, (p.top - p.y) * 1.5, (p.y - p.floor) * 2.5 + .1) : env;
+    let b = kind === 'fireflies' ? (.75 + .08 * Math.sin(t * .6 + p.ph)) * env : kind === 'rain' ? Math.min(1, (p.top - p.y) * 1.5, (p.y - p.floor) * 2.5 + .1) : env;
     if (p.age == null) p.age = 0; p.age += dt; b *= Math.min(1, p.age * 2); if (p.life <= 0 || (kind === 'rain' && p.y < p.floor)) p.age = 0;
     b = Math.max(0, Math.min(1, b));
     cols[i * 3] = p.c.r * b; cols[i * 3 + 1] = p.c.g * b; cols[i * 3 + 2] = p.c.b * b;
@@ -5575,7 +5586,9 @@ async function talkRecovered(t, i) { const v = vibeClass();
     : (i % 2 ? REMEMBER[t] : pickA(['I was Numbed for years. I don\'t remember the years. I remember this morning, though. All of it.', REMEMBER[t]])))); }
 // Towns and cities are laid out differently now, so people are nudged onto the nearest open tile.
 function relocate(map, list) {
-  const M = MAPS[map]; if (!M || (M.kind !== 'city' && M.kind !== 'way')) return list;
+  const M = MAPS[map]; if (!M) return list;
+  if (M.kind !== 'city' && M.kind !== 'way') { if (!M._blk || !M._blk.size) return list;   // elsewhere, only move people off a dropped-in prop
+    return list.map(e => !e.invisible && M._blk.has(e.x + ',' + e.y) ? (([x, y]) => ({ ...e, x, y }))(spotNear(map, e.x, e.y, [])) : e); }
   const placed = [];
   for (const e of list) { if (e.invisible) { placed.push(e); continue; }
     const c = (M.tiles[e.y] || [])[e.x], near = [[1,0],[-1,0],[0,1],[0,-1],[0,2],[1,1],[-1,1],[1,2],[-1,2]].some(([a, b]) => (M.tiles[e.y - b] || [])[e.x + a] === 'D');
@@ -8317,26 +8330,32 @@ function applyRestored() {
     if (M.theme === 'rail') { for (let x = 0; x < M.w; x++) M.tiles[26][x] = 't'; const r = M.rails.find(r => r.y === 26); if (r) { r.x0 = 0; r.x1 = M.w - 1; } }
     delete M._v; }
 }
+// tiles that a dropped-in prop (a wrecked or parked car, rubble) now fills: solid while it's there, so nobody stands
+// in it and nothing walks through it. Put back each time the map is built, since what's there depends on the story.
+function decoBlockReset(M) { if (M._blk) for (const [k, c] of M._blk) { const [x, y] = k.split(',').map(Number); if (M.tiles[y]) M.tiles[y][x] = c; } M._blk = new Map(); }
+function decoBlock(M, x, y) { const k = x + ',' + y; if (!M.tiles[y] || M._blk.has(k)) return; M._blk.set(k, M.tiles[y][x]); M.tiles[y][x] = 'o'; }
 function worldExtras(id, M, V) {
+  if (!M._blk) M._blk = new Map();
   try { const fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe); if (fam && AC.ctx) { preloadMusic(battleTheme(fam)); if (M.kind === 'city') preloadMusic(battleTheme(fam, true)); } } catch (e) {}
   const g = new THREE.Group(), fl = S.flags || {};
   if (fl.ruin && !offMainland(id) && M.kind !== 'inside') {
     // rubble, wrecked carts and dark stains everywhere; smoke from the roofs
     for (let k = 0; k < (M.kind === 'route' ? 10 : 22); k++) { const x = 1 + Math.floor(hsh(k, 3, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 7, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c)) continue;
-      const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); }
+      if (c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 2) continue;
+      const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); decoBlock(M, x, y); }
     for (let k = 0; k < 14; k++) { const x = 1 + hsh(k, 11, M.w) * (M.w - 2), y = 1 + hsh(k, 13, M.h) * (M.h - 2); const s = splatMesh(1.4 + hsh(k, 2, 1) * 1.6, '#4a0a10', .75, k); s.position.set(x, groundY(Math.round(x), Math.round(y)) + .03, y); g.add(s); }
     for (const h of M.houses || []) if (hsh(h.x, h.y) < .6) { const sm = glow('#4a4642', 3.5, .55); sm.position.set(h.x + h.w / 2, 3.6, h.y + 1); g.add(sm); }
     // abandoned cars, flipped on their roofs or rolled onto their sides, in the streets
     for (let k = 0; k < (M.kind === 'route' ? 3 : 6); k++) { const x = 1 + Math.floor(hsh(k, 17, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 19, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x];
       if (!c || SOLID.has(c) || c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 3) continue;
-      const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], c:pickA(['#6a4a40', '#4a5a6a', '#5a6a4a', '#7a6a50']) }); o.scale.setScalar(.7); o.position.set(x, groundY(x, y), y); o.rotation.y = hsh(k, 23, 1) * 6.28; ruinSet(o, { k:'car', x, y }); g.add(o); }
+      const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], c:pickA(['#6a4a40', '#4a5a6a', '#5a6a4a', '#7a6a50']) }); o.scale.setScalar(.56); o.position.set(x, groundY(x, y), y); o.rotation.y = hsh(k, 23, 1) * 6.28; ruinSet(o, { k:'car', x, y }); g.add(o); decoBlock(M, x, y); }
     // the train, if it was out on the line, lies wrecked where it stopped
     if (fl.restored) { const tid = S.trainAt || TRAIN_HOME.map; if (tid === id) { const sp = trainSpot(id); if (sp) { const wt = wreckedTrain(sp.x, sp.y); g.add(wt); W.trainWreck = wt; } } }
   }
   fairExtras(id, M, g); bloomExtras(id, M, g);
   if (fl.restored && !fl.ruin && M.kind !== 'inside' && M.kind !== 'still') {
     // cars parked by the houses, flowerbeds, the train running
-    if (id !== 'r_tumbledown') for (const h of M.houses || []) { const x = h.x + h.w, y = h.y + 2; const c = M.tiles[y] && M.tiles[y][x]; if (c && !SOLID.has(c) && hsh(h.x, h.y, 5) < .65) { const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], r:Math.PI / 2 }); o.position.set(x + .1, groundY(x, y), y + .2); o.rotation.y = Math.PI / 2; o.scale.setScalar(.7); g.add(o); } }
+    if (id !== 'r_tumbledown') for (const h of M.houses || []) { const x = h.x + h.w, y = h.y + 2; const c = M.tiles[y] && M.tiles[y][x]; if (c && !SOLID.has(c) && hsh(h.x, h.y, 5) < .65) { const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], r:Math.PI / 2 }); if (c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 2) continue; o.position.set(x, groundY(x, y), y); o.rotation.y = Math.PI / 2; o.scale.setScalar(.58); g.add(o); decoBlock(M, x, y); } }
     const beds = 0, cols = [];
     for (let k = 0; k < beds; k++) { const x = 1 + Math.floor(hsh(k, 21, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 23, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c) || c === 't' || c === '=' || c === 'b') continue;
       for (let f = 0; f < 5; f++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.07 + hsh(k, f) * .05, 6, 5), toon(cols[(k + f) % cols.length])); b.position.set(x + (hsh(k, f, 1) - .5) * .8, groundY(x, y) + .12, y + (hsh(k, f, 2) - .5) * .8); g.add(b); } }
@@ -9078,7 +9097,7 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
       await sayAs('Hitchhiker', 'Walking to Saltmere. The whole way. My mum said if the sea came back she\'d see it before she died, and she didn\'t, so I\'m seeing it for her.'); }),
     npc('cyclist', 27, 11, 'right', 'Cyclist', lk('#c0503a', '#f3e7c9', SK[0], '#e2c070', ['cap', 'glasses']), () => sayAs('Cyclist', 'Saltmere\'s that way. Big city. Casino, boardwalk, the lighthouse. Don\'t play cards with anyone called Dex.')),
     npc('gulls', 14, 12, 'down', 'Old Gannet', lk('#4a4a5a', '#c8c0b8', SK[2], '#d8d0c0', ['tophat', 'stout']), () => sayAs('Old Gannet', sideLine({ light:'Gulls came back before the people did. I feed them. They hate me. It\'s a good arrangement.', even:'Watch your sandwich round here.', shadow:'Even the gulls won\'t come near you. Smart birds.' }))),
-    npc('tourist', 54, 7, 'down', 'Lost tourist', lk('#e8a83a', '#fff3d6', SK[0], '#3a2414', ['satchel', 'glasses']), () => sayAs('Lost tourist', 'Is Moonmoss behind me? I came out of a gate in a wall and I\'ve been walking for an hour and nobody here talks slowly enough.')),
+    npc('tourist', 56, 8, 'left', 'Lost tourist', lk('#e8a83a', '#fff3d6', SK[0], '#3a2414', ['satchel', 'glasses']), () => sayAs('Lost tourist', 'Is Moonmoss behind me? I came out of a gate in a wall and I\'ve been walking for an hour and nobody here talks slowly enough.')),
     npc('bikekid', 31, 12, 'left', 'Kid on a bike', lk('#4f8a8a', '#f3e7c9', SK[3], '#141014', ['cap'], { small:true }), () => sayAs('Kid on a bike', 'I\'m racing the gulls. I\'m losing.')),
     npc('bikedad', 33, 12, 'left', 'Kid\'s dad', lk('#3a5a7a', '#e8dcc0', SK[3], '#141014', ['beard']), () => sayAs('Kid\'s dad', 'He\'s been on that bike since breakfast. I can\'t feel my legs and I\'m only watching.')),
     npc('signc', 54, 12, 'up', 'Sign', null, () => say(MAPS.r_coast.sign), { invisible:true })
@@ -12251,28 +12270,31 @@ const LEAD = {   // the feeling that leads, by intensity
 const GIFT_TITLE = { LOVE:'Whole-hearted', CURIOUS:'Make-believe', BEACON:'Lighthouse-steady', BELONG:'At Home Anywhere', HOLLOW:'Hollowed' };
 function auraStory(p = S.party) {
   if (!p || !p.length) return { title:'Empty-handed', story:'You carry nothing at all. People look straight through you, as if you\'d only just arrived.', bits:{} };
-  const fam = m => SPECIES[m.sp].type, tier = m => SPECIES[m.sp].tier || 0, F = {};
-  for (const m of p) F[fam(m)] = (F[fam(m)] || 0) + 1 + tier(m) * .4;
+  // every Manif counts by how strong it is: its tier (mild / core / intense) and how grown it is. No single one decides.
+  const fam = m => SPECIES[m.sp].type, tier = m => SPECIES[m.sp].tier || 0, wt = m => (1 + tier(m) * .6) * (.5 + Math.min(1, (m.lvl || 1) / 50)), F = {};
+  for (const m of p) F[fam(m)] = (F[fam(m)] || 0) + wt(m);
+  const total = Object.values(F).reduce((a, b) => a + b, 0), share = f => (F[f] || 0) / total;
   const order = Object.keys(F).sort((a, b) => F[b] - F[a]), top = order[0], second = order[1];
-  const avgT = p.reduce((s, m) => s + tier(m), 0) / p.length, I = avgT < .7 ? 0 : avgT < 1.4 ? 1 : 2;
+  const avgT = p.reduce((s, m) => s + tier(m) * wt(m), 0) / p.reduce((s, m) => s + wt(m), 0), I = avgT < .7 ? 0 : avgT < 1.4 ? 1 : 2;
   const gift = p.map(fam).find(f => GIFT_TITLE[f]);
-  const nFam = order.length, opp = nFam < 5 && OPP_PAIRS.find(([a, b]) => F[a] && F[b]), oppKey = opp && opp.slice().sort().join('+');
-  const dy = second && nFam < 5 ? dyadOf(top, second) : null;
+  const nFam = order.length, s1 = share(top), s2 = second ? share(second) : 0;
+  const opp = second && s1 + s2 >= .5 && s2 >= .18 && OPP_PAIRS.find(([a, b]) => (a === top && b === second) || (b === top && a === second)), oppKey = opp && opp.slice().sort().join('+');
+  const dy = second && s1 + s2 >= .5 && s2 >= .18 ? dyadOf(top, second) : null;
   const longest = p.slice().sort((a, b) => (a.keptAt || 0) - (b.keptAt || 0))[0], held = S.time - (longest.keptAt || S.time);
   const lv = p.map(m => m.lvl || 1), lvMin = Math.min(...lv), lvMax = Math.max(...lv);
   let title;
-  if (gift) title = GIFT_TITLE[gift];
-  else if (nFam === 1 && p.length >= 2) title = (ONE_NOTE[top] || ['Plain', 'Plain', 'Plain'])[I];
+  if (GIFT_TITLE[top] && s1 >= .34) title = GIFT_TITLE[top];   // a gift Manif names you only when it really is the biggest thing you carry
+  else if (s1 >= .55 && (p.length >= 2 || ONE_NOTE[top])) title = (ONE_NOTE[top] || ['Plain', 'Plain', 'Plain'])[I];
   else if (oppKey && PAIR_TITLE[oppKey]) title = PAIR_TITLE[oppKey][I];
-  else if (nFam >= 5) title = ['Kaleidoscope', 'A Full House', 'Crowded Heart'][I];
   else if (dy) title = ['A Touch of ', '', 'Raw '][I] + dy;
-  else title = (ONE_NOTE[top] || ['Plain', 'Plain', 'Plain'])[I];
-  const parts = [`You carry ${LEAD[top] ? LEAD[top][I] : 'something hard to name'}`];
+  else if (nFam >= 5 && s1 < .3) title = ['Kaleidoscope', 'A Full House', 'Crowded Heart'][I];
+  else { const lf = order.find(f => ONE_NOTE[f]); title = lf ? (share(lf) >= .4 ? '' : ['', 'Mostly ', 'Mostly '][I]) + ONE_NOTE[lf][I] : GIFT_TITLE[top] || 'Plain'; }
+  const leadF = LEAD[top] ? top : order.find(f => LEAD[f]), parts = [`You carry ${leadF ? LEAD[leadF][I] : 'something hard to name'}`];
   if (oppKey) parts[0] += `, and with it ${PAIR_STORY[oppKey]}`;
   else if (dy && DYAD_STORY[dy]) parts[0] += `: ${DYAD_STORY[dy]}`;
   parts[0] += '.';
   if (nFam === 1 && p.length >= 3) parts.push('Nothing else gets a word in.');
-  else if (nFam >= 5) parts.push('Everyone who looks at you sees something different.');
+  else if (nFam >= 5 && s1 < .3) parts.push('Everyone who looks at you sees something different.');
   if (held > 600 && p.length > 1) parts.push(`You've carried ${nm(longest)} the longest; it's started to look like part of you.`);
   if (lvMin >= MAXLV()) parts.push('Everything you hold is full-grown.'); else if (lvMax - lvMin >= 20) parts.push('Some of it is old and heavy, and some of it is very new.');
   if (gift) parts.push({ LOVE:'And under all of it, Love, which makes the rest bearable.', CURIOUS:'And there\'s a made-up creature in there that nobody can quite take seriously, or forget.',
@@ -14665,6 +14687,80 @@ worldMapSheet = function () {
     <p style="text-align:center;font-size:13px;margin:8px 0 0">${settled} of ${WHEEL.length} Hearts settled · ${been} of ${N.length} places visited</p>`;
 };
 // =============================================================================
+//  SCENERY (26 Nov)
+//  Calm's road (Driftfold, Reedwater Boardwalk, Moonmoss) looks like a fairytale: mushroom trees all the way, clusters
+//  of toadstools, fairy rings in the grass, and fireflies. The fireflies glow steadily and drift; their light only
+//  swells and fades very slowly (a ten-second breath, never a blink), and they're brighter after dark.
+//  Joy's road and the gardens get meadows of flowers and flowering bushes.
+// =============================================================================
+const FIREFLIES = [];
+const SCN_GRASS = c => c === ',' || c === '.' || c === 'f';
+function sceneryExtras(id, M, g) {
+  FIREFLIES.length = 0;
+  if (!M || M.kind === 'inside' || M.kind === 'still' || M.kind === 'hub' || M.kind === 'region') return;
+  const fl = S.flags || {}; if ((fl.ruin && !offMainland(id)) || (typeof greyMap === 'function' && greyMap(id))) return;
+  const fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe);
+  const spots = (n, seed, ok = SCN_GRASS) => { const out = []; for (let k = 0; k < n * 4 && out.length < n; k++) { const x = 1 + hsh(k, seed, M.w) * (M.w - 2), y = 1 + hsh(k, seed + 2, M.h) * (M.h - 2), tx = Math.round(x), ty = Math.round(y), c = M.tiles[ty] && M.tiles[ty][tx];
+    if (!ok(c) || (M.tiles[ty - 1] && M.tiles[ty - 1][tx] === 'D') || Math.abs(tx - S.x) + Math.abs(ty - S.y) < 2) continue; out.push([x, y, k]); } return out; };
+  if (fam === 'CALM') calmScenery(M, g, spots);
+  if (fam === 'JOY' || M.theme === 'garden' || /garden/i.test(M.name || '')) flowerScenery(M, g, spots, M.kind === 'route' ? 300 : M.kind === 'city' ? 200 : 160);
+}
+function calmScenery(M, g, spots) {
+  // toadstools in little clusters: fairytale red with white spots, and pale glowing teal
+  const pts = [];
+  for (const [x, y, k] of spots(M.kind === 'route' ? 30 : 24, 61)) { const n = 3 + (k % 3); for (let i = 0; i < n; i++) pts.push([x + (hsh(k, i, 1) - .5) * .8, y + (hsh(k, i, 2) - .5) * .8, .6 + hsh(k, i, 3) * .7, (k + i) % 3 === 0 ? 1 : 0]); }
+  // fairy rings: nine small mushrooms in a circle
+  for (const [x, y, k] of spots(3, 71, c => c === ',' || c === '.')) for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; pts.push([x + Math.cos(a) * .9, y + Math.sin(a) * .9, .45 + hsh(k, i) * .2, 2]); }
+  if (pts.length) {
+    const stem = new THREE.InstancedMesh(new THREE.CylinderGeometry(.035, .05, .2, 6), toon('#f3ead8'), pts.length);
+    const cap = new THREE.InstancedMesh(new THREE.SphereGeometry(.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color:'#ffffff' }), pts.length);
+    const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(.022, 5, 4), toon('#fff8ee'), pts.length * 3);
+    const mtx = new THREE.Matrix4(), col = new THREE.Color(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), v = new THREE.Vector3(); let nd = 0;
+    pts.forEach(([x, y, s, kind], i) => { const gy = groundY(Math.round(x), Math.round(y));
+      mtx.compose(v.set(x, gy + .1 * s, y), q.identity(), sc.set(s, s, s)); stem.setMatrixAt(i, mtx);
+      mtx.compose(v.set(x, gy + .19 * s, y), q.identity(), sc.set(s, s * .8, s)); cap.setMatrixAt(i, mtx);
+      cap.setColorAt(i, col.set(kind === 1 ? '#bff0f2' : kind === 2 ? '#e8d8f0' : '#d8463a'));
+      if (kind === 0) for (let d = 0; d < 3; d++) { const a = d * 2.1 + i, r = .07 * s; mtx.compose(v.set(x + Math.cos(a) * r, gy + .19 * s + .075 * s, y + Math.sin(a) * r), q.identity(), sc.set(s, s, s)); dots.setMatrixAt(nd++, mtx); } });
+    dots.count = nd; g.add(stem, cap, dots);
+    // the teal ones give off a little light of their own
+    pts.forEach(([x, y, s, kind]) => { if (kind !== 1 || hsh(Math.round(x * 7), Math.round(y * 7)) > .5) return; const gl = glow('#9ff0f4', 1.1 * s, .28); gl.position.set(x, groundY(Math.round(x), Math.round(y)) + .2, y); g.add(gl); });
+  }
+  // fireflies: soft round lights that drift. No blinking: brightness changes only over a slow ten-second breath.
+  const n = M.kind === 'city' ? 34 : 26;
+  for (const [x, y, k] of spots(n, 81, c => c && !SOLID.has(c) && c !== 'D')) {
+    const s = glow(k % 4 ? '#e8ffb0' : '#bff4f6', .95, 0); const by = groundY(Math.round(x), Math.round(y)) + .5 + hsh(k, 3) * 1.1;
+    s.position.set(x, by, y); g.add(s); FIREFLIES.push({ s, x, y, by, ph:hsh(k, 5) * 6.28, sp:.25 + hsh(k, 6) * .25 });
+  }
+}
+function flowerScenery(M, g, spots, n) {
+  const pts = spots(n, 91, c => c === ',' || c === '.' || c === 'f');
+  if (!pts.length) return;
+  const cols = ['#f2a7c0', '#ffd36b', '#e86a5a', '#b8a0e8', '#fff3d6', '#f7c3d6', '#ff9a5a', '#f4e04a'];
+  const stem = new THREE.InstancedMesh(new THREE.CylinderGeometry(.012, .015, .26, 4), toon('#4a7a36'), pts.length);
+  const head = new THREE.InstancedMesh(new THREE.ConeGeometry(.085, .07, 6), new THREE.MeshLambertMaterial({ color:'#ffffff' }), pts.length);
+  const eye = new THREE.InstancedMesh(new THREE.SphereGeometry(.028, 5, 4), toon('#f0c040'), pts.length);
+  const mtx = new THREE.Matrix4(), col = new THREE.Color();
+  pts.forEach(([x, y, k], i) => { const gy = groundY(Math.round(x), Math.round(y)), h = .22 + hsh(k, 9) * .1;
+    mtx.makeTranslation(x, gy + h / 2, y); stem.setMatrixAt(i, mtx); mtx.makeRotationX(Math.PI); mtx.setPosition(x, gy + h + .02, y); head.setMatrixAt(i, mtx); head.setColorAt(i, col.set(cols[k % cols.length]));
+    mtx.makeTranslation(x, gy + h + .05, y); eye.setMatrixAt(i, mtx); });
+  g.add(stem, head, eye);
+  // flowering bushes
+  for (const [x, y, k] of spots(M.kind === 'route' ? 22 : 14, 97, c => c === ',' || c === '.')) {
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.3, 1), toon(k % 2 ? '#4f7a36' : '#5a8a3e')); b.position.set(x, groundY(Math.round(x), Math.round(y)) + .24, y); g.add(b);
+    for (let f = 0; f < 7; f++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.05, 5, 4), toon(cols[(k + f) % cols.length])); d.position.set(x + (hsh(k, f) - .5) * .5, b.position.y + .08 + hsh(k, f, 3) * .2, y + (hsh(k, f, 2) - .5) * .5); g.add(d); }
+  }
+}
+function sceneryTick(dt) {
+  if (!FIREFLIES.length) return;
+  const t = performance.now() / 1000, night = typeof dayState === 'function' ? dayState().night : 0;
+  for (const f of FIREFLIES) {
+    f.s.position.set(f.x + Math.sin(t * f.sp + f.ph) * .6, f.by + Math.sin(t * f.sp * .7 + f.ph * 2) * .25, f.y + Math.cos(t * f.sp * .8 + f.ph) * .5);
+    f.s.material.opacity = (.35 + .5 * night) * (.9 + .1 * Math.sin(t * .6 + f.ph));   // a slow breath, ±10%
+  }
+}
+{ const _rt = rideTick; rideTick = function (dt) { _rt(dt); sceneryTick(dt); }; }
+{ const _be = bloomExtras; bloomExtras = function (id, M, g) { _be(id, M, g); sceneryExtras(id, M, g); }; }
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -14724,12 +14820,19 @@ async function reapFoes() {
 const canUnderstand = () => B && !B.final && !B.group;
 const keepChance = () => B && B.understood ? 100 : Math.round(clamp((B.opt.heart ? 10 : 20) + B.res * .8, 0, 100));
 function renderBHUD() {
-  const f = B.foe, li = ladderIdx(), fr = f.hp / B.foeMax, ft = typeOf(f);
-  const lower = B.final ? `<div class="lbl"><span>Phase ${phaseOf()} of 3</span><span>${B.numb.size ? 'Numbing your Chorus' : ''}</span></div>`
-    : `<div class="lbl"><span>Understanding ${Math.round(B.res)}%${canUnderstand() ? ' · at 100% it settles' : ''}</span><span>${B.opt.owner ? 'Held by ' + B.opt.owner : 'Keep chance ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
-  $('#bhud').innerHTML = `<div class="top">${B.final ? `<span class="mi" style="background:#d8d4cc"></span>` : manifIcon(f)}<span class="nm">${B.final ? 'The Hush' : (B.opt.heart ? 'Heart · ' : B.opt.owner ? B.opt.owner + '\'s ' : 'Wild ') + nm(f)}</span>${B.final ? pill(ft) : pillsOf(f.sp)}<span class="lv">Lv ${f.lvl}</span></div>
-    <div class="int">${f.hp <= 0 ? 'Settled' : B.final ? `Wearing ${TYPES[ft].name}` : SPECIES[f.sp].dyad ? `${TYPES[ft].name} + ${TYPES[SPECIES[f.sp].type2].name}` : TYPES[ft].ladder[li]} <small>${B.final ? 'it shifts' : 'intensity'}</small></div>
-    <div class="bar"><i style="width:${fr * 100}%;background:${B.final ? '#f3efe6' : TYPES[ft].c}"></i></div>${lower}${B.group ? `<div class="grp">${B.group.map(g => `<span class="gc${g === B.cur ? ' on' : ''}${g.m.hp <= 0 ? ' down' : ''}"><em>${nm(g.m)}</em><b><i style="width:${Math.max(0, g.m.hp / g.max * 100)}%;background:${TYPES[typeOf(g.m)].c}"></i></b></span>`).join('')}${B.reserve.length ? `<span class="gc wait">+${B.reserve.length} waiting</span>` : ''}</div>` : ''}`;
+  // one compact card per opponent (26 Nov): name, level, its feeling and how intense, Composure; the one you're facing
+  // also shows Understanding. Small enough on a phone to leave the arena in view.
+  const card = (g, f, max, on) => { const ft = typeOf(f), fr = Math.max(0, f.hp / max), tr = SPECIES[f.sp].tier || 0, li = B.final ? 2 : clamp(Math.ceil(fr * (tr + 1)) - 1, 0, tr);
+    const name = B.final ? 'The Hush' : (B.opt.heart ? 'Heart · ' : '') + nm(f);
+    const feel = f.hp <= 0 ? 'Settled' : B.final ? `Wearing ${TYPES[ft].name}` : SPECIES[f.sp].dyad ? `${TYPES[ft].name} + ${TYPES[SPECIES[f.sp].type2].name}` : TYPES[ft].ladder[li];
+    let low = '';
+    if (on && B.final) low = `<div class="lbl"><span>Phase ${phaseOf()} of 3</span><span>${B.numb.size ? 'Numbing your Chorus' : ''}</span></div>`;
+    else if (on && !B.group) low = `<div class="lbl"><span>Understanding ${Math.round(B.res)}%</span><span>${B.opt.owner ? 'Held by ' + B.opt.owner : 'Keep ' + keepChance() + '%'}</span></div><div class="bar res"><i style="width:${B.res}%"></i></div>`;
+    return `<div class="fc card${on ? ' on' : ''}${f.hp <= 0 ? ' down' : ''}"><div class="top">${B.final ? `<span class="mi" style="background:#d8d4cc"></span>` : manifIcon(f)}<span class="nm">${name}</span></div>
+      <div class="int"><span style="overflow:hidden;text-overflow:ellipsis">${feel}</span><span class="lv">Lv ${f.lvl}</span></div><div class="bar"><i style="width:${fr * 100}%;background:${B.final ? '#f3efe6' : TYPES[ft].c}"></i></div>${low}</div>`; };
+  const cards = B.group ? B.group.map(g => card(g, g.m, g.max, g === B.cur)) : [card(null, B.foe, B.foeMax, true)];
+  if (B.group && B.reserve.length) cards.push(`<div class="fc card wait">+${B.reserve.length}<small>waiting</small></div>`);
+  $('#bhud').innerHTML = (B.group && B.opt.owner ? `<div class="own">Held by ${B.opt.owner}</div>` : '') + `<div class="fcs">${cards.join('')}</div>`;
   $('#chorus').innerHTML = B.chorus.map(m => { const r = m.hp / maxHp(m); return `<div class="cc card${m.hp <= 0 || B.numb.has(m) ? ' down' : ''}${B.acting === m ? ' act' : ''}"><div class="t">${manifIcon(m)}<span>${nm(m)}</span><span>Lv${m.lvl}</span></div><div class="bar"><i style="width:${r * 100}%;background:${r > .5 ? '#7cbf5a' : r > .2 ? '#e8b84a' : '#d8503f'}"></i></div><small>${m.hp <= 0 ? 'overwhelmed' : B.numb.has(m) ? 'numb' : m.hp + '/' + maxHp(m)}${B.guard.has(m) ? ' · guarding' : ''}${bondTag(m)}</small></div>`; }).join('');
 }
 function screenPos(v3) { const v = v3.clone().project(bcam); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; }
