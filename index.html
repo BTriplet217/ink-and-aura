@@ -14280,6 +14280,101 @@ boatRace = async function () {
 };
 ITEMS.ribbon09 = { name:"Racer's Ribbon", key:true, desc:'Galloway Landing, Sunday race champion', fieldUse:() => say('(A faded red ribbon, the gold letters worn almost off: SUNDAY RACE, 1ST. Tee-Jean\'s papa won it twelve years running.)') };
 // =============================================================================
+//  SAVES BETWEEN DEVICES (24 Nov)
+//  - In Claude: "Save to my Claude account" / "Load from my Claude account" (no code at all). The save sits in this
+//    person's own private corner of the artifact's database (data/users/<id>/save), which only they can read.
+//  - Everywhere (the GitHub app too): a save code, now compressed (about a tenth of the old length), copied and pasted
+//    through an in-game box instead of browser pop-ups, which pages inside Claude and many phone browsers block.
+//  Old IA1: codes still load.
+// =============================================================================
+const b64url = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode(...u8.subarray(i, i + 8192)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64url = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+async function squeeze(text) { const cs = new CompressionStream('deflate-raw'), w = cs.writable.getWriter(); w.write(new TextEncoder().encode(text)); w.close(); return new Uint8Array(await new Response(cs.readable).arrayBuffer()); }
+async function unsqueeze(u8) { const ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(u8); w.close(); return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer()); }
+const saveJson = () => { saveGame(); return localStorage.getItem(SAVE_KEY); };
+async function makeSaveCode() { const j = saveJson(); if (!j) return null; if (typeof CompressionStream === 'undefined') return 'IA1:' + btoa(unescape(encodeURIComponent(j))); return 'IA2-' + b64url(await squeeze(j)); }
+async function readSaveCode(code) {   // -> the save's JSON text, or throws
+  code = (code || '').replace(/\s+/g, '');   // phones like to break long text into lines
+  let json;
+  if (code.startsWith('IA2-')) json = await unsqueeze(unb64url(code.slice(4)));
+  else if (code.startsWith('IA1:')) json = decodeURIComponent(escape(atob(code.slice(4))));
+  else throw new Error('not a code');
+  const d = JSON.parse(json); if (!d || !d.map || !d.party || !Array.isArray(d.party)) throw new Error('not a save'); return json;
+}
+const saveSummary = d => `${d.name || 'Someone'}, ${(MAPS[d.map] && MAPS[d.map].name) || 'somewhere'}, ${Object.keys(d.hearts || {}).length} of 10 Hearts${d.flags && (d.flags.hushDone || d.flags.doom) ? ', after the story' : ''}`;
+
+// ---------------------------------------------------------------- the code box (in the game, not a browser pop-up)
+function codeBox(mode, text) { return new Promise(resolve => {
+  const el = document.createElement('div'); el.id = 'codebox';
+  el.style.cssText = 'position:fixed;inset:0;z-index:80;background:rgba(10,8,6,.78);display:flex;align-items:center;justify-content:center;font-family:Lora,serif;color:#f3e7c9';
+  const card = document.createElement('div'); card.style.cssText = 'width:min(560px,92vw);background:#2a221a;border:1px solid #8a6a3a;border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.6)'; el.appendChild(card);
+  const h = document.createElement('div'); h.style.cssText = 'font-size:20px;font-weight:600;color:#e8c070;margin-bottom:6px'; h.textContent = mode === 'copy' ? 'Your save code' : 'Load a save code'; card.appendChild(h);
+  const p = document.createElement('div'); p.style.cssText = 'font-size:15px;line-height:1.5;margin-bottom:10px;opacity:.9';
+  p.textContent = mode === 'copy' ? 'Copy all of it, then on your other device open Menu → Save → Load a save code and paste it in.' : 'Paste the whole code (it starts with IA2- or IA1:).'; card.appendChild(p);
+  const ta = document.createElement('textarea'); ta.spellcheck = false; ta.autocapitalize = 'off'; ta.autocomplete = 'off';
+  ta.style.cssText = 'width:100%;height:120px;box-sizing:border-box;background:#14100c;color:#f3e7c9;border:1px solid #6a5434;border-radius:8px;padding:10px;font:13px/1.35 ui-monospace,Menlo,monospace;word-break:break-all;resize:none';
+  if (mode === 'copy') { ta.value = text; ta.readOnly = true; } card.appendChild(ta);
+  const note = document.createElement('div'); note.style.cssText = 'font-size:14px;min-height:20px;margin:8px 0 2px;color:#e8c070'; card.appendChild(note);
+  if (mode === 'copy') note.textContent = `${text.length.toLocaleString()} characters.`;
+  const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px'; card.appendChild(row);
+  const btn = (label, fn, main) => { const b = document.createElement('button'); b.textContent = label; b.style.cssText = `font:600 16px Lora,serif;padding:10px 16px;border-radius:10px;border:1px solid #8a6a3a;cursor:pointer;${main ? 'background:#d8a83a;color:#1a140e' : 'background:#3a2e22;color:#f3e7c9'}`; b.onclick = e => { e.stopPropagation(); fn(); }; row.appendChild(b); return b; };
+  let done = false; const close = v => { if (done) return; done = true; selectHandler = null; el.remove(); resolve(v); };
+  const copy = async () => { let ok = false; try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) {}
+    if (!ok) { ta.readOnly = false; ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); try { ok = document.execCommand('copy'); } catch (e) {} ta.readOnly = true; }
+    note.textContent = ok ? 'Copied. Paste it on your other device.' : 'Your browser wouldn\'t copy it by itself. The code is selected: copy it from the box.'; if (!ok) { ta.focus(); ta.select(); } };
+  if (mode === 'copy') {
+    btn('Copy', copy, true);
+    if (navigator.share) btn('Share', async () => { try { await navigator.share({ title:'Ink & Aura save', text:ta.value }); note.textContent = 'Shared.'; } catch (e) {} });
+    btn('Done', () => close(true));
+    setTimeout(() => { ta.focus(); ta.select(); }, 50);
+  } else {
+    if (navigator.clipboard && navigator.clipboard.readText) btn('Paste', async () => { try { ta.value = await navigator.clipboard.readText(); note.textContent = ''; } catch (e) { note.textContent = 'Your browser wouldn\'t paste by itself. Tap the box and paste.'; ta.focus(); } });
+    btn('Cancel', () => close(null));
+    btn('Load', async () => { try { const j = await readSaveCode(ta.value); close(j); } catch (e) { note.textContent = 'That code didn\'t work. Make sure all of it was copied, from IA2- to the very end.'; } }, true);
+    setTimeout(() => ta.focus(), 50);
+  }
+  el.addEventListener('pointerdown', e => { if (e.target === el) close(mode === 'copy' ? true : null); });
+  selectHandler = b => { if (b === 'b') close(mode === 'copy' ? true : null); else if (b === 'menu' && mode === 'copy') close(true); };   // Escape / B closes; typing goes to the box
+  document.body.appendChild(el);
+}); }
+
+// ---------------------------------------------------------------- the player's own cloud save (only when this page is opened in Claude)
+const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
+let CLOUD = null, cloudTried = false;
+async function cloudSave() {   // -> the viewer's own save document, or null where there's no account storage (the GitHub app, signed out)
+  if (CLOUD || cloudTried) return CLOUD; cloudTried = true;
+  try { if (!window.claude || !window.claude.use) return null;
+    const [db, user] = await Promise.all([withTimeout(window.claude.use('db'), 10000), withTimeout(window.claude.use('user'), 10000)]); if (!db || !user) return null;
+    const id = await withTimeout(user.id(), 8000); if (!id) return null; CLOUD = db.collection('data/users/' + id).doc('save'); } catch (e) { CLOUD = null; }
+  return CLOUD; }
+if (!TEST_BUILD) setTimeout(() => { cloudSave(); }, 2500);   // look it up early so the Save menu doesn't have to wait
+async function pushCloud() { const doc = await cloudSave(); if (!doc) return false; const code = await makeSaveCode(); if (!code) return false;
+  try { await doc.set({ code, savedAt:Date.now(), summary:saveSummary(S), version:2 }); return true; }
+  catch (e) { if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 900 + Math.random() * 600)); try { await doc.set({ code, savedAt:Date.now(), summary:saveSummary(S), version:2 }); return true; } catch (e2) {} } return false; } }
+const when = t => { const d = new Date(t); return d.toLocaleDateString(undefined, { day:'numeric', month:'short' }) + ', ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' }); };
+async function loadJourney(json) { const y = await ask('Load this journey? The one on this device will be replaced.', ['Load it', 'Cancel'], { cancel:false }); if (y !== 0) return;
+  localStorage.setItem(SAVE_KEY, json); await fadeTo(1, 400); location.reload(); }
+
+saveMenu = async function () {
+  if (TEST_BUILD) return say('This is the test build. Nothing is saved here: every time you open it you pick a checkpoint from the title screen.');
+  const doc = await cloudSave();
+  const opts = [{ label:'Save now', sub:doc ? 'on this device and to your Claude account' : 'also saves itself as you play' }];
+  if (doc) opts.push({ label:'Load from my Claude account', sub:'pick up a journey saved on another device' });
+  opts.push({ label:'Copy save code', sub:'to move this journey to another device' }, { label:'Load a save code', sub:'replaces the journey on this device' }, 'Back');
+  const pick = await choose(opts); if (pick < 0) return; const k = typeof opts[pick] === 'string' ? opts[pick] : opts[pick].label;
+  if (k === 'Save now') { const ok = saveGame(); if (!ok) return say('This browser won\'t let the page save right now.');
+    if (!doc) return say('Your journey is written down. (Saved on this device. It also saves itself whenever you move between areas or finish a battle.)');
+    await say('(Saving to your Claude account...)'); const up = await pushCloud();
+    return say(up ? 'Saved on this device and to your Claude account. On another device, open the game in Claude and choose Menu → Save → Load from my Claude account.' : 'Saved on this device. Your Claude account couldn\'t be reached just now, so try again in a moment, or use a save code.'); }
+  if (k === 'Load from my Claude account') { let snap = null; try { snap = await withTimeout(doc.get(), 10000); } catch (e) {}
+    if (!snap) return say('Your Claude account couldn\'t be reached just now. Try again in a moment.');
+    if (!snap.exists) return say('There\'s no journey saved to your Claude account yet. On the device you\'ve been playing on, choose Menu → Save → Save now.');
+    const d = snap.data(); let json; try { json = await readSaveCode(d.code); } catch (e) { return say('The journey in your Claude account couldn\'t be read. Save it again from your other device.'); }
+    await say(`(In your Claude account: ${d.summary || 'a journey'}, saved ${when(d.savedAt)}.)`); return loadJourney(json); }
+  if (k === 'Copy save code') { const code = await makeSaveCode(); if (!code) return say('This browser won\'t let the page save right now.'); await codeBox('copy', code); return; }
+  if (k === 'Load a save code') { const json = await codeBox('paste'); if (json) return loadJourney(json); }
+};
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
