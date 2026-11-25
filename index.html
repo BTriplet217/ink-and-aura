@@ -4837,8 +4837,10 @@ function groundY(x, z) {
 function tileColor(M, V, x, y) {
   const ch = M.tiles[y][x], r = hsh(x, y);
   if (M.kind === 'hub' && (ch === '=' || ch === 'w')) {   // Vellum is paved in brick everywhere but the grass, each stretch faintly tinted toward the road it leads to
-    const c = new THREE.Color('#b8b2a8').lerp(new THREE.Color(TYPES[wedgeAt(x, y)].c), ch === 'w' ? .24 : .2).offsetHSL(0, 0, (r - .5) * .05);
-    c.r = Math.max(c.r, c.g / 1.03); return c.getStyle(); }   // keep it reading as stone (the shader draws cobbles on stone-coloured ground)
+    const base = new THREE.Color('#b8b2a8'), tint = new THREE.Color(TYPES[wedgeAt(x, y)].c); let k = ch === 'w' ? .24 : .2, c;
+    for (;;) { c = base.clone().lerp(tint, k).offsetHSL(0, 0, (r - .5) * .05); c.r = Math.max(c.r, c.g / 1.03);
+      if (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) < .16 || k <= .04) break; k -= .02; }   // warm roads (Joy, Surprise, Confidence) back off their tint so they still read as stone
+    return c.getStyle(); }   // keep it reading as stone (the shader draws cobbles on stone-coloured ground)
   if (ch === '=') return V.road ? new THREE.Color(V.road).offsetHSL(0, 0, (r - .5) * .05).getStyle() : r < .5 ? '#dcc495' : '#d2b988';
   if (ch === 'w') { const t = wedgeAt(x, y); return new THREE.Color(TYPES[t].c).lerp(new THREE.Color('#f3e7c9'), r < .5 ? .18 : .3).getStyle(); }
   if (ch === ',') return V.tall[Math.floor(r * 3)];
@@ -14703,7 +14705,7 @@ function sceneryExtras(id, M, g) {
   const spots = (n, seed, ok = SCN_GRASS) => { const out = []; for (let k = 0; k < n * 4 && out.length < n; k++) { const x = 1 + hsh(k, seed, M.w) * (M.w - 2), y = 1 + hsh(k, seed + 2, M.h) * (M.h - 2), tx = Math.round(x), ty = Math.round(y), c = M.tiles[ty] && M.tiles[ty][tx];
     if (!ok(c) || (M.tiles[ty - 1] && M.tiles[ty - 1][tx] === 'D') || Math.abs(tx - S.x) + Math.abs(ty - S.y) < 2) continue; out.push([x, y, k]); } return out; };
   if (fam === 'CALM') calmScenery(M, g, spots);
-  if (fam === 'JOY' || M.theme === 'garden' || /garden/i.test(M.name || '')) flowerScenery(M, g, spots, M.kind === 'route' ? 300 : M.kind === 'city' ? 200 : 160);
+  if (fam === 'JOY' || M.theme === 'garden' || /garden/i.test(M.name || '')) flowerScenery(M, g, spots, M.theme === 'garden' ? 1100 : M.kind === 'route' ? 400 : M.kind === 'city' ? 260 : 220);
 }
 function calmScenery(M, g, spots) {
   // toadstools in little clusters: fairytale red with white spots, and pale glowing teal
@@ -14745,7 +14747,7 @@ function flowerScenery(M, g, spots, n) {
     mtx.makeTranslation(x, gy + h + .05, y); eye.setMatrixAt(i, mtx); });
   g.add(stem, head, eye);
   // flowering bushes
-  for (const [x, y, k] of spots(M.kind === 'route' ? 22 : 14, 97, c => c === ',' || c === '.')) {
+  for (const [x, y, k] of spots(M.theme === 'garden' ? 45 : M.kind === 'route' ? 22 : 14, 97, c => c === ',' || c === '.')) {
     const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.3, 1), toon(k % 2 ? '#4f7a36' : '#5a8a3e')); b.position.set(x, groundY(Math.round(x), Math.round(y)) + .24, y); g.add(b);
     for (let f = 0; f < 7; f++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.05, 5, 4), toon(cols[(k + f) % cols.length])); d.position.set(x + (hsh(k, f) - .5) * .5, b.position.y + .08 + hsh(k, f, 3) * .2, y + (hsh(k, f, 2) - .5) * .5); g.add(d); }
   }
@@ -15594,9 +15596,9 @@ const themeFor = id => { const M = MAPS[id], k = '';
   if (M.kind === 'inside') return themeFor(M.route);
   if (S && S.flags && S.flags.doom && !S.flags.atoned && M.kind !== 'still' && !(M.kind === 'city' && (S.freed || {})[M.vibe])) return pick('doom_world');
   if (M.kind === 'hub') return pick(S && S.flags && S.flags.hushDone ? 'vellum_restored' : S && Object.keys(S.hearts || {}).length >= WN ? 'vellum_dread' : 'vellum');
-  if (M.kind === 'route') return pick('route_' + routeFamily(id));
+  if (M.kind === 'route') { const f = routeFamily(id); return pick(f === 'CALM' ? 'city_SURPRISE' : 'route_' + f); }   // Reedwater and Caprice swapped songs (26 Nov)
   if (M.kind === 'still') return pick('stillwell');
-  if (M.kind === 'city') return pick(BLAINE_CITY[M.vibe] || 'city_' + M.vibe);
+  if (M.kind === 'city') return pick(M.vibe === 'SURPRISE' ? 'route_CALM' : BLAINE_CITY[M.vibe] || 'city_' + M.vibe);
   if (M.vibe === 'SURPRISE') return pick('music/surprise.mp3');
   return pick(BLAINE_WAY[M.vibe] || 'way_' + M.vibe); };
 const BOSS_MUSIC = { 'the Conductor':'boss_conductor', 'Orrin Vale':'boss_orrin', 'Wren':'boss_wren' };
