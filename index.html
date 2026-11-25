@@ -14282,12 +14282,9 @@ ITEMS.ribbon09 = { name:"Racer's Ribbon", key:true, desc:'Galloway Landing, Sund
 // =============================================================================
 //  SAVES BETWEEN DEVICES (24 Nov)
 //  - In Claude: "Save now" also saves to the player's Claude account (data/users/<id>/save, private to them), and
-//    "Load from my Claude account" picks it up on another device. No code at all.
-//  - In Claude, "Get a save code" gives a SHORT code (7K3Q-M9XP). The save itself waits in the artifact's
-//    database at codes/<code> for 14 days; the code is just its name. Works on any device that opens the game in Claude.
-//  - Everywhere (the GitHub app too): "Save to a file" / "Load from a file". A long code (IA2-, deflated) is the last
-//    resort where nothing can be stored online. Copy and paste happen in an in-game box, never browser pop-ups.
-//  Old IA1: and IA2- codes still load.
+//    "Load from my Claude account" picks it up on another device.
+//  - Everywhere: "Save to a file" / "Load from a file". The file holds a deflated IA2- code; loading also takes old
+//    IA1:/IA2- code text or raw save JSON. Typed/pasted save codes were removed: copying them didn't work reliably.
 // =============================================================================
 const b64url = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode(...u8.subarray(i, i + 8192)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const unb64url = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
@@ -14295,27 +14292,16 @@ async function squeeze(text) { const cs = new CompressionStream('deflate-raw'), 
 async function unsqueeze(u8) { const ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter(); w.write(u8); w.close(); return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer()); }
 const saveJson = () => { saveGame(); return localStorage.getItem(SAVE_KEY); };
 async function makeSaveCode() { const j = saveJson(); if (!j) return null; if (typeof CompressionStream === 'undefined') return 'IA1:' + btoa(unescape(encodeURIComponent(j))); return 'IA2-' + b64url(await squeeze(j)); }
-const SHORT_ABC = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';   // no 0/O or 1/I/L to mix up
-const shortOf = s => { const t = (s || '').toUpperCase().replace(/[^0-9A-Z]/g, '').replace(/^INK/, ''); return t.length === 8 && [...t].every(c => SHORT_ABC.includes(c)) ? t : null; };
-const shortFmt = id => id.slice(0, 4) + '-' + id.slice(4);
-async function readSaveCode(code) {   // -> the save's JSON text, or throws
+async function readSaveCode(code) {   // file contents (a code or raw JSON) -> the save's JSON text, or throws
   code = (code || '').trim();
   if (code.startsWith('{')) { const d = JSON.parse(code); if (!d || !d.map || !Array.isArray(d.party)) throw new Error('not a save'); return code; }   // a raw save file
   code = code.replace(/\s+/g, '');   // phones like to break long text into lines
   let json;
   if (code.startsWith('IA2-')) json = await unsqueeze(unb64url(code.slice(4)));
   else if (code.startsWith('IA1:')) json = decodeURIComponent(escape(atob(code.slice(4))));
-  else if (shortOf(code)) { const db = await cloudDb(); if (!db) throw new Error('short'); let snap = null;
-    try { snap = await withTimeout(db.doc('codes/' + shortOf(code)).get(), 10000); } catch (e) {}
-    if (!snap) throw new Error('offline'); if (!snap.exists) throw new Error('nocode');
-    const d = snap.data(); if (d.savedAt && Date.now() - d.savedAt > CODE_DAYS * 864e5) throw new Error('old'); return readSaveCode(d.code); }
   else throw new Error('not a code');
   const d = JSON.parse(json); if (!d || !d.map || !d.party || !Array.isArray(d.party)) throw new Error('not a save'); return json;
 }
-const CODE_DAYS = 14;
-const codeTrouble = e => ({ short:'Short codes only work when the game is opened in Claude. In the installed app, use a save file instead.',
-  offline:'Couldn\'t reach Claude to look up that code. Try again in a moment.', nocode:'No journey is waiting under that code. Check the letters, or make a new code.',
-  old:`That code is more than ${CODE_DAYS} days old and has run out. Make a new one on your other device.` }[e && e.message] || 'That code didn\'t work. Make sure all of it was copied.');
 const saveSummary = d => `${d.name || 'Someone'}, ${(MAPS[d.map] && MAPS[d.map].name) || 'somewhere'}, ${Object.keys(d.hearts || {}).length} of 10 Hearts${d.flags && (d.flags.hushDone || d.flags.doom) ? ', after the story' : ''}`;
 
 // ---------------------------------------------------------------- the in-game panel (codes and files; never a browser pop-up)
@@ -14341,11 +14327,6 @@ function savePanel(o) { return new Promise(resolve => {
   selectHandler = b => { if (b === 'b') close(null); };   // Escape / B closes; typing goes to the box
   document.body.appendChild(el); if (ta) setTimeout(() => { ta.focus(); if (ta.readOnly) ta.select(); }, 50);
 }); }
-async function copyText(text, ta) { try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
-  const t = ta || Object.assign(document.createElement('textarea'), { value:text }); if (!ta) { t.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(t); }
-  const ro = t.readOnly; t.readOnly = false; t.focus(); t.select(); t.setSelectionRange(0, text.length); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} t.readOnly = ro; if (!ta) t.remove(); return ok; }
-const shareBtn = text => navigator.share ? [{ label:'Share', fn:async a => { try { await navigator.share({ title:'Ink & Aura save', text }); a.note('Shared.'); } catch (e) {} } }] : [];
-
 // ---------------------------------------------------------------- Claude account storage (only when this page is opened in Claude)
 const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 let DB = null, UID = null, dbTried = false;
@@ -14361,37 +14342,15 @@ async function setRetry(doc, data) { try { await doc.set(data); return true; } c
   await new Promise(r => setTimeout(r, 900 + Math.random() * 600)); try { await doc.set(data); return true; } catch (e) { return false; } }
 async function pushCloud() { const doc = await cloudSave(); if (!doc) return false; const code = await makeSaveCode(); if (!code) return false;
   return setRetry(doc, { code, savedAt:Date.now(), summary:saveSummary(S), version:2 }); }
-async function makeShortCode() {   // -> 'INK-XXXX-XXXX' or null
-  const db = await cloudDb(); if (!db) return null; const code = await makeSaveCode(); if (!code) return null;
-  for (let k = 0; k < 3; k++) { const a = crypto.getRandomValues(new Uint8Array(8)); let id = ''; for (const x of a) id += SHORT_ABC[x & 31];
-    const doc = db.doc('codes/' + id); let snap = null; try { snap = await withTimeout(doc.get(), 8000); } catch (e) {}
-    if (snap && snap.exists && Date.now() - (snap.data().savedAt || 0) < CODE_DAYS * 864e5) continue;   // already taken
-    if (await setRetry(doc, { code, savedAt:Date.now(), summary:saveSummary(S) })) return shortFmt(id); return null; }
-  return null; }
 const when = t => { const d = new Date(t); return d.toLocaleDateString(undefined, { day:'numeric', month:'short' }) + ', ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' }); };
 async function loadJourney(json) { let d = null; try { d = JSON.parse(json); } catch (e) {}
   const y = await ask(`${d ? saveSummary(d) + '. ' : ''}Load this journey? The one on this device will be replaced.`, ['Load it', 'Cancel'], { cancel:false }); if (y !== 0) return;
   localStorage.setItem(SAVE_KEY, json); await fadeTo(1, 400); location.reload(); }
 
 // ---------------------------------------------------------------- the panels
-async function showCode() {
-  const short = await makeShortCode();
-  if (short) return savePanel({ title:'Your save code', big:short, text:`On your other device, open Ink & Aura in Claude, then Menu → Save → Enter a save code, and type this in. It works for ${CODE_DAYS} days.`,
-    buttons:[{ label:'Copy', main:true, fn:async a => a.note(await copyText(short) ? 'Copied.' : 'Copy it by hand: it\'s short.') }, ...shareBtn(short), { label:'Done', fn:a => a.close(true) }] });
-  const code = await makeSaveCode(); if (!code) return say('This browser won\'t let the page save right now.');
-  return savePanel({ title:'Your save code', box:true, value:code, text:'This version of the game can\'t store anything online, so its codes are long. A save file is usually easier: Menu → Save → Save to a file.',
-    note:`${code.length.toLocaleString()} characters.`, buttons:[{ label:'Copy', main:true, fn:async a => a.note(await copyText(code, a.ta) ? 'Copied. Paste it on your other device.' : 'The code is selected: copy it from the box.') }, ...shareBtn(code), { label:'Done', fn:a => a.close(true) }] });
-}
-async function enterCode() {
-  const json = await savePanel({ title:'Enter a save code', box:true, boxH:90, boxFont:'18px/1.4', placeholder:'XXXX-XXXX', text:'Type or paste the code from your other device.',
-    buttons:[...(navigator.clipboard && navigator.clipboard.readText ? [{ label:'Paste', fn:async a => { try { a.ta.value = await navigator.clipboard.readText(); a.note(''); } catch (e) { a.note('Tap the box and paste.'); a.ta.focus(); } } }] : []),
-      { label:'Cancel', fn:a => a.close(null) },
-      { label:'Load', main:true, fn:async a => { a.note('Looking...'); try { a.close(await readSaveCode(a.ta.value)); } catch (e) { a.note(codeTrouble(e)); } } }] });
-  if (json) return loadJourney(json);
-}
 async function saveFile() {
   const code = await makeSaveCode(); if (!code) return say('This browser won\'t let the page save right now.');
-  const stamp = new Date().toISOString().slice(0, 10), name = `ink-and-aura-${(S.name || 'journey').replace(/[^\w-]+/g, '')}-${stamp}.inkaura`;
+  const stamp = new Date().toISOString().slice(0, 10), name = `ink-and-aura-save-${(S.name || 'journey').replace(/[^\w-]+/g, '')}-${stamp}.txt`;
   const file = new File([code], name, { type:'text/plain' });
   return savePanel({ title:'Save to a file', text:'Keep the file somewhere you can reach from your other device (Files, iCloud, Google Drive, email, a message to yourself). There, choose Menu → Save → Load from a file.',
     buttons:[...(navigator.canShare && navigator.canShare({ files:[file] }) ? [{ label:'Send to…', fn:async a => { try { await navigator.share({ files:[file], title:'Ink & Aura save' }); a.note('Sent.'); } catch (e) {} } }] : []),
@@ -14399,31 +14358,28 @@ async function saveFile() {
       { label:'Done', fn:a => a.close(true) }] });
 }
 async function loadFile() {
-  const json = await savePanel({ title:'Load from a file', text:'Pick the .inkaura file you saved on your other device.',
-    buttons:[{ label:'Cancel', fn:a => a.close(null) }, { label:'Choose file', main:true, fn:a => { const inp = Object.assign(document.createElement('input'), { type:'file', accept:'.inkaura,.txt,.json,text/plain,application/json' });
+  const json = await savePanel({ title:'Load from a file', text:'Pick the save file from your other device (ink-and-aura-save-….txt).',
+    buttons:[{ label:'Cancel', fn:a => a.close(null) }, { label:'Choose file', main:true, fn:a => { const inp = Object.assign(document.createElement('input'), { type:'file' });
       inp.onchange = async () => { const f = inp.files && inp.files[0]; if (!f) return; try { a.close(await readSaveCode(await f.text())); } catch (e) { a.note('That file isn\'t an Ink & Aura save.'); } }; inp.click(); } }] });
   if (json) return loadJourney(json);
 }
 
 saveMenu = async function () {
   if (TEST_BUILD) return say('This is the test build. Nothing is saved here: every time you open it you pick a checkpoint from the title screen.');
-  const db = await cloudDb(), doc = await cloudSave();
+  const doc = await cloudSave();
   const opts = [{ label:'Save now', sub:doc ? 'on this device and to your Claude account' : 'also saves itself as you play', k:'save' }];
   if (doc) opts.push({ label:'Load from my Claude account', sub:'pick up a journey saved on another device', k:'cloud' });
-  opts.push({ label:'Get a save code', sub:db ? 'a short code for another device' : 'to move this journey to another device', k:'code' }, { label:'Enter a save code', sub:'replaces the journey on this device', k:'enter' },
-    { label:'Save to a file', sub:'move the journey by file', k:'file' }, { label:'Load from a file', sub:'replaces the journey on this device', k:'lfile' }, 'Back');
+  opts.push({ label:'Save to a file', sub:'move the journey by file', k:'file' }, { label:'Load from a file', sub:'replaces the journey on this device', k:'lfile' }, 'Back');
   const pick = await choose(opts); if (pick < 0 || typeof opts[pick] === 'string') return; const k = opts[pick].k;
   if (k === 'save') { const ok = saveGame(); if (!ok) return say('This browser won\'t let the page save right now.');
     if (!doc) return say('Your journey is written down. (Saved on this device. It also saves itself whenever you move between areas or finish a battle.)');
     await say('(Saving to your Claude account...)'); const up = await pushCloud();
-    return say(up ? 'Saved on this device and to your Claude account. On another device, open the game in Claude and choose Menu → Save → Load from my Claude account.' : 'Saved on this device. Your Claude account couldn\'t be reached just now, so try again in a moment, or use a save code.'); }
+    return say(up ? 'Saved on this device and to your Claude account. On another device, open the game in Claude and choose Menu → Save → Load from my Claude account.' : 'Saved on this device. Your Claude account couldn\'t be reached just now, so try again in a moment, or use Save to a file.'); }
   if (k === 'cloud') { let snap = null; try { snap = await withTimeout(doc.get(), 10000); } catch (e) {}
     if (!snap) return say('Your Claude account couldn\'t be reached just now. Try again in a moment.');
     if (!snap.exists) return say('There\'s no journey saved to your Claude account yet. On the device you\'ve been playing on, choose Menu → Save → Save now.');
     const d = snap.data(); let json; try { json = await readSaveCode(d.code); } catch (e) { return say('The journey in your Claude account couldn\'t be read. Save it again from your other device.'); }
     await say(`(In your Claude account: saved ${when(d.savedAt)}.)`); return loadJourney(json); }
-  if (k === 'code') { if (db) await say('(Making a code...)'); return showCode(); }
-  if (k === 'enter') return enterCode();
   if (k === 'file') return saveFile();
   if (k === 'lfile') return loadFile();
 };
