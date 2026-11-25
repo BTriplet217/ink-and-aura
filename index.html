@@ -694,6 +694,7 @@ const RESPONSES = [
 // ---------------------------------------------------------------- items ------
 Object.assign(ITEMS, {
   salts:    { name:'Smelling Salts', revive:.5, desc:'Revives an overwhelmed Manif', price:150 },
+  wind:     { name:'Second Wind',    revive:1, desc:'Revives an overwhelmed Manif with full Composure', price:480 },
   hearth:   { name:'Mending Light',    healAll:.5, desc:'Heals the whole Chorus by half', price:220 },
   charm:    { name:'Kindred Charm',  res:30, desc:'+30 Understanding with the Manif you\'re facing', price:140 },
   ember:    { name:'Ember Draught',  atk:2, desc:'Sharply raises one Manif\'s Force', price:110 },
@@ -707,7 +708,8 @@ ITEMS.cake.price = 30; ITEMS.tonic.price = 120;
 const ITEM_INFO = {
   cake:'Restores about half of one Manif\'s Composure. Use it in battle or from the Bag.',
   tonic:'Restores all of one Manif\'s Composure. Use it in battle or from the Bag.',
-  salts:'Brings back a Manif that was overwhelmed, with half its Composure. Use it in battle or from the Bag.',
+  salts:'Brings back a Manif that was overwhelmed, with half its Composure. You choose who. Use it in battle or from the Bag.',
+  wind:'Brings back a Manif that was overwhelmed, with all of its Composure. You choose who. Use it in battle or from the Bag.',
   hearth:'Restores half the Composure of every Manif in your Chorus at once. Best saved for a hard battle.',
   charm:'In battle: +30 Understanding with the Manif you\'re facing. At 100% a wild one settles and will stay with you; a Holder\'s goes back to them, understood. No use when several face you at once, or on the Hush.',
   ember:'In battle: sharply raises one Manif\'s Force (how hard its Expressions hit) for the rest of the meeting.',
@@ -717,12 +719,12 @@ const ITEM_INFO = {
   waystone:'From the Bag: takes you straight home to Vellum, from anywhere.'
 };
 const itemInfo = k => ITEM_INFO[k] || (ITEMS[k] && ITEMS[k].desc) || '';
-const BATTLE_ITEMS = ['cake', 'tonic', 'salts', 'hearth', 'charm', 'ember', 'iron'];
+const BATTLE_ITEMS = ['cake', 'tonic', 'salts', 'wind', 'hearth', 'charm', 'ember', 'iron'];
 const SHOPS = {
   bakery:  { name:'Maribel\'s Bakery',     stock:['cake', 'waystone'], bright:true },
-  archive: { name:'Archive Supply',        stock:['tonic', 'salts', 'hearth', 'charm', 'quill'], bright:true },
-  black:   { name:'Inkgutter Black Market', stock:['tonic', 'salts', 'ember', 'iron', 'veil', 'quill'], dark:true, discount:.75 },
-  keeper:  { name:'Keeper\'s Stores',      stock:['cake', 'tonic', 'salts', 'hearth', 'ember', 'iron', 'waystone'], bright:true },
+  archive: { name:'Archive Supply',        stock:['tonic', 'salts', 'wind', 'hearth', 'charm', 'quill'], bright:true },
+  black:   { name:'Inkgutter Black Market', stock:['tonic', 'salts', 'wind', 'ember', 'iron', 'veil', 'quill'], dark:true, discount:.75 },
+  keeper:  { name:'Keeper\'s Stores',      stock:['cake', 'tonic', 'salts', 'wind', 'hearth', 'ember', 'iron', 'waystone'], bright:true },
   way:     { name:'Wayside Stall',         stock:['cake', 'salts', 'waystone'] }
 };
 
@@ -14968,17 +14970,18 @@ async function battleTurn() {
   await fieldTurn(); if (!chorusActive().length) return checkEnd();
   const acts = []; B.guard.clear(); B.struck = 0;
   for (const [m, n] of [...B.numb]) { if (n <= 0) B.numb.delete(m); }
-  const active = chorusActive().filter(m => !B.numb.has(m));
-  for (const m of chorusActive()) if (B.numb.has(m)) { await say(`${nm(m)} is numb. It can't find a reason to act.`); B.numb.set(m, B.numb.get(m) - 1); }
+  const active = chorusActive();   // numbed Manifs still get a turn, but all they can do is reach into the Bag (27 Nov)
+  for (const m of active) if (B.numb.has(m)) { await say(`${nm(m)} is numb. It can't find a reason to act, but it can still reach into the Bag.`); B.numb.set(m, B.numb.get(m) - 1); }
   for (let i = 0; i < active.length;) {
     const m = active[i]; B.acting = m; renderBHUD();
     // Fixed slots, so nothing shifts when a Manif learns something new:
     //   rows 1-2: four attack slots · row 3: support move, Reach Out · row 4: Guard, Item · row 5: Step away
     // Each move has its own slot from the whole list it will ever learn; a move not learned yet is a blank, inert slot.
-    const SL = battleSlots(m), opts = SL.map(k => k && m.moves.includes(k) ? moveOption(m, k, acts) : { label:'—', sub:'', disabled:true });
-    opts.push({ label:'Reach Out', sub: B.final ? 'reach the person inside' : '+Understanding' }, { label:'Guard', sub:'halve damage' });
+    const numb = B.numb.has(m), SL = battleSlots(m), opts = SL.map(k => k && m.moves.includes(k) ? (numb ? { ...moveOption(m, k, acts), sub:'numb', disabled:true } : moveOption(m, k, acts)) : { label:'—', sub:'', disabled:true });
+    opts.push({ label:'Reach Out', sub: numb ? 'numb' : B.final ? 'reach the person inside' : '+Understanding', disabled:numb }, { label:'Guard', sub: numb ? 'numb' : 'halve damage', disabled:numb });
     const its = BATTLE_ITEMS.filter(k => (S.items[k] || 0) > 0);
     opts.push({ label:'Item', sub: its.length ? `${its.length} kinds` : 'none', disabled:!its.length });
+    if (numb && !its.length) { i++; continue; }   // numb and nothing in the Bag: it just stands there
     opts.push(i > 0 ? { label:'← Back' } : { label:'Step away', sub: B.final ? 'no way back' : 'leave', disabled:B.final });
     const c = await choose(opts, { layout:'grid', cancel: i > 0 }), nmv = SL.length;
     if (c === -1 || (c === nmv + 3 && i > 0)) { i--; acts.pop(); continue; }
@@ -14988,7 +14991,14 @@ async function battleTurn() {
     else if (c === nmv + 2) {
       const ci = await choose(its.map(k => ({ label:ITEMS[k].name, sub:`×${S.items[k]} · ${ITEMS[k].desc}` })).concat([{ label:'Back' }]), { onSel:j => setDlg(j < its.length ? `${ITEMS[its[j]].name}: ${itemInfo(its[j])}` : 'Back to the Expressions.', true) }); UI.dlg = null;
       if (ci < 0 || ci >= its.length) continue;
-      acts.push({ m, kind:'item', item:its[ci] });
+      const it = ITEMS[its[ci]]; let on = m;
+      if (it.revive || it.heal) {   // you choose who gets it
+        const used = acts.filter(a => a.kind === 'item' && ITEMS[a.item].revive).map(a => a.on);
+        const pool = it.revive ? S.party.filter(p => p.hp <= 0 && !used.includes(p)) : chorusActive();
+        if (!pool.length) { await say(it.revive ? 'Nobody needs reviving.' : 'Nobody to give it to.'); continue; }
+        const pi = await choose(pool.map(p => ({ label:nm(p), sub:`${Math.max(0, p.hp)}/${maxHp(p)}${p === m ? ' · this one' : ''}` })).concat([{ label:'Back' }]), { cancel:true });
+        if (pi < 0 || pi >= pool.length) continue; on = pool[pi]; }
+      acts.push({ m, kind:'item', item:its[ci], on });
     } else if (c === nmv + 3) {
       B.acting = null; renderBHUD();
       if (B.opt.owner) { await say('You bow out of the match.'); return 'fled'; }
@@ -15016,7 +15026,7 @@ async function battleTurn() {
     else if (q.kind === 'move') await doMove(q.m, q.mv);
     else if (q.kind === 'reach') await doReach(q.m);
     else if (q.kind === 'guard') await say(`${nm(q.m)} braces itself.`);
-    else if (q.kind === 'item') await useItem(q.m, q.item);
+    else if (q.kind === 'item') await useItem(q.m, q.item, q.on);
     if (await understandCheck()) break;
   }
   if (B.understood) return checkEnd();
@@ -15131,16 +15141,17 @@ async function doReach(m) {
   floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + amt3, 'heal');
   await say(right ? 'It goes very still, and listens. That was what it needed.' : 'It hesitates. That wasn\'t quite what it needed, but it heard you.');
 }
-async function useItem(m, k) {
+async function useItem(m, k, on) {
   const it = ITEMS[k]; if (!(S.items[k] > 0)) return; S.items[k]--;
+  if (it.heal && on && on.hp > 0) m = on;   // heal whoever you chose
   if (it.custom) return useForbidden(m, k, it);
   const pos = mm => modelOf(mm).position.clone().add(V3(0, .8, 0));
   if (it.heal) { const mx = maxHp(m), h = Math.min(mx - m.hp, Math.ceil(mx * it.heal)); m.hp += h; floatText(pos(m), '+' + h, 'heal'); sfx('heal'); renderBHUD(); return say(`You give ${nm(m)} a ${it.name}. It steadies.`); }
   if (it.healAll) { for (const c of chorusActive()) { const h = Math.min(maxHp(c) - c.hp, Math.ceil(maxHp(c) * it.healAll)); c.hp += h; if (h) floatText(pos(c), '+' + h, 'heal'); } sfx('heal'); renderBHUD(); return say(k === 'spud' ? 'You pass a potato round. Everyone gets a bite. The whole Chorus steadies.' : k === 'roastpot' ? 'You share out a Roast Potato. The whole Chorus steadies.' : 'The Mending Light glows. Warmth settles over the whole Chorus.'); }
   if (it.revive) {
-    const down = S.party.filter(p => p.hp <= 0); if (!down.length) { S.items[k]++; return say('Nobody needs reviving.'); }
-    const p = down[0]; p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
-    sfx('heal'); renderBHUD(); return say(`The Smelling Salts sting. ${nm(p)} comes back to itself.`);
+    const p = on && on.hp <= 0 ? on : S.party.find(q => q.hp <= 0); if (!p) { S.items[k]++; return say('Nobody needs reviving.'); }
+    p.hp = Math.ceil(maxHp(p) * it.revive); const i = B.chorus.indexOf(p); if (i >= 0) placeChorusModel(p, i);
+    sfx('heal'); renderBHUD(); return say(it.revive >= 1 ? `${nm(p)} takes a Second Wind and comes back to itself, whole.` : `The Smelling Salts sting. ${nm(p)} comes back to itself.`);
   }
   if (it.res) { if (B.final) { S.items[k]++; return say('The Hush has nobody left inside to befriend. Not like that.'); } if (!canUnderstand()) { S.items[k]++; return say('There are too many of them at once. The charm can\'t find just one to reach.'); } B.res = Math.min(100, B.res + it.res); floatText(FOE_POS.clone().add(V3(0, 1, 0)), '♡ +' + it.res, 'heal'); renderBHUD(); return say(`You hold out the Kindred Charm. ${cap(bname(B.foe))} leans toward it.`); }
   if (it.atk) { B.atk.set(m, Math.min(3, (B.atk.get(m) || 0) + it.atk)); floatText(pos(m), 'Force ▲▲', 'heal'); sfx('buff'); return say(`${nm(m)} drinks the Ember Draught. Its Force surges.`); }
