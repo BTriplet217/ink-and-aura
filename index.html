@@ -14810,7 +14810,7 @@ function calmScenery(M, g, spots) {
   }
   // fireflies: soft round lights that drift. No blinking: brightness changes only over a slow ten-second breath.
   const hazy = M.kind === 'route' && !!(ROUTE_LOOK[M.theme] && ROUTE_LOOK[M.theme].haze);
-  const n = hazy ? 90 : M.kind === 'city' ? 34 : 26;
+  const n = hazy ? 30 : M.kind === 'city' ? 34 : 26;
   for (const [x, y, k] of spots(n, 81, c => c && !SOLID.has(c) && c !== 'D')) {
     const s = glow(k % 4 ? '#e8ffb0' : '#bff4f6', .95, 0); const by = groundY(Math.round(x), Math.round(y)) + .5 + hsh(k, 3) * 1.1;
     s.position.set(x, by, y); g.add(s); FIREFLIES.push({ s, x, y, by, ph:hsh(k, 5) * 6.28, sp:.25 + hsh(k, 6) * .25 });
@@ -14826,9 +14826,9 @@ function hazeScenery(M, g, spots) {
     const sz = 4 + hsh(k, 7) * 4; s.scale.set(sz, sz * .45, 1); const by = groundY(Math.round(x), Math.round(y)) + .35 + hsh(k, 8) * .5;
     s.position.set(x, by, y); g.add(s); HAZE.push({ s, x, y, by, ph:hsh(k, 9) * 6.28 });
   }
-  for (const [x, y, k] of spots(7, 141, c => c != null && !SOLID.has(c))) {
+  for (const [x, y, k] of spots(5, 141, c => c != null && !SOLID.has(c))) {
     const l = new THREE.PointLight('#6cbcff', 0, 8, 1.4); const by = groundY(Math.round(x), Math.round(y)) + 1.2; l.position.set(x, by, y); g.add(l);
-    const swarm = []; for (let i = 0; i < 6; i++) { const s = glow(i % 2 ? '#e8ffb0' : '#bff4f6', .9, 0); g.add(s); const f = { s, x:x + (hsh(k, i) - .5) * 1.6, y:y + (hsh(k, i, 2) - .5) * 1.6, by:by - .4 + hsh(k, i, 3) * .6, ph:hsh(k, i, 4) * 6.28, sp:.2 + hsh(k, i, 5) * .2 }; FIREFLIES.push(f); }
+    const swarm = []; for (let i = 0; i < 4; i++) { const s = glow(i % 2 ? '#e8ffb0' : '#bff4f6', .9, 0); g.add(s); const f = { s, x:x + (hsh(k, i) - .5) * 1.6, y:y + (hsh(k, i, 2) - .5) * 1.6, by:by - .4 + hsh(k, i, 3) * .6, ph:hsh(k, i, 4) * 6.28, sp:.2 + hsh(k, i, 5) * .2 }; FIREFLIES.push(f); }
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#5aaeff', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); halo.scale.set(5.5, 3.2, 1); g.add(halo);   // the mist around the swarm, lit blue
     FLY_LIGHTS.push({ l, halo, x, y, by, ph:hsh(k, 11) * 6.28 });
   }
