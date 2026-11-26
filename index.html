@@ -5659,7 +5659,7 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); spreadOut(map, t); unhide(map, t); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now) && !(e.manifComp && GONE[map + ':' + e.owner] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); spreadOut(map, t); unhide(map, t); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now) && !(e.manifComp && GONE[map + ':' + e.owner] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir || 'down' } : e.dir ? e : { ...e, dir:'down' }; }); }   // nobody without a facing: a missing dir turns the model's rotation to NaN and it vanishes
 const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
@@ -6917,8 +6917,8 @@ function questEnts(map, base) {
   if (M.kind === 'route') {
     const t = WHEEL.find(k => ROUTES[k].id === map), st = t ? boardState(t) : {};
     // bounty targets stand somewhere you can see them (never tucked behind a hedge or a house) under a gold marker
-    if (t && st.rogue === 1) { const [x, y] = clearSpot(map, 7, 14, all()); out.push({ id:'rogue', x, y, manif:spAt(t, 2, 1), mark:true, markH:1.6, talk:() => fightRogue(t, false) }); }
-    if (t && st.elder === 1) { const [x, y] = clearSpot(map, 18, 6, all()); out.push({ id:'elder', x, y, manif:heartOf(t), big:true, mark:true, markH:2.6, talk:() => fightRogue(t, true) }); }
+    if (t && st.rogue === 1) { const [x, y] = clearSpot(map, 7, 14, all()); out.push({ id:'rogue', x, y, dir:'down', manif:spAt(t, 2, 1), odd:true, mark:true, markH:1.6, talk:() => fightRogue(t, false) }); }
+    if (t && st.elder === 1) { const [x, y] = clearSpot(map, 18, 6, all()); out.push({ id:'elder', x, y, dir:'down', manif:heartOf(t), big:true, odd:true, mark:true, markH:2.6, talk:() => fightRogue(t, true) }); }
     if (map === 'r_siding') { out.push(at2(map, all(), { id:'hesk', moral:'cruel', temper:'judge', noComp:true, look:CHOIR_LOOK, name:'Cantor Hesk', talk:talkHesk }, 14, 32)); if (!c.burned) out.push(at2(map, all(), { id:'oil', item:true, talk:useOil }, 4, 28)); }
     if (map === 'r_throat') { out.push(at2(map, all(), { id:'conductor', moral:'cruel', temper:'judge', noComp:true, look:CONDUCTOR_LOOK, name:'The Conductor', talk:talkConductor }, 13, 5)); }
   }
@@ -7582,7 +7582,7 @@ defScene('CALM', { name:'The Reeds at Dusk', sub:'Moonmoss pond', start:[8, 11],
       : { key:'sl' + i, model:sleeperModel(folkLook('CALM', i + 1)), x, y, talk:() => say(['(Asleep in the grass, breathing slow and even. They don\'t wake when you shake them.)', '(A man asleep on his side, one boot still in the water. He smiles at something in a dream.)', '(An old woman, asleep sitting up, her knitting still in her lap.)', '(A boy asleep with his head on his arms. A fishing line trails from his hand into the pond.)'][i % 4]) }),
     { key:'crates', model:s.smashed ? EV_PROP.shards : EV_PROP.crates, x:7, y:6, talk:() => say('(Wooden crates, half in the water. Bottles inside, packed in straw, every one of them faintly cold.)') },
     { key:'crates2', model:s.smashed ? EV_PROP.shards : EV_PROP.crates, x:10, y:6, talk:() => say('(More crates. Stencilled on the side: HOLLOW CHOIR — HANDLE WITHOUT FEELING.)') },
-    s.sc < 1 && { key:'pondm', manif:spAt('CALM', 2, 1), big:true, x:8, y:3, talk:() => say('(Something huge and pale lies just under the water, breathing with the whole town.)') },
+    s.sc < 1 && { key:'pondm', manif:spAt('CALM', 2, 1), big:true, odd:true, x:8, y:3, talk:() => say('(Something huge and pale lies just under the water, breathing with the whole town.)') },
     s.sc < 2 && { key:'sloe', look:{ ...CHOIR(5), gear:['longcoat', 'satchel'] }, x:14, y:2, dir:'left', name:'Sloe', talk:() => say('Sloe: (Pretending very hard not to be there.)') }
   ],
   intro:async s => { if (s.sc) return evCalmSloe();
@@ -7613,7 +7613,7 @@ function calmPondEnts(map, s, cx, cy, at, all) {
       ? { model:sleeperModel(folkLook('CALM', i + 1)), talk:() => say(['(Asleep in the grass, breathing slow and even, in time with the water. They don\'t wake when you shake them.)', '(A man asleep on his side, one boot still in the pond. He smiles at something in a dream.)', '(An old woman, asleep sitting up, her knitting still in her lap.)', '(A boy asleep with his head on his arms. A fishing line trails from his hand into the pond.)'][i]) }
       : { look:folkLook('CALM', i + 1), name:'Townsfolk', dir:'up', talk:() => say(['(They\'re blinking at the water like they\'ve never seen it before.)', 'Townsfolk: How long was I...? Is it still Tuesday?', 'Townsfolk: I dreamed I was underwater. I could breathe. I didn\'t want to come up.', 'Townsfolk: (Shivering.) Thank you. I think. Thank you.'][i]) }, x, y));
   }
-  if (s.st >= 1 && s.st < 9 && sc < 1) put('pondm', { manif:spAt('CALM', 2, 1), big:true, talk:() => say('(Something huge and pale lies just under the water, breathing with the whole town.)') }, mx, my, true);
+  if (s.st >= 1 && s.st < 9 && sc < 1) put('pondm', { manif:spAt('CALM', 2, 1), big:true, odd:true, talk:() => say('(Something huge and pale lies just under the water, breathing with the whole town.)') }, mx, my, true);
   if (s.st === 2 && s.sc >= 1 && s.sc < 2) put('sloe', { look:{ ...CHOIR(5), gear:['longcoat', 'satchel'] }, name:'Sloe', talk:evCalmSloe }, x1 + 2, y1 + 1);
   return out;
 }
@@ -7758,7 +7758,7 @@ defScene('SADNESS', { name:'The Bell Tower', sub:'Sorrowmere', start:[5, 15], V:
   ents:s => [
     { key:'bell', model:() => { EV_PROP.ringing = !!s.ringing; const g = EV_PROP.bellframe(); EV_PROP.ringing = false; return g; }, x:5, y:1, talk:() => evSadAldous() },
     { key:'aldous', look:pLook('#3a3a4a', '#d8d4cc', SKINS[0], ['hood', 'beard']), x:7, y:2, dir:s.ringing ? 'left' : 'down', name:'Brother Aldous', talk:() => evSadAldous() },
-    s.sc < 1 && { key:'maren', manif:spAt('SADNESS', 2, 2), x:5, y:8, talk:() => evSadMaren() },
+    s.sc < 1 && { key:'maren', manif:spAt('SADNESS', 2, 2), odd:true, x:5, y:8, talk:() => evSadMaren() },
     s.sc < 2 && { key:'m1', look:CHOIR(1), x:3, y:3, dir:'down', name:'Choir mourner', talk:() => evSadMourners() },
     s.sc < 2 && { key:'m2', look:CHOIR(4), x:7, y:4, dir:'down', name:'Choir mourner', talk:() => evSadMourners() },
     !s.crateTaken && { key:'crate', model:() => EV_PROP.jars(!(s.sc >= 3 && !s.dark)), x:2, y:1, talk:() => say(s.sc >= 3 && !s.dark ? '(Empty shelves.)' : '(A month of Sorrowmere\'s grief, in jars. Each one has a name on it.)') },
@@ -14949,10 +14949,10 @@ function clearTracks(M) {
 { const _bw2 = buildWorld; buildWorld = function (id) { try { clearTracks(MAPS[id]); } catch (e) {} return _bw2.apply(this, arguments); }; }
 
 // A spot near (x, y) that the camera can actually see: open ground, nobody on it, and nothing tall (a house, a hedge,
-// a tree, a prop) in the two rows in front of it. Used for anything you've been sent to find.
+// a tree, a prop) in the four rows in front of it, or beside those rows. Used for anything you've been sent to find.
 function clearSpot(map, x0, y0, placed) {
   const M = MAPS[map], T = (a, b) => (M.tiles[b] || [])[a], tall = c => c === 'H' || c === 'D' || c === 'h' || c === '#' || c === 'R' || c === 'o' || c === 'p';
-  const free = (x, y) => !SPACE_BLOCK(T(x, y)) && !(placed || []).some(o => o.x === x && o.y === y) && !tall(T(x, y + 1)) && !tall(T(x, y + 2)) && T(x, y - 1) !== 'D';
+  const free = (x, y) => !SPACE_BLOCK(T(x, y)) && !(placed || []).some(o => o.x === x && o.y === y) && ![1, 2, 3, 4].some(d => tall(T(x, y + d)) || tall(T(x - 1, y + d)) || tall(T(x + 1, y + d))) && T(x, y - 1) !== 'D';
   for (let r = 0; r <= 9; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; const x = x0 + dx, y = y0 + dy;
     if (x >= 2 && y >= 2 && x < M.w - 2 && y < M.h - 2 && free(x, y)) return [x, y]; }
   return spotNear(map, x0, y0, placed);
@@ -15164,7 +15164,23 @@ function orbTick(o) {
 }
 // orbs follow the state of play: take a job, finish it, hand it in, and they change within half a second
 setInterval(() => { for (let i = ORBS.length - 1; i >= 0; i--) { const o = ORBS[i]; if (W.npcs[o.e.id] !== o.host || !o.host.parent) { ORBS.splice(i, 1); continue; } try { orbTick(o); } catch (_) {} } }, 400);
-{ const _mk = evMarkOn; evMarkOn = function (e) { _mk(e); try { questOrbOn(e); } catch (_) {} }; }
+// ODD ONES OUT: a Manif you've been sent to find (a bounty's Rogue or Elder, an event's Manif) glows magenta,
+// a colour no feeling uses, so it can't be mistaken for an ordinary wild one. The glow breathes slowly and never blinks.
+const ODD_C = '#ff3fd8';
+function oddGlowOn(e) {
+  const host = W.npcs[e.id]; if (!host || !e.manif || !e.odd) return;
+  const s = e.big ? 1.6 : 1, g = new THREE.Group();
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:ODD_C, transparent:true, opacity:.5, depthWrite:false, blending:THREE.AdditiveBlending }));
+  halo.scale.set(2.2 * s, 2.2 * s, 1); halo.position.y = .75 * s; halo.renderOrder = 9;
+  halo.onBeforeRender = () => { halo.material.opacity = .42 + .1 * Math.sin(performance.now() / 1000); };
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.5 * s, .7 * s, 40), new THREE.MeshBasicMaterial({ color:ODD_C, transparent:true, opacity:.6, depthWrite:false, side:THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = .05;
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(.5 * s, 40), new THREE.MeshBasicMaterial({ color:ODD_C, transparent:true, opacity:.22, depthWrite:false }));
+  pool.rotation.x = -Math.PI / 2; pool.position.y = .04;
+  const light = new THREE.PointLight(ODD_C, 1.4, 5 * s, 1.6); light.position.y = 1 * s;
+  g.add(pool, ring, halo, light); host.add(g);
+}
+{ const _mk = evMarkOn; evMarkOn = function (e) { _mk(e); try { questOrbOn(e); } catch (_) {} try { oddGlowOn(e); } catch (_) {} }; }
 { const _bw = buildWorld; buildWorld = function (...a) { ORBS.length = 0; return _bw.apply(this, a); }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
