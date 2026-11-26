@@ -5858,6 +5858,7 @@ async function wrenIntro() {
   }
   st.canon = 1; S.canon[st.sp] = 1; S.party.push(st); S.codex.seen[st.sp] = 1; S.codex.kept[st.sp] = 1; rebuildMinis(); auraPulse = 1; sfx('keep');
   await say(`${nm(st)} joins what you carry! It circles you once, quiet and curious.`);
+  if (typeof TEST_STOCK !== 'undefined' && TEST_STOCK && TEST_BUILD) { testStock(st); await say('(Test build: your Manifs are all at Lv 100, five more walk with you, and every other Manif is waiting in your Satchel. Plenty of supplies, too.)'); }
   await say('Wren: Good. Now listen, because this is what everything\'s for. If you forget, come and ask me. I\'m always here by the Archive.');
   for (const k of ['aura', 'meet', 'battle', 'keep', 'grow', 'roads', 'events']) await wrenExplain(k, true);
   S.items.cake = (S.items.cake || 0) + 2; await say('Wren gave you 2 Honey Cakes. They bring back a Manif\'s Composure.');
@@ -16755,14 +16756,27 @@ async function ending(final, kind) {
   });
 }
 // Test build: no saves. Pick a checkpoint every time.
+// Test build: a new journey where, the moment your starter is yours, every Manif is at Lv 100 and every other Manif is in the Satchel.
+let TEST_STOCK = false;
+function testStock(st) {
+  st.lvl = 100; st.moves = movesForSp(st.sp, 100); st.hp = maxHp(st);
+  const team = ['JUBILATION', 'FAITH', 'EQUANIMITY', 'VALOR', 'RAGE'].filter(sp => SPECIES[sp] && sp !== st.sp).slice(0, 5);
+  for (const sp of team) { const m = adopt(newManif(sp, 100)); m.hp = maxHp(m); S.party.push(m); }
+  const have = new Set(S.party.map(m => m.sp));
+  for (const sp of Object.keys(SPECIES)) if (!SPECIES[sp].special && !have.has(sp)) { const m = adopt(newManif(sp, 100)); m.hp = maxHp(m); S.satchel.push(m); }
+  for (const sp of Object.keys(SPECIES)) if (!SPECIES[sp].special) { S.codex.seen[sp] = 1; S.codex.kept[sp] = 1; S.canon[sp] = 1; }
+  S.items = Object.assign(S.items || {}, { cake:30, tonic:20, salts:10, wind:5, hearth:5, charm:5, ember:5, iron:5, quill:3, veil:2, waystone:5 }); S.marks = 9000;
+  rebuildMinis();
+}
 async function testTitle() {
   S = fresh(); buildWorld('vellum'); scene = 'title'; playMusic(THEMES.title);
   $('#title').classList.remove('hidden'); $('#hud').classList.add('hidden'); $('#tools').classList.add('hidden');
   await fadeTo(0, 600); await titleGate();
-  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · every Manif Lv 100' }, { label:'After the good ending', sub:'The world restored · every Manif Lv 100' }, { label:'After the evil ending', sub:'The Grand Chord sung · every Manif Lv 100' }, { label:'New Journey', sub:'From the very beginning' }, { label:'Credits' }], { layout:'center', cancel:false });
+  const c = await choose([{ label:'Before the final battle', sub:'All 10 Hearts settled · every Manif Lv 100' }, { label:'After the good ending', sub:'The world restored · every Manif Lv 100' }, { label:'After the evil ending', sub:'The Grand Chord sung · every Manif Lv 100' }, { label:'Start of the game, stocked', sub:'A new journey · every Manif Lv 100' }, { label:'New Journey', sub:'From the very beginning' }, { label:'Credits' }], { layout:'center', cancel:false });
   $('#title').classList.add('hidden');
-  if (c === 4) { await showCredits(); return testTitle(); }
-  if (c === 3) return 'new';
+  if (c === 5) { await showCredits(); return testTitle(); }
+  if (c === 3) { TEST_STOCK = true; return 'new'; }
+  if (c === 4) { TEST_STOCK = false; return 'new'; }
   await fadeTo(1, 400); S = makeTestSave(['final', 'good', 'evil'][c]); if (S.flags.restored) applyRestored();
   buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
   await fadeTo(0, 400); toast(MAPS[S.map].name, 'Test checkpoint · nothing is saved');
