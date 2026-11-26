@@ -14810,7 +14810,7 @@ function calmScenery(M, g, spots) {
   }
   // fireflies: soft round lights that drift. No blinking: brightness changes only over a slow ten-second breath.
   const hazy = M.kind === 'route' && !!(ROUTE_LOOK[M.theme] && ROUTE_LOOK[M.theme].haze);
-  const n = hazy ? 30 : M.kind === 'city' ? 34 : 26;
+  const n = hazy ? 13 : M.kind === 'city' ? 34 : 26;
   for (const [x, y, k] of spots(n, 81, c => c && !SOLID.has(c) && c !== 'D')) {
     const s = glow(k % 4 ? '#e8ffb0' : '#bff4f6', .95, 0); const by = groundY(Math.round(x), Math.round(y)) + .5 + hsh(k, 3) * 1.1;
     s.position.set(x, by, y); g.add(s); FIREFLIES.push({ s, x, y, by, ph:hsh(k, 5) * 6.28, sp:.25 + hsh(k, 6) * .25 });
@@ -14824,12 +14824,12 @@ function hazeScenery(M, g, spots) {
   for (const [x, y, k] of spots(46, 131, c => c != null && c !== '#')) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#a6d2f6', transparent:true, opacity:0, depthWrite:false }));
     const sz = 4 + hsh(k, 7) * 4; s.scale.set(sz, sz * .45, 1); const by = groundY(Math.round(x), Math.round(y)) + .35 + hsh(k, 8) * .5;
-    s.position.set(x, by, y); g.add(s); HAZE.push({ s, x, y, by, ph:hsh(k, 9) * 6.28 });
+    s.position.set(x, by, y); s.renderOrder = 1 + HAZE.length; g.add(s); HAZE.push({ s, x, y, by, sz, ph:hsh(k, 9) * 6.28 });
   }
-  for (const [x, y, k] of spots(5, 141, c => c != null && !SOLID.has(c))) {
-    const l = new THREE.PointLight('#6cbcff', 0, 8, 1.4); const by = groundY(Math.round(x), Math.round(y)) + 1.2; l.position.set(x, by, y); g.add(l);
+  for (const [x, y, k] of spots(3, 141, c => c != null && !SOLID.has(c))) {
+    const l = new THREE.PointLight('#6cbcff', 0, 13, 1.1); const by = groundY(Math.round(x), Math.round(y)) + 1.2; l.position.set(x, by, y); g.add(l);
     const swarm = []; for (let i = 0; i < 4; i++) { const s = glow(i % 2 ? '#e8ffb0' : '#bff4f6', .9, 0); g.add(s); const f = { s, x:x + (hsh(k, i) - .5) * 1.6, y:y + (hsh(k, i, 2) - .5) * 1.6, by:by - .4 + hsh(k, i, 3) * .6, ph:hsh(k, i, 4) * 6.28, sp:.2 + hsh(k, i, 5) * .2 }; FIREFLIES.push(f); }
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#5aaeff', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); halo.scale.set(5.5, 3.2, 1); g.add(halo);   // the mist around the swarm, lit blue
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#5aaeff', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); halo.scale.set(5.5, 3.2, 1); halo.renderOrder = 40; g.add(halo);   // the mist around the swarm, lit blue
     FLY_LIGHTS.push({ l, halo, x, y, by, ph:hsh(k, 11) * 6.28 });
   }
 }
@@ -14851,14 +14851,19 @@ function flowerScenery(M, g, spots, n) {
     for (let f = 0; f < 7; f++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.05, 5, 4), toon(cols[(k + f) % cols.length])); d.position.set(x + (hsh(k, f) - .5) * .5, b.position.y + .08 + hsh(k, f, 3) * .2, y + (hsh(k, f, 2) - .5) * .5); g.add(d); }
   }
 }
+// Every light keeps a fixed place in the draw order (mist first, then halos, then fireflies), so nothing pops or flickers
+// when two of them drift past each other.
+function fixFly(f) { if (f.base == null) { f.base = f.s.scale.x; f.s.renderOrder = 60; } }
 function sceneryTick(dt) {
   if (!FIREFLIES.length && !HAZE.length) return;
   const t = performance.now() / 1000, night = typeof dayState === 'function' ? dayState().night : 0;
   for (const h of HAZE) { h.s.position.x = h.x + Math.sin(t * .05 + h.ph) * 1.2; h.s.position.z = h.y + Math.cos(t * .04 + h.ph) * .8;
     h.s.material.color.copy(HZ_DAY).lerp(HZ_NIGHT, night); h.s.material.opacity = (.3 + .12 * night) * (.9 + .1 * Math.sin(t * .3 + h.ph)); }   // a pale veil by day, a deep blue one after dark
   if (HAZE.length && W.water) { W.water.material.color.copy(HZ_WATER).lerp(HZ_WATER_N, night); W.water.material.emissiveIntensity = .15 * (1 - night) + .04; }
-  for (const L of FLY_LIGHTS) { L.l.position.set(L.x + Math.sin(t * .12 + L.ph) * .8, L.by, L.y + Math.cos(t * .1 + L.ph) * .8); const br = .92 + .08 * Math.sin(t * .5 + L.ph); L.l.intensity = (.1 + 1.05 * night) * br; L.halo.position.set(L.l.position.x, L.by - .5, L.l.position.z); L.halo.material.opacity = (.04 + .4 * night) * br; }
+  for (const L of FLY_LIGHTS) { L.l.position.set(L.x + Math.sin(t * .12 + L.ph) * .8, L.by, L.y + Math.cos(t * .1 + L.ph) * .8); const br = .92 + .08 * Math.sin(t * .5 + L.ph); L.l.intensity = (.1 + 1.05 * night) * br; L.halo.position.set(L.l.position.x, L.by - .5, L.l.position.z); L.halo.material.opacity = (.04 + .4 * night) * br; L.halo.scale.set(5.5 + 3.5 * night, 3.2 + 2 * night, 1); }
+  const hz = HAZE.length > 0;
   for (const f of FIREFLIES) {
+    fixFly(f); if (hz) f.s.scale.setScalar(f.base * (1 + .9 * night));   // after dark each firefly's glow reaches farther
     f.s.position.set(f.x + Math.sin(t * f.sp + f.ph) * .6, f.by + Math.sin(t * f.sp * .7 + f.ph * 2) * .25, f.y + Math.cos(t * f.sp * .8 + f.ph) * .5);
     f.s.material.opacity = (.35 + .5 * night) * (.9 + .1 * Math.sin(t * .6 + f.ph));   // a slow breath, ±10%
   }
