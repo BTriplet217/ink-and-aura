@@ -126,6 +126,7 @@ body.running #pad .k[data-k="b"]{background:rgba(232,184,74,.55);color:var(--ink
 .mi{width:30px;height:30px;border-radius:50%;border:2px solid var(--ink);flex:none;box-shadow:inset -4px -5px 0 rgba(0,0,0,.18),inset 3px 3px 0 rgba(255,255,255,.35);position:relative}
 .mi.t1::after,.mi.t2::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(27,21,18,.5)}
 .mi.t2::after{border-style:dashed;border-color:#1b1512;inset:-6px}
+#ecard .mi{display:inline-block;width:7px;height:7px;border-radius:1px;border-width:1.5px;transform:rotate(45deg);box-shadow:none;margin:0 9px 0 3px;vertical-align:.12em}#ecard .mi::after{display:none}
 .rowname{font-weight:800;min-width:78px;line-height:1.15}
 .rowname small{font-weight:600;color:var(--muted)}
 .rowmeta{display:flex;flex-direction:column;gap:3px;margin-left:auto;width:120px}
@@ -8302,8 +8303,7 @@ async function indifferentEnding() {
   await say('Across the plaza they find the others. Maribel tries to run with Tobin and doesn\'t make it out of the plaza. The ink goes into her like water into sand. Tobin stands over her, waiting for her to get up.');
   await say('Sable fights. She lasts longer than anyone. When it\'s over, what\'s left of her is spread across the cobbles in a long dark smear, and the Manif that did it is already moving on.');
   await say('Not everyone is here to see it. Many left the Welkin while the roads were still open, and they got out unharmed.');
-  await say('The Dragon\'s Table emptied out before the floor ever split. Morwen packed the maps, Saffi carried the dice tin, Tam carried Lio on his shoulders, and Brand walked at the back the whole way, watching the road. They got out together, and they are safe.');
-  await say('The far places never felt it. Once the last people fleeing the mainland were through, the gates to the Coast Road and the Dustline were chained shut for good. Clover left the Pinewind before the grey could walk past her door, and built a smaller cabin on the Coast Road.');
+  await say('The far places never felt it. Once the last people fleeing the mainland were through, the gates to the Coast Road and the Dustline were chained shut for good.');
   await say('Holdfast saw it coming up the road and went below. The hatch is barred, and a man in grey sleeves knocks on it, calling for his father.');
   await say('People come out of their houses to watch. Nobody helps. Nobody screams. They have already started going grey. One by one they sit down where they stand.');
   await say('Wren is still holding the hem of your coat. She says your name one more time. Then her hand goes slack, and her face goes smooth and polite, and she isn\'t there anymore.');
