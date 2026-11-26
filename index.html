@@ -3859,7 +3859,8 @@ function buildHub() {
   for (const g of Object.values(GATES)) carve(m, g.road);
   const house = (x, y, w, roof, extra = {}) => { rect(m, x, y, w, 4, 'H'); m[y + 3][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w, roof, wall:'#ece0c2', ...extra }); };
   house(13, 11, 6, '#4f5f80', { name:'archive', lamp:true });
-  carve(m, [[21, 19], [28, 20], [31, 25]]); m[24][30] = '=';   // the Confidence road bends behind the bakery
+  carve(m, [[21, 19], [28, 20], [29, 21], [29, 25]]);   // the Confidence road bends behind the bakery and joins the gate road inside the trees
+  for (let y = 21; y <= 24; y++) { m[y][30] = '#'; m[y][31] = '#'; }   // trees close the east edge beside the Confidence gate, like every other gate (26 Nov)
   house(22, 21, 5, '#a8452f', { name:'bakery', chimney:true });   // set back two rows from the south trees
   // the Inkgutter black market: a shabby two-storey house by the Fear road, its door facing the road
   house(1, 17, 6, '#3e3844', { name:'blackmarket', role:'blackmarket', wall:'#5e5560' }); m[21][1] = '#'; m[21][2] = 'o'; for (let x = 3; x <= 5; x++) m[21][x] = '=';   // a rain barrel and crates stand at (1–2, 21)
@@ -7190,8 +7191,9 @@ function eventEnts(map, taken) {
   if (city('SURPRISE')) { const s = evS('SURPRISE'); at({ id:'ev_dot', look:DOT, name:'Dot Pim', talk:evSurpDot, mark:ask0('SURPRISE') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_tibbs', look:DOT, name:'Tibbs Pim', talk:() => say('Tibbs Pim: (He jumps when you speak, then smiles.) Sorry. It\'s you. That\'s all right, then.') }, cx - 3, cy + 1); }
   if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', model:EV_PROP.mirror, talk:evSurpMirror, mark:evS('SURPRISE').st < 9, markH:2.3 }, 6, 20);
   // 6 SADNESS
-  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:ask0('SADNESS') }, cx - 4, cy); prop('ev_tower', 'tower', evSadTower, cx + 8, cy + 13, 'SADNESS', 3.9);   // out in the open square by the south gate, well away from the fountain
-    mem('ev_maren', cx + 10, cy + 13, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
+  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:ask0('SADNESS') }, cx - 4, cy); prop('ev_tower', 'tower', evSadTower, cx + 18, cy + 12, 'SADNESS', 6.1);   // across the canal in the open ground, clear of the houses (26 Nov)
+    { const tw = out[out.length - 1]; if (!M._blk) M._blk = new Map(); for (const [dx, dy] of [[-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]) { const c = (M.tiles[tw.y + dy] || [])[tw.x + dx]; if (c && !SOLID.has(c) && c !== 'D') decoBlock(M, tw.x + dx, tw.y + dy); } }   // the tower is big now: its footprint is solid, the front step stays open   // out in the open square by the south gate, well away from the fountain
+    mem('ev_maren', cx + 20, cy + 13, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
   // 7 FEAR
   if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine, mark:ask0('FEAR') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
     if (s.hanged) mem('ev_gallows', cx + 5, cy - 3, '(The gallows in the square. Nobody has taken it down yet. Nobody walks under it.)'); }
@@ -7318,7 +7320,7 @@ const EV_PROP = {
   mirror:() => { const g = new THREE.Group(); g.add(place(inkBox(.8, 1.7, .08, PM('#b8902a')), 0, .9, 0));
     g.add(place(new THREE.Mesh(new THREE.PlaneGeometry(.62, 1.45), new THREE.MeshStandardMaterial({ color:'#c8d4dc', metalness:.6, roughness:.25 })), 0, .9, .05));
     g.add(place(inkBox(.5, .3, .08, PM('#3a3430')), .6, .5, -.1)); for (const x of [.48, .6, .72]) g.add(place(cyl(.03, .03, .26, '#2a2a2a', 6), x, .72, -.06)); return g; },
-  tower:() => { const g = new THREE.Group(); g.add(place(inkBox(1, 2.6, 1, PM('#8a8a90')), 0, 1.3, 0));
+  tower:() => { const g = new THREE.Group(); g.scale.set(1.6, 1.7, 1.35); g.add(place(inkBox(1, 2.6, 1, PM('#8a8a90')), 0, 1.3, 0));   // a proper bell tower: twice the bulk, taller than the houses
     const roof = new THREE.Mesh(new THREE.ConeGeometry(.82, .9, 4), PM('#3a4a6a')); roof.rotation.y = Math.PI / 4; g.add(place(roof, 0, 3.05, 0));
     g.add(place(inkBox(.4, .7, .05, PM('#2a2018')), 0, .35, .51)); g.add(place(inkBox(.3, .4, .05, PM('#1a1a20')), 0, 2.2, .51)); g.add(place(cyl(.16, .24, .28, '#b8902a', 12), 0, 2.15, .3)); return g; },
   cage:() => { const g = new THREE.Group(); g.add(place(inkBox(.9, .06, .9, PM('#3a3028')), 0, .03, 0)); g.add(place(inkBox(.9, .06, .9, PM('#3a3028')), 0, 1.1, 0));
@@ -7437,6 +7439,13 @@ const EV_HELD = {
 };
 // Move the player somewhere else in the scene (a short fade, as if you ran there).
 async function evRun(x, y, dir = 'up') { await fadeTo(1, 600); S.x = x; S.y = y; S.dir = dir; if (W.player) { W.player.position.set(x, groundY(x, y), y); W.player.rotation.y = DIR_YAW[dir]; } await wait(150); await fadeTo(0, 600); }
+// You walk somewhere in the scene, a tile at a time, at walking pace (no fade): into the ring, beside a friend.
+async function evHeroTo(x, y, dir) {
+  for (let n = 0; n < 40 && (S.x !== x || S.y !== y); n++) { const dx = Math.sign(x - S.x), dy = Math.sign(y - S.y);
+    mv.fx = S.x; mv.fy = S.y; mv.diag = !!(dx && dy); mv.yaw = null; S.x += dx; S.y += dy; S.dir = dy < 0 ? 'up' : dy > 0 ? 'down' : dx < 0 ? 'left' : 'right'; mv.t = 0; mv.active = true;
+    while (mv.active) await wait(16); }
+  if (dir) S.dir = dir;
+}
 // Someone walks away out of the scene and is gone.
 async function evExit(t, keys, x, y, ms = 1500) { await evWalk(t, keys.map(k => [k, x, y, 'down']), ms); const s = evS(t); s.gone = s.gone || {}; for (const k of keys) s.gone[k] = 1; evRedrawOne(...keys); }
 // Sitting down (Gorse in the mud) or lying still without being hurt.
@@ -7650,7 +7659,8 @@ defScene('CONFIDENCE', { name:'The Proving Ring', sub:'Highcrest', start:[8, 12]
     s.sc === 0 && { key:'dace', look:pLook('#8a6a3a', '#3a2a1a', SKINS[1], ['stout', 'beard']), x:1, y:7, dir:'right', name:'Dace Morrow', talk:() => evConfRound() },
     s.sc === 1 && { key:'hilde', look:pLook('#c8a03a', '#d8c060', SKINS[0], ['longcoat']), x:15, y:7, dir:'left', name:'Hilde Brannock', talk:() => evConfRound() },
     !s.idrisDead && s.st < 9 && { key:'idris', look:IDRIS, x:10, y:3, dir:'down', name:'Idris Kell', talk:() => evConfRound() },
-    s.sc >= 2 && s.st < 9 && { key:'marro', look:{ ...CHOIR(2), coat:'#5a5a62', gear:['longcoat', 'tall'] }, x:12, y:11, dir:'up', name:'Marro', talk:() => evConfRound() }
+    s.sc >= 2 && s.st < 9 && { key:'marro', look:{ ...CHOIR(2), coat:'#5a5a62', gear:['longcoat', 'tall'] }, x:12, y:11, dir:'up', name:'Marro', talk:() => evConfRound() },
+    ...(s.guards ? [0, 1].map(i => ({ key:'guard' + i, look:pLook('#3a4a6a', i ? '#2a1a10' : '#6a4a2a', SKINS[i ? 3 : 1], ['cap', 'stout']), x:7 + i * 2, y:13, dir:'up', name:'Highcrest guard', talk:() => say('Highcrest guard: Move along, please. Nothing to see.') })) : [])
   ],
   intro:async s => { await say('(The Proving ring is packed. Every balcony in Highcrest has people hanging off it. Someone is selling roasted nuts. Someone else is already crying.)'); await evConfRound(); } });
 async function evConfHerald() { const s = evS('CONFIDENCE');
@@ -7664,14 +7674,14 @@ async function evConfHerald() { const s = evS('CONFIDENCE');
 }
 async function evConfRound() { const s = evS('CONFIDENCE'); if (s.st >= 9) return;
   if (s.sc === 0) {
-    await say('Herald: First bout! Dace Morrow, quarry foreman, who once arm-wrestled a mule!'); await evWalk('CONFIDENCE', [['dace', 7, 9, 'down']], 1300);
+    await say('Herald: First bout! Dace Morrow, quarry foreman, who once arm-wrestled a mule!'); await Promise.all([evHeroTo(8, 9, 'up'), evWalk('CONFIDENCE', [['dace', 8, 5, 'down']], 1500)]);   // both inside the ring, facing each other across it
     if (!await evFight('Dace Morrow', [[spAt('CONFIDENCE', 1, 0), evLv('CONFIDENCE', -3)]])) return;
     s.sc = 1; await say('Dace Morrow: (Rubbing his shoulder, grinning.) Fair. Fair! Go get \'em.'); evRedraw(); }
   if (s.sc === 1) {
-    await say('Herald: Second bout! Hilde Brannock, who has never apologised for anything!'); await evWalk('CONFIDENCE', [['hilde', 9, 9, 'down']], 1300);
+    await say('Herald: Second bout! Hilde Brannock, who has never apologised for anything!'); await Promise.all([evHeroTo(8, 9, 'up'), evWalk('CONFIDENCE', [['hilde', 8, 5, 'down']], 1500)]);
     if (!await evFight('Hilde Brannock', [[spAt('CONFIDENCE', 1, 1), evLv('CONFIDENCE', -2)], [spAt('CONFIDENCE', 1, 2), evLv('CONFIDENCE', -2)]])) return;
     s.sc = 2; await say('Hilde Brannock: (She doesn\'t apologise. She does shake your hand.)'); evRedraw();
-    await say('(Between bouts, a soft-voiced man in a good grey coat comes and stands beside you.)'); await evWalk('CONFIDENCE', [['marro', 9, 11, 'left']], 1100);
+    await say('(Between bouts, a soft-voiced man in a good grey coat comes and stands beside you.)'); await evWalk('CONFIDENCE', [['marro', 9, 9, 'left']], 1300);
     await say('Marro: Lovely work. A word. When Idris is crowned on the high stair, I\'ll be standing close, and I\'ll take what he has. All of it. Twenty years of never doubting himself. Do you know what that\'s worth?');
     await say('Marro: You\'ll win the final either way. Just don\'t look round when he\'s on the stair.'); await evHoldUp(EV_HELD.purse(), '(A purse, heavy, presses into your hand.)');
     const d = await ask('Marro\'s purse', ['Warn Idris', 'Keep the purse and say nothing']);
@@ -7679,14 +7689,22 @@ async function evConfRound() { const s = evS('CONFIDENCE'); if (s.st >= 9) retur
     else { await evWalk('CONFIDENCE', [['idris', 9, 6, 'down']], 1000); await say('Idris Kell: (He listens, very still.) Marro. I\'ve seen him at every Proving for six years. Thank you. Fight me properly, and then we\'ll deal with him together.'); }
     s.sc = 3; }
   if (s.sc === 3) {
-    await say('Herald: The final! Idris Kell, champion of Highcrest!'); await evWalk('CONFIDENCE', [['idris', 8, 9, 'down']], 1100);
+    await say('Herald: The final! Idris Kell, champion of Highcrest!'); await Promise.all([evHeroTo(8, 9, 'up'), evWalk('CONFIDENCE', [['idris', 8, 5, 'down']], 1500)]);
     if (!await evFight('Idris Kell', [[spAt('CONFIDENCE', 2, 0), evLv('CONFIDENCE', -1)], [spAt('CONFIDENCE', 2, 1), evLv('CONFIDENCE')]])) return;
     s.sc = 4;
     if (s.warned) {
-      await say('(As the crowd roars, Marro steps out with a phial uncorked. Idris turns to face him. So do you.)'); await evWalk('CONFIDENCE', [['marro', 9, 10, 'up']], 800);
+      await say('(As the crowd roars, Marro steps out with a phial uncorked. Idris turns to face him. So do you.)');
+      await Promise.all([evHeroTo(6, 8, 'right'), evWalk('CONFIDENCE', [['idris', 6, 6, 'right'], ['marro', 10, 7, 'left']], 1600)]);   // you and Idris side by side across the ring from Marro
       if (!await evFight('Marro', [[spAt('CONFIDENCE', 1, 2), evLv('CONFIDENCE', -1)], [spAt('SHAME', 1, 0), evLv('CONFIDENCE')]])) { s.sc = 3; return; }
-      await evExit('CONFIDENCE', ['marro'], 8, 13, 1600);
-      await say('(The Highcrest guard drags Marro off through the crowd. Idris laughs, and puts the champion\'s sash over your head himself.)');
+      // the guard comes through the gap, takes him by both arms, and walks him out
+      s.guards = 1; evRedrawOne('guard0', 'guard1');
+      await evWalk('CONFIDENCE', [['guard0', 10, 6, 'down'], ['guard1', 10, 8, 'up']], 1700);
+      await say('Highcrest guard: That\'ll do, sir. Outside.');
+      await evWalk('CONFIDENCE', [['marro', 8, 12, 'down'], ['guard0', 7, 12, 'down'], ['guard1', 9, 12, 'down']], 2000);
+      await evWalk('CONFIDENCE', [['marro', 8, 15, 'down'], ['guard0', 7, 15, 'down'], ['guard1', 9, 15, 'down']], 1500);
+      s.gone = s.gone || {}; for (const k of ['marro', 'guard0', 'guard1']) s.gone[k] = 1; evRedrawOne('marro', 'guard0', 'guard1');
+      await evWalk('CONFIDENCE', [['idris', 7, 7, 'right']], 700); S.dir = 'left';
+      await say('(The Highcrest guard walks Marro out through the crowd. Idris laughs, and puts the champion\'s sash over your head himself.)');
       s.st = 9; await evReward(400, [['iron', 3], ['ember', 2], ['quill', 1]]);
     } else {
       await say('(You climb the high stair to be crowned. Idris climbs beside you, gracious in defeat.)'); await evWalk('CONFIDENCE', [['idris', 8, 2, 'up']], 1500);
@@ -9722,7 +9740,7 @@ async function talkLottie() {
   const glEx = GL.exit; GL.exit = (nx, ny) => nx >= GL.w ? { map:'r_pinewind', x:1, y:14, dir:'right' } : glEx(nx, ny);
   GL.set.push({ k:'gatepost', x:24, y:11.5, r:0 });
   for (const y of [38, 39]) for (let x = 44; x < VH.w; x++) VH.tiles[y][x] = '=';
-  VH.set = VH.set || []; VH.set.push({ k:'gatepost', x:46, y:38.5, r:0 });
+  VH.set = VH.set || []; VH.set.push({ k:'gatepost', x:VH.w - 3, y:38.5, r:0 });   // in the tree line where the road leaves town, not out in the open (26 Nov: the town is wider now)
   const vhEx = VH.exit; VH.exit = (nx, ny) => nx >= VH.w ? { map:'r_dustline', x:1, y:9, dir:'right' } : vhEx(nx, ny);
 })();
 
@@ -12144,7 +12162,8 @@ const ANIMALS = [
   ['saltmere', 'gull', 10, 8, 'left', 'A gull is eyeing the fisherman\'s bait bucket. It has done this before.'],
   ['saltmere', 'gull', 14, 12, 'down', 'A gull circles the ice-cream cart, lands, and pretends it was always here.'],
   ['saltmere', 'cat', 31, 18, 'down', 'A ginger harbour cat, fat on fish heads. It lets you scratch behind one ear, then leaves.', { c:'#e0904a' }],
-  ['r_pinewind', 'deer', 18, 5, 'right', 'A doe, standing very still between the pines. When you breathe out, she\'s gone and back again, further off.'],
+  // (26 Nov) the Pinewind doe is gone: at game scale it read as a stray dog in the trees
+  // ['r_pinewind', 'deer', 18, 5, 'right', 'A doe, standing very still between the pines. When you breathe out, she\'s gone and back again, further off.'],
   ['r_pinewind', 'rabbit', 33, 23, 'left', 'A rabbit freezes in the bracken, sure that if it doesn\'t move, you can\'t see it.'],
   ['holdfast', 'dog', 24, 13, 'down', 'A big shaggy dog with a red collar. It decides you\'re all right and leans its whole weight on your leg.', { c:'#6a4a32', collar:1 }],
   ['holdfast', 'chicken', 15, 20, 'right', 'A hen scratches at the dirt, finds something, and is very pleased about it.'],
@@ -13435,24 +13454,24 @@ ITEMS.doctorate = { name:'Honorary Doctorate', key:true, desc:'Quillsby Universi
 const SNOW_V = REGION_VIBE({ sky:'#dfe8f0', fog:'#e8eef4', fogNear:14, fogFar:44, hemi:'#ffffff', sun:1.7, ground:['#eef2f4', '#e4eaee', '#f4f6f8'], tall:['#c8d4dc', '#d4dee4', '#bcc8d0'], trees:'conifer', treeC:['#3a5a4a', '#46665a', '#2f4a3e'], road:'#a8a49c', parts:'petals', partC:['#ffffff', '#f4f8fc'], groundFog:'#f4f8fc', fogOp:.3 });
 farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecrown', V:SNOW_V, music:'switchback', side:'east', rail:true, origin:{ map:'r_siding', x:24, y:29, dir:'left' }, town:{ map:'whitecrown', x:1, y:16, dir:'right' },
   arrive:'The old branch road climbs out of the Siding and into the snow. The air goes thin and sweet. Somewhere ahead, dogs are barking, happily, all at once.', sign:'WHITECROWN 2 →. Chains required. (Someone has added, in pencil: "and patience".)',
-  deco:B => { B.piece('sled', 19, 11); rect(B.m, 40, 3, 9, 3, '~'); B.piece('icefall', 49, 3, 2, 3); B.piece('snowman', 32, 12); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 12, 4, ','); rect(B.m, 26, 13, 24, 4, ','); },
+  deco:B => { B.piece('sled', 19, 11); rect(B.m, 40, 3, 9, 3, '~'); B.piece('icefall', 49, 3, 2, 3); B.piece('snowman', 32, 14); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 12, 4, ','); rect(B.m, 26, 13, 24, 4, ','); },
   npcs:() => [
     npc('muleman', 14, 11, 'down', 'Mule driver', lk('#6a4a3a', '#e8dcc0', SK[3], '#3a2414', ['cap', 'scarf', 'beard']), talks('muleman', 'Mule driver', [
       { light:"Bessie and me carry the post up. She likes you. She doesn't like anybody.", even:'Mind the ice on the bends. Mind Bessie, too. She bites.', hurt:'Put your hand on Bessie\'s neck. Go on. She\'s warm, and she doesn\'t ask questions.', shadow:'(He moves the mule between you and the post bags.)' },
       'Letters up, letters down. Half of what goes up is from Quillsby. Professors writing to the Vale house, still, two hundred years on. Nobody writes back. They keep writing.',
       () => S.flags.locket ? 'You were in the Vale house? Folk up top say they saw a light in the kitchen window. First time in two hundred years.' : 'The Vale house is up top, at the bottom of the lane. Nobody goes in. I leave a letter on the step at midwinter. Don\'t know who for. My dad did too.' ])),
-    npc('hiker', 38, 11, 'down', 'Hiker', lk('#c0503a', '#f3e7c9', SK[1], '#e2c070', ['satchel', 'scarf']), async () => {
+    npc('hiker', 38, 13, 'up', 'Hiker', lk('#c0503a', '#f3e7c9', SK[1], '#e2c070', ['satchel', 'scarf']), async () => {
       if (!S.flags.hikerHelp) { await sayAs('Hiker', 'I came up to see the snow. Then I sat down to look at the view and my legs stopped agreeing with me.');
         const c = await ask("Hiker: You don't have anything warm, do you?", ['Share a Honey Cake', 'Keep walking']);
         if (c === 0 && (S.items.cake || 0) > 0) { S.items.cake--; S.flags.hikerHelp = 1; pay(60); return sayAs('Hiker', "Oh, that's better. Here, 60 Marks, for your trouble. And look up when you get there. At night. Promise."); }
         if (c === 0) return say('(You don\'t have a Honey Cake.)'); return; }
       return talks('hiker2', 'Hiker', ['Legs are agreeing again. Mostly. I\'m going to stay for the stars tonight. They say you can see all ten from up here, if the snow stops.', 'I\'m from Trothaven. Down there everyone waits for trains. Up here everyone waits for dark. I like it better.', () => nightNow() ? 'Look. (She points up.) That\'s the Hope. That\'s mine. I\'m having it.' : 'I\'ll wait for dark. Everyone up here does. It\'s the local hobby.'])(); }),
-    npc('wr_skier', 26, 11, 'down', 'Skier', lk('#2a6a8a', '#f3e7c9', SK[2], '#141014', ['cap', 'scarf']), talks('wr_skier', 'Skier', [
+    npc('wr_skier', 26, 13, 'up', 'Skier', lk('#2a6a8a', '#f3e7c9', SK[2], '#141014', ['cap', 'scarf']), talks('wr_skier', 'Skier', [
       'I came up for the slopes. There aren\'t any slopes. It\'s all one slope, at a slant. I\'ve been going down it for three days.',
       'The cable car hasn\'t run since the old operator retired. Pieter says the new one\'s waiting for "a reason". I don\'t know what that means.',
       { light:'Race you to the top! (She doesn\'t race. Nobody could race on this.)', even:'Brr. Brr. Brr.', shadow:'(She pushes off down the slope, fast, and doesn\'t look back.)' } ])),
     look('wr_hut', 52, 13, 'Line hut', '(A platelayers\' hut, door frozen shut. Through the window: a kettle, a calendar from forty years ago, and a pair of boots left neatly by the stove, waiting.)'),
-    look('wr_snowman', 32, 12, 'Snowman', '(A snowman with a pipe and two very serious stick arms. Someone has given it a scarf and a library card.)') ] });
+    look('wr_snowman', 32, 14, 'Snowman', '(A snowman with a pipe and two very serious stick arms. Someone has given it a scarf and a library card.)') ] });
 (function buildWhitecrown() {
   const B = regionBuilder('whitecrown', 42, 34), m = B.m; border(m, 2);
   rect(m, 0, 16, 40, 2, '='); rect(m, 19, 6, 2, 24, '='); rect(m, 2, 26, 38, 1, '=');
@@ -14333,8 +14352,16 @@ SET.sled = p => { const g = new THREE.Group(); for (const z of [-.32, .32]) { sB
   for (const x of [-.6, 0, .6]) for (const z of [-.32, .32]) sBox(g, .05, .26, .05, '#5a3a24', x, .2, z);
   sBox(g, 1.5, .05, .72, '#8a6a48', 0, .34, 0); sBox(g, .5, .25, .66, '#a8452f', -.3, .5, 0); for (const z of [-.32, .32]) sBox(g, .05, .7, .05, '#5a3a24', -.78, .65, z); sBox(g, .05, .05, .7, '#5a3a24', -.78, 1.0, 0);
   sBox(g, .06, .02, .02, '#3a2a1a', 1.2, .25, 0, { ink:0 }); return g; };
-SET.icefall = p => { const g = new THREE.Group(); sBox(g, 2.2, 3.2, .8, '#7a7e84', 0, 1.6, -.4); for (let i = 0; i < 9; i++) { const h = 1.2 + hsh(p.x, i) * 1.8; const c = sCyl(g, .05, .16 + hsh(i, p.y) * .1, h, '#dff0f8', -.9 + i * .22, 3.1 - h / 2, 0, null, { seg:6, ink:0 }); c.rotation.x = Math.PI; c.material.transparent = true; c.material.opacity = .8; }
-  sBox(g, 2.4, .15, 1.2, '#e8f4fa', 0, .08, .4, { ink:0 }); return g; };
+// The frozen falls (26 Nov): a dark rock cliff with a waterfall frozen down its face — ribbed columns of blue-white
+// ice that bulge where they hit the bottom and spread into a frozen plunge pool, icicles along the lip.
+SET.icefall = p => { const g = new THREE.Group();
+  sBox(g, 2.8, 3.4, 1, '#5e646c', 0, 1.7, -.55); sBox(g, 1.1, 2.6, .9, '#6c727a', -1.25, 1.3, -.35); sBox(g, 1, 2.9, .9, '#666c74', 1.3, 1.45, -.4);   // the cliff, in uneven slabs
+  sBox(g, 1.7, 3.3, .22, '#a9d4ea', 0, 1.65, .02, { ink:0, mo:{ transparent:true, opacity:.88 } });   // the sheet of ice down the face
+  for (let i = 0; i < 6; i++) { const x = -.7 + i * .28, r = .1 + hsh(p.x, i) * .07, h = 2.6 + hsh(i, p.y) * .7;   // the ribs where the water ran thickest
+    sCyl(g, r * .8, r * 1.35, h, i % 2 ? '#dff1fa' : '#c4e4f4', x, h / 2 + .05, .16, null, { seg:8, ink:0 }); }
+  sCyl(g, 1.25, 1.35, .14, '#d6ecf6', 0, .07, .75, null, { seg:24, ink:0 });   // the frozen plunge pool
+  for (let i = 0; i < 9; i++) { const h = .35 + hsh(p.x, i + 9) * .55; const c = sCyl(g, .04, .1, h, '#eef8fc', -1.3 + i * .32, 3.4 - h / 2, -.02, null, { seg:6, ink:0 }); c.rotation.x = Math.PI; }   // icicles along the lip
+  return g; };
 const DOGS = ['Pepper', 'Moss', 'Bracken', 'Sleet'], DOG_C = ['#3a3a3a', '#a07a4a', '#6a4a32', '#d8d4cc'];
 async function sledRide() {
   const so = SETOBJS.find(s => s.p.k === 'sled'); if (!so || S.map !== 'r_switchback') return;
@@ -14346,7 +14373,11 @@ async function sledRide() {
   const seat = new THREE.Object3D(); seat.position.set(-.1, .4, 0); sled.add(seat); S.dir = 'right'; RIDE.on = true; RIDE.anchor = seat;
   const place = (x, run) => { sled.position.set(x, gy(x), z0); dogs.forEach((d, i) => { const dx = x + 1.6 + Math.floor(i / 2) * .9, dz = z0 + (i % 2 ? .35 : -.35); d.position.set(dx, gy(dx), dz); critterAnim(d, performance.now() / 1000 * (run ? 4 : 1)); }); };
   place(x0, false); await say('Ingrid: Hike! (The dogs lean into the traces, all four at once, and the sled jerks, slides, and then flies.)');
-  await tween(4200, k => { const e = k * k * (3 - 2 * k); place(x0 + (MAPS.r_switchback.w + 2 - x0) * e, true); musher.userData.inner && (musher.userData.inner.rotation.z = Math.sin(k * 30) * .04); });
+  // the run stops short of the tree line at the far end (the dogs are 2.5 tiles ahead of the sled), and anything that
+  // has wandered onto the trail (a wild Manif, a passer-by) steps out of sight while the sled goes by
+  const xEnd = MAPS.r_switchback.w - 6, lane = Object.entries(W.npcs).filter(([id, o]) => !/^sw_/.test(id) && o.visible && Math.abs(o.position.z - z0) < 1.2 && o.position.x > x0 - .5).map(([, o]) => o);
+  const wl = (W.wilds || []).filter(w => w.g.visible && Math.abs(w.g.position.z - z0) < 1.2 && w.g.position.x > x0 - .5).map(w => w.g); [...lane, ...wl].forEach(o => o.visible = false);
+  await tween(4200, k => { const e = k * k * (3 - 2 * k); place(x0 + (xEnd - x0) * e, true); musher.userData.inner && (musher.userData.inner.rotation.z = Math.sin(k * 30) * .04); });
   RIDE.on = false; await fadeTo(1, 800);
   S.map = 'whitecrown'; S.x = 2; S.y = 16; S.dir = 'right'; ENTC.t = 0; buildWorld('whitecrown'); playMusic(themeFor('whitecrown')); await fadeTo(0, 800);
   await say(pickA(['(The sled skids to a stop at the edge of Whitecrown. Four dogs look back at you, very pleased with themselves. Ingrid turns them round for the run back down.)', '(Snow in your collar, snow in your hair, and a grin you can\'t get off your face. Ingrid waves and the dogs are gone back down the road in a spray of white.)']));
@@ -14363,7 +14394,7 @@ const MUSHER_LOOK = lk('#3a5a7a', '#c0503a', SK[2], '#e2c070', ['hat', 'scarf'])
     if (auraSide() === 'shadow') return; return sledRide(); }),
   look('sw_falls', 49, 4, 'Frozen falls', '(A waterfall, frozen solid mid-fall. Inside the ice you can see the water still moving, very slowly, the way a thought keeps going when you\'ve stopped saying it.)'),
   look('sw_hole', 45, 5, 'Fishing hole', '(A round hole cut in the ice, a line going down into the black. Something tugs it, once, and stops.)'),
-  look('wr_snowman', 32, 12, 'Snowman', '(A snowman with a pipe and two very serious stick arms. Someone has given it a scarf and a library card.)'),
+  look('wr_snowman', 32, 14, 'Snowman', '(A snowman with a pipe and two very serious stick arms. Someone has given it a scarf and a library card.)'),
   npc('sw_fisher', 44, 6, 'up', 'Ice fisherman', lk('#5a4a3a', '#e8dcc0', SK[0], '#f4f1e8', ['hat', 'scarf', 'beard']), talks('sw_fisher', 'Ice fisherman', [
     'Shh. They can hear you through the ice. Well. They can\'t. But I like to think they\'re listening.',
     'Forty winters on this pond. Caught a perch the size of my boot in \'71. Threw it back. It looked at me like it knew my mother.',
@@ -14845,8 +14876,8 @@ function hazeScenery(M, g, spots) {
   }
   for (const [x, y, k] of spots(3, 141, c => c != null && !SOLID.has(c))) {
     const l = new THREE.PointLight('#6cbcff', 0, 13, 1.1); const by = groundY(Math.round(x), Math.round(y)) + 1.2; l.position.set(x, by, y); g.add(l);
-    const swarm = []; for (let i = 0; i < 4; i++) { const s = glow(i % 2 ? '#e8ffb0' : '#bff4f6', .9, 0); g.add(s); const f = { s, x:x + (hsh(k, i) - .5) * 1.6, y:y + (hsh(k, i, 2) - .5) * 1.6, by:by - .4 + hsh(k, i, 3) * .6, ph:hsh(k, i, 4) * 6.28, sp:.2 + hsh(k, i, 5) * .2 }; FIREFLIES.push(f); }
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#5aaeff', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); halo.scale.set(5.5, 3.2, 1); halo.renderOrder = 40; g.add(halo);   // the mist around the swarm, lit blue
+    const swarm = []; for (let i = 0; i < 4; i++) { const s = glow(i % 2 ? '#e8ffb0' : '#bff4f6', .9, 0); g.add(s); const f = { s, x:x + (i % 2 ? 1 : -1) * (.9 + hsh(k, i) * .7), y:y + (i < 2 ? 1 : -1) * (.9 + hsh(k, i, 2) * .7), by:by - .4 + hsh(k, i, 3) * .6, ph:hsh(k, i, 4) * 6.28, sp:.2 + hsh(k, i, 5) * .2 }; FIREFLIES.push(f); }
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#5aaeff', transparent:true, opacity:0, depthWrite:false, blending:THREE.NormalBlending })); halo.scale.set(5.5, 3.2, 1); halo.renderOrder = 40; g.add(halo);   // the mist around the swarm, lit blue
     FLY_LIGHTS.push({ l, halo, x, y, by, ph:hsh(k, 11) * 6.28 });
   }
 }
@@ -14870,19 +14901,19 @@ function flowerScenery(M, g, spots, n) {
 }
 // Every light keeps a fixed place in the draw order (mist first, then halos, then fireflies), so nothing pops or flickers
 // when two of them drift past each other.
-function fixFly(f) { if (f.base == null) { f.base = f.s.scale.x; f.s.renderOrder = 60; } }
+function fixFly(f) { if (f.base == null) { f.base = f.s.scale.x; f.s.renderOrder = 60; f.s.material.blending = THREE.NormalBlending; f.s.material.needsUpdate = true; } }   // normal blending: where glows overlap they stay their own soft colour and never add up to a bright white blot (26 Nov)
 function sceneryTick(dt) {
   if (!FIREFLIES.length && !HAZE.length) return;
   const t = performance.now() / 1000, night = typeof dayState === 'function' ? dayState().night : 0;
   for (const h of HAZE) { h.s.position.x = h.x + Math.sin(t * .05 + h.ph) * 1.2; h.s.position.z = h.y + Math.cos(t * .04 + h.ph) * .8;
     h.s.material.color.copy(HZ_DAY).lerp(HZ_NIGHT, night); h.s.material.opacity = (.3 + .12 * night) * (.9 + .1 * Math.sin(t * .3 + h.ph)); }   // a pale veil by day, a deep blue one after dark
   if (HAZE.length && W.water) { W.water.material.color.copy(HZ_WATER).lerp(HZ_WATER_N, night); W.water.material.emissiveIntensity = .15 * (1 - night) + .04; }
-  for (const L of FLY_LIGHTS) { L.l.position.set(L.x + Math.sin(t * .12 + L.ph) * .8, L.by, L.y + Math.cos(t * .1 + L.ph) * .8); const br = .92 + .08 * Math.sin(t * .5 + L.ph); L.l.intensity = (.1 + 1.05 * night) * br; L.halo.position.set(L.l.position.x, L.by - .5, L.l.position.z); L.halo.material.opacity = (.04 + .4 * night) * br; L.halo.scale.set(5.5 + 3.5 * night, 3.2 + 2 * night, 1); }
+  for (const L of FLY_LIGHTS) { L.l.position.set(L.x + Math.sin(t * .12 + L.ph) * .8, L.by, L.y + Math.cos(t * .1 + L.ph) * .8); const br = .92 + .08 * Math.sin(t * .5 + L.ph); L.l.intensity = (.08 + .55 * night) * br; L.halo.position.set(L.l.position.x, L.by - .5, L.l.position.z); L.halo.material.opacity = (.03 + .16 * night) * br; L.halo.scale.set(5.5 + 3.5 * night, 3.2 + 2 * night, 1); }
   const hz = HAZE.length > 0;
   for (const f of FIREFLIES) {
-    fixFly(f); if (hz) f.s.scale.setScalar(f.base * (1 + .9 * night));   // after dark each firefly's glow reaches farther
+    fixFly(f); if (hz) f.s.scale.setScalar(f.base * (1 + .35 * night));   // after dark each firefly's glow reaches farther
     f.s.position.set(f.x + Math.sin(t * f.sp + f.ph) * .6, f.by + Math.sin(t * f.sp * .7 + f.ph * 2) * .25, f.y + Math.cos(t * f.sp * .8 + f.ph) * .5);
-    f.s.material.opacity = (.35 + .5 * night) * (.9 + .1 * Math.sin(t * .6 + f.ph));   // a slow breath, ±10%
+    f.s.material.opacity = (.3 + .35 * night) * (.9 + .1 * Math.sin(t * .6 + f.ph));   // a slow breath, ±10%
   }
 }
 { const _rt = rideTick; rideTick = function (dt) { _rt(dt); sceneryTick(dt); }; }
