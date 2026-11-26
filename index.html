@@ -5664,7 +5664,7 @@ const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someon
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
   if (M.kind === 'hub') {
-    out.push(introDone() ? { id:'wren', x:17, y:15, dir:'down', look:LOOKS.wren, talk:talkWren } : { id:'wren', x:17, y:18, dir:'left', look:LOOKS.wren, talk:talkWren });
+    out.push(introDone() ? { id:'wren', x:18, y:15, dir:'down', look:LOOKS.wren, talk:talkWren } : { id:'wren', x:17, y:18, dir:'left', look:LOOKS.wren, talk:talkWren });
     out.push({ id:'maribel', x:26, y:25, dir:'left', look:LOOKS.maribel, talk:talkMaribel });
     out.push({ id:'tobin', moral:'kind', x:12, y:20, dir:'right', look:LOOKS.tobin, talk:talkTobin });
     out.push(f.lookoutMoved ? { id:'lookout', x:5, y:21, dir:'left', look:LOOKS.lookout, talk:talkLookout } : { id:'lookout', x:4, y:21, dir:'down', look:LOOKS.lookout, talk:talkLookout });   // stands in front of the black market's door until you have the look
@@ -9129,7 +9129,7 @@ function regionEnts(map) {
 const npc = (id, x, y, dir, name, look, talk, o = {}) => ({ id, x, y, dir, name, look, talk, folk:!!(look && look.small), ...o });
 const sayAs = (name, line) => say(`${name}: ${line}`);
 // A person who likes some auras and not others. Liked: warm. Not liked: turned away, sometimes threatened.
-function judged(name, likes, warm, cold) { return () => { const s0 = auraSide(), L = Array.isArray(likes) ? likes : [likes], s = s0 === 'hurt' && !L.includes('hurt') ? 'even' : s0; const ok = likes === 'any' || (Array.isArray(likes) ? likes.includes(s) : likes === s); return ok ? warm() : cold(); }; }
+function judged(name, likes, warm, cold) { const f = () => { const s0 = auraSide(), L = Array.isArray(likes) ? likes : [likes], s = s0 === 'hurt' && !L.includes('hurt') ? 'even' : s0; const ok = likes === 'any' || (Array.isArray(likes) ? likes.includes(s) : likes === s); return ok ? warm() : cold(); }; f.src = [warm, cold].map(x => x ? (x.src || '') + '\n' + String(x) : '').join('\n'); return f; }   // .src: what the two moods' talks do, for the service badges
 
 // ---------------------------------------------------------------- new items
 Object.assign(ITEMS, {
@@ -13066,7 +13066,7 @@ async function sayLine(name, L) {
   return sayAs(name, L);
 }
 const rotIdx = (k, n) => { S.rot = S.rot || {}; const i = (S.rot[k] || 0) % n; S.rot[k] = i + 1; return i; };
-function talks(id, name, lines) { return async () => { S.rot = S.rot || {}; const i = (S.rot[id] || 0) % lines.length; S.rot[id] = i + 1; return sayLine(name, lines[i]); }; }
+function talks(id, name, lines) { const f = async () => { S.rot = S.rot || {}; const i = (S.rot[id] || 0) % lines.length; S.rot[id] = i + 1; return sayLine(name, lines[i]); }; f.src = lines.map(String).join('\n'); return f; }   // .src lets the service markers read what they do
 const look = (id, x, y, name, text) => npc(id, x, y, 'up', name, null, typeof text === 'function' ? text : () => say(text), { invisible:true });
 const sign = (id, x, y, text) => look(id, x, y, 'Sign', text);
 
@@ -15182,6 +15182,71 @@ function oddGlowOn(e) {
 }
 { const _mk = evMarkOn; evMarkOn = function (e) { _mk(e); try { questOrbOn(e); } catch (_) {} try { oddGlowOn(e); } catch (_) {} }; }
 { const _bw = buildWorld; buildWorld = function (...a) { ORBS.length = 0; return _bw.apply(this, a); }; }
+
+// =============================================================================
+//  SERVICES (26 Nov) — anyone who mends your Manifs or sells you things wears a small round badge over their head,
+//  and so does a bed you can rest in or a counter you can buy at.
+//    green badge with a white heart : rest here (everything you carry is composed again)
+//    amber badge with a white coin  : goods for sale
+//  Both, side by side, for keepers. Badges are steady: no bob, no blink. The real-friend characters never get one.
+//  What a person offers is read from what their talk actually does (openShop / healAll), following named
+//  helpers two levels down, so new shopkeepers are picked up without a list.
+// =============================================================================
+const SVC_SEEN = new Map();
+function svcSrc(f, depth) {
+  if (!f) return ''; let s = (f.src || '') + '\n' + String(f);
+  if (depth > 0) for (const n of new Set(s.match(/\b(talk[A-Z]\w*|\w+Talk)\b/g) || [])) {
+    let g; try { g = eval(n); } catch (_) { continue; }   // direct eval sees the module's own functions
+    if (typeof g === 'function' && g !== f) s += '\n' + svcSrc(g, depth - 1);
+  }
+  return s;
+}
+function svcOf(e) {
+  if (!e || !e.talk || ORB_REAL.test(e.id || '') || e.manif || e.invisible) return null;
+  if (e.id === 'wren' && e.talk === talkWren) return { heal:true, shop:true };   // her talk is wrapped (the Vale Locket), so say it outright: she rests you and keeps the Archive Supply
+  if (SVC_SEEN.has(e.talk)) return SVC_SEEN.get(e.talk);
+  const s = svcSrc(e.talk, 2), r = { heal:/\bhealAll\(/.test(s), shop:/\bopenShop\(/.test(s) }, out = r.heal || r.shop ? r : null;
+  SVC_SEEN.set(e.talk, out); return out;
+}
+const SVC_TEX = {};
+function svcTex(kind) {
+  if (SVC_TEX[kind]) return SVC_TEX[kind];
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.beginPath(); x.arc(64, 64, 58, 0, Math.PI * 2); x.fillStyle = kind === 'heal' ? '#4f9a6a' : '#d99a2b'; x.fill();
+  x.lineWidth = 7; x.strokeStyle = '#fff6e0'; x.stroke();
+  x.fillStyle = '#fffaf0';
+  if (kind === 'heal') {   // a heart
+    x.beginPath(); x.moveTo(64, 96); x.bezierCurveTo(22, 70, 26, 34, 50, 34); x.bezierCurveTo(58, 34, 62, 40, 64, 46);
+    x.bezierCurveTo(66, 40, 70, 34, 78, 34); x.bezierCurveTo(102, 34, 106, 70, 64, 96); x.fill();
+  } else {   // a coin with a mark struck in it
+    x.beginPath(); x.arc(64, 64, 30, 0, Math.PI * 2); x.fill(); x.lineWidth = 5; x.strokeStyle = '#d99a2b';
+    x.beginPath(); x.arc(64, 64, 21, 0, Math.PI * 2); x.stroke(); x.font = 'bold 30px Lora, serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#b97a14'; x.fillText('M', 64, 66);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return SVC_TEX[kind] = t;
+}
+function svcBadges(sv, h) {
+  const g = new THREE.Group(), kinds = ['heal', 'shop'].filter(k => sv[k]);
+  kinds.forEach((k, i) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:svcTex(k), transparent:true, depthWrite:false }));
+    sp.scale.set(.42, .42, 1); sp.position.set((i - (kinds.length - 1) / 2) * .46, h, 0); sp.renderOrder = 13; g.add(sp); });
+  return g;
+}
+function svcOn(e) {
+  const host = W.npcs[e.id]; if (!host) return; const sv = svcOf(e); if (!sv) return;
+  const raised = e.mark || ORBS.some(o => o.host === host);   // above an orb or a diamond, never on top of it
+  host.add(svcBadges(sv, (e.markH || 2.12) + (raised ? .5 : 0)));
+}
+// beds you can rest in and counters you can buy at, unless someone right beside them already wears the badge
+function svcFurniture(id) {
+  const M = MAPS[id]; if (!M || !M.set) return;
+  const people = ents(id).filter(e => svcOf(e));
+  for (const p of M.set) {
+    const sv = { heal:p.use === 'rest', shop:p.use === 'shop' }; if (!sv.heal && !sv.shop) continue;
+    if (people.some(e => Math.abs(e.x - p.x) <= 3 && Math.abs(e.y - p.y) <= 3 && (!sv.shop || svcOf(e).shop) && (!sv.heal || svcOf(e).heal))) continue;
+    const g = svcBadges(sv, 1.5); g.position.set(p.x, groundY(p.x, p.y), p.y); world.add(g);
+  }
+}
+{ const _mk = evMarkOn; evMarkOn = function (e) { _mk(e); try { svcOn(e); } catch (_) {} }; }
+{ const _bw = buildWorld; buildWorld = function (id, ...a) { const r = _bw.call(this, id, ...a); try { svcFurniture(id || S.map); } catch (_) {} return r; }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -16698,10 +16763,10 @@ async function titleFlow() {
   await fadeTo(1, 400);
   S = fresh(); S.hero = hero; S.name = name; S.x = 16; S.y = 18; S.dir = 'up'; buildWorld('vellum');
   $('#intro').classList.remove('hidden'); scene = 'intro'; await fadeTo(0, 400);
-  await say('In the Welkin, feelings don\'t stay inside people.');
-  await say('They rise like weather. Sometimes they fall to earth and take a shape: Manifestations. Manifs, for short.');
-  await say('Ten towns ring the village of Vellum. Each one is ruled by a single feeling, at its most intense.');
-  await say('Some feelings heal. Some stain. And whatever you carry, the world can see.');
+  await say('(In the Welkin, feelings don\'t stay inside people.)');   // the opening is told, not spoken: narration box
+  await say('(They rise like weather. Sometimes they fall to earth and take a shape: Manifestations. Manifs, for short.)');
+  await say('(Ten towns ring the village of Vellum. Each one is ruled by a single feeling, at its most intense.)');
+  await say('(Some feelings heal. Some stain. And whatever you carry, the world can see.)');
   await fadeTo(1, 400); $('#intro').classList.add('hidden'); scene = 'world'; npcFace.wren = 'down'; placePlayer(true);
   $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden');
   await fadeTo(0, 500); toast('Vellum', 'The centre of the Welkin');
