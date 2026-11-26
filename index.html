@@ -8283,9 +8283,9 @@ async function wrenBeg() {
 }
 
 // ---------------------------------------------------------------- the indifferent ending
-const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id];   // the Welkin only: the far places are safe, and the results page says so once
+const RUIN_TOUR = () => ['vellum', ...TOWN_ORDER.map(t => TOWNS[t].id), WAYTOWNS.HOPE.id, WAYTOWNS.ANGER.id, 'r_coast'];   // the Welkin, then one last look at Clover and Ashlynn
 const TOUR_START = { r_coast:[52, 13], r_dustline:[4, 10], holdfast:[5, 15] };   // the far stops open on what matters there: the shut gates, the man at Holdfast's fence
-const TOUR_SUB = { r_coast:'The gate to the mainland is chained shut, for good', r_dustline:'The gate to the mainland is chained shut, for good', holdfast:'Everyone went below. The hatch is barred.' };
+const TOUR_SUB = { r_coast:'Clover\'s new cabin. Ashlynn is reading one of her books', r_dustline:'The gate to the mainland is chained shut, for good', holdfast:'Everyone went below. The hatch is barred.' };
 let BEG_MEM = null;   // the test build keeps the 'Wren begs' checkpoint in memory only
 async function indifferentEnding() {
   const narr = t => say('(' + t + ')');   // everything here is told, not spoken: it goes in the narration box
@@ -10302,8 +10302,21 @@ function cloverOnCoast() {
     'The gulls here are rude. I like them.', 'Don\'t look at me like that. I am not crying. It\'s the sea air.', 'Somebody has to live by the gate. It might as well be someone with a bat.'];
   const model = () => { const g = buildPerson(CLOVER_LOOK); holdItem(g, 'bat'); return g; };
   return [{ id:'clover_hut', x:52, y:13, dir:'down', name:'Clover\'s new cabin', model:hut, folk:false, real:true, scenery:true },
-    { id:'clover_coast', x:51, y:15, dir:'down', name:'Clover', model, folk:false, real:true, talk:() => sayAs('Clover', lines[(CL().line++) % lines.length]) }];
+    { id:'clover_coast', x:51, y:15, dir:'down', name:'Clover', model, folk:false, real:true, talk:() => sayAs('Clover', lines[(CL().line++) % lines.length]) },
+    // Ashlynn came up the coast to keep her company: sitting on Clover's box of books, reading one of them
+    { id:'ashlynn_coast', x:53, y:15, dir:'down', name:'Ashlynn', model:ashlynnReading, folk:false, real:true, talk:() => sayAs('Ashlynn', ASHLYNN_COAST[(CL().aline = ((CL().aline || 0) + 1)) % ASHLYNN_COAST.length]) }];
 }
+const ASHLYNN_COAST = ['(Ashlynn turns a page without looking up.) She lent me this one. Says if I dog-ear it she\'ll throw me in the sea.', 'I paddled up from Saltmere. Somebody had to make sure she was eating.',
+  '(She holds the book up so you can see the cover.) Chapter nine. Don\'t tell me what happens.', 'Clover reads out loud when she thinks I\'m asleep. I\'m never asleep.'];
+function ashlynnReading() {
+  const g = new THREE.Group(), p = buildPerson({ ...ASHLYNN_LOOK, gear:(ASHLYNN_LOOK.gear || []).filter(k => k !== 'paddle') }); p.userData.sit = true; p.position.y = .38; g.add(p);
+  sBox(g, .62, .4, .46, '#8a6440', 0, .2, -.08); for (let i = 0; i < 3; i++) sBox(g, .26, .06, .18, ['#2a4a6a', '#8a2a2a', '#c8a050'][i], -.12 + i * .12, .43, .1, { rot:[0, i * .4, 0] });   // the box of books she's sitting on
+  const bk = new THREE.Group(); for (const s of [-1, 1]) { const pg = new THREE.Group(); pg.rotation.y = s * .32; bk.add(pg);   // the open book in her hands, a blue cover
+    pg.add(part(new THREE.BoxGeometry(.12, .16, .015), '#f3eee2', [s * .062, 0, 0], { ink:0 }));
+    for (let i = 0; i < 5; i++) pg.add(part(new THREE.BoxGeometry(.08, .006, .002), '#8a8072', [s * .062, .05 - i * .024, -.009], { ink:0 }));
+    pg.add(part(new THREE.BoxGeometry(.13, .17, .008), '#2a4a6a', [s * .064, 0, .012], { ink:0 })); }
+  bk.position.set(0, .7, .3); bk.rotation.x = .7; p.userData.inner.add(bk); p.userData.book = bk;
+  return g; }
 MAPS[CLOVER_ROOM].room.npcsFn = cloverPeople; MAPS[CLOVER_ROOM].set.push({ k:'rug', x:5, y:5.6 });
 { const base = REGION_NPCS.r_pinewind; REGION_NPCS.r_pinewind = () => [...base(),
     npc('signcl', 9, 18, 'up', 'Sign', null, () => say('CLOVER\'S ↓  (Hand-painted, with a little leaf. Underneath, smaller: "Visitors welcome. With notice. Ideally.")'), { invisible:true })]; }
