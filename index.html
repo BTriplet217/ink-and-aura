@@ -6643,16 +6643,16 @@ async function talkClerk(t) {
   const c = await ask('Clerk: Notices, pinned three deep. Pick one.', ready.map(x => ({ label:x.title, sub:x.active() ? 'in progress' : 'new' })).concat([{ label:'Leave' }]));
   const pick = ready[c]; if (!pick) return;
   if (pick.k === 'rogue') {
-    if (st.rogue === 1) return say(`Clerk: Still out there. ${R.name}, off the main path. You\'ll know it when the air goes wrong.`);
+    if (st.rogue === 1) return say(`Clerk: Still out there on ${R.name}. Look for the gold marker over it. You\'ll know it when the air goes wrong.`);
     st.rogue = 1; await say(`Clerk: ${cap(rogueName)}. Nobody knows whose feeling it was. Now ${ROGUE_BLURB[t]}.`);
-    return say(`Clerk: ${T.lv[1] * 15 + 120} Marks to whoever settles it. Bring back proof, or don\'t come back. Either way the board gets cleaner.`);
+    return say(`Clerk: ${T.lv[1] * 15 + 120} Marks to whoever settles it. You\'ll find it on ${R.name}, under a gold marker. Bring back proof, or don\'t come back. Either way the board gets cleaner.`);
   }
   if (pick.k === 'miss') {
     if (st.miss === 2) { st.miss = 3; const m = T.lv[1] * 12 + 90; pay(m); await say(`Clerk: You found ${MISSING[t].who.split(' ')[0]}. Alive. You\'d be surprised how rare that is these days.`); await say(`You earned ${m} Marks.`); return giveItem(['tonic', 'charm', 'hearth', 'salts'][WHEEL.indexOf(t) % 4]); }
     if (st.miss === 1) return say(`Clerk: Try the old house in ${T.name}. People hide in old houses when they\'re ashamed of being lost.`);
     st.miss = 1; return say(`Clerk: ${MISSING[t].who}. Family says they walked to ${T.name} a fortnight back and never came home. The Choir\'s been seen there. Look, will you? Before the Choir does.`);
   }
-  if (st.elder === 1) return say(`Clerk: It\'s at the far end of ${R.name}. Bring everything you have.`);
+  if (st.elder === 1) return say(`Clerk: It\'s at the far end of ${R.name}, under a gold marker. Bring everything you have.`);
   st.elder = 1; return say(`Clerk: Since the Codex closed, something has been walking ${R.name} that\'s older than the road. Old as the war. ${T.lv[1] * 25 + 600} Marks. I don\'t expect to pay it.`);
 }
 async function fightRogue(t, elder) {
@@ -6916,8 +6916,9 @@ function questEnts(map, base) {
   if (M.kind === 'way') { const t = M.vibe; out.push(at2(map, all(), { id:'clerk', look:CLERK_LOOK, name:'Notice clerk', talk:() => talkClerk(t) }, 10, 12)); }
   if (M.kind === 'route') {
     const t = WHEEL.find(k => ROUTES[k].id === map), st = t ? boardState(t) : {};
-    if (t && st.rogue === 1) { const [x, y] = spotNear(map, 7, 14, all()); out.push({ id:'rogue', x, y, manif:spAt(t, 2, 1), talk:() => fightRogue(t, false) }); }
-    if (t && st.elder === 1) { const [x, y] = spotNear(map, 18, 6, all()); out.push({ id:'elder', x, y, manif:heartOf(t), big:true, talk:() => fightRogue(t, true) }); }
+    // bounty targets stand somewhere you can see them (never tucked behind a hedge or a house) under a gold marker
+    if (t && st.rogue === 1) { const [x, y] = clearSpot(map, 7, 14, all()); out.push({ id:'rogue', x, y, manif:spAt(t, 2, 1), mark:true, markH:1.6, talk:() => fightRogue(t, false) }); }
+    if (t && st.elder === 1) { const [x, y] = clearSpot(map, 18, 6, all()); out.push({ id:'elder', x, y, manif:heartOf(t), big:true, mark:true, markH:2.6, talk:() => fightRogue(t, true) }); }
     if (map === 'r_siding') { out.push(at2(map, all(), { id:'hesk', moral:'cruel', temper:'judge', noComp:true, look:CHOIR_LOOK, name:'Cantor Hesk', talk:talkHesk }, 14, 32)); if (!c.burned) out.push(at2(map, all(), { id:'oil', item:true, talk:useOil }, 4, 28)); }
     if (map === 'r_throat') { out.push(at2(map, all(), { id:'conductor', moral:'cruel', temper:'judge', noComp:true, look:CONDUCTOR_LOOK, name:'The Conductor', talk:talkConductor }, 13, 5)); }
   }
@@ -6926,7 +6927,7 @@ function questEnts(map, base) {
   }
   if (M.kind === 'inside') {
     const pm = MAPS[M.route], t = pm && pm.kind === 'city' ? pm.vibe : null;
-    if (t && map === TOWNS[t].id + '_room' + MISSING[t].room && boardState(t).miss === 1) out.push(at2(map, all(), { id:'missing', look:roomLook(t, 9, { dark:true }), name:MISSING[t].who, talk:() => findMissing(t) }, 3, 3));
+    if (t && map === TOWNS[t].id + '_room' + MISSING[t].room && boardState(t).miss === 1) out.push(at2(map, all(), { id:'missing', mark:true, markH:2.3, look:roomLook(t, 9, { dark:true }), name:MISSING[t].who, talk:() => findMissing(t) }, 3, 3));
   }
   if (M.kind === 'still' && postgame() && S.flags.gift) out.push(at2(map, all(), { id:'superboss', look:S.flags.doom ? LOOKS.wren : ORRIN_LOOK, name:S.flags.doom ? 'Wren' : 'Orrin Vale', talk:talkSuperboss }, 10, 9));
   out.push(...evilEnts(map, all())); out.push(...wardenEnts(map, all())); out.push(...eventEnts(map, all())); out.push(...epiEnts(map, all())); out.push(...lastEnts(map, all()));
@@ -14946,6 +14947,16 @@ function clearTracks(M) {
     for (const r of M.rails || []) if (Array.isArray(r) && r[0] === x) { r[1] = 0; r[2] = M.h - 1; } }
 }
 { const _bw2 = buildWorld; buildWorld = function (id) { try { clearTracks(MAPS[id]); } catch (e) {} return _bw2.apply(this, arguments); }; }
+
+// A spot near (x, y) that the camera can actually see: open ground, nobody on it, and nothing tall (a house, a hedge,
+// a tree, a prop) in the two rows in front of it. Used for anything you've been sent to find.
+function clearSpot(map, x0, y0, placed) {
+  const M = MAPS[map], T = (a, b) => (M.tiles[b] || [])[a], tall = c => c === 'H' || c === 'D' || c === 'h' || c === '#' || c === 'R' || c === 'o' || c === 'p';
+  const free = (x, y) => !SPACE_BLOCK(T(x, y)) && !(placed || []).some(o => o.x === x && o.y === y) && !tall(T(x, y + 1)) && !tall(T(x, y + 2)) && T(x, y - 1) !== 'D';
+  for (let r = 0; r <= 9; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; const x = x0 + dx, y = y0 + dy;
+    if (x >= 2 && y >= 2 && x < M.w - 2 && y < M.h - 2 && free(x, y)) return [x, y]; }
+  return spotNear(map, x0, y0, placed);
+}
 // =============================================================================
 //  WHEN THE CHORD IS SUNG (25 Nov)
 //  The Dragon's Table and Clover are based on real people: they never go grey. The moment the Grand Chord rings
@@ -15101,6 +15112,60 @@ async function coastBeating(ash) {
   await wakeSafe(ash ? 'You wake in a bed at the Hotel Saltmere with a lump on your head the shape of a paddle blade, and another the shape of a bat. The clerk hands you a note in two handwritings: "Do not come back. — C." Underneath, smaller: "She means it. So do I. — A."'
     : 'You wake in a bed at the Hotel Saltmere with a lump on your head exactly the shape of a bat. The clerk hands you a note: "Do not come back. I mean it. I have more bats. — C."');
 }
+// =============================================================================
+//  WORK TO BE HAD (26 Nov) — anyone with a side job for you carries a small glowing orb over their head.
+//    bright orb : they have work to offer, or you can hand it in now
+//    faint orb  : you've taken their job and it isn't finished yet
+//    no orb     : nothing more from them
+//  Story events keep their gold diamond. The people drawn from real friends never get an orb: they're there
+//  to be found. The orb is steady: it never blinks or bobs, and its glow breathes over about six seconds.
+// =============================================================================
+const ORB_REAL = /^(dnd_|dndo_|clover|ashlynn)/;
+function orbState(e) {
+  if (!e || !e.id || ORB_REAL.test(e.id)) return null;
+  const M = MAPS[S.map]; if (!M) return null;
+  const jobs = S.jobs || {};
+  if (e.job && M.kind === 'city') {   // a city's own job-giver
+    const t = M.vibe, i = +e.id.slice(3), j = JOBS[t] && JOBS[t][i]; if (!j) return null;
+    const st = jobs[e.job]; if (st === 'done') return null;
+    if (!st) { const vc = vibeClass(); return (j.tier === 'bright' && vc !== 'bright') || (j.tier === 'dark' && vc !== 'dark') ? 'wait' : 'new'; }
+    if (j.kind === 'settle') return (S.jobProg[e.job] || 0) >= j.n ? 'new' : 'wait';
+    if (j.kind === 'give') return S.party.concat(S.satchel).some(m => typeOf(m) === j.type) ? 'new' : 'wait';
+    return 'wait';   // a delivery: it's handed in at the other end
+  }
+  if (e.id === 'wjob' && M.kind === 'way') { const st = jobs['wjob_' + M.vibe]; return st === 'done' ? null : st === 'active' ? 'wait' : 'new'; }
+  if (e.id === 'clerk' && M.kind === 'way') {
+    const t = M.vibe, b = (S.board || {})[t] || {};
+    if (!b.rogue || !b.miss || b.miss === 2 || (postgame() && !b.elder)) return 'new';
+    if (b.rogue === 1 || b.miss === 1 || b.elder === 1) return 'wait';
+    return null;
+  }
+  if (e.id === 'warden') {
+    const F = S.flags; if (F.hushDone || F.doom || F.fell) return null;
+    const n = Object.keys(S.hearts).length; return !F.wardenMet || n > (F.wardenPaid || 0) ? 'new' : null;
+  }
+  return null;
+}
+const ORBS = [];
+function questOrbOn(e) {
+  const host = W.npcs[e.id]; if (!host || e.mark || orbState(e) == null && !(e.job || ['wjob', 'clerk', 'warden'].includes(e.id))) return;
+  const g = new THREE.Group(), h = (e.markH || 2.12) + (e.big ? .4 : 0);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.13, 20, 14), new THREE.MeshBasicMaterial({ color:'#d9f1ff', transparent:true, opacity:1, depthWrite:false }));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#7cc6ff', transparent:true, opacity:.55, depthWrite:false }));
+  ball.position.y = glow.position.y = h; glow.scale.set(.95, .95, 1); ball.renderOrder = 12; glow.renderOrder = 11; g.add(glow, ball);
+  const o = { e, host, g, ball, glow, st:undefined };
+  glow.onBeforeRender = () => { const k = o.st === 'wait' ? .35 : 1; glow.material.opacity = k * (.48 + .1 * Math.sin(performance.now() / 1000)); };
+  host.add(g); ORBS.push(o); orbTick(o);
+}
+function orbTick(o) {
+  const st = orbState(o.e); if (st === o.st) return; o.st = st;
+  o.g.visible = !!st; const dim = st === 'wait';
+  o.ball.material.opacity = dim ? .45 : 1; o.ball.scale.setScalar(dim ? .8 : 1); o.glow.scale.set(dim ? .7 : .95, dim ? .7 : .95, 1);
+}
+// orbs follow the state of play: take a job, finish it, hand it in, and they change within half a second
+setInterval(() => { for (let i = ORBS.length - 1; i >= 0; i--) { const o = ORBS[i]; if (W.npcs[o.e.id] !== o.host || !o.host.parent) { ORBS.splice(i, 1); continue; } try { orbTick(o); } catch (_) {} } }, 400);
+{ const _mk = evMarkOn; evMarkOn = function (e) { _mk(e); try { questOrbOn(e); } catch (_) {} }; }
+{ const _bw = buildWorld; buildWorld = function (...a) { ORBS.length = 0; return _bw.apply(this, a); }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
