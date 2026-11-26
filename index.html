@@ -3589,7 +3589,7 @@ function buildHouseX(hd, roofC, wallC) { return withSurf('plaster', () => buildH
 function buildHouseX0(hd, roofC, wallC) {
   const r = (k) => hsh(hd.x * 3 + k, hd.y * 7 + k * 13), role = hd.role || '';
   const g = new THREE.Group(), cx = hd.x + (hd.w - 1) / 2, cz = hd.y + 1.5, fz = hd.y + 3.5, dx = hd.x + Math.floor(hd.w / 2);
-  const notable = !!role, two = notable || r(1) < .35, wh = two ? 2.35 : 1.45;
+  const shady = role === 'blackmarket', notable = !!role, two = notable || r(1) < .35, wh = two ? 2.35 : 1.45;
   const wallCol = new THREE.Color(wallC).offsetHSL((r(2) - .5) * .04, (r(3) - .5) * .1, (r(4) - .5) * .1).getStyle();
   // Roofs never go so dark that they read as a black hole from above (the shadowy towns' slate roofs did, on phone screens):
   // keep at least a third of full lightness so the tiles still show.
@@ -3602,7 +3602,7 @@ function buildHouseX0(hd, roofC, wallC) {
   if (r(8) < .45 || two) g.add(at(inkBox(hd.w - .02, .1, .06, toon(trim), .02), cx, .3 + 1.5, fz - .02));
   if (r(9) < .35) for (let x = hd.x + .5; x < hd.x + hd.w - .5; x += 1) g.add(at(inkBox(.06, wh - .1, .05, toon(trim), .01), x, .3 + wh / 2, fz - .01));
   // roof styles: gable, hip, gambrel, flat-with-parapet, steep
-  const style = notable ? (role === 'archive' ? 'gable' : ['gable', 'hip', 'gambrel'][Math.floor(r(10) * 3)]) : ['gable', 'gable', 'hip', 'gambrel', 'flat', 'steep'][Math.floor(r(10) * 6)];
+  const style = shady ? 'steep' : notable ? (role === 'archive' ? 'gable' : ['gable', 'hip', 'gambrel'][Math.floor(r(10) * 3)]) : ['gable', 'gable', 'hip', 'gambrel', 'flat', 'steep'][Math.floor(r(10) * 6)];
   const top = .3 + wh, rd = 4.6, rl = hd.w + .35;
   const prism = (h, w2, d, y, c) => { const shp = new THREE.Shape(); shp.moveTo(-d / 2, 0); shp.lineTo(d / 2, 0); shp.lineTo(w2 / 2, h); shp.lineTo(-w2 / 2, h); shp.closePath();
     const rg = new THREE.ExtrudeGeometry(shp, { depth:rl, bevelEnabled:false }); rg.rotateY(Math.PI / 2); rg.translate(-rl / 2, 0, 0); const m = new THREE.Mesh(rg, toon(c, { surf:'roof' })); m.castShadow = true; m.position.set(cx, y, cz); const o = new THREE.Mesh(rg, INK); o.scale.set(1.02, 1.04, 1.02); m.add(o); g.add(m); return m; };
@@ -3615,12 +3615,14 @@ function buildHouseX0(hd, roofC, wallC) {
   if (hd.chimney || r(11) < .5) g.add(at(inkBox(.38, 1.1, .38, toon('#8a6b5a', { surf:'stone' }), .03), cx + (r(12) < .5 ? -1 : 1) * (hd.w / 2 - .8), top + .5, cz - .7));
   if ((style === 'gable' || style === 'steep') && hd.w >= 4 && r(13) < .5) { g.add(at(inkBox(.8, .6, .9, toon(wallCol), .02), cx + (r(14) - .5) * (hd.w - 2), top + .35, cz + 1)); g.add(at(inkBox(.4, .3, .05, toon('#a8cfe0', { surf:'auto', emissive:new THREE.Color('#ffe2a0'), emissiveIntensity:.3 }), .01), cx + (r(14) - .5) * (hd.w - 2), top + .38, cz + 1.46)); }
   // door, frame, step, porch or awning
-  g.add(at(inkBox(.6, .95, .1, toon(wood, { surf:'wood' })), dx, .78, fz)); g.add(at(inkBox(.78, .1, .14, toon(trim)), dx, 1.3, fz + .02)); g.add(at(inkBox(.9, .1, .4, toon('#9a8a6e', { surf:'stone' })), dx, .36, fz + .25));
+  g.add(at(inkBox(.6, .95, .1, toon(shady ? '#2e2420' : wood, { surf:'wood' })), dx, .78, fz)); g.add(at(inkBox(.78, .1, .14, toon(trim)), dx, 1.3, fz + .02)); g.add(at(inkBox(.9, .1, .4, toon('#9a8a6e', { surf:'stone' })), dx, .36, fz + .25));
   g.add(at(inkBox(.05, .05, .05, toon('#c9a24a')), dx + .2, .8, fz + .07));
-  if (notable || r(15) < .35) { const aw = notable ? 1.6 : 1.1; const a = at(inkBox(aw, .07, .7, toon(notable ? hd.accent || roofCol : roofCol), .02), dx, 1.62, fz + .35); a.rotation.x = .25; g.add(a); if (r(16) < .5 || notable) for (const sx of [-1, 1]) g.add(at(inkBox(.07, 1.3, .07, toon(wood, { surf:'wood' }), .01), dx + sx * aw * .45, .97, fz + .62)); }
+  if (!shady && (notable || r(15) < .35)) { const aw = notable ? 1.6 : 1.1; const a = at(inkBox(aw, .07, .7, toon(notable ? hd.accent || roofCol : roofCol), .02), dx, 1.62, fz + .35); a.rotation.x = .25; g.add(a); if (r(16) < .5 || notable) for (const sx of [-1, 1]) g.add(at(inkBox(.07, 1.3, .07, toon(wood, { surf:'wood' }), .01), dx + sx * aw * .45, .97, fz + .62)); }
   // windows with sills, shutters and flower boxes; upper row if two storeys
   const flowers = ['#e86a5a', '#ffd36b', '#f2a7c0', '#b8a0e8'];
   for (const row of two ? [1.15, 2.05] : [1.15]) for (let x = hd.x; x < hd.x + hd.w; x++) { if (row < 1.5 && Math.abs(x - dx) < 1) continue;
+    if (shady) { g.add(at(inkBox(.46, .46, .06, toon('#1e1c20', { surf:'auto' })), x, row, fz + .01));   // boarded up: dark glass behind two crossed planks
+      for (const a of [.6, -.5]) { const b = at(inkBox(.62, .09, .04, toon('#6a5440', { surf:'wood' }), .01), x, row, fz + .06); b.rotation.z = a; g.add(b); } g.add(at(inkBox(.56, .06, .12, toon(trim)), x, row - .27, fz + .04)); continue; }
     if (RUIN_BUILD) { g.add(at(inkBox(.46, .46, .06, toon('#1e1c20', { surf:'auto' })), x, row, fz + .01));          // a black hole where the glass was, jagged shards left in the frame
       for (let k = 0; k < 4; k++) { const sh = new THREE.Mesh(new THREE.ConeGeometry(.05 + r(40 + x + k) * .05, .14 + r(50 + x + k) * .12, 3), toon('#9ab0b8')); sh.position.set(x - .18 + (k % 2) * .36, row + (k < 2 ? .2 : -.2), fz + .05); sh.rotation.z = k < 2 ? Math.PI : 0; sh.rotation.y = r(60 + k) * 2; g.add(sh); }
       for (let k = 0; k < 2; k++) { const c = at(inkBox(.3, .015, .01, toon('#d8e4e8'), 0), x + (r(70 + x + k) - .5) * .2, row + (r(80 + k) - .5) * .25, fz + .045); c.rotation.z = (r(90 + x + k) - .5) * 2.4; g.add(c); } }
@@ -3640,6 +3642,14 @@ function buildHouseX0(hd, roofC, wallC) {
   if (role === 'tavern') { sign('', 1.95); const hang = at(inkBox(.5, .4, .04, toon('#7a4a1e'), .02), dx + 1, 1.5, fz + .5); g.add(hang); g.add(at(inkBox(.04, .3, .04, toon('#2a2a2a')), dx + 1, 1.8, fz + .5)); const bl = glow('#ffb060', 1.1, .5); bl.position.set(dx + 1, 1.5, fz + .6); g.add(bl); }
   if (role === 'lodge') { for (const sx of [-1, 1]) g.add(at(inkBox(.2, 1.3, .2, toon(wood, { surf:'wood' }), .02), cx + sx * (hd.w / 2 - .3), .95, fz + .9)); g.add(at(inkBox(hd.w, .12, 1.1, toon(roofCol), .02), cx, 1.66, fz + .5)); g.add(at(inkBox(hd.w, .1, 1.1, toon('#8a6a48')), cx, .4, fz + .5)); }
   if (role === 'shrinehouse') { const b = new THREE.Mesh(new THREE.ConeGeometry(.4, .9, 6), toon(roofCol)); b.position.set(cx, top + 1.8, cz); g.add(b); g.add(at(inkBox(.7, .7, .7, toon(wallCol), .02), cx, top + 1.05, cz)); const bl = glow(hd.accent || '#ffe08f', .9, .6); bl.position.set(cx, top + 1.1, cz + .4); g.add(bl); }
+  if (shady) {   // the Inkgutter black market: patched walls, a crooked blank sign, one dim green lantern, crates and a rain barrel by the door
+    for (const [px, py, w2, h2] of [[hd.x + .6, 1.0, .7, .5], [hd.x + hd.w - 1.4, 1.9, .8, .4], [hd.x + 1.7, 2.2, .5, .35]]) g.add(at(inkBox(w2, h2, .04, toon('#4a4048'), .01), px, py, fz + .03));
+    g.add(at(inkBox(.05, .05, .5, toon('#2a2a2a'), .01), dx + 1, 2.0, fz + .25)); const sg = at(inkBox(.7, .45, .05, toon('#3a2a22', { surf:'wood' }), .02), dx + 1, 1.68, fz + .48); sg.rotation.z = .18; g.add(sg);
+    g.add(at(inkBox(.3, .07, .05, toon('#141014'), 0), dx, 1.05, fz + .06));   // the slot in the door, for looking out of
+    const ln = at(inkBox(.16, .24, .16, toon('#2a2a2a'), .01), dx - .65, 1.55, fz + .14); g.add(ln); const lg = glow('#8ad0a0', .9, .45); lg.position.set(dx - .65, 1.55, fz + .25); g.add(lg);
+    const bx = hd.x + .3; sCyl(g, .26, .24, .62, '#4a3a2a', bx, .31, fz + .5, null, { seg:12 }); sCyl(g, .27, .27, .04, '#2a2420', bx, .5, fz + .5, null, { seg:12 }); sCyl(g, .24, .24, .02, '#2a3a44', bx, .62, fz + .5, null, { seg:12 });
+    for (const [ox, oy, sz] of [[hd.x + 1.15, .3, .5], [hd.x + 1.55, .3, .42], [hd.x + 1.3, .75, .38]]) g.add(at(inkBox(sz, sz * .8, sz, toon('#6a5440', { surf:'wood' }), .02), ox, oy + sz * .4, fz + .45));
+  }
   return g;
 }
 // Indoor light: a standing candelabra instead of a street lamp.
@@ -3848,7 +3858,8 @@ function buildHub() {
   const house = (x, y, w, roof, extra = {}) => { rect(m, x, y, w, 4, 'H'); m[y + 3][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w, roof, wall:'#ece0c2', ...extra }); };
   house(13, 11, 6, '#4f5f80', { name:'archive', lamp:true });
   house(22, 23, 5, '#a8452f', { name:'bakery', chimney:true });
-  rect(m, 1, 17, 6, 5, 'W'); rect(m, 2, 18, 4, 3, 'a'); m[17][4] = 'a'; m[18][2] = 'c'; m[20][5] = 'c';
+  // the Inkgutter black market: a shabby two-storey house by the Fear road, its door facing the road
+  house(1, 17, 6, '#3e3844', { name:'blackmarket', role:'blackmarket', wall:'#5e5560' }); m[21][1] = '#'; m[21][2] = 'o'; for (let x = 3; x <= 5; x++) m[21][x] = '=';   // a rain barrel and crates stand at (1–2, 21)
   for (const g of Object.values(GATES)) if (m[g.sign[1]]) m[g.sign[1]][g.sign[0]] = 's';
   for (const [x, y] of [[9,22],[22,7],[8,7],[23,22],[12,26],[19,3],[27,9],[3,9]]) if (m[y][x] === '.' || m[y][x] === ',') m[y][x] = 'f';
   return { kind:'hub', tiles:m, houses, name:'Vellum', sub:'The centre of the Welkin', vibe:null,
@@ -4563,6 +4574,7 @@ function addRooms(parentId, specs) {
     MAPS[id] = roomMap(parentId, P.vibe, d); P.doors[dx + ',' + dy] = id; });
 }
 const L = (t, k) => TOWNS[t] ? TOWNS[t].name : '';
+const BM_ROOM = 'vellum_room2';   // the Inkgutter black market (Vellum's third house)
 // ---------------------------------------------------------------- Vellum ---
 addRooms('vellum', [
   { name:'Wren\'s Archive', w:11, h:8, floor:['#6a5a48', '#5e4e3e'], wall:'#b8a888',
@@ -4579,6 +4591,9 @@ addRooms('vellum', [
     note:{ x:3, y:5, text:'(A recipe card in flour-dusted handwriting.) "Honey Cake: honey, oats, and something warm said to whoever eats it. If you forget the last part, it\'s just a biscuit."' },
     npcs:[{ id:'res_pip', moral:'kind', x:4, y:2, dir:'down', look:roomLook('JOY', 1, { small:true }), name:'Pip',
       talk:async () => { await say(auraAtMost('shadowed') ? 'Pip: Maribel says I\'m not to serve you. …I\'ll serve you if you\'re quick.' : 'Pip: I\'m Maribel\'s apprentice! The counter\'s over there if you want to buy something. The cakes on the shelf are for whoever needs one.'); } }] }
+  ,{ name:'Inkgutter Black Market', w:11, h:8, floor:['#3a3238', '#332c31'], wall:'#4a4048',
+    furn:[['bookcase', 1, 1, { short:1 }], ['bookcase', 2, 1, { short:1 }], ['counter', 5, 1], ['crates', 8, 1], ['crates', 9, 1], ['crates', 9, 2], ['sacks', 1, 4], ['junkpile', 9, 6], ['candle', 3, 1, { lc:'#9ad0a8' }], ['table', 2, 6], ['basket', 3, 6, { c:'#6a2a3a' }]],
+    note:{ x:7, y:6, text:'(A ledger left open on a crate. Names, amounts, and a column headed "OWED (TEETH)". You close it.)' } }
 ]);
 // ---------------------------------------------------------------- waytowns --
 for (const t of WHEEL) { const Wt = WAYTOWNS[t];
@@ -5638,15 +5653,17 @@ function entsBase(map) {
     out.push(introDone() ? { id:'wren', x:17, y:15, dir:'down', look:LOOKS.wren, talk:talkWren } : { id:'wren', x:17, y:18, dir:'left', look:LOOKS.wren, talk:talkWren });
     out.push({ id:'maribel', x:26, y:27, dir:'left', look:LOOKS.maribel, talk:talkMaribel });
     out.push({ id:'tobin', moral:'kind', x:12, y:20, dir:'right', look:LOOKS.tobin, talk:talkTobin });
-    out.push(f.lookoutMoved ? { id:'lookout', x:5, y:16, dir:'left', look:LOOKS.lookout, talk:talkLookout } : { id:'lookout', x:4, y:17, dir:'up', look:LOOKS.lookout, talk:talkLookout });
-    out.push({ id:'sable', moral:'cruel', temper:'opportunist', noComp:true, x:3, y:19, dir:'right', look:LOOKS.sable, talk:talkSable });
+    out.push(f.lookoutMoved ? { id:'lookout', x:5, y:21, dir:'left', look:LOOKS.lookout, talk:talkLookout } : { id:'lookout', x:4, y:21, dir:'down', look:LOOKS.lookout, talk:talkLookout });   // stands in front of the black market's door until you have the look
     // For now, in every build: a bundle of 100 Insight Quills on the street just south of the black market's wall.
     if (!S.flags.quills100) out.push({ id:'quills100', item:true, x:3, y:22, talk:async () => { S.flags.quills100 = 1; S.items.quill = (S.items.quill || 0) + 100; const o = W.npcs.quills100; if (o) { world.remove(o); delete W.npcs.quills100; } sfx('ok'); await say('(A bundle tied with string, tucked behind a crate: 100 Insight Quills.)'); } });
   } else if (M.kind === 'still') {
     for (const [i, [x, y]] of [[8,12],[13,15],[8,18],[13,21]].entries()) out.push({ id:'spirit' + i, x, y, dir: x < 10 ? 'right' : 'left', look:roomLook(WHEEL[i * 3 % 10], i * 2 + 1), numb:true, talk:() => say('Numbed: ' + STILL_LINES[i]) });
     out.push({ id:'hushL', x:10, y:6, invisible:true, talk:talkHush }, { id:'hushR', x:11, y:6, invisible:true, talk:talkHush });
   } else if (M.kind === 'region') { out.push(...regionEnts(map)); return out;
-  } else if (M.kind === 'route' || M.kind === 'inside') { out.push(...routeEnts(map)); return out;
+  } else if (M.kind === 'route' || M.kind === 'inside') {
+    if (map === BM_ROOM) out.push({ id:'sable', moral:'cruel', temper:'opportunist', noComp:true, x:5, y:2, dir:'down', look:LOOKS.sable, talk:talkSable },
+      { id:'bm_lad', moral:'cruel', temper:'avoider', noComp:true, x:8, y:4, dir:'left', look:{ coat:'#2a2630', accent:'#4a2a3a', skin:'#a87858', hair:'#141014', legs:'#141014', build:'broad', hairStyle:'short' }, name:'Sable\'s lad', talk:() => say(pickA(['(The big man by the curtain looks at you, then at the door, then back at you. He doesn\'t say anything.)', '(He cracks one knuckle. Just the one.)', '(He\'s eating an apple with the core and all. He doesn\'t look up.)'])) });
+    out.push(...routeEnts(map)); return out;
   } else if (M.kind === 'way') {
     const t = M.vibe;
     const ex = M.entryS.x, ry = M.rail.y;
@@ -5707,6 +5724,7 @@ function startWild(w) {
   runScript(async () => { const r = await battle(newManif(w.sp, w.lvl)); if (r === 'blackout') await blackout(); });
 }
 const DOOR_GUARD = {};   // door id → async () => false (stay out) | true | function to run after entering
+DOOR_GUARD[BM_ROOM] = async () => { if (S.flags.lookoutMoved) return true; await say('(The lookout leans on the door and doesn\'t move.)'); return false; };
 async function enterDoor(id) { setRun(false); const gd = DOOR_GUARD[id] ? await DOOR_GUARD[id]() : true; if (gd === false) return; sfx('settle'); const R = MAPS[id]; await changeMap({ map:id, x:Math.floor(R.w / 2), y:R.h - 2, dir:'up' }); if (typeof gd === 'function') { await wait(300); await gd(); } }
 async function changeMap(ex) {
   setTimeout(autosave, 1500);
@@ -5915,8 +5933,8 @@ async function talkLookout() {
   if (vibeClass() === 'tender') return say(pickA(['Lookout: Rough week? Sable likes the sad ones. Says they sell cheap. ...Forget I said that. Come back when you\'ve got some teeth.', 'Lookout: You don\'t want back here like that. They\'ll have the coat off your back and call it charity.']));
   if (auraAtMost('shadowed')) {
     await say('Lookout: ...Yeah. You\'ve got the look. Go on.');
-    S.flags.lookoutMoved = 1; const p = W.npcs.lookout; if (p) p.position.set(5, groundY(5, 16), 16); npcFace.lookout = 'left';
-    await say('(The lookout steps aside. Inkgutter Alley is open to you.)');
+    S.flags.lookoutMoved = 1; const p = W.npcs.lookout; if (p) p.position.set(5, groundY(5, 21), 21); npcFace.lookout = 'left';
+    await say('(The lookout steps aside from the door. The black market is open to you.)');
   } else await say('Lookout: Nothing back here for your sort. Come back when you\'ve got some shadow on you.');
 }
 async function talkSable() {
@@ -8557,7 +8575,7 @@ async function backRoom() {
       await say('Sable: Wrong. (She nods to the big man behind you.)');
       await say(deal('kick', ['A boot the size of a loaf hits you square in the back. You go through the curtain, across the cobbles, and face-first into a rain barrel.', 'Someone grabs your collar and your belt and throws you, actually throws you, out into the street. You land on your shoulder and something pops.', 'The big man kicks you so hard you skid three feet on your face. Your lip splits open on the cobbles. Somebody laughs.']));
       const lead = S.party.find(p => p.hp > 0); if (lead) lead.hp = Math.max(1, Math.round(lead.hp * .6));
-      S.flags.kickedUntil = S.time + 180; await fadeTo(1, 300); S.map = 'vellum'; S.x = 3; S.y = 15; S.dir = 'down'; buildWorld('vellum');   // out through the gap in the wall, onto the street north of it await fadeTo(0, 400);
+      S.flags.kickedUntil = S.time + 180; await fadeTo(1, 300); S.map = 'vellum'; S.x = 4; S.y = 22; S.dir = 'down'; buildWorld('vellum');   // out of the black market's door and onto the Fear road await fadeTo(0, 400);
       return say('(You can try again in a few minutes. If you can still walk.)');
     }
     await say(['Sable: Hm.', 'Sable: Lucky.', 'Sable: ...Fine.'][i]); }
