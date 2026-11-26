@@ -14989,8 +14989,8 @@ const EXILE_LINES = {
 const DND_EXILE_SEAT = { morwen:[6, 1, 'down'], saffi:[4, 4, 'right'], tam:[8, 4, 'left'], brand:[8, 2, 'left'], lio:[4, 2, 'right'] };
 function dndExilePeople() {
   if (!wreaked()) return [{ id:'rental_note', note:true, x:6, y:6, folk:false, talk:() => say('(A card on the floor by the door.) "TO LET. Furnished, more or less. Ask at the hotel."') }];
-  return Object.entries(DND_EXILE_SEAT).map(([k, [x, y, dir]]) => ({ id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true,
-    talk:() => sayAs(DND_NAME[k], exileLine(k, EXILE_LINES)) }));
+  return Object.entries(DND_EXILE_SEAT).filter(([k]) => !(EXILE().gone || {})[k]).map(([k, seat]) => { const [x, y, dir] = DND_POS[k] || seat;
+    return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => rentalTalk(k) }; });
 }
 if (RENTAL_ID) MAPS[RENTAL_ID].room.npcsFn = dndExilePeople;
 // Larkhollow: the house stands empty, with a note
@@ -15006,12 +15006,103 @@ if (RENTAL_ID) MAPS[RENTAL_ID].room.npcsFn = dndExilePeople;
     if (S.flags.ruin) return _co();
     if (!wreaked()) return [];
     const was = S.flags.ruin; S.flags.ruin = 1; let list; try { list = _co(); } finally { S.flags.ruin = was; }   // the same cabin and Clover with her bat
-    list = list.map(e => e.id === 'clover_coast' ? { ...e, talk:() => sayAs('Clover', exileLine('clover', EXILE_LINES)) } : e);
+    list = list.map(e => e.id === 'clover_coast' ? { ...e, talk:() => coastTalk('clover') } : e.id === 'ashlynn_coast' ? { ...e, talk:() => coastTalk('ashlynn') } : e);
     // Ashlynn paddles up from Saltmere to read with her in the evenings
     const h = clockHour(); if (!(h >= 17 && h < 23)) list = list.filter(e => e.id !== 'ashlynn_coast');
     return list; }; }
 { const _ap = ashlynnPeople; ashlynnPeople = function () { const out = _ap.apply(this, arguments), h = clockHour();
     return wreaked() && !S.flags.ruin && h >= 17 && h < 23 ? out.filter(e => e.id !== 'ashlynn' && e.id !== 'ashlynn_kayak') : out; }; }
+
+// ---------------------------------------------------------------- still angry: how far you can push it
+// While they're still angry (the Chord holds, or you haven't earned your way back yet), you get two goes per visit.
+// The third, they stop talking.
+const tableAngry = () => S.flags.doom || ['morwen', 'saffi', 'lio', 'brand', 'tam'].some(k => (EXILE()[k] || 0) < 4);
+const coastAngry = () => S.flags.doom || (EXILE().clover || 0) < 4;
+function visitTalks(key) { const E = EXILE(), c = E['v_' + key]; if (!c || c.v !== MAP_VISIT) E['v_' + key] = { v:MAP_VISIT, n:0 }; return ++E['v_' + key].n; }
+async function rentalTalk(k) {
+  if (!tableAngry()) return sayAs(DND_NAME[k], exileLine(k, EXILE_LINES));
+  const n = visitTalks('table');
+  if (n >= 3) return tableThrowOut();
+  await sayAs(DND_NAME[k], exileLine(k, EXILE_LINES));
+  if (n === 2) await say('(Nobody at the table is laughing any more. Saffi has a hand on Lio\'s shoulder. Tam has quietly moved his chair closer to the door.)');
+}
+// Coming through the door while the Chord still holds, or with a dark aura while they're still sore: straight back out.
+DOOR_GUARD[RENTAL_ID] = async () => (wreaked() && (S.flags.doom || (tableAngry() && auraSide() === 'shadow'))) ? async () => { await tableThrowOut(); } : true;
+async function tableThrowOut() {
+  const R = MAPS[RENTAL_ID], dx = Math.floor(R.w / 2), out = [44, 37];   // the rental's door, and the step outside it on Tern Row
+  for (const k in DND_POS) delete DND_POS[k];
+  await say('(The table goes quiet all at once. Saffi has Lio behind her before you\'ve finished shutting the door.)');
+  await sayAs('Tam', 'Nope. Not in here. Not in our house. Brand?');
+  await sayAs('Brand', 'Way ahead of you, buddy.');
+  S.x = dx; S.y = R.h - 2; S.dir = 'up';
+  await Promise.all([walkCast([['tam', dx - 1, R.h - 2, 'right']], 600), walkCast([['brand', dx + 1, R.h - 2, 'left']], 600)]);
+  castSet(['tam', 'brand'], 'grab', true); sfx('hurt'); await wait(200);
+  await walkCast([['tam', dx - 1, R.h - .6, 'right'], ['brand', dx + 1, R.h - .6, 'left']], 600, { player:[dx, R.h - .4] });
+  // out onto Tern Row. Lio stays inside, with the door shut on him.
+  await fadeTo(1, 350); for (const k in DND_POS) delete DND_POS[k];
+  EXILE().outside = ['tam', 'brand', 'morwen', 'saffi'];
+  DND_POS.tam = [out[0] - .5, out[1], 'down']; DND_POS.brand = [out[0] + .5, out[1], 'down']; DND_POS.morwen = [out[0], out[1] - .3, 'down']; DND_POS.saffi = [out[0] - 2, out[1] + 1.6, 'right'];
+  S.map = 'saltmere'; S.x = out[0]; S.y = out[1] + .6; S.dir = 'down'; buildWorld('saltmere'); playMusic(DND_SONG()); castSet(['tam', 'brand'], 'grab', true); await fadeTo(0, 350);
+  await walkCast([['tam', out[0] - .6, out[1] + 1.2, 'down'], ['brand', out[0] + .6, out[1] + 1.2, 'down']], 350, { player:[out[0], out[1] + 1.6] });
+  castSet(['tam', 'brand'], 'grab', false); sfx('hurt'); await Promise.all([walkCast([], 10, { player:[out[0], out[1] + 2.2] }), lie(true, 450)]);
+  await say('(They throw you down the step. Behind them, Morwen pulls the door shut: "Lio, stay in and guard the snacks. Two minutes.")');
+  await lie(false, 350); S.dir = 'up';
+  // no warning this time
+  sfx('nerve'); const sg = W.npcs[castId('saffi')], from = sg ? sg.position.clone().add(V3(0, 1.0, 0)) : W.player.position.clone(), to = W.player.position.clone().add(V3(0, .55, 0)), puffs = [], dir = to.clone().sub(from);
+  await tween(1300, k => { for (let n = 0; n < 2; n++) { const f = flame(Math.random() < .5 ? '#ff7a2a' : '#ffbf3a', .12 + Math.random() * .08, .85); f.position.copy(from); f.userData.t = 0; world.add(f); puffs.push(f); }
+    for (const f of puffs) { f.userData.t = Math.min(1, f.userData.t + 1 / 34); f.position.copy(from).addScaledVector(dir, f.userData.t); f.material.opacity = f.userData.t >= 1 ? 0 : .85; } });
+  for (const f of puffs) world.remove(f);
+  await say('(Saffi doesn\'t say a word this time. She doesn\'t need to. She just breathes out, and the fire finds you.)');
+  const fire = []; sfx('nerve');
+  await tween(1100, k => { if (fire.length < 14 && Math.random() < .5) { const f = flame(fire.length % 2 ? '#ff6a1a' : '#ffb02a', .18 + Math.random() * .14, .8); f.position.set((Math.random() - .5) * .3, .1 + Math.random() * .2, (Math.random() - .5) * .2); f.userData.vy = .004 + Math.random() * .004; W.player.add(f); fire.push(f); }
+    for (const f of fire) f.position.y = Math.min(1.1, f.position.y + f.userData.vy); });
+  await say('(Everything goes orange, and then it starts to go dark at the edges.)');
+  await sayAs('Morwen', 'One more thing, while you\'re still awake to hear it. Leave the girl in the cabin alone, too.');
+  await sayAs('Brand', 'Yeah. That girl has lived alone in a cabin in the woods for years. She has a plan for exactly this. She has a bat for exactly this. You are not the scary part of that story, pal.');
+  await fadeTo(1, 1200); for (const f of fire) W.player.remove(f); W.player.rotation.x = 0; castSet(['tam', 'brand'], 'grab', false);
+  for (const k in DND_POS) delete DND_POS[k]; EXILE().outside = null;
+  S.flags.burned = 1; for (const m of S.party) m.hp = Math.max(1, Math.round(maxHp(m) / 3));
+  await wakeSafe('You wake in a bed at the Hotel Saltmere, smelling of smoke. Your skin is tight and shining where the fire took it, and it will stay that way. The clerk says a tall man with a kazoo carried you in, paid for the room, and asked them not to give you directions anywhere.');
+}
+// the people who come out onto Tern Row for it
+{ const base = REGION_NPCS.saltmere; REGION_NPCS.saltmere = () => [...base(), ...((EXILE().outside || []).map(k => { const [x, y, dir] = DND_POS[k] || [44, 37, 'down'];
+    return { id:'dndo_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => {} }; }))]; }
+async function wakeSafe(text) {
+  const id = 'saltmere_in3', R = MAPS[id]; S.map = id; S.x = Math.floor(R.w / 2); S.y = R.h - 2; S.dir = 'up'; buildWorld(id); playMusic(themeFor(id)); await fadeTo(0, 1200);
+  await say('(' + text + ')');
+}
+// ---------------------------------------------------------------- the cabin on the Coast Road
+async function coastTalk(who) {
+  if (!coastAngry()) return who === 'clover' ? sayAs('Clover', exileLine('clover', EXILE_LINES)) : sayAs('Ashlynn', ASHLYNN_COAST[(CL().aline = ((CL().aline || 0) + 1)) % ASHLYNN_COAST.length]);
+  const n = visitTalks('coast'), ash = !!W.npcs.ashlynn_coast;
+  if (n >= 3) return coastBeating(ash);
+  if (n === 1) {
+    if (who === 'ashlynn') await sayAs('Ashlynn', '(She keeps her finger in her page and doesn\'t look up.) Clover told me what you did. I said I\'d make up my own mind about you. ...I have.');
+    await sayAs('Clover', 'Oh, look. The bell-ringer. On my step. Here\'s some free advice, since you\'re clearly short on good ideas: stay away from the game nerds on Tern Row. They\'re the sweetest people in the world, and they do not handle douchecanoes well.');
+    if (ash) await sayAs('Ashlynn', '(Still reading.) They\'d probably kill you. Saffi breathes fire when she\'s upset. And she\'s upset.');
+    else await sayAs('Clover', 'They\'d probably kill you, honestly. And I\'d bring snacks.');
+    return; }
+  await sayAs('Clover', 'That\'s two. I count, nerd. I count pages, I count the links on that gate chain, and I count how many times a villain walks up my step.');
+  if (ash) await sayAs('Ashlynn', '(She closes the book on her finger.) You really don\'t want to find out what three is.');
+  else await sayAs('Clover', '(She lifts the bat off her knees an inch, and sets it down again.) You don\'t want to find out what three is.');
+}
+async function coastBeating(ash) {
+  const personIn = o => { let f = null; if (o) o.traverse(c => { if (!f && c.userData && c.userData.arms) f = c; }); return f; };
+  const cg = personIn(W.npcs.clover_coast), ap = personIn(W.npcs.ashlynn_coast);
+  await sayAs('Clover', 'Right. That\'s three.');
+  await say('(Clover is off the step with the bat before you can say anything.)');
+  if (ash && ap) { await say('(Ashlynn closes the book, very carefully, and marks her page with a leaf. Then she reaches behind the box and comes up with her kayak paddle.)');
+    ap.userData.sit = false; if (ap.userData.book) ap.userData.inner.remove(ap.userData.book); resetArms(ap); ap.position.y = 0; holdItem(ap, 'paddle'); ap.userData.ready = true;
+    await sayAs('Ashlynn', 'I\'m normally a pacifist. I\'m making an exception.'); }
+  for (let i = 0; i < 3; i++) { await swingAt(cg); if (i === 0) await sayAs('Clover', 'OFF.'); if (i === 1) await sayAs('Clover', 'MY.'); if (ash && ap) await swingAt(ap); }
+  await sayAs('Clover', 'STEP!');
+  sfx('hurt'); await lie(true, 300);
+  await say(ash ? '(The last thing you see is the sky, and an orange paddle blade coming down to meet it.)' : '(The last thing you see is the sky, and a baseball bat coming down to meet it.)');
+  await fadeTo(1, 1000); W.player.rotation.x = 0;
+  for (const m of S.party) m.hp = Math.max(1, Math.round(maxHp(m) / 2));
+  await wakeSafe(ash ? 'You wake in a bed at the Hotel Saltmere with a lump on your head the shape of a paddle blade, and another the shape of a bat. The clerk hands you a note in two handwritings: "Do not come back. — C." Underneath, smaller: "She means it. So do I. — A."'
+    : 'You wake in a bed at the Hotel Saltmere with a lump on your head exactly the shape of a bat. The clerk hands you a note: "Do not come back. I mean it. I have more bats. — C."');
+}
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
