@@ -9215,7 +9215,11 @@ const SALT_V = REGION_VIBE({ sky:'#bfe0ea', fog:'#d0e8ee', fogNear:22, fogFar:58
   // row C
   B.house(5, 33, 5, '#6a7a8a', '#ece4d4'); B.house(11, 33, 5, '#4f6a8a', '#f0e8d8');
   B.house(20, 33, 7, '#5a5a5a', '#e0dcd0', { name:'Saltmere Savings & Trust', w:13, h:9, music:'saltmere', floor:['#5a5a5a', '#4e4e4e'], wall:'#d8d4c8', furn:[['desk', 3, 3], ['desk', 6, 3], ['desk', 9, 3], ['shelf', 1, 1], ['shelf', 11, 1], ['block', 10, 6]] }, { role:'archive' });
-  B.house(28, 33, 4, '#c0503a', '#f3e7c9'); B.house(36, 33, 5, '#4f8a8a', '#f0ece0'); B.house(42, 33, 5, '#b07a3a', '#e8dcc0');
+  B.house(28, 33, 4, '#c0503a', '#f3e7c9'); B.house(36, 33, 5, '#4f8a8a', '#f0ece0');
+  // a plain rented beach house on the south row: empty, unless the Dragon's Table has had to leave the Welkin (h38_exile.js)
+  B.house(42, 33, 5, '#b07a3a', '#e8dcc0', { name:'The Rental on Tern Row', w:13, h:9, music:'saltmere', floor:['#8a7458', '#7e6a50'], wall:'#e0d8c4',
+    furn:[['gametable', 6, 3], ['blank', 5, 2], ['blank', 7, 2], ['blank', 5, 4], ['blank', 7, 4], ['blank', 6, 2], ['blank', 6, 4], ['blank', 5, 3], ['blank', 7, 3],
+      ['crates', 1, 1], ['crates', 2, 1], ['crates', 11, 1], ['crates', 11, 6], ['bed', 10, 1], ['stove', 1, 5, { lit:true }], ['rug', 6, 6]] });
   // the beach
   for (const [x, y, c] of [[15, 7, '#c0503a'], [21, 8, '#4f8a8a'], [29, 7, '#e8a83a'], [41, 8, '#c0503a'], [46, 6, '#4f8a8a']]) B.piece('parasol', x, y, 1, 1, { c });
   B.piece('sandcastle', 25, 9); B.piece('lifeguard', 35, 6); B.piece('boat', 47, 9, 1, 1, { r:.4 });
@@ -9881,7 +9885,7 @@ const DND_ROAST = {
 // Real-people rule: anyone based on a real person is marked real:true. They never die or go numb; in the ruin they have left.
 function dndPeople() {
   if (S.flags.doom && greyMap(TOWNS.JOY.id)) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the table, held down with a die.) "Heard every bell in the Welkin ring at once, and then nobody moving. Packed up the campaign and the kid and went west. All five of us, safe. We\'ll come back when Larkhollow does. — M."') }];
-  if (S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the empty table, held down with a die.) "Packed up the campaign and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Don\'t wait up. Session\'s paused, not cancelled. — M."') }];
+  if (S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the empty table, held down with a little painted figure.) "Packed up the maps and the kid and got out west before the grey reached Larkhollow. All five of us, safe. Don\'t wait up. The game\'s paused, not over. — M."') }];
   const hide = S.flags.dndHide && !(S.flags.dndTrust >= 3);
   return ['morwen', 'saffi', 'lio', 'brand', 'tam'].map(k => { const [x, y, dir] = DND_POS[k] || (k === 'lio' && hide ? DND_HIDE : DND_SEAT[k]);
     return { id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true, talk:() => dndTalk(k) }; });
@@ -14941,6 +14945,74 @@ function clearTracks(M) {
 }
 { const _bw2 = buildWorld; buildWorld = function (id) { try { clearTracks(MAPS[id]); } catch (e) {} return _bw2.apply(this, arguments); }; }
 // =============================================================================
+//  WHEN THE CHORD IS SUNG (25 Nov)
+//  The Dragon's Table and Clover are based on real people: they never go grey. The moment the Grand Chord rings
+//  they leave the Welkin, and they don't come back, even if you turn it all around afterwards. The Dragon's Table
+//  rents a plain house on Tern Row in Saltmere; Clover moves to her little cabin on the Coast Road (Ashlynn comes up
+//  to read with her in the evenings). They let you hear about it. While the Chord holds they want nothing to do with
+//  you. Once you've turned it back they roast you for a good long while, slowly warm up, and never stop bringing up
+//  what you did to the Welkin.
+// =============================================================================
+const wreaked = () => !!(S && S.flags && (S.flags.doom || S.flags.fell));
+const RENTAL_ID = (() => { const P = MAPS.saltmere; const k = Object.keys(P.doors || {}).find(k => MAPS[P.doors[k]] && MAPS[P.doors[k]].name === 'The Rental on Tern Row'); return k ? P.doors[k] : null; })();
+const EXILE = () => (S.flags.exile = S.flags.exile || {});
+// how far along they are with you: 'doom' while the Chord holds, then 'roast' → 'thaw' → 'okay' as you keep coming back
+function exileStage(k) { if (S.flags.doom) return 'doom'; const n = EXILE()[k] || 0; return n < 4 ? 'roast' : n < 8 ? 'thaw' : 'okay'; }
+function exileLine(k, L) { const st = exileStage(k), list = L[k][st]; if (st !== 'doom') EXILE()[k] = (EXILE()[k] || 0) + 1;
+  const key = k + '_' + st; EXILE()['i_' + key] = ((EXILE()['i_' + key] || 0) + 1); return list[(EXILE()['i_' + key] - 1) % list.length]; }
+const EXILE_LINES = {
+  morwen:{ doom:['(Morwen doesn\'t get up.) We watched the whole valley stop because of you. You can stand in the doorway. That\'s as far as you get.', 'Every map I own of the Welkin is wrong now. You did that.', 'No. We\'re not talking about it. Go ring something.'],
+    roast:['So you turned it back. Good. You know what would have been better? Not ringing it.', 'Larkhollow\'s awake again, I hear. We\'re staying here. The sea doesn\'t go grey when somebody has a bad week.', 'You get a chair now. Not a good chair. The wobbly one.', 'Every time I unroll a map I see the part you ruined. I\'ve started drawing a little bell there.'],
+    thaw:['Pull up a real chair. Don\'t make it weird.', 'Turning it back was a hard thing to do. You also did the worst thing first. Both are true.', 'Lio asked if you can stay for dinner. I said maybe. That\'s a big maybe, coming from me.'],
+    okay:['Good to see you. Sit, eat, and please don\'t silence anything on your way out.', 'We\'re staying in Saltmere. It\'s nice here. Nobody here has ever been turned grey by a friend, which is a selling point.', 'You\'re one of us again. The one of us who once stopped an entire country, but one of us.'] },
+  saffi:{ doom:['(Saffi steps between you and Lio without a word.) Don\'t. Just don\'t.', 'I\'ve seen what your kind of quiet does to people. My kid is not getting quiet.', 'You have exactly as long as it takes me to find the broom.'],
+    roast:['You came back from it. I\'ll give you that. I\'m still watching your hands.', 'Lio still has nightmares about bells. Did you know that? Now you do.', 'Sit there. No, further. A little further. Perfect.', 'I\'m not angry. I\'m keeping score, and you\'re losing.'],
+    thaw:['You\'re getting better at this. Showing up. Staying nice. Keep doing it.', 'I let Lio show you his shells. That\'s trust, you know.', 'I\'m only watching your hands a little now.'],
+    okay:['Hey, you. Lio\'s been asking when you\'re coming over. Just don\'t ring anything.', 'I trust you again. Mostly. About ninety percent. The other ten is for the bells.', 'You turned out alright. After turning everything grey. But alright.'] },
+  lio:{ doom:['(Lio peeks out from behind his mom.) Mom says I\'m not allowed to talk to you. ...You made everyone stop. That was really mean.', 'Uncle Brand says you\'re the worst. I said nobody\'s the worst. Then I remembered the bells.', '(Lio sticks his tongue out at you and hides behind his mom again.)'],
+    roast:['Mom says you said sorry to the whole Welkin. Did you mean it? (He squints at you.) Hmm.', 'I drew a picture of you. You\'re the grey blob. Dad says that\'s fair.', 'Uncle Brand made up a song about you. It\'s not a nice song. It\'s really catchy, though.', 'Are you still the bad guy? Aunt Morwen says it\'s complicated.'],
+    thaw:['Do you want to see my shells? This one\'s my favourite. It\'s purple inside. ...You can hold it. Carefully.', 'Mom says you\'re on probation. That means you have to be good for a really, really long time.', 'I told Uncle Brand to stop singing the mean song. He only sings it sometimes now.'],
+    okay:['You\'re my friend again! Mom said so. Want to see my sandcastle? Don\'t make it grey. (He giggles.)', 'Uncle Brand says you\'re the comeback kid. I\'m the kid, though.', 'Dad says everybody gets one really big mistake. You used yours on the whole Welkin.'] },
+  brand:{ doom:['Oh look, it\'s the end of the world. In person. Smaller than I expected. HA.', 'I\'d say make yourself at home, but you\'d probably make it go grey.', 'Door\'s behind you. It\'s the thing with the handle. You\'ve seen one.'],
+    roast:['Look who\'s back from wrecking everything! Did you at least bring snacks? You owe the whole country snacks.', 'I\'m writing a song about you. It\'s called "The One Who Rang It." The second verse is just me booing.', 'You know what this town has? Feelings. Everybody\'s. Hands off.', 'Every time a bell rings in Saltmere, I look right at you. Just so you know. Every time.'],
+    thaw:['Okay, the song has a nicer third verse now. You\'re still the villain in the first two.', 'You can have one snack. ONE. HA.', 'Not gonna lie, it\'s good seeing you not ruining things.'],
+    okay:['My buddy! Former destroyer of the Welkin! Come in, come in. HA.', 'I still sing the song. Only the nice verse. Mostly.', 'Remember when you rang the bell and everything stopped? Because we do. Every day. Anyway, how are you?'] },
+  tam:{ doom:['Built a new alarm. It goes off when somebody who silenced a whole country walks in. It\'s going off right now.', 'We drove all night with the kid asleep in the back because of you. You owe me a night\'s sleep. Several.', 'I can\'t arrest you out here. I\'m thinking about it really hard anyway.'],
+    roast:['The kazoo alarm still goes off when you walk in. I could fix it. I won\'t.', 'I wrote up a report on you. Who for? Nobody. It just felt good.', 'Want coffee? It\'s decaf. You don\'t get the good stuff yet.', 'Turned it back, huh. Took you long enough.'],
+    thaw:['Real coffee. Don\'t get used to it. ...Fine. Get a little used to it.', 'Fixed the alarm. Mostly. It still kazoos a little when you come in. Tradition.', 'Lio waves at you from the window now. That means something.'],
+    okay:['Hey, pal. Coffee\'s on. The good stuff.', 'Still got the kazoo alarm. It\'s sentimental now.', 'Proud of you for turning it back. Still gonna bring it up at every dinner. That\'s the deal.'] },
+  clover:{ doom:['(Clover is on the step with the bat across her knees.) No. Turn around. I moved to the edge of the world to get away from what you did, and you followed me.', 'I had a whole wall of first editions. I left it, because of you, nerd. Bad nerd.', 'Take one more step and you\'ll find out exactly what the bat is for.'],
+    roast:['Oh look, the bell-ringer. I\'m not lending you a book. You lose books. You lose countries.', 'You turned it back? Wow. Do you want a medal? I have a bat.', 'My new couch is smaller. I blame you personally.', 'I\'m reading a book about a villain. It\'s about you. Well. It feels like it\'s about you.'],
+    thaw:['Fine. Sit on the step. Not the good step.', 'You can borrow a book. A paperback. One you can\'t ruin. ...Well. You could. Don\'t.', 'You\'re less terrible than you were. That\'s not a compliment. It\'s a measurement.'],
+    okay:['Hey, nerd. Sit. There\'s tea. Don\'t make the sea go grey.', 'I like it out here. The gulls don\'t remember what you did. I do. I like you anyway.', 'You can borrow the good books again. The person who silenced a whole country and then said sorry. Very literary.'] }
+};
+const DND_EXILE_SEAT = { morwen:[6, 1, 'down'], saffi:[4, 4, 'right'], tam:[8, 4, 'left'], brand:[8, 2, 'left'], lio:[4, 2, 'right'] };
+function dndExilePeople() {
+  if (!wreaked()) return [{ id:'rental_note', note:true, x:6, y:6, folk:false, talk:() => say('(A card on the floor by the door.) "TO LET. Furnished, more or less. Ask at the hotel."') }];
+  return Object.entries(DND_EXILE_SEAT).map(([k, [x, y, dir]]) => ({ id:'dnd_' + k, x, y, dir, name:DND_NAME[k], look:DND_LOOK[k], folk:false, real:true,
+    talk:() => sayAs(DND_NAME[k], exileLine(k, EXILE_LINES)) }));
+}
+if (RENTAL_ID) MAPS[RENTAL_ID].room.npcsFn = dndExilePeople;
+// Larkhollow: the house stands empty, with a note
+{ const _np = MAPS[DND_ID].room.npcsFn; MAPS[DND_ID].room.npcsFn = function () {
+    if (wreaked() && !S.flags.ruin) return [{ id:'dnd_note', note:true, x:3, y:4, talk:() => say('(A note on the bare table, held down with a little painted figure.) "Heard every bell in the Welkin ring at once, and then nobody moving. Packed up the maps and the kid and left that same night. All five of us, safe. We\'re in Saltmere now, the house on Tern Row. We\'re not coming back. You know why. — M."') }];
+    return _np.apply(this, arguments); }; }
+{ const _do = dndOutsideEnts; dndOutsideEnts = function (map) { return wreaked() ? [] : _do(map); }; }
+// Clover's Pinewind cabin: empty, with a note; she's on the Coast Road now
+{ const _cp = MAPS[CLOVER_ROOM].room.npcsFn; MAPS[CLOVER_ROOM].room.npcsFn = function () {
+    if (wreaked() && !S.flags.ruin) return [{ id:'clover_note', note:true, x:5, y:6, real:true, folk:false, talk:() => say('(A note on the tea table, under the teapot.) "The bells rang and everybody stopped. I am NOT staying in a country that can do that to people. Took the good books and the bat. Coast Road, past the gate. If this is you, nerd: I know what you did."') }];
+    return _cp.apply(this, arguments); }; }
+{ const _co = cloverOnCoast; cloverOnCoast = function () {
+    if (S.flags.ruin) return _co();
+    if (!wreaked()) return [];
+    const was = S.flags.ruin; S.flags.ruin = 1; let list; try { list = _co(); } finally { S.flags.ruin = was; }   // the same cabin and Clover with her bat
+    list = list.map(e => e.id === 'clover_coast' ? { ...e, talk:() => sayAs('Clover', exileLine('clover', EXILE_LINES)) } : e);
+    // Ashlynn paddles up from Saltmere to read with her in the evenings
+    const h = clockHour(); if (!(h >= 17 && h < 23)) list = list.filter(e => e.id !== 'ashlynn_coast');
+    return list; }; }
+{ const _ap = ashlynnPeople; ashlynnPeople = function () { const out = _ap.apply(this, arguments), h = clockHour();
+    return wreaked() && !S.flags.ruin && h >= 17 && h < 23 ? out.filter(e => e.id !== 'ashlynn' && e.id !== 'ashlynn_kayak') : out; }; }
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -16553,7 +16625,7 @@ async function ending(final, kind) {
   const tot = Object.values(E.carried).reduce((a, b) => a + b, 0) || 1;
   const head = t => t ? `<span class="mi" style="background:${TYPES[t].c}"></span>${TYPES[t].name}` : '';
   const pages = [];
-  if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p><p style="font-size:14px;color:var(--muted)">Some got out. The Dragon\'s Table packed up the campaign and Lio and went west. Clover went too, complaining the whole way and carrying as many books as she could, and she is safe. Out past the mainland, the far places never felt it: the gates were chained shut behind the last people through, and Ashlynn\'s coast never went quiet at all.</p>' });
+  if (none) pages.push({ k:'Nothing', h:'Nobody minds', p:'Wren begged, and you did nothing. The Hush came up out of the Stillwell like water rising in a cellar, and everything everyone had ever refused to feel came with it. The Manifs you carried turned on the people around you. The people stopped minding. Then you did too.', extra:'<p style="font-size:14px;color:var(--muted)">There is no rebuilding after this. There is nobody left who wants to. What follows is the weather you walked in, and what you carried, for whoever finds this Codex.</p><p style="font-size:14px;color:var(--muted)">Some got out. The Dragon\'s Table packed up the maps and Lio and went west. Clover went too, complaining the whole way and carrying as many books as she could, and she is safe. Out past the mainland, the far places never felt it: the gates were chained shut behind the last people through, and Ashlynn\'s coast never went quiet at all.</p>' });
   if (none) pages.push({ k:'The roads out', h:'Some got away', p:'Not everyone stayed to go grey. Many saw it coming and left the Welkin while the roads were still open: carts, families, a battered wagon loaded with dice and rulebooks and a sleepy kid, all rolling west, unharmed. A red-haired woman from a cabin in the pines went with them, very much against her will, with a cart of good books and a baseball bat, complaining the whole way, and perfectly safe. Out past the coast, beyond the mainland where the grey can\'t cross the water, a woman with an orange kayak paddles between the islands, safe too. Wherever they went, they are still minding. Still feeling everything. Still playing.' });
   else if (doom) pages.push({ k:'The Grand Chord', h:`The Hymn of ${pname()}`, p:'The Chord goes out through all ten Hearts at once. In Larkhollow the dancing stops. In Emberwick the forges go cold with the hammers still raised. Mothers put down their children and forget to pick them up. Across the Welkin, every person stands where the note found them, and waits for your word.', extra:`<p style="font-size:14px;color:var(--muted)">The cities still stand. Nobody will ever burn one again. Nobody will ever build one again, either. The fields go to seed. The Numbed eat when they are told to eat. Some of them are not told in time. The Hollow Choir's grey banners hang in every square, and every face beneath them turns toward you when you pass. ${S.flags.wrenFallen ? 'On the Archive steps, Wren sits with her hands in her lap.' : 'Wren was never seen again.'} ${choir().burned ? 'At the Long Siding, a cat still sits on the rails by a burned-out station.' : ''}</p>` });
   else if (final) pages.push({ k:'The Stillwell', h:'The Welkin wakes', p:'Beneath Vellum, ten colours seep back into the water. Above, the whole Welkin feels everything at once: the grief and the joy, the rage and the trust. It is loud. It hurts. It is alive.', extra:'<p style="font-size:14px;color:var(--muted)">The Numbed of every city remember how to cry, and how to laugh, and how to be angry about the years they lost. Nobody calls it a happy ending. Everybody calls it an ending they can feel.</p>' });
