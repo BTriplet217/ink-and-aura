@@ -4164,7 +4164,7 @@ function routeLayout(t) {
         note:{ x:4, y:2, text:'(A child\'s drawing: a stick figure under a sky full of scribbled lightning. Written underneath in an adult\'s hand: "Moss cannot sleep unless someone calm is in the room. I am not always calm. I am trying.")' },
         item:{ x:2, y:5, id:'mh1', key:'iron' } });
       piece('boat', 9, 22, 2, 1, { keep:true }); piece('boat', 20, 37, 2, 1, { keep:true, r:.5 }); piece('boat', 4, 6, 2, 1, { keep:true, r:-.3 });
-      for (const [x, y] of [[14, 38], [8, 28], [14, 16], [14, 7]]) lamp(x, y, true);
+      // no street lamps out on the water: after dark the fireflies light the boardwalk (h36_scenery.js)
       R.npcs = [
         { id:'ondine', x:19, y:19, dir:'left', role:'guard', name:'Ondine', look:rLook('#5a8a8a', '#d9e0c8', '#d7a985', '#3a2a20'), team:[['CALM', 1], ['CALM', 0, 1]], reward:['hearth', 1], trust:trustIs.any,
           intro:'Ondine: Mine don\'t fight to win. They fight so the other one gets tired and goes home. It takes longer. It\'s kinder.', ask:'Ondine: Would you sit a while with mine? That\'s what a match is, here.', decline:'Ondine: The water will still be here.',
@@ -4395,7 +4395,7 @@ for (const t of WHEEL) {
 const ROUTE_LOOK = {
   garden:{ trees:'blossom', prop:null, parts:'petals' },
   rail:{ trees:'conifer', treeC:['#3a5a3a', '#4a6a40', '#2e4a30'], ground:['#9a9070', '#8e8466', '#a69c7a'], parts:'motes' },
-  marsh:{ trees:'mushroom', treeC:['#8fd8dc', '#6cc6cc', '#b2e8ea'], sky:'#cfe4f6', fog:'#b9d8f2', fogNear:9, fogFar:32, hemi:'#e2eefc', groundFog:'#c6e2f8', fogOp:.45, water:'#78c4ec', waterGlow:'#bfe6fa', parts:'fireflies', partC:['#e8ffb0', '#bff4f6'] },   // Reedwater: a fairytale marsh
+  marsh:{ trees:'mushroom', treeC:['#8fd8dc', '#6cc6cc', '#b2e8ea'], sky:'#cfe4f6', fog:'#b9d8f2', fogNear:9, fogFar:32, haze:1, hemi:'#e2eefc', groundFog:'#c6e2f8', fogOp:.45, water:'#78c4ec', waterGlow:'#bfe6fa', parts:'fireflies', partC:['#e8ffb0', '#bff4f6'] },   // Reedwater: a fairytale marsh
   quarry:{ trees:'conifer', ground:['#c4b8a2', '#b8ac96', '#ccc0aa'], parts:'motes' },
   fair:{ trees:'round', parts:'petals', partC:['#f4cf5e', '#c0503a', '#4f8a8a'] },
   lane:{ road:'#5c6064', trees:'dead', parts:'rain', ground:['#6a7068', '#62685e', '#727a70'], sky:'#8a909a', fog:'#8a909a', fogNear:10, fogFar:30, sun:.8 },
@@ -11053,6 +11053,7 @@ function worldSheet() {
 //  too, so you can come out to a different sky). New games start at 9 in the morning.
 // =============================================================================
 const DAY_SECONDS = 18 * 60;
+const HAZE_DAY = new THREE.Color('#a6d2f6'), HAZE_NIGHT = new THREE.Color('#2f5f9e');
 // keyframes: hour, sky tint and strength, sun colour and strength, hemisphere colour and strength
 const DAY_KEYS = [
   [0,    '#1c2240', .78, '#8ea6e0', .32, '#8c9cd0', .6],
@@ -11088,6 +11089,8 @@ function tickDay(dt) {
   const d = inside ? dayState(12) : dayState();
   // sky and fog: the town's own sky, washed toward the hour's colour (the aura tint is applied on top in the main loop)
   W.skyNow = new THREE.Color(V.sky).lerp(d.tint, d.tintK);
+  // a blue haze that never lifts (Reedwater): pale sky-blue by day, a deep glowing blue after dark
+  if (V.haze && !inside) W.skyNow.lerp(HAZE_DAY, .55 * (1 - d.night)).lerp(HAZE_NIGHT, .7 * d.night);
   const u = worldSky.material.uniforms; u.horizon.value.copy(W.skyNow); u.top.value.copy(W.skyNow).lerp(new THREE.Color(d.night > .5 ? '#2a3260' : '#fffaf0'), d.night > .5 ? .5 : .55 * (1 - d.tintK));
   worldLights.sun.intensity = V.sun * SUN_GAIN * d.sunK; worldLights.sun.color.copy(d.sunC);
   worldLights.hemi.color.set(V.hemi).multiply(d.hemiC); worldLights.hemi.intensity = HEMI_BASE * d.hemiK * (inside ? 1.35 : 1);
@@ -14772,10 +14775,11 @@ worldMapSheet = function () {
 //  swells and fades very slowly (a ten-second breath, never a blink), and they're brighter after dark.
 //  Joy's road and the gardens get meadows of flowers and flowering bushes.
 // =============================================================================
-const FIREFLIES = [];
+const FIREFLIES = [], HAZE = [], FLY_LIGHTS = [];
+const HZ_DAY = new THREE.Color('#b4dcf8'), HZ_NIGHT = new THREE.Color('#244c86'), HZ_WATER = new THREE.Color('#78c4ec'), HZ_WATER_N = new THREE.Color('#1e4a7a');
 const SCN_GRASS = c => c === ',' || c === '.' || c === 'f';
 function sceneryExtras(id, M, g) {
-  FIREFLIES.length = 0;
+  FIREFLIES.length = 0; HAZE.length = 0; FLY_LIGHTS.length = 0;
   if (!M || M.kind === 'inside' || M.kind === 'still' || M.kind === 'hub' || M.kind === 'region') return;
   const fl = S.flags || {}; if ((fl.ruin && !offMainland(id)) || (typeof greyMap === 'function' && greyMap(id))) return;
   const fam = M.vibe || (MAPS[M.route] && MAPS[M.route].vibe);
@@ -14805,10 +14809,28 @@ function calmScenery(M, g, spots) {
     pts.forEach(([x, y, s, kind]) => { if (kind !== 1 || hsh(Math.round(x * 7), Math.round(y * 7)) > .5) return; const gl = glow('#9ff0f4', 1.1 * s, .28); gl.position.set(x, groundY(Math.round(x), Math.round(y)) + .2, y); g.add(gl); });
   }
   // fireflies: soft round lights that drift. No blinking: brightness changes only over a slow ten-second breath.
-  const n = M.kind === 'city' ? 34 : 26;
+  const hazy = M.kind === 'route' && !!(ROUTE_LOOK[M.theme] && ROUTE_LOOK[M.theme].haze);
+  const n = hazy ? 90 : M.kind === 'city' ? 34 : 26;
   for (const [x, y, k] of spots(n, 81, c => c && !SOLID.has(c) && c !== 'D')) {
     const s = glow(k % 4 ? '#e8ffb0' : '#bff4f6', .95, 0); const by = groundY(Math.round(x), Math.round(y)) + .5 + hsh(k, 3) * 1.1;
     s.position.set(x, by, y); g.add(s); FIREFLIES.push({ s, x, y, by, ph:hsh(k, 5) * 6.28, sp:.25 + hsh(k, 6) * .25 });
+  }
+  if (hazy) hazeScenery(M, g, spots);
+}
+// Reedwater's haze: big soft banks of blue mist lying low over the water and boardwalk, always there. After dark the
+// fireflies are the only light, and the mist around them catches it and glows blue. A few soft lights travel with
+// firefly swarms so the boardwalk itself is lit. Everything changes slowly; nothing blinks.
+function hazeScenery(M, g, spots) {
+  for (const [x, y, k] of spots(46, 131, c => c != null && c !== '#')) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#a6d2f6', transparent:true, opacity:0, depthWrite:false }));
+    const sz = 4 + hsh(k, 7) * 4; s.scale.set(sz, sz * .45, 1); const by = groundY(Math.round(x), Math.round(y)) + .35 + hsh(k, 8) * .5;
+    s.position.set(x, by, y); g.add(s); HAZE.push({ s, x, y, by, ph:hsh(k, 9) * 6.28 });
+  }
+  for (const [x, y, k] of spots(7, 141, c => c != null && !SOLID.has(c))) {
+    const l = new THREE.PointLight('#6cbcff', 0, 8, 1.4); const by = groundY(Math.round(x), Math.round(y)) + 1.2; l.position.set(x, by, y); g.add(l);
+    const swarm = []; for (let i = 0; i < 6; i++) { const s = glow(i % 2 ? '#e8ffb0' : '#bff4f6', .9, 0); g.add(s); const f = { s, x:x + (hsh(k, i) - .5) * 1.6, y:y + (hsh(k, i, 2) - .5) * 1.6, by:by - .4 + hsh(k, i, 3) * .6, ph:hsh(k, i, 4) * 6.28, sp:.2 + hsh(k, i, 5) * .2 }; FIREFLIES.push(f); }
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#5aaeff', transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); halo.scale.set(5.5, 3.2, 1); g.add(halo);   // the mist around the swarm, lit blue
+    FLY_LIGHTS.push({ l, halo, x, y, by, ph:hsh(k, 11) * 6.28 });
   }
 }
 function flowerScenery(M, g, spots, n) {
@@ -14830,8 +14852,12 @@ function flowerScenery(M, g, spots, n) {
   }
 }
 function sceneryTick(dt) {
-  if (!FIREFLIES.length) return;
+  if (!FIREFLIES.length && !HAZE.length) return;
   const t = performance.now() / 1000, night = typeof dayState === 'function' ? dayState().night : 0;
+  for (const h of HAZE) { h.s.position.x = h.x + Math.sin(t * .05 + h.ph) * 1.2; h.s.position.z = h.y + Math.cos(t * .04 + h.ph) * .8;
+    h.s.material.color.copy(HZ_DAY).lerp(HZ_NIGHT, night); h.s.material.opacity = (.3 + .12 * night) * (.9 + .1 * Math.sin(t * .3 + h.ph)); }   // a pale veil by day, a deep blue one after dark
+  if (HAZE.length && W.water) { W.water.material.color.copy(HZ_WATER).lerp(HZ_WATER_N, night); W.water.material.emissiveIntensity = .15 * (1 - night) + .04; }
+  for (const L of FLY_LIGHTS) { L.l.position.set(L.x + Math.sin(t * .12 + L.ph) * .8, L.by, L.y + Math.cos(t * .1 + L.ph) * .8); const br = .92 + .08 * Math.sin(t * .5 + L.ph); L.l.intensity = (.1 + 1.05 * night) * br; L.halo.position.set(L.l.position.x, L.by - .5, L.l.position.z); L.halo.material.opacity = (.04 + .4 * night) * br; }
   for (const f of FIREFLIES) {
     f.s.position.set(f.x + Math.sin(t * f.sp + f.ph) * .6, f.by + Math.sin(t * f.sp * .7 + f.ph * 2) * .25, f.y + Math.cos(t * f.sp * .8 + f.ph) * .5);
     f.s.material.opacity = (.35 + .5 * night) * (.9 + .1 * Math.sin(t * .6 + f.ph));   // a slow breath, ±10%
