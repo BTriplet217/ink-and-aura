@@ -3857,7 +3857,8 @@ function buildHub() {
   for (const g of Object.values(GATES)) carve(m, g.road);
   const house = (x, y, w, roof, extra = {}) => { rect(m, x, y, w, 4, 'H'); m[y + 3][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w, roof, wall:'#ece0c2', ...extra }); };
   house(13, 11, 6, '#4f5f80', { name:'archive', lamp:true });
-  house(22, 23, 5, '#a8452f', { name:'bakery', chimney:true });
+  carve(m, [[21, 19], [28, 20], [31, 25]]); m[24][30] = '=';   // the Confidence road bends behind the bakery
+  house(22, 21, 5, '#a8452f', { name:'bakery', chimney:true });   // set back two rows from the south trees
   // the Inkgutter black market: a shabby two-storey house by the Fear road, its door facing the road
   house(1, 17, 6, '#3e3844', { name:'blackmarket', role:'blackmarket', wall:'#5e5560' }); m[21][1] = '#'; m[21][2] = 'o'; for (let x = 3; x <= 5; x++) m[21][x] = '=';   // a rain barrel and crates stand at (1–2, 21)
   for (const g of Object.values(GATES)) if (m[g.sign[1]]) m[g.sign[1]][g.sign[0]] = 's';
@@ -5660,7 +5661,7 @@ function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
   if (M.kind === 'hub') {
     out.push(introDone() ? { id:'wren', x:17, y:15, dir:'down', look:LOOKS.wren, talk:talkWren } : { id:'wren', x:17, y:18, dir:'left', look:LOOKS.wren, talk:talkWren });
-    out.push({ id:'maribel', x:26, y:27, dir:'left', look:LOOKS.maribel, talk:talkMaribel });
+    out.push({ id:'maribel', x:26, y:25, dir:'left', look:LOOKS.maribel, talk:talkMaribel });
     out.push({ id:'tobin', moral:'kind', x:12, y:20, dir:'right', look:LOOKS.tobin, talk:talkTobin });
     out.push(f.lookoutMoved ? { id:'lookout', x:5, y:21, dir:'left', look:LOOKS.lookout, talk:talkLookout } : { id:'lookout', x:4, y:21, dir:'down', look:LOOKS.lookout, talk:talkLookout });   // stands in front of the black market's door until you have the look
     // For now, in every build: a bundle of 100 Insight Quills on the street just south of the black market's wall.
