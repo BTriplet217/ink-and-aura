@@ -175,10 +175,10 @@ html.coarse #tools .tb[data-k=rotl],html.coarse #tools .tb[data-k=rotr],html.coa
 .cc{flex:1;padding:8px 10px 9px;min-width:0}
 .cc.act{background:#fff3cf;box-shadow:0 0 0 3px var(--gold),0 8px 20px rgba(27,21,18,.25)}
 .cc.down{opacity:.45}
-.cc .t{display:flex;align-items:center;gap:6px;font-weight:800;font-size:13px;margin-bottom:5px;white-space:nowrap;overflow:hidden}
+.cc .t{display:flex;align-items:center;gap:6px;font-weight:800;font-size:13px;margin-bottom:5px;line-height:1.15}.cc .t .cn{min-width:0;overflow-wrap:anywhere}
 .cc .t .mi{width:20px;height:20px}
-.cc .t span:last-child{margin-left:auto;font-size:11px;color:var(--muted)}
-.cc small{display:block;text-align:right;font-size:10px;color:var(--muted);font-weight:700;margin-top:2px}
+.cc small{display:block;text-align:right;font-size:10px;color:var(--muted);font-weight:700;margin-top:2px}.cc small.lh{display:flex;justify-content:space-between;gap:4px;flex-wrap:wrap}
+@media (max-width:560px){.cc{padding:6px 7px 7px}.cc .t{font-size:12px;gap:4px}.cc .t .mi{width:15px;height:15px;flex:none}.cc small{font-size:9.5px}}
 .dmg{position:fixed;z-index:16;font:800 22px 'Nunito Sans';color:#fff;-webkit-text-stroke:1.5px #1b1512;pointer-events:none;animation:up .9s ease-out forwards;transform:translate(-50%,-50%)}
 .dmg.big{font-size:28px;color:#ffe08f}
 .dmg.heal{color:#a8f08c}
@@ -781,7 +781,7 @@ const CITIZENS = {
       { bright:'Emberwick folk: My father hit me every day of my life and I swore I\'d never... look at my hands. Look at them.', plain:'Emberwick folk: The forges never cool. Nobody remembers why we\'re making so many swords.', dark:'Emberwick folk: The Choir buys every blade we make. Every. Single. One. Who\'s the war for?' }
     ]
   },
-  way: { bright:'{name}: You\'ve got a good feel about you. Mind the road up to {city}.', plain:'{name}: Feelings blow in from all over, out here. Never sure what you\'ll meet in the grass.', dark:'{name}: Keep your hands where I can see them, traveller.' }
+  way: { bright:'{name}: You\'ve got a good feel about you. Mind the road up to {city}.', plain:'{name}: Feelings blow in from all over, out here. Never sure what you\'ll meet on the road.', dark:'{name}: Keep your hands where I can see them, traveller.' }
 };
 const CITIZEN_SPOTS = { city:[[19,16],[16,20]], way:[[10,9]] };
 const CITIZEN_NAMES = ['Cass','Edda','Fenn','Gilly','Harrow','Isolde','Jory','Kit','Lune','Mags','Nico','Oona','Perrin','Quin','Rhea','Sol'];
@@ -3914,7 +3914,7 @@ function blockTown(o) {
   if (kind === 'city') { rect(m, cx - 2, b, 6, 4, 'X'); road(cx - 3, b + 4, 8, 2); }
   // vertical street columns (2 wide), always including both ring sides and the centre
   const span = ({ grid:9, alleys:7, crooked:9, ring:10, river:10, pond:10, canal:10, courts:10, yard:11, avenue:10, orchard:9, crossroads:9, riverside:9, quarry:10, fairground:9, marshlane:9, woodedge:9, hedgerows:9, tannery:10, forge:9 }[style] || 9) + TOWN_GAP_X;
-  const xs = [b + 1]; for (let x = cx - span; x > b + 4; x -= span) xs.push(x); xs.push(cx); for (let x = cx + span; x < W - b - 5; x += span) xs.push(x); xs.push(W - b - 3);
+  const xs = [b + 1]; for (let x = cx - span; x > b + 7; x -= span) xs.push(x); xs.push(cx); for (let x = cx + span; x < W - b - 8; x += span) xs.push(x); xs.push(W - b - 3);
   const cols = [...new Set(xs)].sort((a, c) => a - c);
   // horizontal street rows: blocks 7 tall (3 open rows behind the houses, so nobody is hidden behind a wall, + 4 house rows), street 2 tall
   const rows = []; for (let y = topY; y <= railY - 4; y += TOWN_STEP) rows.push(y);
@@ -3954,11 +3954,14 @@ function blockTown(o) {
   if (style === 'courts' || style === 'hedgerows') for (const k of blocks) if (!feat.has(k)) { for (let x = k.x0; x <= k.x1; x++) if (m[k.y0][x] === '.') m[k.y0][x] = 'h'; }
   // houses: a neat row along the front of each block, doors on the street below
   const houses = [], order = blocks.filter(k => !feat.has(k)).sort((a, c) => (Math.abs((a.x0 + a.x1) / 2 - cx) + a.r * 3) - (Math.abs((c.x0 + c.x1) / 2 - cx) + c.r * 3));
-  for (const k of order) { const bw = k.x1 - k.x0 + 1; let ws = bw >= 11 ? [5, 5] : bw >= 9 ? [4, 4] : bw >= 7 ? [6] : bw >= 5 ? [5] : bw >= 4 ? [4] : [];
-    if (bw >= 14) ws = [4, 4, 4];
-    const tot = ws.reduce((a, w) => a + w, 0) + (ws.length - 1) * 2; let x = k.x0 + Math.floor((bw - tot) / 2);
-    for (const w of ws) { const y = k.y1 - 3; let ok = true; for (let j = y; j <= k.y1; j++) for (let i = x; i < x + w; i++) if (!['.', ','].includes(m[j][i])) ok = false;
-      if (ok && (o.max == null || houses.length < o.max)) { rect(m, x, y, w, 4, 'H'); m[k.y1][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w }); } x += w + 2; } }
+  // Spread the houses over the whole town (25 Nov): every block gets one house in its middle, nearest the centre first.
+  // Only when there are fewer blocks than houses do the first blocks take a pair, pushed out to the block's two ends.
+  const usable = order.filter(k => k.x1 - k.x0 + 1 >= 4), want = o.max == null ? usable.length * 2 : o.max, pairs = Math.max(0, want - usable.length);
+  const fits = (x, y, w, k) => { for (let j = y; j <= k.y1; j++) for (let i = x; i < x + w; i++) if (!['.', ','].includes(m[j][i])) return false; return true; };
+  const put = (x, y, w, k) => { if ((o.max != null && houses.length >= o.max) || !fits(x, y, w, k)) return false; rect(m, x, y, w, 4, 'H'); m[k.y1][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w }); return true; };
+  usable.forEach((k, n) => { const bw = k.x1 - k.x0 + 1, y = k.y1 - 3;
+    if (n < pairs && bw >= 10) { const w = bw >= 16 ? 5 : 4, e = bw >= 12 ? 1 : 0; put(k.x0 + e, y, w, k); put(k.x1 - w + 1 - e, y, w, k); return; }
+    const w = bw >= 7 ? (hsh(k.x0, k.y0, sd) < .5 ? 5 : 6) : Math.min(5, bw); put(k.x0 + Math.floor((bw - w) / 2), y, w, k); });
   // greenery: grass in leftover block corners and the south strip; trees only behind the border
   for (const k of blocks) for (let y = k.y0; y <= k.y1; y++) for (let x = k.x0; x <= k.x1; x++) if (m[y][x] === '.' && hsh(x, y, sd) < .35) m[y][x] = ',';
   for (let y = railY + 2; y < H - b; y++) for (let x = b; x < W - b; x++) if (m[y][x] === '.' && hsh(x, y, sd + 1) < .5) m[y][x] = ',';
@@ -3969,28 +3972,31 @@ function blockTown(o) {
 // Towns were made roomier on 25 Nov: wider streets between blocks, three open rows behind every row of houses,
 // two tiles between neighbouring houses, and bigger maps to hold it all.
 const TOWN_STEP = 9, TOWN_GAP_X = 3;
+// The old line runs through every town even before the trains come back: track from wall to wall, never grassed over.
+// Its ends stop at the border trees, which you can't walk through.
+function layTrack(m, y, b) { const W = m[0].length; for (let x = b; x < W - b; x++) if (m[y][x] !== '=') m[y][x] = 't'; return { y, x0:b, x1:W - b - 1 }; }
 const WAY_SIZE2 = { JOY:[42, 39], HOPE:[42, 39], CALM:[42, 39], CONFIDENCE:[48, 39], SURPRISE:[42, 39], SADNESS:[40, 39], FEAR:[40, 39], SHAME:[42, 39], DISGUST:[48, 39], ANGER:[40, 39] };
 const CITY_SIZE2 = { JOY:[60, 53], HOPE:[62, 53], CALM:[60, 53], CONFIDENCE:[62, 53], SURPRISE:[60, 53], SADNESS:[58, 53], FEAR:[56, 53], SHAME:[60, 53], DISGUST:[62, 53], ANGER:[60, 53] };
 function buildWay(type) {
   const T = WAYTOWNS[type], C = TOWNS[type], [W, H] = WAY_SIZE2[type], st = WAY_STYLE[type], sd = 30 + wIdx(type);
   const P = blockTown({ W, H, b:2, kind:'way', style:st, sd, max:7 }), m = P.m, rx = P.cx;
-  m[H - 4][rx + 2] = 's';
+  m[H - 4][rx + 2] = 's'; const railX = layTrack(m, P.railY, 2);
   const houses = P.houses.map(c => ({ x:c.x, y:c.y, w:c.w, roof:C.roof, wall:C.wall, chimney:hsh(c.x, c.y) < .5 }));
   ensureReach(m, [rx, H - 1], [[rx, 0], ...houses.map(h => [h.x + Math.floor(h.w / 2), h.y + 4])]);
   const i = wIdx(type), a = wAt(i - 1), b = wAt(i + 1), o = oppOf(type), [lo, hi] = T.lv;
   const F = [0, 1, 2].map(k => TS(type, k)), FA = [0, 1].map(k => TS(a, k)), FB = [0, 1].map(k => TS(b, k)), FO = [TS(o, 0)];
-  return { kind:'way', tiles:m, houses, set:P.set, name:T.name, sub:`On the road to ${C.name}`, vibe:type, style:st, w:W, h:H, entryS:{ x:rx, y:H - 2 }, entryN:{ x:rx, y:1 }, rail:{ y:P.railY },
+  return { kind:'way', tiles:m, houses, set:P.set, name:T.name, sub:`On the road to ${C.name}`, vibe:type, style:st, w:W, h:H, entryS:{ x:rx, y:H - 2 }, entryN:{ x:rx, y:1 }, rail:{ y:P.railY }, rails:[railX],
     wild:[[F[0],26,lo,hi],[F[1],12,lo+1,hi+1],[F[2],2,hi+1,hi+2],[FA[0],14,lo,hi],[FA[1],6,lo+1,hi+1],[FB[0],14,lo,hi],[FB[1],6,lo+1,hi+1],[FO[0],8,lo,hi]],
     exit:(nx, ny) => ny >= H ? { map:'vellum', ...GATES[C.gate].arrive } : ny < 0 ? { map:C.id, x:MAPS[C.id].entryS.x, y:MAPS[C.id].entryS.y, dir:'up', city:type } : null };
 }
 function buildCity(type) {
   const T = TOWNS[type], [W, H] = CITY_SIZE2[type], st = CITY_STYLE[type], sd = 60 + wIdx(type);
   const P = blockTown({ W, H, b:3, kind:'city', style:st, sd, max:12 }), m = P.m, cx = P.cx;
-  m[P.railY - 2][cx + 3] = 's';
+  m[P.railY - 2][cx + 3] = 's'; const railX = layTrack(m, P.railY, 3);
   const houses = P.houses.map(c => ({ x:c.x, y:c.y, w:c.w, roof:T.roof, wall:T.wall, chimney:hsh(c.x, c.y) < .5 }));
   ensureReach(m, [cx, H - 1], [[cx, 8], ...houses.map(h => [h.x + Math.floor(h.w / 2), h.y + 4])]);
   const fam = [0, 1, 2].map(k => TS(type, k)), [lo, hi] = T.lv;
-  return { kind:'city', tiles:m, houses, set:P.set, name:T.name, sub:`Ruled by ${TYPES[type].name}`, vibe:type, style:st, w:W, h:H, shrine:{ x:cx + .5, z:4.5 }, entryS:{ x:cx, y:H - 2 }, rail:{ y:P.railY },
+  return { kind:'city', tiles:m, houses, set:P.set, name:T.name, sub:`Ruled by ${TYPES[type].name}`, vibe:type, style:st, w:W, h:H, shrine:{ x:cx + .5, z:4.5 }, entryS:{ x:cx, y:H - 2 }, rail:{ y:P.railY }, rails:[railX],
     wild:[[fam[0], 45, lo, hi], [fam[1], 40, lo + 1, hi], [fam[2], 15, hi, hi + 1]],
     exit:(nx, ny) => ny >= H ? { map:WAYTOWNS[type].id, x:MAPS[WAYTOWNS[type].id].entryN.x, y:1, dir:'down' } : null };
 }
@@ -4388,7 +4394,7 @@ for (const t of WHEEL) {
 const ROUTE_LOOK = {
   garden:{ trees:'blossom', prop:null, parts:'petals' },
   rail:{ trees:'conifer', treeC:['#3a5a3a', '#4a6a40', '#2e4a30'], ground:['#9a9070', '#8e8466', '#a69c7a'], parts:'motes' },
-  marsh:{ trees:'mushroom', treeC:['#8fd8dc', '#6cc6cc', '#b2e8ea'], groundFog:'#c8e0dc', fogOp:.35, water:'#6a8a7a', parts:'fireflies', partC:['#e8ffb0', '#bff4f6'] },   // Reedwater: a fairytale marsh
+  marsh:{ trees:'mushroom', treeC:['#8fd8dc', '#6cc6cc', '#b2e8ea'], sky:'#cfe4f6', fog:'#b9d8f2', fogNear:9, fogFar:32, hemi:'#e2eefc', groundFog:'#c6e2f8', fogOp:.45, water:'#78c4ec', waterGlow:'#bfe6fa', parts:'fireflies', partC:['#e8ffb0', '#bff4f6'] },   // Reedwater: a fairytale marsh
   quarry:{ trees:'conifer', ground:['#c4b8a2', '#b8ac96', '#ccc0aa'], parts:'motes' },
   fair:{ trees:'round', parts:'petals', partC:['#f4cf5e', '#c0503a', '#4f8a8a'] },
   lane:{ road:'#5c6064', trees:'dead', parts:'rain', ground:['#6a7068', '#62685e', '#727a70'], sky:'#8a909a', fog:'#8a909a', fogNear:10, fogFar:30, sun:.8 },
@@ -5026,7 +5032,7 @@ function buildWorld(id) {
     // so nothing ends in a hard line (you see it from the lighthouse gallery, and from the far zoom)
     let edge = 0, wet = 0; for (let x = 0; x < M.w; x++) for (const y of [0, M.h - 1]) { edge++; if (M.tiles[y][x] === '~') wet++; } for (let y = 0; y < M.h; y++) for (const x of [0, M.w - 1]) { edge++; if (M.tiles[y][x] === '~') wet++; }
     const coast = wet / edge > .2, SW = coast ? 600 : M.w, SH = coast ? 600 : M.h;
-    const wm = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH).rotateX(-Math.PI / 2), new THREE.MeshToonMaterial({ color:V.water || '#7aa6c8', gradientMap:gradTex, transparent:true, opacity:.8, emissive:new THREE.Color('#9cc6e0'), emissiveIntensity:.15 })); wm.position.set((M.w - 1) / 2, BASE - .14, (M.h - 1) / 2); wm.receiveShadow = true; world.add(wm); W.water = wm;
+    const wm = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH).rotateX(-Math.PI / 2), new THREE.MeshToonMaterial({ color:V.water || '#7aa6c8', gradientMap:gradTex, transparent:true, opacity:.8, emissive:new THREE.Color(V.waterGlow || '#9cc6e0'), emissiveIntensity:.15 })); wm.position.set((M.w - 1) / 2, BASE - .14, (M.h - 1) / 2); wm.receiveShadow = true; world.add(wm); W.water = wm;
     if (coast) { const bed = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color:new THREE.Color(V.water || '#7aa6c8').multiplyScalar(.45) })); bed.position.set((M.w - 1) / 2, BASE - .5, (M.h - 1) / 2); world.add(bed); } }
   if (flowers.length) {
     const fm = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.07, 0), toon('#ffffff'), flowers.length * 5);
@@ -5855,7 +5861,7 @@ async function wrenIntro() {
 const WREN_TOPICS = [
   ['aura', 'Your aura', ['See the badge at the top left? That\'s your aura: the weather of whatever Manifs you carry. It reads two ways at once: how bright or dark it is, and how fierce or still. Warm, Serene, Menacing, Forlorn, and every shade between.',
     'People can see it. Shopkeepers charge you by it. Some folk won\'t talk to a dark aura, and some only talk to the dark ones. Change what you carry and you change how the world treats you.']],
-  ['meet', 'Meeting wild Manifs', ['Wild Manifs drift about in the long grass. Walk into one to meet it.',
+  ['meet', 'Meeting wild Manifs', ['Wild Manifs wander wherever the ground is open: grass, roads, town squares. They like the long grass best, but they don\'t keep to it. Walk into one to meet it.',
     'You don\'t hurt them. You wear them out of their feeling until it settles. Each one carries the echo of a real person, and it will tell you a little about them.']],
   ['battle', 'How meetings work', ['Up to three of your Manifs act each turn, using Expressions. Each feeling sits on the wheel. Feelings opposite each other hit twice as hard. Joy and Sadness, Hope and Fear, Calm and Anger, Confidence and Shame, Surprise and Disgust.',
     'Two neighbours on the wheel acting together can fuse into something stronger. Joy and Hope make Optimism, for instance.',
@@ -5930,15 +5936,15 @@ async function talkMaribel() {
   } else if (auraAtMost('shadowed')) await say('Maribel: ...You. Whatever you\'re carrying, carry it past my door.');
   else await say('Maribel: Hm. I can\'t read you yet. Come back when you\'ve made up your mind.');
 }
-async function talkTobin() { if (await deliverPie()) return; await say(['Tobin: Mum says every city out there is stuck on one feeling. The little villages on the way are mixed up, though. You find all sorts there.', 'Tobin: Wren says Manifs aren\'t good or bad. They\'re just weather. Maribel doesn\'t agree. Do you agree, {name}?', 'Tobin: There\'s a man in the alley who only talks to people with shadows on them.', 'Tobin: The arches are coloured like the wheel. Opposite towns face each other across Vellum.', 'Tobin: I told the whole square {name} is going to settle all ten Hearts. {They} definitely {is}. Right?'][S.steps % 5]); }
+async function talkTobin() { if (await deliverPie()) return; await say(['Tobin: Mum says every city out there is stuck on one feeling. The little villages on the way are mixed up, though. You find all sorts there.', 'Tobin: Wren says Manifs aren\'t good or bad. They\'re just weather. Maribel doesn\'t agree. Do you agree, {name}?', 'Tobin: See the house by the Fear road with the boards on its windows? There\'s a man on its step who only lets in people with shadows on them.', 'Tobin: The arches are coloured like the wheel. Opposite towns face each other across Vellum.', 'Tobin: I told the whole square {name} is going to settle all ten Hearts. {They} definitely {is}. Right?'][S.steps % 5]); }
 async function talkLookout() {
-  if (S.flags.lookoutMoved) return say('Lookout: Go on through. Sable\'s expecting you.');
-  if (vibeClass() === 'tender') return say(pickA(['Lookout: Rough week? Sable likes the sad ones. Says they sell cheap. ...Forget I said that. Come back when you\'ve got some teeth.', 'Lookout: You don\'t want back here like that. They\'ll have the coat off your back and call it charity.']));
+  if (S.flags.lookoutMoved) return say('Lookout: Go on in. Sable\'s expecting you.');
+  if (vibeClass() === 'tender') return say(pickA(['Lookout: Rough week? Sable likes the sad ones. Says they sell cheap. ...Forget I said that. Come back when you\'ve got some teeth.', 'Lookout: You don\'t want in here like that. They\'ll have the coat off your back and call it charity.']));
   if (auraAtMost('shadowed')) {
     await say('Lookout: ...Yeah. You\'ve got the look. Go on.');
     S.flags.lookoutMoved = 1; const p = W.npcs.lookout; if (p) p.position.set(5, groundY(5, 21), 21); npcFace.lookout = 'left';
     await say('(The lookout steps aside from the door. The black market is open to you.)');
-  } else await say('Lookout: Nothing back here for your sort. Come back when you\'ve got some shadow on you.');
+  } else await say('Lookout: Nothing in here for your sort. Come back when you\'ve got some shadow on you.');
 }
 async function talkSable() {
   if (auraAtMost('shadowed') && S.flags.sableGift) {
@@ -6219,7 +6225,7 @@ async function talkJob(t, i) {
   }
   if (j.kind === 'settle') {
     if ((S.jobProg[id] || 0) >= j.n) { await say(j.done); S.jobs[id] = 'done'; pay(reward); return say(`You earned ${reward} Marks.`); }
-    return say(`${gname.split(' ').pop()}: ${S.jobProg[id] || 0} of ${j.n} so far. The tall grass, out by the walls.`);
+    return say(`${gname.split(' ').pop()}: ${S.jobProg[id] || 0} of ${j.n} so far. Anywhere they wander. Try the long grass, they like it best.`);
   }
   if (j.kind === 'deliver') return say(`${gname.split(' ').pop()}: Did you get it to ${MAPS[j.to].name} yet? The keeper there is expecting it.`);
   if (j.kind === 'give') {
@@ -8610,11 +8616,11 @@ function stationX(M) { if (M.stationX != null) return M.stationX; return Math.mi
 function applyRestoredTowns() {
   if (applyRestoredTowns.done) return; applyRestoredTowns.done = 1;
   for (const t of WHEEL) for (const id of [WAYTOWNS[t].id, TOWNS[t].id]) { const M = MAPS[id]; if (!M.rail) continue; const y = M.rail.y;
-    for (let x = 0; x < M.w; x++) { if (M.tiles[y][x] !== '=') M.tiles[y][x] = 't'; for (const dy of [-2, -1, 1, 2, 3]) if (M.tiles[y + dy] && (M.tiles[y + dy][x] === '#' || M.tiles[y + dy][x] === ',')) M.tiles[y + dy][x] = '.'; }
-    M.rails = [{ y, x0:0, x1:M.w - 1 }]; }
+    for (let x = 0; x < M.w; x++) { if (M.tiles[y][x] !== '=' && M.tiles[y][x] !== '#') M.tiles[y][x] = 't'; for (const dy of [-2, -1, 1, 2, 3]) if (M.tiles[y + dy] && (M.tiles[y + dy][x] === '#' || M.tiles[y + dy][x] === ',')) M.tiles[y + dy][x] = '.'; }
+    const row = M.tiles[y].map(c => c === 't' || c === '='), x0 = row.indexOf(true), x1 = row.lastIndexOf(true); M.rails = [{ y, x0, x1 }]; }   // the track stops at the border trees
   // the Long Siding: the abandoned engine, tender and log cars are gone (the restored train lives here now); track runs edge to edge
   const R = MAPS.r_siding; if (R) { R.set = (R.set || []).filter(p => { if (!['loco', 'tender', 'logcar'].includes(p.k)) return true; const [x, y, w, h] = p.tiles || [p.x, p.y, 1, 1]; for (let j = y; j < y + (h || 1); j++) for (let i = x; i < x + (w || 1); i++) if (R.tiles[j] && R.tiles[j][i] === 'o') R.tiles[j][i] = j === 26 ? 't' : '.'; return false; });
-    for (let x = 0; x < R.w; x++) { R.tiles[26][x] = 't'; for (const dy of [-1, 1]) if (R.tiles[26 + dy][x] === '#') R.tiles[26 + dy][x] = '.'; } const rl = R.rails.find(r => r.y === 26); if (rl) { rl.x0 = 0; rl.x1 = R.w - 1; } }
+    for (let x = 2; x < R.w - 2; x++) { R.tiles[26][x] = 't'; for (const dy of [-1, 1]) if (R.tiles[26 + dy][x] === '#') R.tiles[26 + dy][x] = '.'; } const rl = R.rails.find(r => r.y === 26); if (rl) { rl.x0 = 2; rl.x1 = R.w - 3; } }   // the ends stop at the trees
 }
 function trainStops() { const out = [['r_siding', 'The Long Siding', 'HOPE']]; for (const t of TOWN_ORDER) { out.push([WAYTOWNS[t].id, WAYTOWNS[t].name, t], [TOWNS[t].id, TOWNS[t].name, t]); } for (const [id, n] of FAR_LINE) out.push([id, n, null]); return out; }
 // each stop wears its feeling's colour (a darker shade, so it reads on parchment); the places beyond the Welkin are bronze
@@ -9779,7 +9785,8 @@ function mapLine() { const n = mapNodes().N.find(x => x.id === hereId()); return
 //  down and set you on fire. You wake in the Archive, burned, and you stay burned.
 //  None of it touches your aura. Come back good and they'll let you in, and roast you for it.
 // =============================================================================
-const DND_ID = (() => { const P = MAPS[TOWNS.JOY.id]; const ids = Object.values(P.doors || {}).filter(id => /_room\d+$/.test(id) && MAPS[id].room && MAPS[id].room.npcs && MAPS[id].room.npcs[0] && MAPS[id].room.npcs[0].id === 'home_res'); return ids[ids.length - 1]; })();
+const DND_ID = (() => { const P = MAPS[TOWNS.JOY.id]; const ids = Object.values(P.doors || {}).filter(id => /_room\d+$/.test(id) && MAPS[id].room && MAPS[id].room.npcs && MAPS[id].room.npcs[0] && MAPS[id].room.npcs[0].id === 'home_res'); const P2 = MAPS[TOWNS.JOY.id], dy = id => { const k = Object.keys(P2.doors).find(k => P2.doors[k] === id).split(',').map(Number); return k[1] * 100 - Math.abs(k[0] - P2.w / 2); };   // the Dragon's Table is the front-most home, nearest the middle
+  return ids.slice().sort((a, b) => dy(b) - dy(a))[0]; })();
 const DND_DOOR = (() => { const P = MAPS[TOWNS.JOY.id]; const k = Object.keys(P.doors).find(k => P.doors[k] === DND_ID); return k.split(',').map(Number); })();
 // Built from Blaine's character art: the real people, dressed as their characters, but human (no scales, horns, pointed ears or glowing eyes).
 const DND_LOOK = {
@@ -14837,6 +14844,7 @@ function sceneryTick(dt) {
 //  grass), but never onto doors, doorsteps, exits, water, people or anything solid.
 // =============================================================================
 const SPACE_BLOCK = c => c == null || SOLID.has(c) || c === 'D' || c === '~' || c === 'o' || c === 'h' || c === 'R';
+const WILD_BLOCK = c => SPACE_BLOCK(c) || c === 't';   // and wild Manifs keep off the tracks
 // The camera looks from the south, so a wall one or two tiles south of you hides you.
 function hiddenBehind(M, x, y) { for (const d of [1, 2]) { const c = (M.tiles[y + d] || [])[x]; if (c === 'H' || c === 'D') return true; } return false; }
 const spacePerson = e => !e.item && !e.invisible && !e.note && !e.manifComp && !e.manif && !e.rift && !!e.look;
@@ -14857,7 +14865,7 @@ function unhide(map, list) {
 }
 // Wild Manifs may wander onto any open tile.
 function wildOk(M, x, y) {
-  const c = (M.tiles[y] || [])[x]; if (SPACE_BLOCK(c) || x < 2 || y < 2 || x >= M.w - 2 || y >= M.h - 2) return false;
+  const c = (M.tiles[y] || [])[x]; if (WILD_BLOCK(c) || x < 2 || y < 2 || x >= M.w - 2 || y >= M.h - 2) return false;
   if ((M.tiles[y - 1] || [])[x] === 'D') return false;   // never sit on a doorstep
   for (const k of ['entryS', 'entryN']) { const p = M[k]; if (p && Math.abs(p.x - x) <= 1 && Math.abs(p.y - y) <= 2) return false; }   // or in a way in
   if (entAt(x, y) || trainAt(x, y)) return false;
@@ -14941,7 +14949,7 @@ function renderBHUD() {
   const cards = B.group ? B.group.map(g => card(g, g.m, g.max, g === B.cur)) : [card(null, B.foe, B.foeMax, true)];
   if (B.group && B.reserve.length) cards.push(`<div class="fc card wait">+${B.reserve.length}<small>waiting</small></div>`);
   $('#bhud').innerHTML = (B.group && B.opt.owner ? `<div class="own">Held by ${B.opt.owner}</div>` : '') + `<div class="fcs">${cards.join('')}</div>`;
-  $('#chorus').innerHTML = B.chorus.map(m => { const r = m.hp / maxHp(m); return `<div class="cc card${m.hp <= 0 || B.numb.has(m) ? ' down' : ''}${B.acting === m ? ' act' : ''}"><div class="t">${manifIcon(m)}<span>${nm(m)}</span><span>Lv${m.lvl}</span></div><div class="bar"><i style="width:${r * 100}%;background:${r > .5 ? '#7cbf5a' : r > .2 ? '#e8b84a' : '#d8503f'}"></i></div><small>${m.hp <= 0 ? 'overwhelmed' : B.numb.has(m) ? 'numb' : m.hp + '/' + maxHp(m)}${B.guard.has(m) ? ' · guarding' : ''}${bondTag(m)}</small></div>`; }).join('');
+  $('#chorus').innerHTML = B.chorus.map(m => { const r = m.hp / maxHp(m); return `<div class="cc card${m.hp <= 0 || B.numb.has(m) ? ' down' : ''}${B.acting === m ? ' act' : ''}"><div class="t">${manifIcon(m)}<span class="cn">${nm(m)}</span></div><div class="bar"><i style="width:${r * 100}%;background:${r > .5 ? '#7cbf5a' : r > .2 ? '#e8b84a' : '#d8503f'}"></i></div><small class="lh"><span>Lv ${m.lvl}</span><span>${m.hp <= 0 ? 'overwhelmed' : B.numb.has(m) ? 'numb' : m.hp + '/' + maxHp(m)}</span></small>${(() => { const st = ((B.guard.has(m) ? ' · guarding' : '') + bondTag(m)).replace(/^ · /, ''); return st ? `<small class="st">${st}</small>` : ''; })()}</div>`; }).join('');
 }
 function screenPos(v3) { const v = v3.clone().project(bcam); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; }
 function floatText(v3, txt, cls = '') { const [x, y] = screenPos(v3); const d = document.createElement('div'); d.className = 'dmg ' + cls; d.textContent = txt; d.style.left = x + 'px'; d.style.top = y + 'px'; document.body.appendChild(d); setTimeout(() => d.remove(), 950); }
