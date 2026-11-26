@@ -5835,18 +5835,12 @@ async function wrenIntro() {
   S.flags.inIntro = 1;
   npcFace.wren = ({ up:'down', down:'up', left:'right', right:'left' })[S.dir];
   const L = async lines => { for (const l of lines) await say('Wren: ' + l); };
-  await L(['Oh, you\'re up, {name}. Good. I was starting to think the weather had got into you.',
-    'I\'m Wren. I keep the Archive, that old building behind me. Every Codex anyone in the Welkin ever started sits on my shelves.',
-    'Nobody explained any of this to me when I was your age, and I spent a year afraid of all the wrong things. So let me tell you where you are.']);
-  await L(['This is the Welkin. Here, feelings don\'t stay inside people. When someone feels something hard enough, it lifts off them like heat off a road.',
-    'Sometimes it comes back down and takes a shape. We call those Manifestations. Manifs. Every one of them was somebody\'s feeling, about something real.',
-    'Ten cities ring this square, one for each feeling on the wheel. Each is ruled by its feeling at full strength: Larkhollow by Joy, Sorrowmere by Sadness, Emberwick by Anger, and so on round.',
-    'In the middle of each city lives its Heart: the oldest, strongest Manif of that feeling. Lately they\'ve all been restless. Something underneath the Welkin is pulling at them.',
-    'We call it the Hush. It doesn\'t feel anything. It takes feeling away. You\'ll see people in the cities who\'ve been Numbed by it. They stand very still, and can\'t remember why anything mattered.',
-    'If all ten Hearts are settled, the way down to the Stillwell opens, and someone can go and face the Hush. I\'m too old for it. You\'re not.']);
-  await say('Wren: Tobin\'s been asking all week. "Is {name} awake yet? Is {they} going today? Can I see what {they} pick{s}?" You\'ll make his year.');
-  await say('Wren: But nobody goes out there alone.');
-  await L(['Three Manifs have been following you round the square for weeks. They\'ve chosen you. Now you choose one of them.']);
+  // Kept short (26 Nov): the essentials only. Everything else is under "Ask about…", any time.
+  await L(['Oh, you\'re up, {name}. Good. I\'m Wren. I keep the Archive, the old building behind me.',
+    'This is the Welkin. Here, a strong feeling lifts off a person, and sometimes it comes back down with a shape. We call those Manifs.',
+    'Ten cities ring this square, one for each feeling. Each has a Heart, its oldest and strongest Manif, and lately they\'ve all been restless.',
+    'Something underneath, the Hush, is pulling at them, and it leaves people Numbed. Settle all ten Hearts and the way down to it opens.',
+    'But nobody goes out there alone. Three Manifs have been following you round the square. They\'ve chosen you. Now you choose one of them.']);
   const starters = [['CONTENTMENT', 'a quiet little sun. Joy is gentle to carry, and strong against Sadness.'], ['WISHFULNESS', 'a small light that keeps looking at the horizon. Hope is strong against Fear.'], ['WISTFULNESS', 'a soft grey ache for things that have passed. Sadness is slow, but strong against Joy.']];
   let st;
   for (;;) {
@@ -5859,10 +5853,9 @@ async function wrenIntro() {
   st.canon = 1; S.canon[st.sp] = 1; S.party.push(st); S.codex.seen[st.sp] = 1; S.codex.kept[st.sp] = 1; rebuildMinis(); auraPulse = 1; sfx('keep');
   await say(`${nm(st)} joins what you carry! It circles you once, quiet and curious.`);
   if (typeof TEST_STOCK !== 'undefined' && TEST_STOCK && TEST_BUILD) { testStock(st); await say('(Test build: your Manifs are all at Lv 100, five more walk with you, and every other Manif is waiting in your Satchel. Plenty of supplies, too.)'); }
-  await say('Wren: Good. Now listen, because this is what everything\'s for. If you forget, come and ask me. I\'m always here by the Archive.');
-  for (const k of ['aura', 'meet', 'battle', 'keep', 'grow', 'roads', 'events']) await wrenExplain(k, true);
+  await say('Wren: Good. Walk into a wild Manif to meet it. Understand it, and it may come with you.');
   S.items.cake = (S.items.cake || 0) + 2; await say('Wren gave you 2 Honey Cakes. They bring back a Manif\'s Composure.');
-  await say('Wren: One more thing, the most important one. Your Codex keeps everything: what you met, what you kept, what you let go. When your journey ends, it will tell you what you carried, and what that says about you.');
+  await say('Wren: That\'s all you need to start. Anything else, ask me. I\'m always here by the Archive.');
   await wrenTopics(true);
   S.flags.wrenIntro = 1; delete S.flags.inIntro;
   await say('Wren: Off you go, then, {name}. Joy\'s road is the gentlest place to start: look for the sign that says Larkhollow.');
@@ -5913,7 +5906,7 @@ async function wrenTopics(first) {
   for (;;) {
     // The way out sits at the top of the list (and B / Back also leaves), so it can't get lost below the fold.
     const opts = [{ label:first ? 'I\'m ready to start my journey' : 'That\'s all, thanks', sub:'▶' }].concat(WREN_TOPICS.map(t => ({ label:t[1], sub:'Ask' })));
-    const c = await ask(first ? 'Wren: That\'s everything. Are you ready to go, or is there anything you\'d like me to go over again?' : 'Wren: What do you want to know?', opts, { start:idx });
+    const c = await ask(first ? 'Wren: Ready to go, or is there something you\'d like to know first?' : 'Wren: What do you want to know?', opts, { start:idx });
     if (c <= 0) return; idx = c; await wrenExplain(WREN_TOPICS[c - 1][0]);
   }
 }
@@ -15230,10 +15223,15 @@ function svcBadges(sv, h) {
     sp.scale.set(.42, .42, 1); sp.position.set((i - (kinds.length - 1) / 2) * .46, h, 0); sp.renderOrder = 13; g.add(sp); });
   return g;
 }
+// A person's badges live in the world, not on the person, so they don't swing round when the person turns.
+// Each frame, just before drawing, they move to sit over the person's head (they walk with them).
+const _svV = new THREE.Vector3();
 function svcOn(e) {
   const host = W.npcs[e.id]; if (!host) return; const sv = svcOf(e); if (!sv) return;
   const raised = e.mark || ORBS.some(o => o.host === host);   // above an orb or a diamond, never on top of it
-  host.add(svcBadges(sv, (e.markH || 2.12) + (raised ? .5 : 0)));
+  const g = svcBadges(sv, 0), h = (e.markH || 2.12) + (raised ? .5 : 0); world.add(g);
+  for (const sp of g.children) { const dx = sp.position.x; sp.frustumCulled = false;
+    sp.onBeforeRender = () => { host.getWorldPosition(_svV); g.visible = host.visible; sp.position.set(_svV.x + dx, _svV.y - host.position.y + groundY(host.position.x, host.position.z) + h * host.scale.y, _svV.z); sp.updateMatrixWorld(true); }; }
 }
 // beds you can rest in and counters you can buy at, unless someone right beside them already wears the badge
 function svcFurniture(id) {
