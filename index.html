@@ -15140,10 +15140,19 @@ function orbState(e) {
   return null;
 }
 const ORBS = [];
+let ORB_TEX = null;
+function orbTex() {   // a sky-blue bead with a dark ink rim and a soft highlight
+  if (ORB_TEX) return ORB_TEX;
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  const g = x.createRadialGradient(52, 48, 6, 64, 64, 54); g.addColorStop(0, '#f2fbff'); g.addColorStop(.45, '#7cc6ff'); g.addColorStop(1, '#2f7fd0');
+  x.beginPath(); x.arc(64, 64, 52, 0, Math.PI * 2); x.fillStyle = g; x.fill(); x.lineWidth = 8; x.strokeStyle = '#1d2a3a'; x.stroke();
+  x.beginPath(); x.ellipse(50, 44, 14, 9, -.6, 0, Math.PI * 2); x.fillStyle = 'rgba(255,255,255,.85)'; x.fill();
+  ORB_TEX = new THREE.CanvasTexture(c); ORB_TEX.colorSpace = THREE.SRGBColorSpace; return ORB_TEX;
+}
 function questOrbOn(e) {
   const host = W.npcs[e.id]; if (!host || e.mark || orbState(e) == null && !(e.job || ['wjob', 'clerk', 'warden'].includes(e.id))) return;
-  const g = new THREE.Group(), h = (e.markH || 2.12) + (e.big ? .4 : 0);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(.13, 20, 14), new THREE.MeshBasicMaterial({ color:'#d9f1ff', transparent:true, opacity:1, depthWrite:false }));
+  const g = new THREE.Group(), h = (e.markH || 2.0) + (e.big ? .4 : 0);
+  const ball = new THREE.Sprite(new THREE.SpriteMaterial({ map:orbTex(), transparent:true, opacity:1, depthWrite:false })); ball.scale.set(.34, .34, 1);   // an inked outline so it reads on pale walls too
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:'#7cc6ff', transparent:true, opacity:.55, depthWrite:false }));
   ball.position.y = glow.position.y = h; glow.scale.set(.95, .95, 1); ball.renderOrder = 12; glow.renderOrder = 11; g.add(glow, ball);
   const o = { e, host, g, ball, glow, st:undefined };
@@ -15153,7 +15162,7 @@ function questOrbOn(e) {
 function orbTick(o) {
   const st = orbState(o.e); if (st === o.st) return; o.st = st;
   o.g.visible = !!st; const dim = st === 'wait';
-  o.ball.material.opacity = dim ? .45 : 1; o.ball.scale.setScalar(dim ? .8 : 1); o.glow.scale.set(dim ? .7 : .95, dim ? .7 : .95, 1);
+  o.ball.material.opacity = dim ? .5 : 1; const k = dim ? .27 : .34; o.ball.scale.set(k, k, 1); o.glow.scale.set(dim ? .7 : .95, dim ? .7 : .95, 1);
 }
 // orbs follow the state of play: take a job, finish it, hand it in, and they change within half a second
 setInterval(() => { for (let i = ORBS.length - 1; i >= 0; i--) { const o = ORBS[i]; if (W.npcs[o.e.id] !== o.host || !o.host.parent) { ORBS.splice(i, 1); continue; } try { orbTick(o); } catch (_) {} } }, 400);
