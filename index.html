@@ -7171,7 +7171,7 @@ function eventEnts(map, taken) {
   const mem = (id, x, y, text) => at({ id, note:true, talk:() => say(text) }, x, y);
   const on = t => evS(t).st < 9, ask0 = t => evS(t).st === 0,
     wall = (id, model, talk, x, t, markH) => out.push({ id, x, y:2, dir:'down', model, talk, mark:on(t), markH:markH || 3.3 }),   // set into the north wall, facing the square
-    prop = (id, kind, talk, x, y, t, markH) => at({ id, model:EV_PROP[kind], talk, mark:on(t), markH:markH || 2.6 }, x, y);
+    prop = (id, kind, talk, x, y, t, markH) => at({ id, model:EV_PROP[kind], talk, mark:on(t), markH:markH || 2.6, stay:true }, x, y);   // stay: a well or a tower is never nudged aside by passers-by
   // 1 JOY
   if (city('JOY')) { const s = evS('JOY'); at({ id:'ev_hettie', look:HETTIE, name:'Hettie Brack', talk:evJoyHettie, mark:ask0('JOY') }, cx - 4, cy); prop('ev_well', 'well', evJoyWell, cx + 12, cy + 3, 'JOY'); }   // in the open garden by the bandstand
   // 2 HOPE
@@ -7191,8 +7191,9 @@ function eventEnts(map, taken) {
   if (city('SURPRISE')) { const s = evS('SURPRISE'); at({ id:'ev_dot', look:DOT, name:'Dot Pim', talk:evSurpDot, mark:ask0('SURPRISE') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_tibbs', look:DOT, name:'Tibbs Pim', talk:() => say('Tibbs Pim: (He jumps when you speak, then smiles.) Sorry. It\'s you. That\'s all right, then.') }, cx - 3, cy + 1); }
   if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', model:EV_PROP.mirror, talk:evSurpMirror, mark:evS('SURPRISE').st < 9, markH:2.3 }, 6, 20);
   // 6 SADNESS
-  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:ask0('SADNESS') }, cx - 4, cy); prop('ev_tower', 'tower', evSadTower, cx + 18, cy + 12, 'SADNESS', 6.1);   // across the canal in the open ground, clear of the houses (26 Nov)
-    { const tw = out[out.length - 1]; if (!M._blk) M._blk = new Map(); for (const [dx, dy] of [[-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]) { const c = (M.tiles[tw.y + dy] || [])[tw.x + dx]; if (c && !SOLID.has(c) && c !== 'D') decoBlock(M, tw.x + dx, tw.y + dy); } }   // the tower is big now: its footprint is solid, the front step stays open   // out in the open square by the south gate, well away from the fountain
+  if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:ask0('SADNESS') }, cx - 4, cy); if (!M._towerXY) { const p = evSpot(map, all(), cx + 18, cy + 12); M._towerXY = [p.x, p.y]; }   // across the canal in the open ground, clear of the houses: found once, then fixed for good
+    { const [tx, ty] = M._towerXY; out.push({ id:'ev_tower', x:tx, y:ty, dir:'down', model:EV_PROP.tower, talk:evSadTower, mark:on('SADNESS'), markH:6.1, stay:true });
+      if (!M._blk) M._blk = new Map(); for (const [dx, dy] of [[-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]) { const c = (M.tiles[ty + dy] || [])[tx + dx]; if (c && !SOLID.has(c) && c !== 'D') decoBlock(M, tx + dx, ty + dy); } }   // the tower is big: its footprint is solid around the one fixed spot, the front step stays open   // out in the open square by the south gate, well away from the fountain
     mem('ev_maren', cx + 20, cy + 13, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
   // 7 FEAR
   if (city('FEAR')) { const s = evS('FEAR'); at({ id:'ev_delphine', look:DELPHINE, name:'Delphine Crane', talk:evFearDelphine, mark:ask0('FEAR') }, cx - 4, cy); if (s.st >= 9 && !s.dark) at({ id:'ev_ossie', look:pLook('#4a3a6a', '#1a1218', SKINS[5], [], {}), name:'Ossie Crane', talk:() => say('Ossie Crane: Owls are just birds. Mum says. (He holds her coat.)') }, cx - 3, cy + 1);
