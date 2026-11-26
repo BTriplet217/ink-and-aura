@@ -4009,7 +4009,7 @@ function buildStill() {
   for (const [x, y] of [[6,9],[15,9],[6,14],[15,14],[6,19],[15,19]]) m[y][x] = 'p';
   scatter(m, 99, 26, '#');
   return { kind:'still', tiles:m, houses:[], name:'The Stillwell', sub:'Beneath Vellum', vibe:null, wild:null,
-    exit:(nx, ny) => ny >= H ? { map:'vellum', x:15, y:17, dir:'down' } : null };
+    exit:(nx, ny) => ny >= H ? (MAPS.vellum_room0 ? { map:'vellum_room0', x:(MAPS.vellum_room0.room.rift || { x:5 }).x, y:(MAPS.vellum_room0.room.rift || { y:3 }).y + 1, dir:'down' } : { map:'vellum', x:15, y:17, dir:'down' }) : null };
 }
 const MAPS = { vellum: buildHub(), stillwell: buildStill() };
 for (const t of WHEEL) { MAPS[WAYTOWNS[t].id] = buildWay(t); MAPS[TOWNS[t].id] = buildCity(t); }
@@ -4854,9 +4854,11 @@ function tintSky(sky, V) { const u = sky.material.uniforms; u.horizon.value.set(
 
 const HUB_VIBE = { sky:'#e7dcc4', fog:'#e7dcc4', fogNear:18, fogFar:44, hemi:'#fff4dc', sun:1.8, ground:['#8bab5c','#82a356','#7a9b50'], tall:['#4f7a36','#5f8f40','#6fa04a'], trees:'round', treeC:['#3f6136','#56803f','#4a7a3a'], prop:null, parts:'motes', partC:['#fff0c0','#ffe08f'], groundFog:null, roof:'#a8452f', wall:'#ece0c2' };
 const WAY_VIBES = {};
+// After the Hush settles (and the Chord was never sung) the Stillwell wakes too: warm light, colour in the water, motes of all ten feelings instead of ash.
+const STILL_AWAKE = { sky:'#5c6c8c', fog:'#6a7898', fogNear:8, fogFar:30, hemi:'#fff2dc', sun:1.0, ground:['#9a9488','#8e887c','#a69e90'], tall:['#5a8a4a','#6a9a52','#4e7e42'], trees:'round', treeC:['#4f7a3e','#5f8a46','#46703a'], prop:'stones', parts:'motes', partC:['#ec8f34','#f2c447','#4fbcc4','#cf4430','#c27490','#7f9440','#5c7ea2','#e9cf9c','#d6db5a','#6e5c86'], groundFog:'#c8d8f0', fogOp:.2, roof:'#555', wall:'#999' };
 const STILL_VIBE = { sky:'#4a4652', fog:'#55505c', fogNear:6, fogFar:24, hemi:'#d0ccd4', sun:.7, ground:['#8a8680','#7e7a74','#96928a'], tall:['#6a6a64','#74746c','#62625c'], trees:'dead', treeC:['#3a3634','#2e2b2a','#46403c'], prop:'stones', parts:'petals', partC:['#d8d4cc','#b8b4ac'], groundFog:'#d8d4cc', fogOp:.3, roof:'#555', wall:'#999' };
 function vibeOf(id) {
-  const M = MAPS[id]; if (M.V) return M.V; if (M.kind === 'still') return STILL_VIBE; if (M.kind === 'route' || M.kind === 'inside') return M._v || (M._v = routeVibe(M)); if (!M.vibe) return HUB_VIBE;
+  const M = MAPS[id]; if (M.V) return M.V; if (M.kind === 'still') return S && S.flags && S.flags.hushDone && !S.flags.doom ? STILL_AWAKE : STILL_VIBE; if (M.kind === 'route' || M.kind === 'inside') return M._v || (M._v = routeVibe(M)); if (!M.vibe) return HUB_VIBE;
   const C = TOWNS[M.vibe]; if (M.kind === 'city') return C;
   if (WAY_VIBES[M.vibe]) return WAY_VIBES[M.vibe];
   const mix = (a, b, k) => new THREE.Color(a).lerp(new THREE.Color(b), k).getStyle();
@@ -5669,7 +5671,7 @@ function entsBase(map) {
     // For now, in every build: a bundle of 100 Insight Quills on the street just south of the black market's wall.
     if (!S.flags.quills100) out.push({ id:'quills100', item:true, x:3, y:22, talk:async () => { S.flags.quills100 = 1; S.items.quill = (S.items.quill || 0) + 100; const o = W.npcs.quills100; if (o) { world.remove(o); delete W.npcs.quills100; } sfx('ok'); await say('(A bundle tied with string, tucked behind a crate: 100 Insight Quills.)'); } });
   } else if (M.kind === 'still') {
-    for (const [i, [x, y]] of [[8,12],[13,15],[8,18],[13,21]].entries()) out.push({ id:'spirit' + i, x, y, dir: x < 10 ? 'right' : 'left', look:roomLook(WHEEL[i * 3 % 10], i * 2 + 1), numb:true, talk:() => say('Numbed: ' + STILL_LINES[i]) });
+    for (const [i, [x0, y0]] of [[8,12],[13,15],[8,18],[13,21]].entries()) { const [x, y] = SOLID.has((M.tiles[y0] || [])[x0]) ? spotNear(map, x0, y0, out) : [x0, y0]; out.push({ id:'spirit' + i, x, y, dir: x < 10 ? 'right' : 'left', look:roomLook(WHEEL[i * 3 % 10], i * 2 + 1), numb:true, talk:() => say('Numbed: ' + STILL_LINES[i]) }); }
     out.push({ id:'hushL', x:10, y:6, invisible:true, talk:talkHush }, { id:'hushR', x:11, y:6, invisible:true, talk:talkHush });
   } else if (M.kind === 'region') { out.push(...regionEnts(map)); return out;
   } else if (M.kind === 'route' || M.kind === 'inside') {
@@ -5748,7 +5750,11 @@ async function changeMap(ex) {
     }
   }
   if (MAPS[ex.map] && MAPS[ex.map].kind === 'inside') setRun(false);
-  await fadeTo(1, 300); S.map = ex.map; S.x = ex.x; S.y = ex.y; S.dir = ex.dir; buildWorld(S.map); playMusic(themeFor(S.map));
+  await fadeTo(1, 300); const from = { map:S.map, x:S.x, y:S.y, dir:S.dir };
+  try { S.map = ex.map; S.x = ex.x; S.y = ex.y; S.dir = ex.dir; buildWorld(S.map); }
+  catch (err) { console.error('changeMap failed for ' + ex.map, err); window.__iaLastError = String(err && err.stack || err);
+    try { Object.assign(S, from); buildWorld(S.map); } catch (e2) { S.map = 'vellum'; S.x = 16; S.y = 16; S.dir = 'down'; buildWorld('vellum'); } }
+  try { playMusic(themeFor(S.map)); } catch (e) {}
   await fadeTo(0, 300);
   const M = MAPS[S.map]; toast(M.name, M.sub);
   if (M.vibe && M.kind !== 'inside' && !S.visited[S.map]) { S.visited[S.map] = 1; await wait(600); await say(M.kind === 'way' ? WAYTOWNS[M.vibe].arrive : M.kind === 'route' ? M.arrive : townArrival(M.vibe)); }
