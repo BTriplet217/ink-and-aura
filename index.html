@@ -3913,11 +3913,11 @@ function blockTown(o) {
   const topY = kind === 'city' ? b + 6 : b + 1;
   if (kind === 'city') { rect(m, cx - 2, b, 6, 4, 'X'); road(cx - 3, b + 4, 8, 2); }
   // vertical street columns (2 wide), always including both ring sides and the centre
-  const span = { grid:9, alleys:7, crooked:9, ring:10, river:10, pond:10, canal:10, courts:10, yard:11, avenue:10, orchard:9, crossroads:9, riverside:9, quarry:10, fairground:9, marshlane:9, woodedge:9, hedgerows:9, tannery:10, forge:9 }[style] || 9;
+  const span = ({ grid:9, alleys:7, crooked:9, ring:10, river:10, pond:10, canal:10, courts:10, yard:11, avenue:10, orchard:9, crossroads:9, riverside:9, quarry:10, fairground:9, marshlane:9, woodedge:9, hedgerows:9, tannery:10, forge:9 }[style] || 9) + TOWN_GAP_X;
   const xs = [b + 1]; for (let x = cx - span; x > b + 4; x -= span) xs.push(x); xs.push(cx); for (let x = cx + span; x < W - b - 5; x += span) xs.push(x); xs.push(W - b - 3);
   const cols = [...new Set(xs)].sort((a, c) => a - c);
-  // horizontal street rows: blocks 5 tall (1 back margin + 4 house rows), street 2 tall
-  const rows = []; for (let y = topY; y <= railY - 4; y += 7) rows.push(y);
+  // horizontal street rows: blocks 7 tall (3 open rows behind the houses, so nobody is hidden behind a wall, + 4 house rows), street 2 tall
+  const rows = []; for (let y = topY; y <= railY - 4; y += TOWN_STEP) rows.push(y);
   const lastRow = rows[rows.length - 1];
   for (const y of rows) road(b + 1, y, W - 2 * b - 2, 2);
   road(b + 1, railY - 3, W - 2 * b - 2, 2); rows.push(railY - 3);
@@ -3956,9 +3956,9 @@ function blockTown(o) {
   const houses = [], order = blocks.filter(k => !feat.has(k)).sort((a, c) => (Math.abs((a.x0 + a.x1) / 2 - cx) + a.r * 3) - (Math.abs((c.x0 + c.x1) / 2 - cx) + c.r * 3));
   for (const k of order) { const bw = k.x1 - k.x0 + 1; let ws = bw >= 11 ? [5, 5] : bw >= 9 ? [4, 4] : bw >= 7 ? [6] : bw >= 5 ? [5] : bw >= 4 ? [4] : [];
     if (bw >= 14) ws = [4, 4, 4];
-    const tot = ws.reduce((a, w) => a + w, 0) + (ws.length - 1); let x = k.x0 + Math.floor((bw - tot) / 2);
+    const tot = ws.reduce((a, w) => a + w, 0) + (ws.length - 1) * 2; let x = k.x0 + Math.floor((bw - tot) / 2);
     for (const w of ws) { const y = k.y1 - 3; let ok = true; for (let j = y; j <= k.y1; j++) for (let i = x; i < x + w; i++) if (!['.', ','].includes(m[j][i])) ok = false;
-      if (ok && (o.max == null || houses.length < o.max)) { rect(m, x, y, w, 4, 'H'); m[k.y1][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w }); } x += w + 1; } }
+      if (ok && (o.max == null || houses.length < o.max)) { rect(m, x, y, w, 4, 'H'); m[k.y1][x + Math.floor(w / 2)] = 'D'; houses.push({ x, y, w }); } x += w + 2; } }
   // greenery: grass in leftover block corners and the south strip; trees only behind the border
   for (const k of blocks) for (let y = k.y0; y <= k.y1; y++) for (let x = k.x0; x <= k.x1; x++) if (m[y][x] === '.' && hsh(x, y, sd) < .35) m[y][x] = ',';
   for (let y = railY + 2; y < H - b; y++) for (let x = b; x < W - b; x++) if (m[y][x] === '.' && hsh(x, y, sd + 1) < .5) m[y][x] = ',';
@@ -3966,8 +3966,11 @@ function blockTown(o) {
   for (let x = 1; x < W - 1; x++) { if (m[H - 3][x] === '#') m[H - 3][x] = ','; if (m[H - 2][x] === '#') m[H - 2][x] = 'h'; }
   return { m, houses, cx, railY, set, topY };
 }
-const WAY_SIZE2 = { JOY:[34, 32], HOPE:[34, 32], CALM:[34, 32], CONFIDENCE:[32, 32], SURPRISE:[34, 32], SADNESS:[32, 32], FEAR:[32, 32], SHAME:[34, 32], DISGUST:[34, 32], ANGER:[32, 32] };
-const CITY_SIZE2 = { JOY:[48, 44], HOPE:[50, 44], CALM:[48, 44], CONFIDENCE:[50, 44], SURPRISE:[48, 44], SADNESS:[46, 44], FEAR:[44, 44], SHAME:[48, 44], DISGUST:[50, 44], ANGER:[48, 44] };
+// Towns were made roomier on 25 Nov: wider streets between blocks, three open rows behind every row of houses,
+// two tiles between neighbouring houses, and bigger maps to hold it all.
+const TOWN_STEP = 9, TOWN_GAP_X = 3;
+const WAY_SIZE2 = { JOY:[42, 39], HOPE:[42, 39], CALM:[42, 39], CONFIDENCE:[48, 39], SURPRISE:[42, 39], SADNESS:[40, 39], FEAR:[40, 39], SHAME:[42, 39], DISGUST:[48, 39], ANGER:[40, 39] };
+const CITY_SIZE2 = { JOY:[60, 53], HOPE:[62, 53], CALM:[60, 53], CONFIDENCE:[62, 53], SURPRISE:[60, 53], SADNESS:[58, 53], FEAR:[56, 53], SHAME:[60, 53], DISGUST:[62, 53], ANGER:[60, 53] };
 function buildWay(type) {
   const T = WAYTOWNS[type], C = TOWNS[type], [W, H] = WAY_SIZE2[type], st = WAY_STYLE[type], sd = 30 + wIdx(type);
   const P = blockTown({ W, H, b:2, kind:'way', style:st, sd, max:7 }), m = P.m, rx = P.cx;
@@ -5645,7 +5648,7 @@ function relocate(map, list) {
 // Cached for a moment: the render loop asks every frame, and building the list is not free.
 const ENTC = { map:null, t:0, v:null };
 function ents(map) { const now = performance.now(); if (ENTC.map === map && now - ENTC.t < 250) return ENTC.v; const fresh = ENTC.t > 0 && ENTC.map === map; ENTC.map = map; ENTC.t = now; ENTC.v = ents0(map); if (fresh && typeof syncEnts === 'function') syncEnts(map, ENTC.v); return ENTC.v; }
-function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); spreadOut(map, t); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now) && !(e.manifComp && GONE[map + ':' + e.owner] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
+function ents0(map) { const b = relocate(map, entsBase(map)), q = b.concat(questEnts(map, b)), z = q.concat(zoneEnts(map, q)), t = z.concat(stationEnts(map, z)).concat(kidEnts(map, z)); t.push(...hintEnts(map, t), ...dndOutsideEnts(map), ...potatoEnts(map)); const t2 = t.concat(fairEnts(map, t)); t.push(...t2.slice(t.length), ...ownerEnts(map, t2)); spreadOut(map, t); unhide(map, t); t.push(...companionEnts(map, t), ...ruinDoorEnts(map, t)); const now = performance.now(); return applyFlee(map, endingFilter(map, questFilter(map, t))).filter(e => !(GONE[map + ':' + e.id] > now) && !(e.manifComp && GONE[map + ':' + e.owner] > now)).map(e => { const o = ENT_OVR[map + ':' + e.id]; return o ? { ...e, x:o[0], y:o[1], dir:o[2] || e.dir } : e; }); }
 const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someone stepping in, etc.)
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
@@ -14829,6 +14832,43 @@ function sceneryTick(dt) {
 { const _rt = rideTick; rideTick = function (dt) { _rt(dt); sceneryTick(dt); }; }
 { const _be = bloomExtras; bloomExtras = function (id, M, g) { _be(id, M, g); sceneryExtras(id, M, g); }; }
 // =============================================================================
+//  ROOM TO BREATHE (25 Nov) — nobody stands where a building hides them from the camera, the player
+//  is never left inside a wall after a map changes shape, and wild Manifs roam anywhere open (not just
+//  grass), but never onto doors, doorsteps, exits, water, people or anything solid.
+// =============================================================================
+const SPACE_BLOCK = c => c == null || SOLID.has(c) || c === 'D' || c === '~' || c === 'o' || c === 'h' || c === 'R';
+// The camera looks from the south, so a wall one or two tiles south of you hides you.
+function hiddenBehind(M, x, y) { for (const d of [1, 2]) { const c = (M.tiles[y + d] || [])[x]; if (c === 'H' || c === 'D') return true; } return false; }
+const spacePerson = e => !e.item && !e.invisible && !e.note && !e.manifComp && !e.manif && !e.rift && !!e.look;
+function unhide(map, list) {
+  const M = MAPS[map]; if (!M || M.kind === 'inside' || M.kind === 'still' || (typeof EVSC !== 'undefined' && EVSC[map])) return list;
+  const T = (a, b) => (M.tiles[b] || [])[a], busy = (x, y, self) => list.some(o => o !== self && !o.invisible && o.x === x && o.y === y);
+  for (const e of list) {
+    if (!spacePerson(e) || ENT_OVR[map + ':' + e.id] || !hiddenBehind(M, e.x, e.y)) continue;
+    let best = null;
+    for (let r = 1; r <= 7 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = e.x + dx, y = e.y + dy; if (x < 1 || y < 1 || x >= M.w - 1 || y >= M.h - 1) continue;
+      if (SPACE_BLOCK(T(x, y)) || T(x, y - 1) === 'D' || hiddenBehind(M, x, y) || busy(x, y, e)) continue;
+      if (typeof blocksPath === 'function' && blocksPath(map, x, y, list.filter(o => o !== e))) continue;
+      best = [x, y]; break; }
+    if (best) { e.x = best[0]; e.y = best[1]; }
+  }
+  return list;
+}
+// Wild Manifs may wander onto any open tile.
+function wildOk(M, x, y) {
+  const c = (M.tiles[y] || [])[x]; if (SPACE_BLOCK(c) || x < 2 || y < 2 || x >= M.w - 2 || y >= M.h - 2) return false;
+  if ((M.tiles[y - 1] || [])[x] === 'D') return false;   // never sit on a doorstep
+  for (const k of ['entryS', 'entryN']) { const p = M[k]; if (p && Math.abs(p.x - x) <= 1 && Math.abs(p.y - y) <= 2) return false; }   // or in a way in
+  if (entAt(x, y) || trainAt(x, y)) return false;
+  for (const [ax, ay] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) { const e = entAt(x + ax, y + ay); if (e && (e.mark || e.model === EV_PROP.arch || e.model === EV_PROP.station)) return false; }   // or in front of an event's way in
+  return true;
+}
+// If a map changed shape under a save, step the player out of anything solid.
+{ const _bw = buildWorld; buildWorld = function (id) { const r = _bw.apply(this, arguments);
+    try { const M = MAPS[id]; if (M && id === S.map && SPACE_BLOCK((M.tiles[S.y] || [])[S.x]) && !(M.doors && M.doors[S.x + ',' + S.y])) { const [x, y] = spotNear(id, S.x, S.y, []); if (x !== S.x || y !== S.y) { S.x = x; S.y = y; if (W.player) W.player.position.set(x, groundY(x, y), y); } } } catch (e) {}
+    return r; }; }
+// =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
 let B = null;
@@ -16192,7 +16232,7 @@ function updateWorld(dt, t) {
     if (w.t < 1) { w.t = Math.min(1, w.t + dt / .7); { const wx = w.fx + (w.x - w.fx) * w.t, wz = w.fy + (w.y - w.fy) * w.t; w.g.position.set(wx, groundY(wx, wz) + .65, wz); } }
     else if (scene === 'world' && !busy && (w.next -= dt) <= 0) {
       w.next = rnd(1, 2.4);
-      const opts = Object.values(DIRS).map(([ax, ay]) => [w.x + ax, w.y + ay]).filter(([x, y]) => M.tiles[y]?.[x] === ',' && !wildAt(x, y) && !(mv.active && mv.fx === x && mv.fy === y));
+      const opts = Object.values(DIRS).map(([ax, ay]) => [w.x + ax, w.y + ay]).filter(([x, y]) => wildOk(M, x, y) && !wildAt(x, y) && !(mv.active && mv.fx === x && mv.fy === y));
       if (opts.length) { const [x, y] = pickA(opts); w.fx = w.x; w.fy = w.y; w.x = x; w.y = y; w.t = 0; w.g.lookAt(x, w.g.position.y, y); if (x === S.x && y === S.y && !mv.active) startWild(w); }
     }
     const dx = S.x - w.g.position.x, dz = S.y - w.g.position.z; if (dx * dx + dz * dz < 9) w.g.userData.body.rotation.y = Math.atan2(dx, dz) - w.g.rotation.y;
