@@ -13455,7 +13455,7 @@ ITEMS.doctorate = { name:'Honorary Doctorate', key:true, desc:'Quillsby Universi
 const SNOW_V = REGION_VIBE({ sky:'#dfe8f0', fog:'#e8eef4', fogNear:14, fogFar:44, hemi:'#ffffff', sun:1.7, ground:['#eef2f4', '#e4eaee', '#f4f6f8'], tall:['#c8d4dc', '#d4dee4', '#bcc8d0'], trees:'conifer', treeC:['#3a5a4a', '#46665a', '#2f4a3e'], road:'#a8a49c', parts:'petals', partC:['#ffffff', '#f4f8fc'], groundFog:'#f4f8fc', fogOp:.3 });
 farRoad('r_switchback', { name:'The Switchback', sub:'The Long Siding to Whitecrown', V:SNOW_V, music:'switchback', side:'east', rail:true, origin:{ map:'r_siding', x:24, y:29, dir:'left' }, town:{ map:'whitecrown', x:1, y:16, dir:'right' },
   arrive:'The old branch road climbs out of the Siding and into the snow. The air goes thin and sweet. Somewhere ahead, dogs are barking, happily, all at once.', sign:'WHITECROWN 2 →. Chains required. (Someone has added, in pencil: "and patience".)',
-  deco:B => { B.piece('sled', 19, 11); rect(B.m, 40, 3, 9, 3, '~'); B.piece('icefall', 49, 3, 2, 3); B.piece('snowman', 32, 14); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 12, 4, ','); rect(B.m, 26, 13, 24, 4, ','); },
+  deco:B => { B.piece('sled', 19, 10); rect(B.m, 40, 3, 9, 3, '~'); B.piece('icefall', 49, 3, 2, 3); B.piece('snowman', 32, 14); B.piece('hut', 52, 13, 2, 2); rect(B.m, 4, 13, 12, 4, ','); rect(B.m, 26, 13, 24, 4, ','); },
   npcs:() => [
     npc('muleman', 14, 11, 'down', 'Mule driver', lk('#6a4a3a', '#e8dcc0', SK[3], '#3a2414', ['cap', 'scarf', 'beard']), talks('muleman', 'Mule driver', [
       { light:"Bessie and me carry the post up. She likes you. She doesn't like anybody.", even:'Mind the ice on the bends. Mind Bessie, too. She bites.', hurt:'Put your hand on Bessie\'s neck. Go on. She\'s warm, and she doesn\'t ask questions.', shadow:'(He moves the mule between you and the post bags.)' },
@@ -14371,12 +14371,13 @@ async function sledRide() {
   const sled = so.o, x0 = sled.position.x, z0 = sled.position.z, gy = x => groundY(Math.min(MAPS.r_switchback.w - 1, Math.max(0, Math.round(x))), Math.round(z0));
   const dogs = DOGS.map((n, i) => { const real = W.npcs['sw_dog' + i]; if (real) real.visible = false; const d = CRIT.dog({ c:DOG_C[i] }); d.userData.ph = i; d.rotation.y = Math.PI / 2; world.add(d); return d; });
   const musherReal = W.npcs.sw_musher; if (musherReal) musherReal.visible = false; const musher = buildPerson(MUSHER_LOOK); sled.add(musher); musher.position.set(-.85, .1, 0); musher.rotation.y = Math.PI / 2;
-  const seat = new THREE.Object3D(); seat.position.set(-.1, .4, 0); sled.add(seat); S.dir = 'right'; RIDE.on = true; RIDE.anchor = seat;
+  const seat = new THREE.Object3D(); seat.position.set(-.1, .4, 0); sled.add(seat); S.dir = 'right'; RIDE.on = true; RIDE.anchor = seat; for (const m of W.minis) m.visible = false;   // your Manifs ride in the basket with you, out of sight, instead of being left on the snow
   const place = (x, run) => { sled.position.set(x, gy(x), z0); dogs.forEach((d, i) => { const dx = x + 1.6 + Math.floor(i / 2) * .9, dz = z0 + (i % 2 ? .35 : -.35); d.position.set(dx, gy(dx), dz); critterAnim(d, performance.now() / 1000 * (run ? 4 : 1)); }); };
   place(x0, false); await say('Ingrid: Hike! (The dogs lean into the traces, all four at once, and the sled jerks, slides, and then flies.)');
   // the run stops short of the tree line at the far end (the dogs are 2.5 tiles ahead of the sled), and anything that
   // has wandered onto the trail (a wild Manif, a passer-by) steps out of sight while the sled goes by
-  const xEnd = MAPS.r_switchback.w - 6, lane = Object.entries(W.npcs).filter(([id, o]) => !/^sw_/.test(id) && o.visible && Math.abs(o.position.z - z0) < 1.2 && o.position.x > x0 - .5).map(([, o]) => o);
+  const xEnd = MAPS.r_switchback.w + 3,   // along the road and straight out through the way in to Whitecrown (no trees on the road)
+    lane = Object.entries(W.npcs).filter(([id, o]) => !/^sw_/.test(id) && o.visible && Math.abs(o.position.z - z0) < 1.2 && o.position.x > x0 - .5).map(([, o]) => o);
   const wl = (W.wilds || []).filter(w => w.g.visible && Math.abs(w.g.position.z - z0) < 1.2 && w.g.position.x > x0 - .5).map(w => w.g); [...lane, ...wl].forEach(o => o.visible = false);
   await tween(4200, k => { const e = k * k * (3 - 2 * k); place(x0 + (xEnd - x0) * e, true); musher.userData.inner && (musher.userData.inner.rotation.z = Math.sin(k * 30) * .04); });
   RIDE.on = false; await fadeTo(1, 800);
@@ -14385,10 +14386,10 @@ async function sledRide() {
 }
 const MUSHER_LOOK = lk('#3a5a7a', '#c0503a', SK[2], '#e2c070', ['hat', 'scarf']);
 { const base = REGION_NPCS.r_switchback; REGION_NPCS.r_switchback = () => [...base().filter(e => !['wr_snowman'].includes(e.id)),
-  ...DOGS.map((n, i) => ({ id:'sw_dog' + i, x:21 + Math.floor(i / 2), y:11 + (i % 2), dir:'right', animal:true, name:null, model:() => { const g = CRIT.dog({ c:DOG_C[i] }); g.userData.ph = i * 1.3; return g; },
+  ...DOGS.map((n, i) => ({ id:'sw_dog' + i, x:21 + Math.floor(i / 2), y:9 + (i % 2), dir:'right', animal:true, name:null, model:() => { const g = CRIT.dog({ c:DOG_C[i] }); g.userData.ph = i * 1.3; return g; },
     talk:() => say(['(Pepper, the lead dog, black as a stove, looks at you with enormous seriousness, then licks your whole face.)', '(Moss, sandy and lopsided, is asleep standing up in her harness.)', '(Bracken wags so hard his back half goes along with it.)', '(Sleet, white as the road, watches the bend in the road ahead. He would like to be going now, please.)'][i]) })),
-  look('sw_sled', 19, 11, 'Dog sled', sledRide),
-  npc('sw_musher', 18, 12, 'right', 'Ingrid', MUSHER_LOOK, async () => { await sayLine('Ingrid', [
+  look('sw_sled', 19, 10, 'Dog sled', sledRide),
+  npc('sw_musher', 18, 11, 'right', 'Ingrid', MUSHER_LOOK, async () => { await sayLine('Ingrid', [
       'Ingrid. That\'s Pepper in the lead, then Moss, Bracken and Sleet. We run the post up when Bessie the mule won\'t, and anyone who\'d rather fly than walk.',
       () => `Your ${leadName()} can ride in the basket if it likes. Last week a Joy rode up with me. Sang the whole way. The dogs loved it.`,
       { light:'Hop on, you\'ve the right face for it. The dogs can tell who\'ll laugh.', even:'Twenty Marks to the top, Marks back if you don\'t grin. Nobody\'s ever got their Marks back.', hurt:'Come for a ride. Nothing makes a heavy heart lighter than going fast in the snow behind four idiots who love you.', shadow:'(The dogs go very quiet. Ingrid puts a hand on Pepper\'s head and keeps it there.)' }][rotIdx('ingrid', 3)]);
