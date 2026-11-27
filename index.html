@@ -1976,7 +1976,7 @@ function personHair(inner, o) {
   // the fringe: locks from the crown forward over the hairline, swept to one side, blunt and soft at the tips
   const nF = hair === 'curly' ? 0 : 6, fLen = hair === 'swept' || hair === 'short' ? .52 : .78;
   for (let i = 0; i < nF; i++) { const u = (i - (nF - 1) / 2) / ((nF - 1) / 2), az0 = u * .85 + part * .25, az1 = az0 + sweep * .32 * (1 - Math.abs(u) * .4);
-    const elEnd = .62 - fLen * .6 + Math.abs(u) * .12 + (rnd(i * 3) - .5) * .08;
+    const elEnd = Math.max(.3, .62 - fLen * .6 + Math.abs(u) * .12 + (rnd(i * 3) - .5) * .08);   /* fringe ends above the brows */
     const pts = [S(az0 * .4, 1.25, 1.06), S(az0 * .8, 1.0, 1.1), S((az0 + az1) / 2, .78, 1.11), S(az1, elEnd + .12, 1.1), S(az1 + sweep * .06, elEnd, 1.07)];
     if (hair === 'swept') { pts[3] = S(az1 + sweep * .1, .7, 1.12); pts[4] = S(az1 + sweep * .25, .58, 1.1); }
     putLock(pts, .034 + rnd(i) * .008, .018, [1, 2, 3, 1, 2, 0][i % 6]); }
@@ -1993,7 +1993,7 @@ function personHair(inner, o) {
       if (hair === 'bob') { const q = pts[pts.length - 1]; pts.push(V(q.x * .9, q.y - .02, q.z * .9)); } }   // a bob turns under at the ends
     putLock(pts, .04 + rnd(i * 2) * .012, len ? .02 : .025, [1, 0, 3, 2][i % 4], 1.04, .45); }
   // curls: soft spiral coils all over
-  if (hair === 'curly') for (let i = 0; i < 26; i++) { const az = (i / 26) * Math.PI * 2 * 2.618, el = .15 + ((i * 7) % 11) / 11 * 1.25, base = S(az, el, 1.12), pts = [];
+  if (hair === 'curly') for (let i = 0; i < 26; i++) { const az = (i / 26) * Math.PI * 2 * 2.618, front = Math.cos(az) > .25, el = (front ? .78 : .15) + ((i * 7) % 11) / 11 * (front ? .7 : 1.25), base = S(az, el, 1.12), pts = [];   /* curls stay off the face */
     for (let t = 0; t <= 1.0001; t += .1) { const a = t * Math.PI * 2 * 1.6; pts.push(V(base.x + Math.cos(a + az) * .02, base.y - t * .05, base.z + Math.sin(a + az) * .02)); }
     putLock(pts, .016, .012, [1, 2, 0, 3][i % 4], 0, .8); }
   if (hair === 'ponytail') { const tie = S(Math.PI, .35, 1.1), t = new THREE.Mesh(new THREE.TorusGeometry(.028, .01, 6, 14), toon('#4a2e1e')); t.position.copy(tie); inner.add(t);
@@ -15977,7 +15977,7 @@ function dressUp(p, L) {
   const hatted = L.hat || gear.some(k => PERSON_HATTED.includes(k)) || L.snout;
   const HK = L.small ? .96 : .86, HY = .86 + .1 * HK, HR = .165 * HK * 1.1;   // hats fit over the hair, not the bare head
   if (!hatted && (notable || R(5) < .36)) { const kind = notable ? ['wide', 'felt', 'wide'][seed % 3] : ['cap', 'wide', 'beanie', 'scarf', 'straw'][(seed >>> 11) % 5];
-    const hc = notable ? coat.clone().multiplyScalar(.45).getStyle() : ['#4a3a2c', '#5a5048', '#3a4a5a', acc, '#7a5a3a'][(seed >>> 13) % 5], top = HY + HR * .55;
+    const hc = notable ? coat.clone().multiplyScalar(.45).getStyle() : ['#4a3a2c', '#5a5048', '#3a4a5a', acc, '#7a5a3a'][(seed >>> 13) % 5], top = HY + HR * .68;   /* sits above the brows */
     if (kind === 'cap') { add(new THREE.SphereGeometry(HR * 1.08, 14, 8, 0, Math.PI * 2, 0, Math.PI * .5), hc, [0, top - HR * .25, -.005], { ink:1.06 }); add(new THREE.CylinderGeometry(HR * .9, HR * .9, .012, 14, 1, false, -Math.PI / 2, Math.PI), hc, [0, top - HR * .27, HR * .45], { rot:[.15, 0, 0] }); }
     if (kind === 'wide' || kind === 'felt' || kind === 'straw') { const c = kind === 'straw' ? '#d8c088' : hc;
       add(new THREE.CylinderGeometry(HR * (kind === 'felt' ? .78 : .85), HR * 1.02, HR * (kind === 'felt' ? 1.05 : .8), 16), c, [0, top + HR * .15, 0], { ink:1.05 });
