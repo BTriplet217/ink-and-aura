@@ -1673,14 +1673,15 @@ function washPatch(m, kind, surf = 'auto') {
         vec2 wc = floor(vec2(hz, vWP.y) * TX), gc = floor(vWP.xz * TX), id;
         float shade = .93 + .09 * t1 + .08 * (t2 - .5) + .06 * (t3 - .5);
         ${chars ? `
-        // sprite shading: three clean tones, violet-tinted shadows, a warm lit edge on top
+        // anime cel shading (27 Nov): one soft step from light to shadow, cool violet shadows, a warm highlight,
+        // a light rim round the edge, and no pixel speckle, so people read smooth and rounded like the art
         float L = dot(outgoingLight, vec3(.3, .59, .11)), base = max(dot(dc, vec3(.3, .59, .11)), .05);
-        float k = clamp(L / base, 0., 1.6); float band = k < .5 ? .6 : k < .9 ? .82 : k < 1.2 ? 1. : 1.14;
-        vec3 tint = k < .5 ? vec3(.8, .76, 1.) : k < .9 ? vec3(.93, .9, 1.) : k < 1.2 ? vec3(1.) : vec3(1.06, 1.02, .92);
-        outgoingLight = mix(outgoingLight, dc * band * tint * (1. + .3 * (k - 1.) * step(1.2, k)) * 1.02, .85) * (.95 + .1 * t1);
+        float k = clamp(L / base, 0., 1.6), lit = smoothstep(.5, .62, k), hi = smoothstep(1.22, 1.3, k);
+        vec3 shadowC = dc * vec3(.74, .7, .9), litC = dc * 1.04, hiC = dc * vec3(1.14, 1.1, 1.0);
+        vec3 cel = mix(mix(shadowC, litC, lit), hiC, hi * .7);
+        outgoingLight = mix(outgoingLight, cel, .88);
         float rim = 1. - abs(dot(normalize(normal), normalize(vViewPosition)));
-        outgoingLight *= 1. - smoothstep(.6, .95, rim) * .3;
-        outgoingLight += dc * .12 * step(.6, N.y) * step(.9, k);` : `
+        outgoingLight += dc * .22 * smoothstep(.62, .9, rim) * lit;` : `
         float pat = 1.; int SF = ${SF};
         bool green = dc.g > dc.r * 1.04 && dc.g > dc.b * .8;   // teal grass (Sorrowmere) counts as grass too, not cobbles
         if (SF == 1 || (SF == 0 && false)) {
@@ -1916,6 +1917,31 @@ const HELD = {
 };
 // Put something in a person's right hand (or take it away with kind = null).
 function holdItem(g, kind) { const h = g.userData.hands && g.userData.hands[1]; if (!h) return; for (const c of [...h.children]) if (c.userData && c.userData.held) h.remove(c); if (kind && HELD[kind]) h.add(HELD[kind](g.userData.look || {})); }
+// ---- 3D anime shapes (27 Nov): a sculpted head with a chin, a smooth torso with a waist and rounded shoulders, rounded hips and feet
+const SSTEP = (a, b, t) => { t = Math.min(1, Math.max(0, (t - a) / (b - a))); return t * t * (3 - 2 * t); };
+const HEAD_GEO = {};
+function animeHead(r, shape) {
+  const key = r + shape; if (HEAD_GEO[key]) return HEAD_GEO[key];
+  const g = new THREE.SphereGeometry(r, 28, 22), a = g.attributes.position;
+  const taper = { heart:.52, oval:.38, round:.2, square:.08, soft:.3 }[shape] ?? .3, drop = { heart:.1, oval:.2, round:.06, square:.08, soft:.1 }[shape] ?? .1;
+  for (let i = 0; i < a.count; i++) { let x = a.getX(i), y = a.getY(i), z = a.getZ(i); const ny = y / r, nz = z / r;
+    x *= .95;
+    if (ny > -.45 && ny < .15) x *= 1 + .035 * Math.cos((ny + .15) / .3 * Math.PI / 2);   // a little fullness at the cheeks
+    if (ny < .1) { const t = SSTEP(.1, -1, ny), front = Math.min(1, Math.max(0, (nz + .25) / 1.25));
+      x *= 1 - taper * t * (.35 + .65 * front);                 // the jaw narrows to the chin, more at the front
+      y -= t * r * drop * front;                                // the chin drops a little
+      z += t * r * .07 * front; }                               // and comes forward
+    if (shape === 'square' && ny < -.4) y *= .94;
+    if (nz < -.2 && ny > -.2) z *= 1.04;                        // a rounder back of the head
+    a.setXYZ(i, x, y, z); }
+  g.computeVertexNormals(); return (HEAD_GEO[key] = g);
+}
+function animeTorso(B, chest, hipF) {
+  const top = B.sh * .92, pts = [];
+  const prof = [[.07, .855], [B.sh * .55, .835], [top * .97, .812], [top + chest * .4, .78], [top * .97 + chest, .735], [(top + B.waist) * .5 + chest * .4, .67], [B.waist * .97, .6], [B.waist + hipF * .3, .545], [B.waist + hipF * .4, .52]];
+  for (const [rr, y] of prof.reverse()) pts.push(new THREE.Vector2(rr, y - .67));
+  return new THREE.LatheGeometry(pts, 26);
+}
 function buildPerson(L) {
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const seed = personSeed(L), gear = (L.gear || []).slice();
@@ -1934,19 +1960,21 @@ function buildPerson(L) {
     add(new THREE.CylinderGeometry(B.leg * 1.14, B.leg * 1.12, .025, 12), new THREE.Color(boot).multiplyScalar(.7).getStyle(), [0, -.075, 0], { to:knee });
     add(new THREE.CylinderGeometry(B.leg * 1.2, B.leg * 1.16, .035, 12), new THREE.Color(boot).lerp(new THREE.Color('#e8d4a8'), .28).getStyle(), [0, -.065, 0], { to:knee, ink:1.06 });   // turned-down boot cuff
     add(new THREE.BoxGeometry(B.leg * .5, .012, .012), '#c9a24a', [0, -.13, B.leg * 1.1], { to:knee });   // buckle
-    add(new THREE.BoxGeometry(B.leg * 2.15, .018, B.leg * 3.25), '#1e1712', [0, -.205, .03], { to:knee });
-    add(new THREE.BoxGeometry(B.leg * 2.1, .05, B.leg * 3.2), boot, [0, -.185, .03], { to:knee });
+    add(new THREE.SphereGeometry(B.leg * 1.12, 14, 10), '#1e1712', [0, -.2, .035], { to:knee, sc:[1, .2, 1.55] });                 // sole
+    add(new THREE.SphereGeometry(B.leg * 1.08, 14, 10), boot, [0, -.18, .035], { to:knee, sc:[1, .45, 1.5], ink:1.08 });          // a rounded shoe, toe forward
+    add(new THREE.SphereGeometry(B.leg * .95, 12, 8), L.shorts ? skin : legsC, [0, -.005, B.leg * .1], { to:knee, sc:[1, .8, 1] });   // a smooth knee
     hip.userData.knee = knee; }
   if (L.pattern) for (const [k, hip] of legs.entries()) for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(B.leg * baggy * 1.04, B.leg * baggy * 1.04, .045, 12), L.pattern[(i + k) % L.pattern.length], [0, -.05 - i * .07, 0], { to:hip, ink:0 });
   // hips and torso
-  add(new THREE.CylinderGeometry(B.hip, B.hip * 1.02, .1, 16), L.skirt ? L.skirt : legsC, [0, .49, 0], { ink:1.08 });
+  add(new THREE.SphereGeometry(B.hip * 1.04, 20, 12), L.skirt ? L.skirt : legsC, [0, .49, 0], { ink:1.06, sc:[1, .62, .92] });   // rounded hips
   if (L.skirt) add(new THREE.CylinderGeometry(B.hip * 1.02, B.hip * 1.9, .3, 18, 1, true), L.skirt, [0, .36, 0], { ink:1.06, mo:{ side:THREE.DoubleSide } });
-  add(new THREE.CylinderGeometry(B.sh * .92, B.waist, .3, 16), coat, [0, .67, 0], { ink:1.08 });
+  const fig = (seed >>> 17) % 3, chest = gear.includes('armor') ? .012 : [0, .012, .026][fig] * (B.sh / .19), hipF = [0, .01, .03][fig];
+  add(animeTorso(B, chest, hipF), coat, [0, .67, 0], { ink:1.06 });   // a sculpted torso: rounded shoulders, a waist, a chest
   if (L.tiedye) { const td = new THREE.Mesh(new THREE.CylinderGeometry(B.sh * .92 + .004, B.waist + .004, .3, 24, 1, true), new THREE.MeshToonMaterial({ map:tieDyeTex(L.tiedye), gradientMap:gradTex })); td.position.y = .67; inner.add(td); }
   if (L.pattern) for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(B.waist + (B.sh * .92 - B.waist) * (.2 + i * .3) + .004, B.waist + (B.sh * .92 - B.waist) * (.2 + i * .3) + .004, .05, 16), L.pattern[i % L.pattern.length], [0, .56 + i * .09, 0], { ink:0 });
   add(new THREE.CylinderGeometry(B.waist + .01, B.waist + .012, L.sash ? .06 : .04, 16), L.sash || new THREE.Color(coat).multiplyScalar(.55).getStyle(), [0, .53, 0]);
   add(new THREE.CylinderGeometry(B.sh * .55, B.sh * .9, .06, 16), L.accent || coat, [0, .815, 0]);           // collar / scarf
-  add(new THREE.CylinderGeometry(.05, .055, .07, 10), skin, [0, .84, 0]);
+  add(new THREE.CylinderGeometry(.04, .048, .08, 12), skin, [0, .845, 0]);
   // finer details, so people read like hand-drawn sprites up close: buckle, buttons, hem trim, a pouch, ears
   { const dk = new THREE.Color(coat).multiplyScalar(.6).getStyle(), lt = new THREE.Color(coat).lerp(new THREE.Color('#fff3d6'), .35).getStyle(), metal = (seed % 3) ? '#c9a24a' : '#a8a8b0';
     if (!L.noBelt) { add(new THREE.BoxGeometry(.06, .045, .02), metal, [0, .53, B.waist + .008]);
@@ -1960,9 +1988,9 @@ function buildPerson(L) {
   // arms (shoulder pivots); pose: idle | open (palms out) | hold (right hand forward, holding something)
   const arms = [], hands = [];
   for (const sx of [-1, 1]) { const sh = new THREE.Group(); sh.position.set(sx * (B.sh * .95 + B.arm * .4), .79, 0); inner.add(sh); arms.push(sh);
-    add(new THREE.SphereGeometry(B.arm * 1.35, 10, 8), sleeve, [0, 0, 0], { to:sh, ink:1.1 });
+    add(new THREE.SphereGeometry(B.arm * 1.15, 14, 10), sleeve, [0, 0, 0], { to:sh, ink:1.08 });   // a rounded shoulder, not a puff
     add(new THREE.CylinderGeometry(B.arm, B.arm * .92, .2, 10), sleeve, [0, -.1, 0], { to:sh, ink:1.1 });
-    const el = new THREE.Group(); el.position.set(0, -.2, 0); sh.add(el);
+    const el = new THREE.Group(); el.position.set(0, -.2, 0); sh.add(el); add(new THREE.SphereGeometry(B.arm * .95, 12, 8), sleeve, [0, 0, 0], { to:el });   // a smooth elbow
     add(new THREE.CylinderGeometry(B.arm * .92, B.arm * .8, .17, 10), L.cuff && sx > 0 ? L.cuff : sleeve, [0, -.085, 0], { to:el, ink:1.1 });
     add(new THREE.CylinderGeometry(B.arm * .86, B.arm * .86, .03, 10), new THREE.Color(L.cuff && sx > 0 ? L.cuff : sleeve).lerp(new THREE.Color('#fff3d6'), .3).getStyle(), [0, -.17, 0], { to:el });
     const hand = new THREE.Group(); hand.position.set(0, -.2, 0); el.add(hand); hands.push(hand);
@@ -1975,18 +2003,27 @@ function buildPerson(L) {
   if (pose === 'sword') { arms[1].rotation.set(-.35, 0, .25); arms[1].userData.el.rotation.set(-.4, 0, 0); }
   // head and face
   const HR = .165, HY = .96;
-  add(new THREE.SphereGeometry(HR, 20, 16), skin, [0, HY, 0], { ink:1.09, sc:[.96, 1.06, .98] });
+  const headShape = L.headShape || (build === 'broad' || build === 'heavy' ? ['square', 'soft', 'round'] : ['oval', 'heart', 'round', 'soft', 'oval'])[(seed >>> 19) % (build === 'broad' || build === 'heavy' ? 3 : 5)];
+  add(animeHead(HR, headShape), skin, [0, HY, 0], { ink:1.08, sc:[.98, 1.06, .98] });
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
   const fm = (geo, mat, x, y, z, sc, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sc) m.scale.set(...sc); m.rotation.z = rz; inner.add(m); return m; };
   const eyeC = L.eyes ? new THREE.MeshBasicMaterial({ color:new THREE.Color(L.eyes) }) : blk, fs = L.face === 'content' ? 2 : L.face === 'neutral' ? 5 : seed % 5;   // face 2: level brows and a small smile; 5: level brows, straight mouth
   const irisM = new THREE.MeshBasicMaterial({ color:L.iris || ['#6b4a2a', '#4a6a8a', '#5a7a4a', '#7a5a3a', '#55606e', '#3a2a1c', '#8a6a3a'][(seed >>> 5) % 7] });
-  for (const sx of [-1, 1]) { fm(new THREE.SphereGeometry(.022, 10, 8), wht, sx * .058, .962, .148, [1.05, .8, .4]); fm(new THREE.SphereGeometry(.014, 10, 8), eyeC, sx * .057, .961, .158, [.9, 1.15, .5]);
-    if (!L.eyes) { fm(new THREE.SphereGeometry(.0175, 10, 8), irisM, sx * .057, .961, .1545, [.95, 1.15, .5]);   // a coloured iris round the pupil
-      fm(new THREE.SphereGeometry(.005, 6, 5), wht, sx * .057 + .006, .968, .166); fm(new THREE.SphereGeometry(.0025, 5, 4), wht, sx * .057 - .005, .955, .166); }
-    fm(new THREE.BoxGeometry(.05, .009, .012), blk, sx * .059, .9795, .153, null, sx * -.1);   // upper lash line
-    fm(new THREE.BoxGeometry(.04, .006, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * .058, .946, .156);   // lower lid line
-    fm(new THREE.BoxGeometry(.046, .01, .012), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || (hair === 'bald' ? (L.hair || '#2a1a10') : L.hair || '#2a1a10')).multiplyScalar(.7) }), sx * .062, 1.008 + (fs % 2) * .005, .15, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]);
-    fm(new THREE.SphereGeometry(.02, 8, 6), new THREE.MeshBasicMaterial({ color:0xd88a7a, transparent:true, opacity:.14 }), sx * .092, .918, .14, [1.3, .7, .3]); }
+  // anime eyes: tall whites, a big coloured iris with a dark pupil and two highlights, a thick curved upper lash with a flick at the corner
+  const lashM = new THREE.MeshBasicMaterial({ color:0x1b1512 }), EY = .952, EX = .062, EZ = .152;
+  for (const sx of [-1, 1]) {
+    fm(new THREE.SphereGeometry(.031, 14, 10), wht, sx * EX, EY, EZ, [1, 1.12, .32]);
+    if (!L.eyes) { fm(new THREE.SphereGeometry(.024, 14, 10), irisM, sx * (EX - .002), EY - .003, EZ + .006, [.95, 1.2, .32]);
+      fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(irisM.color).multiplyScalar(.45) }), sx * (EX - .002), EY + .002, EZ + .009, [1, 1.15, .3]);   // the darker top of the iris
+      fm(new THREE.SphereGeometry(.0095, 10, 8), blk, sx * (EX - .002), EY - .002, EZ + .011, [1, 1.2, .3]);
+      fm(new THREE.SphereGeometry(.0072, 8, 6), wht, sx * (EX - .002) + .008, EY + .009, EZ + .014);          // big highlight
+      fm(new THREE.SphereGeometry(.0036, 6, 5), wht, sx * (EX - .002) - .007, EY - .011, EZ + .014); }        // small one below
+    else fm(new THREE.SphereGeometry(.02, 10, 8), eyeC, sx * EX, EY, EZ + .008, [.9, 1.15, .4]);
+    const lash = new THREE.Mesh(new THREE.TorusGeometry(.03, .0055, 5, 14, Math.PI * .85), lashM); lash.position.set(sx * EX, EY + .003, EZ + .01); lash.rotation.set(0, 0, Math.PI * .075); lash.scale.set(1.05, 1.05, .5); inner.add(lash);
+    fm(new THREE.BoxGeometry(.016, .006, .008), lashM, sx * (EX + .03), EY + .012, EZ + .004, null, sx * .55);                      // the flick at the outer corner
+    fm(new THREE.BoxGeometry(.03, .004, .006), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * EX, EY - .034, EZ + .004);   // lower lid
+    fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, 1.006 + (fs % 2) * .005, .148, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]);   // brows, thin and high
+    fm(new THREE.SphereGeometry(.022, 8, 6), new THREE.MeshBasicMaterial({ color:0xe88a8a, transparent:true, opacity:.2 }), sx * .088, .912, .142, [1.4, .55, .3]); }
   if (L.eyes) for (const sx of [-1, 1]) { const o = glow(L.eyes, .1, .85); o.position.set(sx * .059, .962, .17); inner.add(o); }
   if (L.snout) {          // a dragon's muzzle: long, tapering, flat on top, nostrils at the tip; a brow ridge and swept-back horns
     const dk = new THREE.Color(skin).multiplyScalar(.72).getStyle(), hornC = L.hornC || '#e8d8b0';
@@ -1998,11 +2035,11 @@ function buildPerson(L) {
       add(new THREE.ConeGeometry(.016, .1, 5), hornC, [sx * .14, 1.0, -.06], { rot:[-1.3, 0, sx * -.9] }); }
     for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(.018, .05, 4), dk, [0, 1.11 - i * .045, -.1 - i * .035], { rot:[-.6, 0, 0] });          // crest down the back of the head
     fm(new THREE.BoxGeometry(.1, .005, .01), blk, 0, .895, .245); }
-  else { fm(new THREE.SphereGeometry(.02, 8, 6), toon(new THREE.Color(skin).multiplyScalar(.85), { wash:2 }), 0, .93, .165, [.8, 1, .9]);
-    if (fs === 5) fm(new THREE.BoxGeometry(.04, .006, .008), blk, 0, .895, .156); else fm(new THREE.TorusGeometry(.026, .006, 5, 12, Math.PI), blk, 0, .895 + (fs > 2 ? -.01 : .01), .152, null, fs > 2 ? 0 : Math.PI); }
+  else { fm(new THREE.SphereGeometry(.012, 8, 6), toon(new THREE.Color(skin).multiplyScalar(.85), { wash:2 }), 0, .92, .163, [.8, 1, .9]);
+    if (fs === 5) fm(new THREE.BoxGeometry(.03, .005, .008), blk, 0, .888, .158); else fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .888 + (fs > 2 ? -.008 : .008), .156, null, fs > 2 ? 0 : Math.PI); }
   // hair
   const hc = L.hair || '#3a2414', cap = (r = .176, cut = .5) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12, 0, Math.PI * 2, 0, Math.PI * cut), toon(hc)); m.position.set(0, HY + .015, -.012); m.rotation.x = -.18; inner.add(m); return m; };   // sits forward enough to meet the fringe: no bare scalp between them
-  if (hair === 'short' || hair === 'ponytail' || hair === 'bob' || hair === 'long') cap();
+  if (hair === 'short' || hair === 'ponytail' || hair === 'bob' || hair === 'long') { cap(.184, .54); add(new THREE.SphereGeometry(.17, 18, 12), hc, [0, HY + .03, -.035], { ink:1.05, sc:[1.02, .95, 1] }); }   // a fuller crown, anime volume
   if (hair === 'spiky') { cap(.172, .42); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; add(new THREE.ConeGeometry(.04, .11, 6), hc, [Math.cos(a) * .1, HY + .14, Math.sin(a) * .1 - .02], { rot:[Math.sin(a) * .5, 0, -Math.cos(a) * .5], ink:0 }); } }
   if (hair === 'curly') { cap(.168, .45); for (let i = 0; i < 5; i++) add(new THREE.SphereGeometry(.06, 8, 6), hc, [Math.cos(i * 1.26) * .05, HY + .16, Math.sin(i * 1.26) * .05 - .03], { ink:1.05 }); }   // fill the crown: no bald spot
   if (hair === 'curly') for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r2 = i % 2 ? .13 : .1; add(new THREE.SphereGeometry(.055, 8, 6), hc, [Math.cos(a) * r2, HY + .1 + (i % 3) * .025, Math.sin(a) * r2 - .03], { ink:1.05 }); }
@@ -2026,9 +2063,12 @@ function buildPerson(L) {
   // every head of hair gets a fringe of separate locks, a sheen where the light catches it, and darker hair underneath at the nape
   if (hair !== 'bald' && hair !== 'curlylong' && !gear.includes('hood') && !gear.includes('veil') && !gear.includes('flamehair') && !L.snout) {
     const hLt = new THREE.Color(hc).offsetHSL(0, .03, .1).getStyle(), hDk = new THREE.Color(hc).multiplyScalar(.7).getStyle(), hatted = L.hat || ['tophat', 'helmet', 'cap', 'bakerhat', 'bandana'].some(k => gear.includes(k));
-    if (hair !== 'curly') { const nL = 5, part0 = (seed >>> 6) % 3 - 1;   // locks across the forehead, swept from the parting
-      for (let i = 0; i < nL; i++) { const u = (i - (nL - 1) / 2) / ((nL - 1) / 2), a = u * .95, len = .05 + .028 * (1 - Math.abs(u - part0 * .5)) + ((seed >> i) & 1) * .012;
-        add(new THREE.ConeGeometry(.034, len * 2, 5), i % 2 ? hc : hLt, [Math.sin(a) * .15, HY + .105 - len * .55, Math.cos(a) * .135], { rot:[Math.PI - .32, 0, (u - part0 * .6) * .55], ink:0, sc:[1.25, 1, .5] }); } }
+    if (hair !== 'curly') { const nL = 7, part0 = (seed >>> 6) % 3 - 1;   // anime bangs: chunky pointed locks across the forehead, swept from the parting
+      for (let i = 0; i < nL; i++) { const u = (i - (nL - 1) / 2) / ((nL - 1) / 2), a = u * .78, len = .06 + .04 * (1 - Math.abs(u - part0 * .5)) + ((seed >> i) & 1) * .016;
+        add(new THREE.ConeGeometry(.036, len * 2, 9), i % 2 ? hc : hLt, [Math.sin(a) * .158, HY + .11 - len * .55, Math.cos(a) * .142], { rot:[Math.PI - .3, 0, (u - part0 * .6) * .22], ink:1.04, sc:[1.25, 1, .78] }); } }
+    if (hair !== 'curly' && hair !== 'spiky') { const sideL = hair === 'long' ? .2 : hair === 'bob' ? .15 : .11;   // locks falling beside the face, over the ears
+      for (const sx of [-1, 1]) for (let k = 0; k < 2; k++) add(new THREE.ConeGeometry(.034 - k * .008, sideL - k * .03, 6), k ? hLt : hc, [sx * (.16 - k * .012), HY - sideL * .35 + .03, .045 + k * .035], { rot:[Math.PI + .1, 0, sx * -.12], ink:k ? 0 : 1.04, sc:[1, 1, .6] }); }
+    if (!hatted && seed % 4 === 0) { const ah = new THREE.Mesh(new THREE.TorusGeometry(.04, .008, 5, 10, Math.PI * .9), toon(hc)); ah.position.set(.01, HY + .19, .0); ah.rotation.set(0, Math.PI / 2, .4); inner.add(ah); }   // a stray strand sticking up on top
     if (!hatted) { const sheen = new THREE.Mesh(new THREE.TorusGeometry(.128, .011, 5, 22, Math.PI * .8), new THREE.MeshBasicMaterial({ color:hLt, transparent:true, opacity:.7 })); sheen.position.set(0, HY + .1, .0); sheen.rotation.set(Math.PI / 2 - .35, 0, Math.PI * .1); inner.add(sheen); }
     if (hair === 'short' || hair === 'spiky' || hair === 'ponytail') add(new THREE.SphereGeometry(.15, 14, 8, 0, Math.PI * 2, Math.PI * .5, Math.PI * .22), hDk, [0, HY + .01, -.035], { ink:0, rot:[-.5, 0, 0] });   // short hair down the back of the head
     if (hair === 'long' || hair === 'bob') for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(.03, .022, hair === 'long' ? .3 : .16, 6), hLt, [sx * .158, HY - (hair === 'long' ? .11 : .04), .05], { ink:0, rot:[0, 0, sx * -.06] });   // a lock falling in front of each shoulder
@@ -2062,7 +2102,7 @@ function buildPerson(L) {
   if (L.kit && typeof KITS !== 'undefined' && KITS[L.kit]) KITS[L.kit]({ add, inner, arms, hands, legs, B, L, rAt:y => B.waist + (B.sh * .92 - B.waist) * ((y - .52) / .3) });
   // Less cartoon, more sprite: a smaller head on the same body (everything from the chin up shrinks together),
   // plus tailoring details: lapels, a shirt at the neck, shoulder seams, and mitten hands with a thumb.
-  { const HK = L.small ? .9 : .82, py = .86, box = new THREE.Box3();
+  { const HK = L.small ? 1.04 : .96, py = .86, box = new THREE.Box3();   // 27 Nov: anime proportions, bigger heads (was .82)
     for (const o of inner.children.slice()) { if (o.isGroup && (legs.includes(o) || arms.includes(o))) continue; box.setFromObject(o); if (box.max.y < .95) continue;
       o.position.set(o.position.x * HK, py + (o.position.y - py) * HK, o.position.z * HK); o.scale.multiplyScalar(HK); }
     const dk = new THREE.Color(coat).multiplyScalar(.7).getStyle(), shirt = L.accent2 || '#efe6d2';
@@ -15890,7 +15930,7 @@ function dressUp(p, L) {
     m.position.y = .67; inner.add(m); }
   // headwear, if they have none
   const hatted = L.hat || gear.some(k => PERSON_HATTED.includes(k)) || L.snout;
-  const HK = L.small ? .9 : .82, HY = .86 + .1 * HK, HR = .165 * HK;
+  const HK = L.small ? 1.04 : .96, HY = .86 + .1 * HK, HR = .165 * HK;
   if (!hatted && (notable || R(5) < .36)) { const kind = notable ? ['wide', 'felt', 'wide'][seed % 3] : ['cap', 'wide', 'beanie', 'scarf', 'straw'][(seed >>> 11) % 5];
     const hc = notable ? coat.clone().multiplyScalar(.45).getStyle() : ['#4a3a2c', '#5a5048', '#3a4a5a', acc, '#7a5a3a'][(seed >>> 13) % 5], top = HY + HR * .55;
     if (kind === 'cap') { add(new THREE.SphereGeometry(HR * 1.08, 14, 8, 0, Math.PI * 2, 0, Math.PI * .5), hc, [0, top - HR * .25, -.005], { ink:1.06 }); add(new THREE.CylinderGeometry(HR * .9, HR * .9, .012, 14, 1, false, -Math.PI / 2, Math.PI), hc, [0, top - HR * .27, HR * .45], { rot:[.15, 0, 0] }); }
@@ -15926,6 +15966,55 @@ function dressUp(p, L) {
   if (e && e.look && !e.look.rank && !e.look.kit) { const notable = e.folk === false || /^(ev_|epi_|keeper|warden|wren|herald|sable)/i.test(e.id || '') || (!!e.name && !e.folk && !/townsperson|child|villager|numbed/i.test(e.name));
     e.look = { ...e.look, rank:notable ? 'notable' : 'folk' }; }
   return _re(e); }; }
+// ---------------------------------------------------------------- watercolour (27 Nov)
+// Soft painted blots laid on the ground where a feeling gathers, in that feeling's colour: a ring of them round every
+// Heart's shrine, all ten colours round the Hush's in the Stillwell, one where each of Vellum's ten roads leaves the
+// square, and one at each event's arch. Each blot is drawn like real watercolour: layered washes, a darker edge where
+// the pigment pooled as it dried, a little granulation, a few drips. They're see-through, so the paving or grass under
+// them still shows its texture, they're lit like the ground (dimmer at night) and they never move.
+const WC_TEX = [];
+function wcTex(k) {
+  if (WC_TEX[k]) return WC_TEX[k];
+  const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d'), R = (i) => hsh(k, i, 811);
+  const blob = (cx, cy, r, wob, seed) => { g.beginPath(); for (let i = 0; i <= 64; i++) { const a = i / 64 * Math.PI * 2;
+      const rr = r * (1 + wob * (.55 * Math.sin(a * 3 + seed) + .3 * Math.sin(a * 5 + seed * 2.1) + .15 * Math.sin(a * 11 + seed * 3.7)));
+      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); };
+  // washes, each a little smaller and shifted, so colour builds unevenly
+  for (let l = 0; l < 6; l++) { blob(N / 2 + (R(l) - .5) * 30, N / 2 + (R(l + 9) - .5) * 30, 62 + R(l + 20) * 34 - l * 5, .16 + R(l + 30) * .1, R(l + 40) * 10);
+    g.fillStyle = `rgba(255,255,255,${.24 + l * .03})`; g.fill(); }
+  // the pooled edge: the outer wash outlined, softly
+  blob(N / 2, N / 2, 92, .18, R(40) * 10); g.save(); g.filter = 'blur(2px)'; g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 5; g.stroke(); g.restore();
+  // granulation, inside
+  for (let i = 0; i < 260; i++) { const a = R(100 + i) * Math.PI * 2, d = Math.sqrt(R(400 + i)) * 80, x = N / 2 + Math.cos(a) * d, y = N / 2 + Math.sin(a) * d; g.fillStyle = `rgba(255,255,255,${.06 + R(700 + i) * .12})`; g.fillRect(x, y, 1 + (i % 3), 1 + (i % 2)); }
+  // a few drips and spatters just outside
+  for (let i = 0; i < 7; i++) { const a = R(900 + i) * Math.PI * 2, d = 100 + R(950 + i) * 22, rr = 2 + R(990 + i) * 6; g.beginPath(); g.arc(N / 2 + Math.cos(a) * d, N / 2 + Math.sin(a) * d, rr, 0, Math.PI * 2); g.fillStyle = 'rgba(255,255,255,.45)'; g.fill(); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return (WC_TEX[k] = t);
+}
+const WC_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+function wcSplat(grp, x, z, size, color, k, op = .95) {
+  const m = new THREE.Mesh(WC_GEO, new THREE.MeshLambertMaterial({ map:wcTex(k % 6), color, transparent:true, opacity:op, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3 }));
+  m.position.set(x, groundY(x, z) + .025, z); m.rotation.y = hsh(k, 3, 812) * Math.PI * 2; m.scale.set(size, 1, size * (.85 + hsh(k, 4, 812) * .3)); m.renderOrder = 1; m.receiveShadow = true; m.raycast = () => {}; grp.add(m); return m;
+}
+const wcShade = (c, k) => { const col = new THREE.Color(c); col.offsetHSL((hsh(k, 5, 813) - .5) * .05, .22, (hsh(k, 6, 813) - .5) * .14 - .04); return col; };
+// a ring of blots round (cx, cz), in one colour or several
+function wcRing(grp, cx, cz, colors, n, r0, r1, s0, s1, key) {
+  for (let i = 0; i < n; i++) { const k = key * 97 + i, a = i / n * Math.PI * 2 + (hsh(k, 1, 814) - .5) * .5, r = r0 + hsh(k, 2, 814) * (r1 - r0), c = colors[i % colors.length];
+    wcSplat(grp, cx + Math.cos(a) * r, cz + Math.sin(a) * r, s0 + hsh(k, 7, 814) * (s1 - s0), wcShade(c, k), k); }
+  for (let i = 0; i < Math.ceil(n / 2); i++) { const k = key * 131 + i, a = hsh(k, 1, 815) * Math.PI * 2, r = r1 + .4 + hsh(k, 2, 815) * 1.2;   // small drops further out
+    wcSplat(grp, cx + Math.cos(a) * r, cz + Math.sin(a) * r, .3 + hsh(k, 3, 815) * .4, wcShade(colors[i % colors.length], k), k + 3); }
+}
+function watercolour(M) {
+  const grp = new THREE.Group(); grp.name = 'watercolour';
+  if (M.kind === 'still') wcRing(grp, 10.5, 3.5, WHEEL.map(t => TYPES[t].c), 20, 1.5, 2.9, .9, 1.6, 7);
+  else if (M.kind === 'city' && M.vibe && TYPES[M.vibe]) { const SH = M.shrine || SHRINE, c = TYPES[M.vibe].c; wcRing(grp, SH.x, SH.z, [c], 11, 1.5, 2.8, .9, 1.9, 3);
+    const wx = (typeof EV_WALLX === 'function') ? EV_WALLX()[M.id] : null; if (wx != null) wcRing(grp, wx, 3.4, [c], 4, .2, .9, .7, 1.2, 11); }
+  else if (M.kind === 'hub') for (let i = 0; i < WN; i++) {   // where each road leaves the square: walk out from the wheel along the wedge's middle until the paving ends
+    const t = WHEEL[i], a = GATE_OFF + i * Math.PI * 2 / WN; let best = null;
+    for (let r = 4; r < 16; r += .5) { const x = HUB_C[0] + Math.sin(a) * r, z = HUB_C[1] - Math.cos(a) * r, tx = Math.round(x), tz = Math.round(z), ch = (M.tiles[tz] || [])[tx]; if (ch === '=' || ch === 'w') best = [x, z]; }
+    if (best) wcRing(grp, best[0], best[1], [TYPES[t].c], 4, .1, .9, .9, 1.5, 20 + i); }
+  return grp;
+}
+{ const _bw = buildWorld; buildWorld = function (...a) { const r = _bw.apply(this, a); try { const M = MAPS[S.map]; if (M && M.kind !== 'inside') world.add(watercolour(M)); } catch (e) { console.warn('watercolour', e); } return r; }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
