@@ -3523,8 +3523,14 @@ const SET = {
     sCyl(g, .12, .12, .02, '#a8452f', 0, 1.12, .21, [PI2, 0, 0], { ink:0 }); sBall(g, .14, '#c8b088', 0, 1.52, 0); if (p.slash) sBox(g, .3, .03, .02, '#2a1c18', .02, 1.2, .22, { ink:0, rot:[0, 0, .7] }); return g; },
   mtent(p) { const g = new THREE.Group(), c = p.c || '#6a6a4a';
     for (const s of [-1, 1]) sBox(g, 1.5, .04, 1.1, c, 0, .5, s * .38, { rot:[s * .85, 0, 0] }); sBox(g, .04, .9, .04, '#3a2c20', .75, .45, 0); sBox(g, .04, .9, .04, '#3a2c20', -.75, .45, 0); return g; },
-  boat(p) { const g = new THREE.Group(); const h = part(new THREE.CylinderGeometry(.42, .42, 1.6, 14, 1, false, 0, Math.PI), '#6a4a32', [0, .05, 0], { ink:1.08, mo:{ side:THREE.DoubleSide } }); h.rotation.set(0, 0, PI2); h.rotation.order = 'ZYX'; h.rotation.x = Math.PI; g.add(h);
-    sBox(g, .06, .04, .7, '#4a3220', .3, .32, 0, { ink:0 }); g.rotation.z = .08; return g; },
+  // a rowboat with a real hull: rounded underneath, pointed at the bow, open on top (27 Nov; it used to be a half-pipe that read as a box)
+  boat(p) { const o = new THREE.Group(), g = new THREE.Group(); o.add(g); g.rotation.y = Math.PI / 2; g.position.y = .12; const geo = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), a = geo.attributes.position;
+    for (let i = 0; i < a.count; i++) { const x = a.getX(i), y = a.getY(i), z = a.getZ(i), bow = Math.max(0, z); a.setXYZ(i, x * .46 * (1 - .62 * bow * bow), y * .36, z * .86); }
+    geo.computeVertexNormals();
+    const h = part(geo, '#6a4a32', [0, .3, 0], { ink:1.06, mo:{ side:THREE.DoubleSide } }); g.add(h);
+    for (const z of [-.3, .22]) sBox(g, .78 * (1 - .5 * Math.max(0, z) ** 2), .04, .14, '#4a3220', 0, .24, z, { ink:0 });
+    const oar = part(new THREE.CylinderGeometry(.025, .025, 1.3, 6), '#7a5a3a', [.18, .32, -.05], { ink:0 }); oar.rotation.set(Math.PI / 2, 0, .12); g.add(oar);
+    o.rotation.z = .05; return o; },
   hut(p) { const g = new THREE.Group(); for (const [x, z] of [[-.6, -.6], [.6, -.6], [-.6, .6], [.6, .6]]) sBox(g, .1, .7, .1, '#4a3a2c', x, .2, z); return g; },
   sludge(p) { const g = new THREE.Group(); const gl = glow('#9ab040', 1.2, .25); gl.position.set(0, .1, 0); g.add(gl); return g; },
   pallet(p) { const g = new THREE.Group(); sBox(g, 1.0, .2, .9, '#8a6a48', 0, .1, 0); sBox(g, .8, .5, .7, '#a08a6a', 0, .45, 0, { rot:[0, .3, 0] }); return g; },
@@ -4173,7 +4179,7 @@ function routeLayout(t) {
         furn:[['table', 3, 2], ['bed', 6, 1, { c:'#7a9a98' }], ['stove', 1, 4], ['shelf', 7, 4]],
         note:{ x:4, y:2, text:'(A child\'s drawing: a stick figure under a sky full of scribbled lightning. Written underneath in an adult\'s hand: "Moss cannot sleep unless someone calm is in the room. I am not always calm. I am trying.")' },
         item:{ x:2, y:5, id:'mh1', key:'iron' } });
-      piece('boat', 9, 22, 2, 1, { keep:true }); piece('boat', 20, 37, 2, 1, { keep:true, r:.5 }); piece('boat', 4, 6, 2, 1, { keep:true, r:-.3 });
+      piece('boat', 7, 22, 2, 1, { keep:true }); piece('boat', 20, 37, 2, 1, { keep:true, r:.5 }); piece('boat', 4, 6, 2, 1, { keep:true, r:-.3 });
       // no street lamps out on the water: after dark the fireflies light the boardwalk (h36_scenery.js)
       R.npcs = [
         { id:'ondine', x:19, y:19, dir:'left', role:'guard', name:'Ondine', look:rLook('#5a8a8a', '#d9e0c8', '#d7a985', '#3a2a20'), team:[['CALM', 1], ['CALM', 0, 1]], reward:['hearth', 1], trust:trustIs.any,
@@ -4974,13 +4980,13 @@ function buildRouteExtras(M, V) {
     if (ch === 'R') { const near = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]].some(([dx, dy]) => open(x + dx, y + dy));
       if (near || hsh(x, y, 2) < .25) { const h = .9 + r * (V.cave ? 1.8 : 1.1); rocks[Math.floor(r * 3)].push([x + (hsh(x, y, 3) - .5) * .3, gy + h * .35, y + (hsh(x, y, 4) - .5) * .3, r * 6, .78 + hsh(x, y, 5) * .3, h, 0, 0, .78 + hsh(x, y, 6) * .3, new THREE.Color(V.cave ? '#4a4450' : '#8a8070').offsetHSL(0, 0, (r - .5) * .12).getStyle()]); } }
     if (ch === 'h') hedges.push([x, gy + .48, y, 0, 1, .95, 0, 0, 1, new THREE.Color('#3f6a30').offsetHSL(0, 0, (r - .5) * .06).getStyle()]);
-    if (ch === 'b') planks.push([x, gy + .05, y, (r - .5) * .06, 1.02, .08, 0, 0, .96, r < .5 ? '#8a7458' : '#7a664c']);
+    if (ch === 'b' && M.kind === 'inside') planks.push([x, gy + .05, y, (r - .5) * .06, 1.02, .08, 0, 0, .96, r < .5 ? '#8a7458' : '#7a664c']);
   }
   for (const rl of M.rails || []) if (rl.y != null) for (let x = rl.x0; x <= rl.x1; x++) { const gy = groundY(x, rl.y); for (const d of [-.25, .25]) ties.push([x + d, gy + .04, rl.y, Math.PI / 2 + (hsh(x, rl.y) - .5) * .08, 1.25, .07, 0, 0, .18, '#4a3a2c']); for (const s of [-.36, .36]) railL.push([x, gy + .1, rl.y + s, 0, 1.01, .08, 0, 0, .07, '#5a5550']); }
   for (const [x, y0, y1] of (M.rails || []).filter(r => Array.isArray(r))) for (let y = y0; y <= y1; y++) { const gy = groundY(x, y); for (const d of [-.25, .25]) ties.push([x, gy + .04, y + d, (hsh(x, y) - .5) * .08, 1.25, .07, 0, 0, .18, '#4a3a2c']); for (const s of [-.36, .36]) railL.push([x + s, gy + .1, y, 0, .07, .08, 0, 0, 1.01, '#5a5550']); }
   for (let k = 0; k < 3; k++) inst(lumpy(new THREE.IcosahedronGeometry(.62, 2), .14, 2.6, k * 13), '#6a6058', rocks[k], 1.07);
   inst(roundBox(1, 1, 1, .18), '#3f6a30', hedges, 1.05); inst(new THREE.BoxGeometry(1, 1, 1), '#4a3a2c', ties, 0); inst(new THREE.BoxGeometry(1, 1, 1), '#5a5550', railL, 0); inst(new THREE.BoxGeometry(1, 1, 1), '#8a7458', planks, 0);
-  for (const p of M.set || []) { const o = buildSet(p); o.position.set(p.x, groundY(p.x, p.y) - (M.tiles[Math.round(p.y)] && M.tiles[Math.round(p.y)][Math.round(p.x)] === '~' ? .35 : 0), p.y); g.add(o); SETOBJS.push({ p, o });
+  for (const p of M.set || []) { const o = buildSet(p); o.position.set(p.x, groundY(p.x, p.y) - (M.tiles[Math.round(p.y)] && M.tiles[Math.round(p.y)][Math.round(p.x)] === '~' && p.k !== 'boat' ? .35 : 0), p.y); g.add(o); SETOBJS.push({ p, o });
     if (ruinHere(S.map)) ruinSet(o, p); }
   return g;
 }
@@ -5057,7 +5063,7 @@ function buildWorld(id) {
   if (tall.length) {
     const per = 8, gmesh = new THREE.InstancedMesh(new THREE.ConeGeometry(.07, .6, 3).translate(0, .3, 0), toon('#ffffff'), tall.length * per);
     gmesh.castShadow = true; let k = 0;
-    for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * .9, bz = y + (hsh(x, y, j + 3) - .5) * .9; W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:.7 + r * .6, ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
+    for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * 1.05, bz = y + (hsh(x, y, j + 3) - .5) * 1.05, inn = M.kind === 'inside' ? 1 : softIn(M, bx, bz, c => c === ','); W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:inn < .5 ? 0 : (.7 + r * .6) * Math.min(1, .45 + inn), ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
     world.add(gmesh); W.grass = gmesh;
   }
   for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const rn = ruinHere(id), grey = c => rn ? '#' + new THREE.Color(c).lerp(new THREE.Color('#5a5650'), .62).getHexString() : c; RUIN_BUILD = rn;
@@ -15480,6 +15486,137 @@ partyRow = (m, i) => slotRow(S.party, m, i);
 .mmt small{font-size:10px;color:var(--muted);font-weight:600;text-align:right;white-space:nowrap}
 @media (max-width:420px){#sheet{max-height:88vh;padding:12px 10px 10px}#sheet h2{font-size:23px}#sheet .subt{font-size:12px;margin-bottom:8px}#sheet .row{margin-bottom:5px}}
 `; document.head.appendChild(st); })();
+// ---------------------------------------------------------------- curves, not blocks (27 Nov)
+// Nothing outdoors should read as stacked squares. The ground is still walked tile by tile, but it's
+// drawn as a soft field: where two kinds of ground meet (path and grass, shore and water, plaza and lawn)
+// the edge wanders and rounds its corners, while every tile's centre keeps exactly its old height and
+// colour, so people still stand where they always did. Boardwalks become one curved deck over the water,
+// with boards laid across the way you walk, a dark edge, and posts down into the water.
+// Grass patches lose their square outlines too.
+
+// smooth value noise in [0,1)
+function vnoise(x, z, s = 0) {
+  const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
+  const a = hsh(xi, zi, s), b = hsh(xi + 1, zi, s), c = hsh(xi, zi + 1, s), d = hsh(xi + 1, zi + 1, s);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+// Wander a point, but not near a tile's centre (where people stand).
+function curveWarp(x, z, amp = .42) {
+  const ex = Math.abs(x - Math.round(x)), ez = Math.abs(z - Math.round(z)), e = Math.min(1, Math.max(0, (Math.max(ex, ez) - .12) / .3));
+  const k = amp * e * e * (3 - 2 * e);
+  return [x + (vnoise(x * .9, z * .9, 71) - .5) * 2 * k, z + (vnoise(x * .9 + 40, z * .9 + 17, 73) - .5) * 2 * k];
+}
+const CURVE_R = 1.15, cw = d => { const t = 1 - d / CURVE_R; return t > 0 ? t * t : 0; };
+// Is a boardwalk tile out over water? (then the ground under it is the water bed, and the deck floats)
+function deckWet(M, x, y) { let n = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if ((M.tiles[y + dy] || [])[x + dx] === '~') n++; return n >= 3; }
+// How much of the ground around (x, z) is of kind test(ch): 0..1, rounded at the corners.
+function softIn(M, x, z, test) {
+  const [wx, wz] = curveWarp(x, z); let s = 0, t = 0;
+  for (let ty = Math.floor(wz) - 1; ty <= Math.floor(wz) + 2; ty++) for (let tx = Math.floor(wx) - 1; tx <= Math.floor(wx) + 2; tx++) {
+    const row = M.tiles[Math.max(0, Math.min(M.h - 1, ty))], ch = row[Math.max(0, Math.min(M.w - 1, tx))], w = cw(Math.hypot(wx - tx, wz - ty)); if (!w) continue;
+    t += w; if (test(ch, tx, ty)) s += w; }
+  return t ? s / t : 0;
+}
+
+const _buildTerrainBlock = buildTerrain;
+buildTerrain = function (M, V) {
+  if (!M || M.kind === 'inside') return _buildTerrainBlock(M, V);
+  const S3 = 4, x0 = -1, z0 = -1, cols = (M.w + 1) * S3 + 1, rows = (M.h + 1) * S3 + 1, W_ = M.w, H_ = M.h;
+  // what each tile counts as: boardwalk over water is drawn as water (the deck goes on top)
+  const kind = M.tiles.map((row, y) => row.map((ch, x) => ch === 'b' ? (deckWet(M, x, y) ? '~' : '.') : ch));
+  const raw = M.tiles.map((row, y) => row.map((_, x) => new THREE.Color(M.tiles[y][x] === 'b' ? tileColor({ tiles:[[kind[y][x]]], kind:M.kind }, V, 0, 0) : tileColor(M, V, x, y))));
+  // even out the tile-to-tile colour flicker within one kind of ground (the smooth noise below adds variety back)
+  const tc = raw.map((row, y) => row.map((c0, x) => { const c = c0.clone().multiplyScalar(1); let n = 1;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) { const yy = y + dy, xx = x + dx; if (yy < 0 || xx < 0 || yy >= H_ || xx >= W_ || kind[yy][xx] !== kind[y][x]) continue; c.r += raw[yy][xx].r * .6; c.g += raw[yy][xx].g * .6; c.b += raw[yy][xx].b * .6; n += .6; }
+    return c.multiplyScalar(1 / n); }));
+  const hm = W.hg.map((row, y) => row.map((h, x) => M.tiles[y][x] === 'b' && kind[y][x] === '~' ? BASE - .45 : h));
+  const hAt = (x, z) => { const cx = clamp(x, 0, W_ - 1), cz = clamp(z, 0, H_ - 1), xa = Math.floor(cx), za = Math.floor(cz), xb = Math.min(xa + 1, W_ - 1), zb = Math.min(za + 1, H_ - 1), fx = cx - xa, fz = cz - za;
+    return (hm[za][xa] * (1 - fx) + hm[za][xb] * fx) * (1 - fz) + (hm[zb][xa] * (1 - fx) + hm[zb][xb] * fx) * fz; };
+  const pos = new Float32Array(cols * rows * 3), colr = new Float32Array(cols * rows * 3);
+  const cliff = new THREE.Color('#c9b48c'), earth = new THREE.Color('#9a8466'), c = new THREE.Color();
+  const accW = {}, accC = {};
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const x = x0 + i / S3 - .5, z = z0 + j / S3 - .5, k = (j * cols + i) * 3;
+    const inside = !(x < -.5 || z < -.5 || x > W_ - .5 || z > H_ - .5);
+    let y;
+    if (!inside) { y = groundY(x, z); c.copy(cliff); }
+    else {
+      const [wx, wz] = curveWarp(x, z); y = hAt(wx, wz);
+      if (y > BASE + .05) y += (vnoise(x * 2.3, z * 2.3, 5) - .5) * .08;
+      for (const key in accW) { accW[key] = 0; accC[key].setRGB(0, 0, 0); }
+      for (let ty = Math.floor(wz) - 1; ty <= Math.floor(wz) + 2; ty++) for (let tx = Math.floor(wx) - 1; tx <= Math.floor(wx) + 2; tx++) {
+        const yy = Math.max(0, Math.min(H_ - 1, ty)), xx = Math.max(0, Math.min(W_ - 1, tx)), w = cw(Math.hypot(wx - tx, wz - ty)); if (!w) continue;
+        const key = kind[yy][xx]; if (!accC[key]) { accC[key] = new THREE.Color(0, 0, 0); accW[key] = 0; }
+        accW[key] += w; const col = tc[yy][xx]; accC[key].r += col.r * w; accC[key].g += col.g * w; accC[key].b += col.b * w; }
+      // sharpen: each kind's share is raised to the 4th power, so edges stay crisp lines that curve, not blurry smears
+      let Z = 0; c.setRGB(0, 0, 0);
+      for (const key in accW) { const w = accW[key]; if (!w) continue; const p = w ** 4; Z += p; c.r += accC[key].r / w * p; c.g += accC[key].g / w * p; c.b += accC[key].b / w * p; }
+      if (Z) c.multiplyScalar(1 / Z); else c.copy(tc[clamp(Math.round(z), 0, H_ - 1)][clamp(Math.round(x), 0, W_ - 1)]);
+      c.offsetHSL(0, 0, (vnoise(x * 1.1, z * 1.1, 9) - .5) * .07 + (hsh(i, j, 9) - .5) * .02);
+    }
+    pos[k] = x; pos[k + 1] = y; pos[k + 2] = z; colr[k] = c.r; colr[k + 1] = c.g; colr[k + 2] = c.b;
+  }
+  const idx = [];
+  for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) { const a = j * cols + i, b = a + 1, d = a + cols, e = d + 1; if ((i + j) & 1) idx.push(a, d, e, a, e, b); else idx.push(a, d, b, b, d, e); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(colr, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const nrm = g.attributes.normal.array;
+  for (let v = 0; v < cols * rows; v++) { const ny = nrm[v * 3 + 1]; if (ny < .82) { const kk = clamp((.82 - ny) * 3, 0, .7); c.setRGB(colr[v * 3], colr[v * 3 + 1], colr[v * 3 + 2]).lerp(earth, kk); colr[v * 3] = c.r; colr[v * 3 + 1] = c.g; colr[v * 3 + 2] = c.b; } }
+  const mesh = new THREE.Mesh(g, toon('#ffffff', { vertexColors:true, surf:'ground' })); mesh.receiveShadow = true; mesh.castShadow = true;
+  return mesh;
+};
+
+// ---- the boardwalk deck
+const PLANK_TEX = (() => { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 256; const g = cv.getContext('2d');
+  const tones = ['#8d7659', '#826c50', '#957e60', '#7b664c', '#8a7357', '#7f6a4f', '#917a5c', '#86704f'];
+  for (let i = 0; i < 8; i++) { const y = i * 32; g.fillStyle = tones[i]; g.fillRect(0, y, 64, 32);
+    g.fillStyle = 'rgba(60,40,22,.18)'; for (let k = 0; k < 5; k++) g.fillRect(0, y + 6 + k * 5 + (i % 3), 64, 1);   // grain
+    g.fillStyle = '#3e2c1c'; g.fillRect(0, y, 64, 3);                                                            // the gap between boards
+    g.fillStyle = '#2e2014'; g.fillRect(5, y + 14, 3, 3); g.fillRect(56, y + 14, 3, 3); }                          // nails
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter; return t; })();
+function buildDeck(M) {
+  const isB = (x, y) => (M.tiles[y] || [])[x] === 'b';
+  let any = false; for (const row of M.tiles) if (row.includes('b')) { any = true; break; } if (!any) return null;
+  const R = 5, x0 = -1, z0 = -1, cols = (M.w + 1) * R + 1, rows = (M.h + 1) * R + 1;
+  // the deck's outline: a soft field of 'b', cut at one half
+  const F = new Float32Array(cols * rows);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const x = x0 + i / R - .5, z = z0 + j / R - .5;
+    let s = 0, t = 0; for (let ty = Math.floor(z) - 1; ty <= Math.floor(z) + 2; ty++) for (let tx = Math.floor(x) - 1; tx <= Math.floor(x) + 2; tx++) { const w = cw(Math.hypot(x - tx, z - ty) * .74); if (!w) continue; t += w;
+      const inMap = tx >= 0 && ty >= 0 && tx < M.w && ty < M.h; if (isB(tx, ty) || (!inMap && isB(clamp(tx, 0, M.w - 1), clamp(ty, 0, M.h - 1)))) s += w; }
+    F[j * cols + i] = t ? s / t : 0; }
+  // which way you walk at each spot: the long axis of the nearby boardwalk tiles, snapped to 0/45/90/135 degrees,
+  // so each straight stretch has its boards straight across, and bends meet at a joint like a real boardwalk
+  const axisAt = (x, z) => { let sxx = 0, szz = 0, sxz = 0;
+    for (let ty = Math.round(z) - 3; ty <= Math.round(z) + 3; ty++) for (let tx = Math.round(x) - 3; tx <= Math.round(x) + 3; tx++) if (isB(tx, ty)) { const dx = tx - x, dz = ty - z, w = Math.exp(-(dx * dx + dz * dz) / 5); sxx += w * dx * dx; szz += w * dz * dz; sxz += w * dx * dz; }
+    const a = .5 * Math.atan2(2 * sxz, sxx - szz); return ((Math.round(a / (Math.PI / 4)) % 4) + 4) % 4; };
+  const top = [], uv = [], edgePts = [], Y = BASE + .1;
+  const crossing = (i0, j0, i1, j1, th) => { const a = F[j0 * cols + i0], b = F[j1 * cols + i1], t = (th - a) / (b - a); return [x0 + (i0 + (i1 - i0) * t) / R - .5, z0 + (j0 + (j1 - j0) * t) / R - .5]; };
+  const cellPoly = (i, j, th) => { const C = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]], out = [];
+    for (let k = 0; k < 4; k++) { const [ia, ja] = C[k], [ib, jb] = C[(k + 1) % 4], fa = F[ja * cols + ia] >= th, fb = F[jb * cols + ib] >= th;
+      if (fa) out.push([x0 + ia / R - .5, z0 + ja / R - .5]); if (fa !== fb) out.push(crossing(ia, ja, ib, jb, th)); }
+    return out; };
+  const tris = (th, y, sink, withUV) => { const P = [], U = [];
+    for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) { const poly = cellPoly(i, j, th); if (poly.length < 3) continue;
+      const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length, cz = poly.reduce((s, p) => s + p[1], 0) / poly.length, ax = withUV ? axisAt(cx, cz) : 0;
+      const ang = ax * Math.PI / 4, dx = Math.cos(ang), dz = Math.sin(ang);
+      if (!withUV && poly.length < 4) edgePts.push([cx, cz]);
+      for (let k = 1; k < poly.length - 1; k++) for (const p of [poly[0], poly[k + 1], poly[k]]) { P.push(p[0], y - sink, p[1]); if (withUV) U.push((p[0] * -dz + p[1] * dx) * .9, (p[0] * dx + p[1] * dz) * 1.1); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); if (withUV) g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.computeVertexNormals(); return g; };
+  M._deckMin = 1; for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) if (isB(x, y)) M._deckMin = Math.min(M._deckMin, F[((y - z0) * R + Math.round(R / 2)) * cols + (x - x0) * R + Math.round(R / 2)] || 0);
+  const grp = new THREE.Group();
+  const deck = new THREE.Mesh(tris(.5, Y, 0, true), toon('#ffffff', { map:PLANK_TEX })); deck.receiveShadow = true; grp.add(deck);
+  const rim = new THREE.Mesh(tris(.43, Y, .07, false), toon('#4a3826')); rim.receiveShadow = true; grp.add(rim);      // the deck's thickness, showing as a dark lip
+  // posts every so often along the edge where it meets water, leaning very slightly, down into the water
+  const posts = []; edgePts.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  for (const p of edgePts) { const tx = Math.round(p[0]), tz = Math.round(p[1]);
+    let wet = false; for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) if ((M.tiles[tz + dz] || [])[tx + dx] === '~') wet = true; if (!wet) continue;
+    if (posts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.45)) continue; posts.push(p); }
+  if (posts.length) { const geo = new THREE.CylinderGeometry(.07, .085, .95, 7).translate(0, -.12, 0), im = new THREE.InstancedMesh(geo, toon('#5a4430'), posts.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    posts.forEach((p, k) => { m4.compose(V3(p[0], Y, p[1]), q.setFromEuler(e.set((hsh(k, 1, 3) - .5) * .08, 0, (hsh(k, 2, 3) - .5) * .08)), V3(1, 1, 1)); im.setMatrixAt(k, m4); });
+    im.castShadow = true; grp.add(im); }
+  return grp;
+}
+const _routeExtrasBlock = buildRouteExtras;
+buildRouteExtras = function (M, V) { const g = _routeExtrasBlock(M, V); if (M.kind !== 'inside') { const d = buildDeck(M); if (d) g.add(d); } return g; };
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
