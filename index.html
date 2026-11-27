@@ -3422,7 +3422,7 @@ for (const sp of PAIR_UP) { const orig = SCULPT[sp]; if (!orig) continue;
 }
 // =============================================================================
 //  SET PIECES — the big props that make each route its own place
-//  (abandoned cars, a broken-down Prairie steam engine, a fair, a war camp…)
+//  (abandoned wagons, a broken-down Prairie steam engine, a fair, a war camp…)
 // =============================================================================
 const PI2 = Math.PI / 2;
 function sBox(g, w, h, d, c, x, y, z, o = {}) { const b = inkBox(w, h, d, toon(c, o.mo || {}), o.ink == null ? .03 : o.ink); b.position.set(x, y, z); if (o.rot) b.rotation.set(...o.rot); g.add(b); return b; }
@@ -3434,15 +3434,19 @@ const DARK_GLASS = '#26303a';
 
 const LAMP_POOLS = [];
 const SET = {
-  // A rusting sedan, doors seized, tyres gone soft.
-  car(p) { const g = new THREE.Group(), c = p.c || '#6a7a8a', r = hsh(p.x, p.y, 4);
-    sBox(g, 1.8, .42, .84, c, 0, .44, 0); sBox(g, 1.02, .38, .78, c, -.12, .84, 0);
-    sBox(g, .05, .3, .66, DARK_GLASS, .41, .84, 0); sBox(g, .05, .3, .66, DARK_GLASS, -.64, .84, 0);
-    for (const s of [-1, 1]) { sBox(g, .4, .24, .03, DARK_GLASS, .1, .86, s * .4); sBox(g, .4, .24, .03, DARK_GLASS, -.36, .86, s * .4); sBox(g, .36, .16, .03, '#7a4a2e', (r - .5) * .8, .4, s * .43, { ink:0 });
-      for (const wx of [.58, -.58]) sCyl(g, .2, .2, .14, '#211d1b', wx, .2, s * .42, [PI2, 0, 0]); }
-    sBox(g, .06, .1, .2, '#d9d0b0', .91, .5, .26); sBox(g, .06, .1, .2, '#d9d0b0', .91, .5, -.26);
-    moss(g, [[.6, .06, .45], [-.7, .06, -.45, .8], [.1, .66, .1, .6]]);
-    g.rotation.z = (r - .5) * .1; return g; },
+  // An abandoned covered wagon (26 Nov: there are no cars in the Welkin). Weathered wood, four spoked wheels,
+  // a canvas hood in the piece's colour, the shafts resting on the ground where the mule was unhitched.
+  car(p) { const g = new THREE.Group(), c = p.c || '#6a7a8a', r = hsh(p.x, p.y, 4), wood = '#6a4a30', dark = '#3a2a1e';
+    sBox(g, 1.7, .26, .8, wood, 0, .52, 0); sBox(g, 1.7, .22, .05, '#7a5a3a', 0, .74, .38); sBox(g, 1.7, .22, .05, '#7a5a3a', 0, .74, -.38);   // the bed and its sides
+    for (let k = 0; k < 4; k++) { const x = -.6 + k * .4; const hoop = new THREE.Mesh(new THREE.TorusGeometry(.42, .025, 6, 14, Math.PI), toon('#4a3a2a')); hoop.rotation.y = Math.PI / 2; hoop.position.set(x, .8, 0); g.add(hoop); }
+    const hood = new THREE.Mesh(new THREE.CylinderGeometry(.43, .43, 1.3, 18, 1, true, 0, Math.PI), toon(new THREE.Color(c).lerp(new THREE.Color('#e8dcc0'), .55).getStyle(), { side:THREE.DoubleSide }));
+    hood.rotation.z = Math.PI / 2; hood.position.set(-.05, .8, 0); g.add(hood);   // the canvas, over the hoops
+    for (const s of [-1, 1]) for (const wx of [.55, -.55]) { const wh = new THREE.Group(); wh.position.set(wx, .3, s * .45); wh.rotation.x = Math.PI / 2; g.add(wh);
+      sCyl(wh, .3, .3, .06, dark, 0, 0, 0, null, { seg:18 }); sCyl(wh, .24, .24, .07, '#8a6a48', 0, 0, 0, null, { seg:18 }); sCyl(wh, .06, .06, .1, dark, 0, 0, 0, null, { seg:8 });
+      for (let k = 0; k < 4; k++) sBox(wh, .44, .03, .03, dark, 0, 0, 0, { rot:[0, k * Math.PI / 4, 0] }); }   // spoked wheels
+    for (const s of [-1, 1]) sBox(g, .9, .05, .05, wood, 1.25, .2, s * .2, { rot:[0, 0, -.35] });   // the shafts, down on the ground
+    moss(g, [[.6, .66, .38], [-.7, .66, -.38, .8]]);
+    g.rotation.y += (r - .5) * .15; return g; },
   // Inspired by a 1920s logging Prairie (2-6-2): straight stack, big headlamp, oil tender. Front faces +x.
   loco(p) { const g = new THREE.Group(), blk = '#262322', blk2 = '#34302d', rust = '#7a4226', brass = '#b08a3a';
     sBox(g, 4.7, .12, 1.04, blk2, .1, .66, 0);
@@ -4079,7 +4083,7 @@ const ROUTES = {
     sign:'THE HEWN STAIR. Highcrest quarry. Hard hats are for people who expect to fail.' },
   SURPRISE:{ id:'r_tumbledown', name:'Tumbledown Fair', theme:'fair', arrive:'A fair set up here one summer and never packed away. The carousel still turns if the wind is right. Nobody can tell you who runs it now.',
     sign:'TUMBLEDOWN FAIR! Thrills! Wonders! The Ferris Wheel Is Closed! Caprice, north. Brightmeadow? No. Wickerturn, south.' },
-  SADNESS:{ id:'r_gutterlight', name:'Gutterlight Lane', theme:'lane', arrive:'This was a commuter street once. The cars are still here, where people left them the day the rain started. The streetlamps come on at noon and nobody turns them off.',
+  SADNESS:{ id:'r_gutterlight', name:'Gutterlight Lane', theme:'lane', arrive:'This was a market street once. The wagons are still here, where people left them the day the rain started. The streetlamps come on at noon and nobody turns them off.',
     sign:'GUTTERLIGHT LANE. Sorrowmere, north. Lowmere, south. No parking. (There is nowhere left to go anyway.)' },
   FEAR:{ id:'r_throat', name:'The Hollow Throat', theme:'cave', arrive:'The road to Quailmoor goes under the hill, not over it. Your light reaches a few paces and then gives up. Something drips. Something else breathes.',
     sign:'THE HOLLOW THROAT. Quailmoor beyond. Stay in the light. Count your steps. If you hear your name, do not answer.' },
@@ -4241,28 +4245,28 @@ function routeLayout(t) {
       const L = [4, 12, 20, 28, 36];
       L.forEach((y, i) => { house(2, y, 5, '#4a5060', '#8a8f98', i === 1 ? { name:'The Hale House', floor:['#4a5a68', '#405060'], wall:'#6a7480',
           furn:[['table', 3, 2], ['bed', 7, 1, { c:'#6a7a8a' }], ['shelf', 1, 1], ['piano', 6, 5]],
-          note:{ x:4, y:2, text:'(A letter, water-stained.) "Margaret — I\'m taking the car into town for one thing. Back by six. Put the kettle on." The kettle is still on the stove. The car is still outside.' },
+          note:{ x:4, y:2, text:'(A letter, water-stained.) "Margaret — I\'m taking the cart into town for one thing. Back by six. Put the kettle on." The kettle is still on the stove. The cart is still outside.' },
           item:{ x:2, y:5, id:'photo', quest:'a waterlogged photograph' } } : null);
         house(19, y + 2 > 40 ? y : y + 2, 5, '#3a4050', '#7a808a', i === 3 ? { name:'Pawnshop', floor:['#5a5048', '#4e4440'], wall:'#6a6058',
           furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 5, 1], ['desk', 6, 4], ['table', 2, 4]],
           note:{ x:4, y:3, text:'(A pawn ticket.) "1 wedding ring. 1 pocket watch, stopped. 1 child\'s shoe (left). Unclaimed. Unclaimed. Unclaimed."' },
           item:{ x:7, y:2, id:'pw1', key:'hearth' } } : null); });
       for (const [x, y, r, c] of [[9, 9, 0, '#6a7a8a'], [14, 15, .15, '#8a4a3a'], [11, 23, -.2, '#4a5a4a'], [15, 31, .1, '#7a7a6a'], [9, 37, -.1, '#5a4a6a'], [13, 40, 1.5, '#8a8a8a']])
-        piece('car', x, y, 1, 2, { r:Math.PI / 2 + r, c, look:pickA(['The car\'s doors are locked. There\'s a coat on the passenger seat, folded as if someone meant to come back for it.', 'Through the fogged window: a child\'s seat, empty, and a road map open to somewhere sunny.', 'The keys are still in the ignition. The radio is turned all the way down.']) });
+        piece('car', x, y, 1, 2, { r:Math.PI / 2 + r, c, look:pickA(['The wagon\'s canvas is laced shut. There\'s a coat on the driver\'s bench, folded as if someone meant to come back for it.', 'Under the canvas: a child\'s blanket, folded, and a road map open to somewhere sunny.', 'The reins are still looped round the brake. The lantern on its hook is turned all the way down.']) });
       for (const y of [6, 14, 22, 30, 38]) { lamp(7, y, true); lamp(18, y + 3, y % 16 !== 6); }
       rect(m, 2, 8, 5, 3, ','); rect(m, 2, 24, 5, 3, ','); rect(m, 19, 18, 5, 3, ','); rect(m, 19, 34, 5, 3, ','); rect(m, 10, 27, 4, 3, ','); rect(m, 19, 2, 5, 3, ',');
       R.npcs = [
         { id:'hale', x:5, y:17, dir:'right', role:'favor', name:'Mrs Hale', look:rLook('#4a4a5a', '#b8b0c0', '#d7a985', '#c8c0b8', { hat:'#2a2a38' }), trust:trustIs.any },
         { id:'mercer', moral:'kind', x:7, y:33, dir:'right', role:'guard', name:'Constable Holloway', look:rLook('#2a3448', '#c8c0b0', '#c79a78', '#3a2a20', { hat:'#1a2030' }), team:[['SADNESS', 1], ['CALM', 1]], reward:['hearth', 1], trust:trustIs.notDark,
-          intro:'Constable Holloway: There\'s no crime on Gutterlight Lane. There\'s no anything. I still walk the beat. Somebody should.', ask:'Holloway: My Manifs protect the folk who wander in here and sit in the cars. Spar?', decline:'Holloway: Mind the puddles. Some are deeper than they look.',
+          intro:'Constable Holloway: There\'s no crime on Gutterlight Lane. There\'s no anything. I still walk the beat. Somebody should.', ask:'Holloway: My Manifs protect the folk who wander in here and sit in the wagons. Spar?', decline:'Holloway: Mind the puddles. Some are deeper than they look.',
           win:'Holloway: Well done. Here. For when the rain gets into you.', lose:'Holloway: Go and dry off.', after:'Holloway: Quiet night. They\'re all quiet nights.',
-          distrust:'Constable Holloway: (He puts himself between you and the parked cars.) There are people asleep in those. Move along.' },
+          distrust:'Constable Holloway: (He puts himself between you and the wagons.) There are people asleep in those. Move along.' },
         { id:'pell', moral:'cruel', temper:'opportunist', noComp:true, x:18, y:27, dir:'left', role:'war', name:'Deacon Pell', look:rLook('#1e1620', '#5a4a6a', '#b8b0a8', '#0e0a10', { hat:'#141014' }), team:[['SADNESS', 1, 1], ['SHAME', 1, 1], ['SADNESS', 2, 1]], reward:['veil', 1], trust:trustIs.dark,
           intro:['Deacon Pell: The Hollow Choir collects grief here. It\'s the richest seam in the Welkin. Everyone on this street left a little behind.', 'Pell: We teach it to march. Sorrow that keeps in step. You\'d be amazed what an army of the bereaved will do.'], ask:'Pell: You carry dark things well. Shall we test them?', decline:'Pell: The Choir is patient.',
           win:'Pell: You\'d be wasted on anything but the Choir. Take this veil. Think about it.', lose:'Pell: Grief wins. It usually does.', after:'Pell: The Choir remembers you kindly.',
           distrust:'Deacon Pell: (He looks at your aura and smiles thinly.) Not yet. Come back when something has broken you a little.' },
         { id:'busker', moral:'kind', temper:'kind', x:18, y:11, dir:'left', role:'talk', name:'Rook-eye Sal', look:rLook('#6a4a3a', '#d9c6a0', '#c98d62', '#24160e'), trust:trustIs.any,
-          lines:{ bright:'Sal: I play for the cars. Somebody has to. (She plays something slow. It sounds like the rain.)', plain:'Sal: Every streetlamp here is on. They came on when the rain started and nobody knows where the switch is.', dark:'Sal: You want a sad song? This whole street is one. Listen.' } }
+          lines:{ bright:'Sal: I play for the wagons. Somebody has to. (She plays something slow. It sounds like the rain.)', plain:'Sal: Every streetlamp here is on. They came on when the rain started and nobody knows where the switch is.', dark:'Sal: You want a sad song? This whole street is one. Listen.' } }
       ];
       R.items = [{ id:'lg1', x:3, y:25, key:'tonic' }, { id:'lg2', x:22, y:3, key:'cake', n:2 }];
       break; }
@@ -5796,7 +5800,7 @@ async function interact() {
   else if (tl === 'o' || tl === 'R' || tl === 'h' || tl === 't') { const pc = (MAPS[S.map].set || []).find(p => p.tiles && fx >= p.tiles[0] && fy >= p.tiles[1] && fx < p.tiles[0] + p.tiles[2] && fy < p.tiles[1] + p.tiles[3]);
     if (pc && pc.use && await useFurniture(pc)) return;
     const LOOKS_AT = { loco:'A Prairie-type steam engine, two leading wheels, six drivers and two trailing. Her paint has gone to rust and moss has filled the cab. The headlamp glass is still unbroken.', tender:'The oil tender is empty. Somebody has painted a small sun on its side, very carefully.' };
-    const txt = pc && pc.look ? (LOOKS_AT[pc.look] || pc.look) : tl === 'R' ? 'Cold rock. It\'s faintly damp, like something breathed on it.' : tl === 'h' ? 'The hedge is clipped perfectly flat. Not a leaf out of place.' : pc ? { table:'A table. Dust on everything but one clean place, where a cup used to sit.', shelf:'Shelves of old things that were important to somebody.', bed:'The bed is made. Nobody has slept in it for a long time.', stove:'The stove is cold.', desk:'A desk, its drawers pulled out and empty.', mirror:'You look at yourself. You look tired.', piano:'One key is stuck down. It doesn\'t make a sound.', block:'A block of cut stone, numbered in chalk.', junk:'Scrap. Some of it is still warm.', car:'An abandoned car.', lamp:'A streetlamp.', rubble:'Rubble.', barricade:'A barricade of sharpened stakes.', mtent:'A canvas tent.', boat:'A little boat, half full of rainwater.' }[pc.k] || null : null;
+    const txt = pc && pc.look ? (LOOKS_AT[pc.look] || pc.look) : tl === 'R' ? 'Cold rock. It\'s faintly damp, like something breathed on it.' : tl === 'h' ? 'The hedge is clipped perfectly flat. Not a leaf out of place.' : pc ? { table:'A table. Dust on everything but one clean place, where a cup used to sit.', shelf:'Shelves of old things that were important to somebody.', bed:'The bed is made. Nobody has slept in it for a long time.', stove:'The stove is cold.', desk:'A desk, its drawers pulled out and empty.', mirror:'You look at yourself. You look tired.', piano:'One key is stuck down. It doesn\'t make a sound.', block:'A block of cut stone, numbered in chalk.', junk:'Scrap. Some of it is still warm.', car:'An abandoned wagon. The canvas has gone green.', lamp:'A streetlamp.', rubble:'Rubble.', barricade:'A barricade of sharpened stakes.', mtent:'A canvas tent.', boat:'A little boat, half full of rainwater.' }[pc.k] || null : null;
     if (txt) await say(txt); }
   else if (tl === 'D' || tl === 'H') await say(S.map === 'vellum' && fx < 19 && fy < 16 ? 'Wren\'s Archive. Every Codex in the Welkin was started here.' : 'The door is shut.');
   else if (tl === 'X') await (MAPS[S.map].kind === 'still' ? talkHush() : talkHeart(MAPS[S.map].vibe));
@@ -6624,7 +6628,7 @@ const MISSING = {
 };
 const ROGUE_BLURB = {
   JOY:'it laughs at night and the farm dogs howl themselves bloody', HOPE:'it lures travellers off the rails with a lamp that isn\'t there', CALM:'people sit down near it and are found weeks later, still sitting',
-  CONFIDENCE:'it has thrown three quarrymen off the terraces', SURPRISE:'it rearranges the fair at night and someone always ends up under the carousel', SADNESS:'the cars on the lane fill with water around it',
+  CONFIDENCE:'it has thrown three quarrymen off the terraces', SURPRISE:'it rearranges the fair at night and someone always ends up under the carousel', SADNESS:'the wagons on the lane fill with water around it',
   FEAR:'miners come out of the Throat with white hair and won\'t say why', SHAME:'the shutters on the Row bang all night where it passes', DISGUST:'whatever it touches rots on the spot', ANGER:'it has torched two carts and a man on the Cut'
 };
 const bountyKey = (t, k) => 'nb_' + t + '_' + k;
@@ -8461,7 +8465,7 @@ function applyRestored() {
     if (M.theme === 'rail') { for (let x = 0; x < M.w; x++) M.tiles[26][x] = 't'; const r = M.rails.find(r => r.y === 26); if (r) { r.x0 = 0; r.x1 = M.w - 1; } }
     delete M._v; }
 }
-// tiles that a dropped-in prop (a wrecked or parked car, rubble) now fills: solid while it's there, so nobody stands
+// tiles that a dropped-in prop (a wrecked or parked wagon, rubble) now fills: solid while it's there, so nobody stands
 // in it and nothing walks through it. Put back each time the map is built, since what's there depends on the story.
 function decoBlockReset(M) { if (M._blk) for (const [k, c] of M._blk) { const [x, y] = k.split(',').map(Number); if (M.tiles[y]) M.tiles[y][x] = c; } M._blk = new Map(); }
 function decoBlock(M, x, y) { const k = x + ',' + y; if (!M.tiles[y] || M._blk.has(k)) return; M._blk.set(k, M.tiles[y][x]); M.tiles[y][x] = 'o'; }
@@ -8476,7 +8480,7 @@ function worldExtras(id, M, V) {
       const o = buildSet({ k:pickA(['rubble', 'rubble', 'junk', 'carstack']), x, y, tiles:[x, y, 1, 1] }); o.position.set(x, groundY(x, y), y); o.scale.setScalar(.8); g.add(o); decoBlock(M, x, y); }
     for (let k = 0; k < 14; k++) { const x = 1 + hsh(k, 11, M.w) * (M.w - 2), y = 1 + hsh(k, 13, M.h) * (M.h - 2); const s = splatMesh(1.4 + hsh(k, 2, 1) * 1.6, '#4a0a10', .75, k); s.position.set(x, groundY(Math.round(x), Math.round(y)) + .03, y); g.add(s); }
     for (const h of M.houses || []) if (hsh(h.x, h.y) < .6) { const sm = glow('#4a4642', 3.5, .55); sm.position.set(h.x + h.w / 2, 3.6, h.y + 1); g.add(sm); }
-    // abandoned cars, flipped on their roofs or rolled onto their sides, in the streets
+    // abandoned wagons, overturned or tipped on their sides, in the streets
     for (let k = 0; k < (M.kind === 'route' ? 3 : 6); k++) { const x = 1 + Math.floor(hsh(k, 17, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 19, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x];
       if (!c || SOLID.has(c) || c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 3) continue;
       const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], c:pickA(['#6a4a40', '#4a5a6a', '#5a6a4a', '#7a6a50']) }); o.scale.setScalar(.56); o.position.set(x, groundY(x, y), y); o.rotation.y = hsh(k, 23, 1) * 6.28; ruinSet(o, { k:'car', x, y }); g.add(o); decoBlock(M, x, y); }
@@ -8485,7 +8489,7 @@ function worldExtras(id, M, V) {
   }
   fairExtras(id, M, g); bloomExtras(id, M, g);
   if (fl.restored && !fl.ruin && M.kind !== 'inside' && M.kind !== 'still') {
-    // cars parked by the houses, flowerbeds, the train running
+    // carts drawn up by the houses, flowerbeds, the train running
     if (id !== 'r_tumbledown') for (const h of M.houses || []) { const x = h.x + h.w, y = h.y + 2; const c = M.tiles[y] && M.tiles[y][x]; if (c && !SOLID.has(c) && hsh(h.x, h.y, 5) < .65) { const o = buildSet({ k:'car', x, y, tiles:[x, y, 1, 1], r:Math.PI / 2 }); if (c === 'D' || c === 't' || Math.abs(x - S.x) + Math.abs(y - S.y) < 2) continue; o.position.set(x, groundY(x, y), y); o.rotation.y = Math.PI / 2; o.scale.setScalar(.58); g.add(o); decoBlock(M, x, y); } }
     const beds = 0, cols = [];
     for (let k = 0; k < beds; k++) { const x = 1 + Math.floor(hsh(k, 21, M.w) * (M.w - 2)), y = 1 + Math.floor(hsh(k, 23, M.h) * (M.h - 2)); const c = M.tiles[y] && M.tiles[y][x]; if (!c || SOLID.has(c) || c === 't' || c === '=' || c === 'b') continue;
@@ -8538,7 +8542,7 @@ function petFor(e) { if (e.petSp && SPECIES[e.petSp]) return e.petSp; const C = 
 
 
 // ---------------------------------------------------------------- the ruin, up close
-// Set pieces in the ruined world: cars on their roofs or sides, everything washed grey and dirty.
+// Set pieces in the ruined world: wagons overturned or on their sides, everything washed grey and dirty.
 function ruinSet(o, p) {
   if (p.k === 'car' || p.k === 'carstack') { const side = hsh(p.x, p.y, 3) < .5; o.rotation.z = side ? Math.PI / 2 : Math.PI; o.position.y += side ? .38 : .62;
     const sm = glow('#3a3634', 1.4, .45); sm.position.set(0, 1.2, 0); o.add(sm); }
@@ -9121,11 +9125,13 @@ SET.grave = p => { const g = new THREE.Group(), c = p.c || '#9a968a'; if (p.cros
   else { sBox(g, .5, .62, .12, c, 0, .31, 0); sCyl(g, .25, .25, .12, c, 0, .62, 0, [Math.PI / 2, 0, 0], { seg:14 }); } sBox(g, .5, .04, .9, '#5f7a3e', 0, .02, .45, { ink:0 });
   if (p.flowers) for (let i = 0; i < 3; i++) sBall(g, .05, pickA(['#f2a7c0', '#f4cf5e', '#f3e7c9']), -.12 + i * .12, .08, .3); return g; };
 SET.hay = p => { const g = new THREE.Group(); sCyl(g, .45, .45, .9, '#d9b860', 0, .45, 0, [0, 0, Math.PI / 2], { seg:16 }); return g; };
-SET.truck = p => { const g = new THREE.Group(), c = p.c || '#8a3a2a';                // a pickup on blocks with its hood up
-  sBox(g, 2.2, .45, .95, c, 0, .62, 0); sBox(g, .9, .5, .9, c, -.15, 1.1, 0); sBox(g, .05, .34, .76, DARK_GLASS, .3, 1.12, 0); sBox(g, .9, .3, .9, '#5a4a3a', -.75, .98, 0);
-  const hood = sBox(g, .7, .05, .9, c, .95, 1.05, 0); hood.rotation.z = .9; hood.position.set(.7, 1.3, 0);
-  for (const [x, z] of [[.75, .48], [-.75, .48], [-.75, -.48]]) sCyl(g, .26, .26, .16, '#211d1b', x, .26, z, [Math.PI / 2, 0, 0]); sBox(g, .3, .3, .3, '#6a6a6a', .75, .15, -.48);
-  sBox(g, .4, .3, .4, '#3a3a3a', .75, .9, 0); return g; };
+SET.truck = p => { const g = new THREE.Group(), c = p.c || '#8a3a2a', wood = '#6a4a30', dark = '#3a2a1e';   // a hay wagon up on blocks, one wheel off for mending (26 Nov: no trucks in the Welkin)
+  sBox(g, 2.1, .2, .95, c, 0, .62, 0); for (const s of [-1, 1]) sBox(g, 2.1, .3, .05, wood, 0, .85, s * .46);
+  for (const [x, z] of [[-.6, -.2], [.1, .15], [.6, -.15]]) sBox(g, .55, .34, .4, '#d8b85a', x, .9, z, { ink:.02 });   // hay bales
+  for (const s of [-1, 1]) for (const x of [-.75, .75]) sBox(g, .3, .42, .3, '#8a8478', x, .21, s * .35);   // the blocks
+  const wh = new THREE.Group(); wh.position.set(1.3, .32, .7); wh.rotation.set(Math.PI / 2, 0, .35); g.add(wh);   // the wheel leaning against it
+  sCyl(wh, .32, .32, .07, dark, 0, 0, 0, null, { seg:18 }); sCyl(wh, .25, .25, .08, '#8a6a48', 0, 0, 0, null, { seg:18 }); for (let k = 0; k < 4; k++) sBox(wh, .46, .03, .03, dark, 0, 0, 0, { rot:[0, k * Math.PI / 4, 0] });
+  return g; };
 SET.tractor = p => { const g = new THREE.Group(); sBox(g, 1.3, .5, .6, '#4f7a3a', .1, .7, 0); sBox(g, .5, .6, .6, '#4f7a3a', -.4, 1.2, 0); sCyl(g, .5, .5, .2, '#211d1b', -.45, .5, .4, [Math.PI / 2, 0, 0]); sCyl(g, .5, .5, .2, '#211d1b', -.45, .5, -.4, [Math.PI / 2, 0, 0]);
   sCyl(g, .28, .28, .16, '#211d1b', .55, .28, .35, [Math.PI / 2, 0, 0]); sCyl(g, .28, .28, .16, '#211d1b', .55, .28, -.35, [Math.PI / 2, 0, 0]); sCyl(g, .05, .05, .5, '#2a2826', .5, 1.2, 0); return g; };
 SET.gatepost = p => { const g = new THREE.Group(); for (const s of [-1, 1]) { sBox(g, .3, 2.4, .3, '#6a5a48', 0, 1.2, s * 1.15); sBall(g, .2, '#d8b85a', 0, 2.5, s * 1.15); }
@@ -9693,7 +9699,7 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
 (function buildCobb() {
   const B = regionBuilder('cobb_hollow', 42, 34), m = B.m; border(m, 2);
   rect(m, 0, 16, 40, 2, '='); rect(m, 20, 4, 2, 26, '='); rect(m, 2, 9, 38, 1, '=');
-  B.house(4, 11, 8, '#6a6a6a', '#c8c0b0', { name:'Dutch\'s Garage', w:13, h:9, music:'country', floor:['#5a5a54', '#4e4e48'], wall:'#a8a498', furn:[['table', 2, 2], ['shelf', 1, 5], ['shelf', 11, 1], ['pallet', 9, 5], ['pallet', 10, 5]] }, { role:'store' });
+  B.house(4, 11, 8, '#6a6a6a', '#c8c0b0', { name:'Dutch\'s Wheelwright', w:13, h:9, music:'country', floor:['#5a5a54', '#4e4e48'], wall:'#a8a498', furn:[['table', 2, 2], ['shelf', 1, 5], ['shelf', 11, 1], ['pallet', 9, 5], ['pallet', 10, 5]] }, { role:'store' });
   B.piece('truck', 13, 12, 2, 1); B.piece('pallet', 15, 14);
   B.house(23, 11, 7, '#8a3a2a', '#e8dcc0', { name:'Pruitt\'s Dry Goods', w:11, h:9, music:'country', floor:['#8a7458', '#7e6a50'], wall:'#d8c8a8', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 7, 1], ['shelf', 9, 1], ['desk', 5, 4], ['pallet', 2, 6]] }, { role:'store' });
   B.house(31, 11, 8, '#4f8aa8', '#f0f0e8', { name:'The Blue Plate', w:15, h:10, music:'country', floor:['#e8e0d0', '#2a2a2a'], wall:'#c8dce8',
@@ -9712,12 +9718,12 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
   m[18][35] = 's';
   B.piece('watertower', 15, 24, 2, 2); B.piece('car', 16, 19, 2, 1, { c:'#8a3a2a', r:0 });
   for (const [x, y] of [[3, 15], [19, 15], [30, 15], [19, 25]]) B.lamp(x, y);
-  regionMap('cobb_hollow', B, { name:'Cobb Hollow', sub:'Population 61', V:COBB_V, music:'country', arrive:'One street, a garage, a dry-goods store, a diner with a blue neon plate in the window and a white chapel, a cemetery behind a hedge. Every porch has someone on it. Every someone has stopped talking.',
+  regionMap('cobb_hollow', B, { name:'Cobb Hollow', sub:'Population 61', V:COBB_V, music:'country', arrive:'One street, a wheelwright\'s, a dry-goods store, a diner with a blue neon plate in the window and a white chapel, a cemetery behind a hedge. Every porch has someone on it. Every someone has stopped talking.',
     exit:(nx, ny) => nx < 0 ? { map:'r_dustline', x:58, y:9, dir:'left' } : null });
   const IN = i => MAPS['cobb_hollow_in' + i].room;
   IN(0).npcs = [npc('dutch', 6, 4, 'down', 'Dutch', lk('#3a4a5a', '#c0503a', SK[3], '#3a2414', ['cap', 'beard', 'hammer']), judged('Dutch', ['even', 'shadow'],
-    async () => { await sayAs('Dutch', 'Hell, I like you. You\'ve got that look like you\'d help a man push a truck out of a ditch and not ask why it was in the ditch. Here: I don\'t need these.'); if (once('dutchGift')) { S.items.iron = (S.items.iron || 0) + 3; await say('(You get 3 Iron, in a greasy rag.)'); } },
-    () => sayAs('Dutch', 'You\'re too clean for a garage, sunshine. Shop\'s closed.')))];
+    async () => { await sayAs('Dutch', 'Hell, I like you. You\'ve got that look like you\'d help a man push a wagon out of a ditch and not ask why it was in the ditch. Here: I don\'t need these.'); if (once('dutchGift')) { S.items.iron = (S.items.iron || 0) + 3; await say('(You get 3 Iron, in a greasy rag.)'); } },
+    () => sayAs('Dutch', 'You\'re too clean for a wheelwright\'s yard, sunshine. Shop\'s closed.')))];
   IN(1).npcs = [npc('pruitt', 5, 5, 'down', 'Irma Pruitt', lk('#5a4a6a', '#f3e7c9', SK[0], '#d8d0c0', ['glasses', 'bun']), judged('Irma Pruitt', ['light'],
     async () => { await sayAs('Irma Pruitt', 'Well, aren\'t you a breath of fresh air. Ten percent off, and don\'t tell the Hendersons.'); return openShop('drygoods'); },
     async () => { await sayAs('Irma Pruitt', 'We don\'t have what you\'re looking for.'); await say('(You haven\'t said what you\'re looking for.)'); }))];
@@ -10488,7 +10494,7 @@ async function ashlynnTalk() {
   if (c === 1 && m.trips) return sayAs('Ashlynn', ASHLYNN_KIND[m.line++ % ASHLYNN_KIND.length]);
   if (c !== 0) return sayAs('Ashlynn', 'Offer stands. The water\'s not going anywhere.');
   await kayakTrip(true);
-  if (!m.own) { m.own = 1; ENTC.t = 0; await sayAs('Ashlynn', 'You\'re a natural. Keep the spare. It\'s been sitting on my car for a year waiting for somebody.');
+  if (!m.own) { m.own = 1; ENTC.t = 0; await sayAs('Ashlynn', 'You\'re a natural. Keep the spare. It\'s been sitting in my shed for a year waiting for somebody.');
     await say('(You got a kayak! It\'s on the beach by Ashlynn\'s. Take it out any time.)'); }
   else await sayAs('Ashlynn', pickA(['Same time tomorrow?', 'That was a good one.', 'Thanks for coming out.']));
 }
@@ -12202,7 +12208,7 @@ const ANIMALS = [
   ['r_dustline', 'cow', 28, 8, 'right', 'A dairy cow chewing slowly, looking at you the way cows look at everything.'],
   ['r_dustline', 'cow', 25, 9, 'left', 'A cow flicks a fly off with its tail. Then another. It\'s going to be a long afternoon.'],
   ['r_dustline', 'chicken', 34, 13, 'down', 'A hen marches across the road like she owns it. Out here, she might.', { c:'#c8783a' }],
-  ['cobb_hollow', 'dog', 14, 15, 'right', 'A tired old hound asleep in the shade of Dutch\'s garage. One ear lifts when you pass.', { c:'#a07a4a' }],
+  ['cobb_hollow', 'dog', 14, 15, 'right', 'A tired old hound asleep in the shade of Dutch\'s wheelwright shop. One ear lifts when you pass.', { c:'#a07a4a' }],
   ['cobb_hollow', 'cat', 9, 23, 'up', 'A thin black cat on a porch step. It watches you all the way down the street.', { c:'#2a2628' }],
   ['cobb_hollow', 'chicken', 30, 12, 'left', 'A rooster struts along the fence and crows, late, at nobody.', { c:'#a8452f' }]
 ];
@@ -14657,9 +14663,9 @@ const FAR_WORD = {
       'That\'s how it\'s meant to go. Sorrowmere\'s rain has been falling for two hundred years because nobody there has been let finish.',
       'Sadness wants company while it\'s happening. Then it wants to be allowed to end, a little at a time.'],
     word:'Sadness needs company, and to be allowed to finish.', recall:'You think of Vosk, sad all over again on his wife\'s birthday, and then less.' },
-  SHAME:{ id:'dutch', who:'Dutch', place:'Cobb Hollow', hint:'hint_vh', where:'Cobb Hollow, the farm town. Out past the tracks at Veilham\'s front-right corner, then down the Dustline. Ask for Dutch at the garage.',
-    lines:['Twelve years back I drove home from the Fourth drunk. Put my truck through Irma Pruitt\'s fence, and her old dog with it. Whole town knows. I paid for the fence. Couldn\'t pay for the dog.',
-      'I feel it every time I drive past her porch. And every time, Irma nods at me. Sixty-one people, every one of them knows, and they still bring me their tractors.',
+  SHAME:{ id:'dutch', who:'Dutch', place:'Cobb Hollow', hint:'hint_vh', where:'Cobb Hollow, the farm town. Out past the tracks at Veilham\'s front-right corner, then down the Dustline. Ask for Dutch at the wheelwright\'s.',
+    lines:['Twelve years back I drove home from the Fourth drunk. Put my wagon through Irma Pruitt\'s fence, and her old dog with it. Whole town knows. I paid for the fence. Couldn\'t pay for the dog.',
+      'I feel it every time I drive past her porch. And every time, Irma nods at me. Sixty-one people, every one of them knows, and they still bring me their wheels and their ploughs.',
       'Shame\'s for telling you what you did. Then you go on living where folks can see you. Veilham\'s been behind its curtains so long it forgot the second part.'],
     word:'Shame tells you what you did. Then you live where people can see you.', recall:'You think of Dutch, driving past Irma\'s porch, and Irma nodding.' },
   DISGUST:{ id:'gs_odalie', who:'Odalie', place:'Galloway Landing', hint:'hint_gl2', where:'Galloway Landing, on the bayou. Off the west edge of Rendering Ditch, through the Black Bayou. Ask for Odalie, the traiteur, in the stilt houses out over the water.',
@@ -16698,7 +16704,7 @@ function loopBody(now) {
 function updateWorld(dt, t) {
   const M = MAPS[S.map];
   if (scene === 'world') {
-    if (mv.active) { mv.t += dt / ((mv.diag ? .28 : .2) * (RUN ? .5 : 1)); if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
+    if (mv.active) { mv.t += dt / ((mv.diag ? .28 : .2) * (RUN ? .5 / 1.2 : 1)); if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
     if (!mv.active && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic) { const v = moveVector(); if (v) { const [dx, dy, f] = worldStep(v); tryMove8(dx, dy, f); } }
   }
   const p = W.player, k = mv.active ? mv.t : 1;
