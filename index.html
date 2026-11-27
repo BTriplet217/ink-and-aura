@@ -1682,7 +1682,7 @@ function washPatch(m, kind, surf = 'auto') {
         outgoingLight *= 1. - smoothstep(.6, .95, rim) * .3;
         outgoingLight += dc * .12 * step(.6, N.y) * step(.9, k);` : `
         float pat = 1.; int SF = ${SF};
-        bool green = dc.g > dc.r * 1.04 && dc.g > dc.b;
+        bool green = dc.g > dc.r * 1.04 && dc.g > dc.b * .8;   // teal grass (Sorrowmere) counts as grass too, not cobbles
         if (SF == 1 || (SF == 0 && false)) {
           if (green || sat >= .22) pat = .9 + .2 * step(.82, t1) - .14 * step(t1, .12);                      // grass: tufts and dark speckle
           else { float g = bond(gc, 5., 4., id); pat = mix(.84 + .22 * wsh(id + 7.), .62, g); }             // paving and cobbles
@@ -2292,11 +2292,16 @@ function buildArch(color, rotY) {
   const gl = glow(color, 2.4, .5); gl.position.y = 2.4; g.add(gl);
   g.rotation.y = rotY; return g;
 }
+// Round, stepped stone, with four round columns (27 Nov; it used to be square slabs and square posts).
 function buildShrine(color) {
-  const g = new THREE.Group();
-  g.add(at(inkBox(2.6, .3, 2.6, toon('#b8a888'), .04), 0, .45, 0));
-  g.add(at(inkBox(1.8, .25, 1.8, toon('#d8c8a8'), .04), 0, .72, 0));
-  for (const [x, z] of [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]]) { g.add(at(inkBox(.22, 1.6, .22, toon('#a89878'), .03), x, 1.3, z)); const gl = glow(color, .9, .8); gl.position.set(x, 2.2, z); g.add(gl); }
+  const g = new THREE.Group(), cyl = (rt, rb, h, seg = 40) => new THREE.CylinderGeometry(rt, rb, h, seg);
+  g.add(part(cyl(1.42, 1.5, .3), '#b8a888', [0, .45, 0], { ink:1.02 }));
+  g.add(part(cyl(1.02, 1.08, .25), '#d8c8a8', [0, .72, 0], { ink:1.02 }));
+  const band = part(new THREE.TorusGeometry(1.46, .035, 6, 48).rotateX(Math.PI / 2), color, [0, .52, 0], { ink:0 }); g.add(band);   // a thin ring of the feeling's colour round the base
+  for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2, x = Math.cos(a) * 1.2, z = Math.sin(a) * 1.2;
+    g.add(part(cyl(.11, .13, 1.5, 12), '#a89878', [x, 1.32, z], { ink:1.04 }));
+    g.add(part(cyl(.17, .14, .1, 12), '#b8a888', [x, 2.1, z], { ink:1.03 }));
+    const gl = glow(color, .9, .8); gl.position.set(x, 2.25, z); g.add(gl); }
   return g;
 }
 
@@ -3503,8 +3508,14 @@ const SET = {
       if (i !== 5 || p.fixed) sBox(w, .4, .32, .36, pickA(['#c0503a', '#4f8a8a', '#e8a83a']), Math.cos(a) * 1.9, Math.sin(a) * 1.9 - .22, 0); }
     w.position.y = 3.1; if (!p.fixed) { w.rotation.z = .3; g.rotation.x = -.08; } else for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; const b = glow(i % 2 ? '#ffd98a' : '#8ad8e8', .2, .85); b.position.set(Math.cos(a) * 1.9, Math.sin(a) * 1.9, .1); w.add(b); } return g; },
   // a street lamp: the arm reaches out over the path (fitLamps turns it), and at night it throws a warm pool of light on the ground under the head
-  lamp(p) { const g = new THREE.Group(), r = p.onPath ? .9 : .28; sCyl(g, .05, .07, 1.9, '#2a2a2c', 0, .95, 0); sBox(g, r + .04, .08, .08, '#2a2a2c', r / 2, 1.9, 0); sBox(g, .2, .2, .2, '#3a3a3c', r, 1.82, 0);
-    if (p.lit) { const gl = glow('#ffd98a', 1.4, .55); gl.position.set(r, 1.75, 0); g.add(gl);
+  lamp(p) { const g = new THREE.Group(), r = p.onPath ? .9 : .34, H = 1.72, ra = .2, iron = '#2a2a2c';   // round post, a curved arm, a hanging lantern (27 Nov; was a square L)
+    sCyl(g, .12, .16, .16, iron, 0, .08, 0); sCyl(g, .045, .065, H, iron, 0, H / 2, 0);
+    const arc = part(new THREE.TorusGeometry(ra, .035, 6, 12, Math.PI / 2), iron, [ra, H, 0], { ink:1.1, rot:[0, 0, Math.PI / 2] }); g.add(arc);
+    if (r > ra) { const bar = part(new THREE.CylinderGeometry(.035, .035, r - ra, 6), iron, [(ra + r) / 2, H + ra, 0], { ink:1.1, rot:[0, 0, Math.PI / 2] }); g.add(bar); }
+    sCyl(g, .012, .012, .08, iron, r, H + ra - .05, 0);
+    g.add(part(new THREE.ConeGeometry(.13, .1, 10), '#3a3a3c', [r, H + ra - .12, 0], { ink:1.06 }));
+    g.add(part(new THREE.CylinderGeometry(.08, .1, .16, 10), '#f6e0a6', [r, H + ra - .25, 0], { ink:1.06, mo:{ emissive:new THREE.Color('#5a4420') } }));
+    if (p.lit) { const gl = glow('#ffd98a', 1.4, .55); gl.position.set(r, H + ra - .25, 0); g.add(gl);
       const pool = new THREE.Mesh(new THREE.CircleGeometry(1.15, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map:glowTex, color:'#ffd98a', transparent:true, opacity:.1, blending:THREE.AdditiveBlending, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 }));
       pool.position.set(r, .05, 0); g.add(pool); LAMP_POOLS.push(pool); }
     g.rotation.y = p.rotY || 0; g.rotation.z = p.lean || 0; return g; },
@@ -5064,7 +5075,7 @@ function buildWorld(id) {
   if (tall.length) {
     const per = 8, gmesh = new THREE.InstancedMesh(new THREE.ConeGeometry(.07, .6, 3).translate(0, .3, 0), toon('#ffffff'), tall.length * per);
     gmesh.castShadow = true; let k = 0;
-    for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * 1.05, bz = y + (hsh(x, y, j + 3) - .5) * 1.05, inn = M.kind === 'inside' ? 1 : softIn(M, bx, bz, c => c === ','); W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:inn < .5 ? 0 : (.7 + r * .6) * Math.min(1, .45 + inn), ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
+    for (const [x, y] of tall) for (let j = 0; j < per; j++) { const r = hsh(x, y, j + 11), bx = x + (hsh(x, y, j) - .5) * 1.05, bz = y + (hsh(x, y, j + 3) - .5) * 1.05, inn = M.kind === 'inside' ? 1 : M._lawnF ? clamp(.5 + M._lawnF.at(bx, bz) * 2.5, 0, 1) : softIn(M, bx, bz, c => c === ','); W.grassData.push({ x:bx, z:bz, y:groundY(bx, bz) - .02, s:inn < .5 ? 0 : (.7 + r * .6) * Math.min(1, .45 + inn), ph:r * 6, ry:r * 3 }); gmesh.setColorAt(k++, col.set(V.tall[j % 3]).offsetHSL(0, 0, (r - .5) * .12)); }
     world.add(gmesh); W.grass = gmesh;
   }
   for (const hd of M.houses) { const burnt = hd.burnt && hd.burnt(); const rn = ruinHere(id), grey = c => rn ? '#' + new THREE.Color(c).lerp(new THREE.Color('#5a5650'), .62).getHexString() : c; RUIN_BUILD = rn;
@@ -15519,40 +15530,114 @@ function softIn(M, x, z, test) {
   return t ? s / t : 0;
 }
 
+// ---- shaping: fillets at inside corners, rounding at outside corners (27 Nov, second pass)
+// Each kind of ground that should have clean curved edges (paving, sand, water, boardwalk) is drawn on a fine grid
+// (SHP_R cells a tile) and shaped like a real path: inside corners fill with a wide arc (a "closing"), outside corners
+// round off (an "opening"), straight edges stay where they were. A fill never crosses a tile that has the same
+// ground on both opposite sides, so a one-tile strip of lawn between two paths stays lawn.
+const SHP_R = 6;
+function edt1(f, n, d, v, z) {   // Felzenszwalb & Huttenlocher 1-D squared distance transform
+  let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    while (s <= z[k]) { k--; s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]); }
+    k++; v[k] = q; z[k] = s; z[k + 1] = Infinity; }
+  k = 0; for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const p = v[k]; d[q] = (q - p) * (q - p) + f[p]; }
+}
+// distance (in tiles) from every cell to the nearest cell where mask is set
+function edt(mask, W, H) {
+  const INF = 1e12, g = new Float64Array(W * H), n = Math.max(W, H), f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let i = 0; i < W * H; i++) g[i] = mask[i] ? 0 : INF;
+  for (let x = 0; x < W; x++) { for (let y = 0; y < H; y++) f[y] = g[y * W + x]; edt1(f, H, d, v, z); for (let y = 0; y < H; y++) g[y * W + x] = d[y]; }
+  for (let y = 0; y < H; y++) { for (let x = 0; x < W; x++) f[x] = g[y * W + x]; edt1(f, W, d, v, z); for (let x = 0; x < W; x++) g[y * W + x] = Math.sqrt(d[x]) / SHP_R; }
+  return g;
+}
+// shape one kind of ground; returns a signed distance (tiles, + inside) on the fine grid, and a sampler
+function shapeField(M, isIn, rc = 1.15, ro = .45, sig = 0) {
+  const R = SHP_R, W_ = M.w * R, H_ = M.h * R, N = W_ * H_, A = new Uint8Array(N), ok = new Uint8Array(N);
+  const tIn = (x, y) => isIn(clamp(x, 0, M.w - 1), clamp(y, 0, M.h - 1));
+  for (let ty = 0; ty < M.h; ty++) for (let tx = 0; tx < M.w; tx++) { const inn = tIn(tx, ty),
+      fillOk = inn || !((tIn(tx - 1, ty) && tIn(tx + 1, ty)) || (tIn(tx, ty - 1) && tIn(tx, ty + 1)));
+    for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) { const k = (ty * R + j) * W_ + tx * R + i; A[k] = inn; ok[k] = fillOk; } }
+  let any = false; for (let i = 0; i < N; i++) if (A[i]) { any = true; break; } if (!any) return null;
+  // closing (fillets), kept to tiles where filling is allowed
+  let D = edt(A, W_, H_); const dil = new Uint8Array(N); for (let i = 0; i < N; i++) dil[i] = D[i] <= rc;
+  for (let i = 0; i < N; i++) dil[i] = !dil[i]; D = edt(dil, W_, H_); const C = new Uint8Array(N); for (let i = 0; i < N; i++) C[i] = A[i] || (ok[i] && D[i] > rc);
+  // opening (rounded outside corners)
+  for (let i = 0; i < N; i++) dil[i] = !C[i]; D = edt(dil, W_, H_); const E = new Uint8Array(N); for (let i = 0; i < N; i++) E[i] = D[i] > ro;
+  D = edt(E, W_, H_); const F = new Uint8Array(N); for (let i = 0; i < N; i++) F[i] = D[i] <= ro;
+  const Din = edt(F.map(b => !b), W_, H_), Dout = edt(F, W_, H_), sd = new Float32Array(N);
+  for (let i = 0; i < N; i++) sd[i] = F[i] ? Din[i] - .5 / R : -(Dout[i] - .5 / R);
+  // smooth it (staircase diagonals become straight sweeps, outside corners round further), then make sure
+  // every tile of this kind still holds its centre, where people stand
+  if (sig > 0) { const rad = Math.ceil(sig * R * 2.5), ker = []; let ks = 0; for (let t = -rad; t <= rad; t++) { const w = Math.exp(-t * t / (2 * (sig * R) ** 2)); ker.push(w); ks += w; } for (let t = 0; t < ker.length; t++) ker[t] /= ks;
+    const tmp = new Float32Array(N);
+    for (let y = 0; y < H_; y++) for (let x = 0; x < W_; x++) { let a = 0; for (let t = -rad; t <= rad; t++) a += sd[y * W_ + clamp(x + t, 0, W_ - 1)] * ker[t + rad]; tmp[y * W_ + x] = a; }
+    for (let y = 0; y < H_; y++) for (let x = 0; x < W_; x++) { let a = 0; for (let t = -rad; t <= rad; t++) a += tmp[clamp(y + t, 0, H_ - 1) * W_ + x] * ker[t + rad]; sd[y * W_ + x] = a; }
+    for (let ty = 0; ty < M.h; ty++) for (let tx = 0; tx < M.w; tx++) if (isIn(tx, ty)) for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
+      const k = (ty * R + j) * W_ + tx * R + i, dc = Math.hypot((i + .5) / R - .5, (j + .5) / R - .5); sd[k] = Math.max(sd[k], .34 - dc); } }
+  const at = (x, z) => { const fx = clamp((x + .5) * R - .5, 0, W_ - 1.001), fz = clamp((z + .5) * R - .5, 0, H_ - 1.001), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, w = fz - j, k = j * W_ + i;
+    return (sd[k] * (1 - u) + sd[k + 1] * u) * (1 - w) + (sd[k + W_] * (1 - u) + sd[k + W_ + 1] * u) * w; };
+  return { sd, W:W_, H:H_, at };
+}
+const PAVE = new Set(['=', 'w', 'X']);
 const _buildTerrainBlock = buildTerrain;
 buildTerrain = function (M, V) {
   if (!M || M.kind === 'inside') return _buildTerrainBlock(M, V);
-  const S3 = 4, x0 = -1, z0 = -1, cols = (M.w + 1) * S3 + 1, rows = (M.h + 1) * S3 + 1, W_ = M.w, H_ = M.h;
-  // what each tile counts as: boardwalk over water is drawn as water (the deck goes on top)
-  const kind = M.tiles.map((row, y) => row.map((ch, x) => ch === 'b' ? (deckWet(M, x, y) ? '~' : '.') : ch));
-  const raw = M.tiles.map((row, y) => row.map((_, x) => new THREE.Color(M.tiles[y][x] === 'b' ? tileColor({ tiles:[[kind[y][x]]], kind:M.kind }, V, 0, 0) : tileColor(M, V, x, y))));
-  // even out the tile-to-tile colour flicker within one kind of ground (the smooth noise below adds variety back)
-  const tc = raw.map((row, y) => row.map((c0, x) => { const c = c0.clone().multiplyScalar(1); let n = 1;
-    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) { const yy = y + dy, xx = x + dx; if (yy < 0 || xx < 0 || yy >= H_ || xx >= W_ || kind[yy][xx] !== kind[y][x]) continue; c.r += raw[yy][xx].r * .6; c.g += raw[yy][xx].g * .6; c.b += raw[yy][xx].b * .6; n += .6; }
+  const S3 = 5, x0 = -1, z0 = -1, cols = (M.w + 1) * S3 + 1, rows = (M.h + 1) * S3 + 1, W_ = M.w, H_ = M.h;
+  const wet = M.tiles.map((row, y) => row.map((ch, x) => ch === '~' || (ch === 'b' && deckWet(M, x, y))));
+  const grp = (x, y) => { const ch = M.tiles[y][x]; return wet[y][x] ? 'water' : PAVE.has(ch) ? 'pave' : ch === 'S' ? 'sand' : ch === ',' ? 'lawn' : null; };
+  const GROUPS = { lawn:[.7, .75, .18, .45], pave:[1.25, .45, 0, .3], sand:[1.1, .45, .14, .5], water:[1.1, .45, .12, .6] };   // fillet radius, rounding radius, edge wander, smoothing
+  const field = {}; for (const g in GROUPS) field[g] = shapeField(M, (x, y) => grp(x, y) === g, GROUPS[g][0], GROUPS[g][1], GROUPS[g][3]);
+  M._lawnF = field.lawn;   // the tall-grass blades follow the same rounded outline
+  const tc = M.tiles.map((row, y) => row.map((ch, x) => new THREE.Color(ch === 'b' ? (wet[y][x] ? '#5a7a68' : V.ground[0]) : tileColor(M, V, x, y))));
+  // per group, and for the rest: the colour of the nearest tile of that kind (so a fillet or a rounded-off corner always has a colour)
+  const nearest = test => { const out = M.tiles.map(r => r.map(() => null)), q = [];
+    for (let y = 0; y < H_; y++) for (let x = 0; x < W_; x++) if (test(x, y)) { out[y][x] = tc[y][x]; q.push([x, y]); }
+    for (let h = 0; h < q.length; h++) { const [x, y] = q[h]; for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W_ || yy >= H_ || out[yy][xx]) continue; out[yy][xx] = out[y][x]; q.push([xx, yy]); } }
+    return out; };
+  const nearG = {}; for (const g in GROUPS) if (field[g]) nearG[g] = nearest((x, y) => grp(x, y) === g);
+  const nearBase = nearest((x, y) => !grp(x, y));
+  // smooth the tile-to-tile flicker within each kind
+  const tcs = tc.map((row, y) => row.map((c0, x) => { const c = c0.clone(); let n = 1, k0 = grp(x, y) || M.tiles[y][x];
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) { const yy = y + dy, xx = x + dx; if (yy < 0 || xx < 0 || yy >= H_ || xx >= W_ || (grp(xx, yy) || M.tiles[yy][xx]) !== k0) continue; c.r += tc[yy][xx].r * .6; c.g += tc[yy][xx].g * .6; c.b += tc[yy][xx].b * .6; n += .6; }
     return c.multiplyScalar(1 / n); }));
-  const hm = W.hg.map((row, y) => row.map((h, x) => M.tiles[y][x] === 'b' && kind[y][x] === '~' ? BASE - .45 : h));
+  const hm = W.hg.map((row, y) => row.map((h, x) => wet[y][x] ? BASE : h));   // land heights; water is cut in by its shape below
   const hAt = (x, z) => { const cx = clamp(x, 0, W_ - 1), cz = clamp(z, 0, H_ - 1), xa = Math.floor(cx), za = Math.floor(cz), xb = Math.min(xa + 1, W_ - 1), zb = Math.min(za + 1, H_ - 1), fx = cx - xa, fz = cz - za;
     return (hm[za][xa] * (1 - fx) + hm[za][xb] * fx) * (1 - fz) + (hm[zb][xa] * (1 - fx) + hm[zb][xb] * fx) * fz; };
   const pos = new Float32Array(cols * rows * 3), colr = new Float32Array(cols * rows * 3);
-  const cliff = new THREE.Color('#c9b48c'), earth = new THREE.Color('#9a8466'), c = new THREE.Color();
-  const accW = {}, accC = {};
+  const cliff = new THREE.Color('#c9b48c'), earth = new THREE.Color('#9a8466'), c = new THREE.Color(), gc = new THREE.Color(), accC = {}, accW = {};
+  const sstep = (a, b, t) => { t = clamp((t - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = x0 + i / S3 - .5, z = z0 + j / S3 - .5, k = (j * cols + i) * 3;
     const inside = !(x < -.5 || z < -.5 || x > W_ - .5 || z > H_ - .5);
     let y;
     if (!inside) { y = groundY(x, z); c.copy(cliff); }
     else {
-      const [wx, wz] = curveWarp(x, z); y = hAt(wx, wz);
-      if (y > BASE + .05) y += (vnoise(x * 2.3, z * 2.3, 5) - .5) * .08;
+      const [wx, wz] = curveWarp(x, z);
+      // the base ground (grass, earth, tall grass...) blended softly, as before
       for (const key in accW) { accW[key] = 0; accC[key].setRGB(0, 0, 0); }
       for (let ty = Math.floor(wz) - 1; ty <= Math.floor(wz) + 2; ty++) for (let tx = Math.floor(wx) - 1; tx <= Math.floor(wx) + 2; tx++) {
-        const yy = Math.max(0, Math.min(H_ - 1, ty)), xx = Math.max(0, Math.min(W_ - 1, tx)), w = cw(Math.hypot(wx - tx, wz - ty)); if (!w) continue;
-        const key = kind[yy][xx]; if (!accC[key]) { accC[key] = new THREE.Color(0, 0, 0); accW[key] = 0; }
-        accW[key] += w; const col = tc[yy][xx]; accC[key].r += col.r * w; accC[key].g += col.g * w; accC[key].b += col.b * w; }
-      // sharpen: each kind's share is raised to the 4th power, so edges stay crisp lines that curve, not blurry smears
+        const yy = Math.max(0, Math.min(H_ - 1, ty)), xx = Math.max(0, Math.min(W_ - 1, tx)), w = cw(Math.hypot(wx - tx, wz - ty)); if (!w || grp(xx, yy)) continue;
+        const key = M.tiles[yy][xx]; if (!accC[key]) { accC[key] = new THREE.Color(0, 0, 0); accW[key] = 0; }
+        accW[key] += w; const col = tcs[yy][xx]; accC[key].r += col.r * w; accC[key].g += col.g * w; accC[key].b += col.b * w; }
       let Z = 0; c.setRGB(0, 0, 0);
       for (const key in accW) { const w = accW[key]; if (!w) continue; const p = w ** 4; Z += p; c.r += accC[key].r / w * p; c.g += accC[key].g / w * p; c.b += accC[key].b / w * p; }
-      if (Z) c.multiplyScalar(1 / Z); else c.copy(tc[clamp(Math.round(z), 0, H_ - 1)][clamp(Math.round(x), 0, W_ - 1)]);
+      const tx0 = clamp(Math.round(z), 0, H_ - 1), tx1 = clamp(Math.round(x), 0, W_ - 1);
+      if (Z) c.multiplyScalar(1 / Z); else c.copy(nearBase[tx0][tx1] || tcs[tx0][tx1]);
+      // then each shaped kind laid over it with a crisp curved edge
+      y = hAt(x, z); if (y > BASE + .05) y += (vnoise(x * 2.3, z * 2.3, 5) - .5) * .08;
+      for (const g of ['lawn', 'sand', 'pave', 'water']) { const F = field[g]; if (!F) continue; const amp = GROUPS[g][2];
+        const sx = amp ? x + (vnoise(x * .8, z * .8, 91) - .5) * 2 * amp : x, sz = amp ? z + (vnoise(x * .8 + 30, z * .8 + 11, 93) - .5) * 2 * amp : z;
+        const sd = F.at(sx, sz), s = sstep(-.05, .05, sd); if (s <= 0 && g !== 'water') continue;
+        // the kind's own colour here: blend of its nearby tiles
+        let tw = 0; gc.setRGB(0, 0, 0);
+        for (let ty = Math.round(z) - 1; ty <= Math.round(z) + 1; ty++) for (let tx = Math.round(x) - 1; tx <= Math.round(x) + 1; tx++) { if (ty < 0 || tx < 0 || ty >= H_ || tx >= W_ || grp(tx, ty) !== g) continue; const w = cw(Math.hypot(x - tx, z - ty) * .7) + 1e-4; tw += w; gc.r += tcs[ty][tx].r * w; gc.g += tcs[ty][tx].g * w; gc.b += tcs[ty][tx].b * w; }
+        if (tw) gc.multiplyScalar(1 / tw); else gc.copy(nearG[g][tx0][tx1]);
+        if (s > 0) c.lerp(gc, s);
+        if (g === 'water') { y = y - .16 * sstep(-.4, 0, sd) - .32 * sstep(0, .6, sd); }   // banks slope down to the waterline, then the bed drops away
+        else if (g === 'pave' && sd > 0 && sd < .09) c.offsetHSL(0, 0, .035);               // a faint lighter kerb along the edge of paving
+      }
       c.offsetHSL(0, 0, (vnoise(x * 1.1, z * 1.1, 9) - .5) * .07 + (hsh(i, j, 9) - .5) * .02);
     }
     pos[k] = x; pos[k + 1] = y; pos[k + 2] = z; colr[k] = c.r; colr[k + 1] = c.g; colr[k + 2] = c.b;
@@ -15566,6 +15651,7 @@ buildTerrain = function (M, V) {
   return mesh;
 };
 
+
 // ---- the boardwalk deck
 const PLANK_TEX = (() => { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 256; const g = cv.getContext('2d');
   const tones = ['#8d7659', '#826c50', '#957e60', '#7b664c', '#8a7357', '#7f6a4f', '#917a5c', '#86704f'];
@@ -15575,47 +15661,46 @@ const PLANK_TEX = (() => { const cv = document.createElement('canvas'); cv.width
     g.fillStyle = '#2e2014'; g.fillRect(5, y + 14, 3, 3); g.fillRect(56, y + 14, 3, 3); }                          // nails
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter; return t; })();
 function buildDeck(M) {
+  const F = shapeField(M, (x, y) => M.tiles[y][x] === 'b', 1.35, .45, .6); if (!F) return null;
   const isB = (x, y) => (M.tiles[y] || [])[x] === 'b';
-  let any = false; for (const row of M.tiles) if (row.includes('b')) { any = true; break; } if (!any) return null;
-  const R = 5, x0 = -1, z0 = -1, cols = (M.w + 1) * R + 1, rows = (M.h + 1) * R + 1;
-  // the deck's outline: a soft field of 'b', cut at one half
-  const F = new Float32Array(cols * rows);
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const x = x0 + i / R - .5, z = z0 + j / R - .5;
-    let s = 0, t = 0; for (let ty = Math.floor(z) - 1; ty <= Math.floor(z) + 2; ty++) for (let tx = Math.floor(x) - 1; tx <= Math.floor(x) + 2; tx++) { const w = cw(Math.hypot(x - tx, z - ty) * .74); if (!w) continue; t += w;
-      const inMap = tx >= 0 && ty >= 0 && tx < M.w && ty < M.h; if (isB(tx, ty) || (!inMap && isB(clamp(tx, 0, M.w - 1), clamp(ty, 0, M.h - 1)))) s += w; }
-    F[j * cols + i] = t ? s / t : 0; }
-  // which way you walk at each spot: the long axis of the nearby boardwalk tiles, snapped to 0/45/90/135 degrees,
-  // so each straight stretch has its boards straight across, and bends meet at a joint like a real boardwalk
+  // sample the shaped field on a 5-a-tile grid and cut it at zero
+  const R = 5, x0 = -1, z0 = -1, cols = (M.w + 1) * R + 1, rows = (M.h + 1) * R + 1, V_ = new Float32Array(cols * rows);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const x = x0 + i / R - .5, z = z0 + j / R - .5; V_[j * cols + i] = x < -.5 || z < -.5 || x > M.w - .5 || z > M.h - .5 ? F.at(clamp(x, -.49, M.w - .51), clamp(z, -.49, M.h - .51)) : F.at(x, z); }
+  M._deckMin = 1; for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) if (isB(x, y)) M._deckMin = Math.min(M._deckMin, F.at(x, y));
+  // boards across the way you walk: long axis of the nearby boardwalk, snapped to 0/45/90/135 degrees
   const axisAt = (x, z) => { let sxx = 0, szz = 0, sxz = 0;
     for (let ty = Math.round(z) - 3; ty <= Math.round(z) + 3; ty++) for (let tx = Math.round(x) - 3; tx <= Math.round(x) + 3; tx++) if (isB(tx, ty)) { const dx = tx - x, dz = ty - z, w = Math.exp(-(dx * dx + dz * dz) / 5); sxx += w * dx * dx; szz += w * dz * dz; sxz += w * dx * dz; }
     const a = .5 * Math.atan2(2 * sxz, sxx - szz); return ((Math.round(a / (Math.PI / 4)) % 4) + 4) % 4; };
-  const top = [], uv = [], edgePts = [], Y = BASE + .1;
-  const crossing = (i0, j0, i1, j1, th) => { const a = F[j0 * cols + i0], b = F[j1 * cols + i1], t = (th - a) / (b - a); return [x0 + (i0 + (i1 - i0) * t) / R - .5, z0 + (j0 + (j1 - j0) * t) / R - .5]; };
-  const cellPoly = (i, j, th) => { const C = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]], out = [];
-    for (let k = 0; k < 4; k++) { const [ia, ja] = C[k], [ib, jb] = C[(k + 1) % 4], fa = F[ja * cols + ia] >= th, fb = F[jb * cols + ib] >= th;
-      if (fa) out.push([x0 + ia / R - .5, z0 + ja / R - .5]); if (fa !== fb) out.push(crossing(ia, ja, ib, jb, th)); }
-    return out; };
-  const tris = (th, y, sink, withUV) => { const P = [], U = [];
-    for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) { const poly = cellPoly(i, j, th); if (poly.length < 3) continue;
-      const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length, cz = poly.reduce((s, p) => s + p[1], 0) / poly.length, ax = withUV ? axisAt(cx, cz) : 0;
-      const ang = ax * Math.PI / 4, dx = Math.cos(ang), dz = Math.sin(ang);
-      if (!withUV && poly.length < 4) edgePts.push([cx, cz]);
-      for (let k = 1; k < poly.length - 1; k++) for (const p of [poly[0], poly[k + 1], poly[k]]) { P.push(p[0], y - sink, p[1]); if (withUV) U.push((p[0] * -dz + p[1] * dx) * .9, (p[0] * dx + p[1] * dz) * 1.1); } }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); if (withUV) g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.computeVertexNormals(); return g; };
-  M._deckMin = 1; for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) if (isB(x, y)) M._deckMin = Math.min(M._deckMin, F[((y - z0) * R + Math.round(R / 2)) * cols + (x - x0) * R + Math.round(R / 2)] || 0);
+  const Y = BASE + .1, segs = [];
+  const P = (i, j) => [x0 + i / R - .5, z0 + j / R - .5];
+  const cellPoly = (i, j, th, rec) => { const C = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]], out = [], cuts = [];
+    for (let k = 0; k < 4; k++) { const [ia, ja] = C[k], [ib, jb] = C[(k + 1) % 4], a = V_[ja * cols + ia] - th, b = V_[jb * cols + ib] - th;
+      if (a >= 0) out.push(P(ia, ja)); if ((a >= 0) !== (b >= 0)) { const t = a / (a - b), pa = P(ia, ja), pb = P(ib, jb), p = [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t]; out.push(p); cuts.push(p); } }
+    if (rec && cuts.length === 2) segs.push(cuts); return out; };
+  const tris = (th, y, withUV, rec) => { const Pp = [], U = [];
+    for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) { const poly = cellPoly(i, j, th, rec); if (poly.length < 3) continue;
+      let ang = 0; if (withUV) { const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length, cz = poly.reduce((s, p) => s + p[1], 0) / poly.length; ang = axisAt(cx, cz) * Math.PI / 4; }
+      const dx = Math.cos(ang), dz = Math.sin(ang);
+      for (let k = 1; k < poly.length - 1; k++) for (const p of [poly[0], poly[k + 1], poly[k]]) { Pp.push(p[0], y, p[1]); if (withUV) U.push((p[0] * -dz + p[1] * dx) * .9, (p[0] * dx + p[1] * dz) * 1.1); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(Pp, 3)); if (withUV) g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.computeVertexNormals(); return g; };
   const grp = new THREE.Group();
-  const deck = new THREE.Mesh(tris(.5, Y, 0, true), toon('#ffffff', { map:PLANK_TEX })); deck.receiveShadow = true; grp.add(deck);
-  const rim = new THREE.Mesh(tris(.43, Y, .07, false), toon('#4a3826')); rim.receiveShadow = true; grp.add(rim);      // the deck's thickness, showing as a dark lip
-  // posts every so often along the edge where it meets water, leaning very slightly, down into the water
-  const posts = []; edgePts.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-  for (const p of edgePts) { const tx = Math.round(p[0]), tz = Math.round(p[1]);
-    let wet = false; for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) if ((M.tiles[tz + dz] || [])[tx + dx] === '~') wet = true; if (!wet) continue;
-    if (posts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.45)) continue; posts.push(p); }
-  if (posts.length) { const geo = new THREE.CylinderGeometry(.07, .085, .95, 7).translate(0, -.12, 0), im = new THREE.InstancedMesh(geo, toon('#5a4430'), posts.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  const deck = new THREE.Mesh(tris(0, Y, true, true), toon('#ffffff', { map:PLANK_TEX })); deck.receiveShadow = true; grp.add(deck);
+  const rim = new THREE.Mesh(tris(-.07, Y - .07, false, false), toon('#4a3826')); rim.receiveShadow = true; grp.add(rim);   // the deck's thickness, a dark lip
+  // a raised edge board all the way round, like a real boardwalk's kerb, broken where the deck meets land or a path
+  const open = (x, z) => { const tx = Math.round(x), tz = Math.round(z); for (const [dx, dz] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) { const ch = (M.tiles[tz + dz] || [])[tx + dx]; if (ch && ch !== 'b' && ch !== '~' && ch !== '#' && ch !== 'R') return true; } return tx < 0 || tz < 0 || tx >= M.w || tz >= M.h; };
+  const kerb = segs.filter(([a, b]) => !open((a[0] + b[0]) / 2, (a[1] + b[1]) / 2));
+  if (kerb.length) { const geo = new THREE.BoxGeometry(1, .09, .07), im = new THREE.InstancedMesh(geo, toon('#a38a66'), kerb.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = V3(0, 1, 0);
+    kerb.forEach(([a, b], k) => { const dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) + .02; q.setFromAxisAngle(up, -Math.atan2(dz, dx)); m4.compose(V3((a[0] + b[0]) / 2, Y + .045, (a[1] + b[1]) / 2), q, V3(L, 1, 1)); im.setMatrixAt(k, m4); });
+    im.castShadow = true; grp.add(im); }
+  // posts every ~1.5 along the edge where it meets water, down into the water
+  const posts = [];
+  for (const [a, b] of kerb) { const p = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; if (posts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.5)) continue; posts.push(p); }
+  if (posts.length) { const geo = new THREE.CylinderGeometry(.07, .085, .95, 7).translate(0, -.16, 0), im = new THREE.InstancedMesh(geo, toon('#5a4430'), posts.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
     posts.forEach((p, k) => { m4.compose(V3(p[0], Y, p[1]), q.setFromEuler(e.set((hsh(k, 1, 3) - .5) * .08, 0, (hsh(k, 2, 3) - .5) * .08)), V3(1, 1, 1)); im.setMatrixAt(k, m4); });
     im.castShadow = true; grp.add(im); }
   return grp;
 }
+
 const _routeExtrasBlock = buildRouteExtras;
 buildRouteExtras = function (M, V) { const g = _routeExtrasBlock(M, V); if (M.kind !== 'inside') { const d = buildDeck(M); if (d) g.add(d); } return g; };
 // =============================================================================
