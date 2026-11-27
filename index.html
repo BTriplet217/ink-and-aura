@@ -12964,7 +12964,7 @@ async function theEnd(side) {
   const show = async (html, ms) => { el.innerHTML = `<div style="max-width:560px;padding:24px;opacity:0;transition:opacity 1.4s ease" id="credp">${html}</div>`; await wait(60); $('#credp').style.opacity = 1; await waitKey(ms); $('#credp').style.opacity = 0; await wait(1400); };
   for (const pg of pages) await show(`<div style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#c9a35a;margin-bottom:10px">${pg.h}</div><div style="font-size:19px;line-height:1.55">${pg.p}</div>`, 5200);
   await show(`<div style="font-size:34px;letter-spacing:.02em">Ink <i>&amp;</i> Aura</div><div style="font-size:14px;color:#c9a35a;margin-top:10px">${grey ? 'The quiet you chose' : 'Every feeling was somebody\'s'}</div>`, 4200);
-  for (const [h, p] of CREDITS) await show(`<div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c9a35a;margin-bottom:8px">${h}</div><div style="font-size:18px;line-height:1.6">${p}</div>`, 3600);
+  for (const [h, p, ms] of CREDITS) await show(`<div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c9a35a;margin-bottom:8px">${h}</div><div style="font-size:18px;line-height:1.6">${p}</div>`, ms || 3600);
   await show(`<div style="font-size:16px;line-height:1.6">${grey ? 'The Welkin is quiet.' : 'The Welkin is loud, and it is its own.'}<br><br><span style="color:#c9a35a">Thank you for carrying them.</span></div>`, 5000);
   el.innerHTML = '';
   const c = await choose([{ label:'Keep walking', sub:'The story is over. The world is still here.' }, { label:'New Journey', sub:'Start again from the beginning' }], { cancel:false });
@@ -12983,15 +12983,15 @@ async function showCredits() {
     for (let t = 0; t < ms && !left && !skip; t += 100) await wait(100);
     if ($('#credp')) $('#credp').style.opacity = 0; await wait(left ? 300 : 1200); };
   await card(`<div style="font-size:34px;letter-spacing:.02em">Ink <i>&amp;</i> Aura</div><div style="font-size:14px;color:#c9a35a;margin-top:10px">Every feeling was somebody's</div>`, 4000);
-  for (const [h, p] of CREDITS) await card(`<div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c9a35a;margin-bottom:8px">${h}</div><div style="font-size:18px;line-height:1.6">${p}</div>`, 3600);
+  for (const [h, p, ms] of CREDITS) await card(`<div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c9a35a;margin-bottom:8px">${h}</div><div style="font-size:18px;line-height:1.6">${p}</div>`, ms || 3600);
   await card(`<div style="font-size:16px;line-height:1.6;color:#c9a35a">Thank you for carrying them.</div>`, 3600);
   selectHandler = null; el.style.opacity = 0; await wait(1200); el.remove();
 }
 // wait for a key or the time, whichever comes first (A skips ahead gently; nothing flashes)
 function waitKey(ms) { return new Promise(res => { let done = false; const fin = () => { if (done) return; done = true; selectHandler = null; res(); }; setTimeout(fin, ms); selectHandler = b => { if (['a', 'b', 'menu'].includes(b)) fin(); }; }); }
 const CREDITS = [
-  ['Created by', 'Blaine Triplet'], ['Story, world and Manifs', 'Blaine Triplet'], ['Energy-creature paintings', 'Blaine Triplet'], ['Music', 'Blaine Triplet, with scores written for the cities and events'],
-['At the Dragon\'s Table', 'Mary · Shannon · Liam · Tony · Blaine'], ['On the beach at Saltmere', 'Ashlynn'], ['In the cabin off the Pinewind', 'Clover'],
+  ['Created by', 'Blaine Triplet'], ['Story, world and Manifs', 'Blaine Triplet'], ['Energy-creature paintings', 'Blaine Triplet'], ['Music', '<style>@keyframes credIn{to{opacity:1}}</style><div style="font-size:16px;font-style:italic;color:#c9a35a;opacity:0;animation:credIn 1.4s ease 1.8s forwards">Can you guess?</div><div style="margin-top:14px;opacity:0;animation:credIn 1.6s ease 4.4s forwards">Blaine Triplet</div>', 8200],   // the title, then the question, then the answer (26 Nov)
+['At the Dragon\'s Table', 'Mary · Shannon · Liam · Tony · Blaine'], ['On the beach at Saltmere', 'Ashley'], ['In the cabin off the Pinewind', 'Heather'],
   ['The Sharyn Lighthouse', 'For Mom. Strong and steady, who weathered a storm that lasted years and never once took her eyes off the light.'] ];
 
 // ---- the feeling at the bottom of the well
