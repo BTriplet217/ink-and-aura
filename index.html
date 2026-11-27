@@ -4864,7 +4864,7 @@ function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp 
   post.resize(); }
 addEventListener('resize', resize); resize();
 // Lighting for drama: less flat fill, a stronger warm key. Shadows read as shadows, and lit faces glow.
-const HEMI_BASE = .69, SUN_GAIN = 1.39;   // 27 Nov: a touch more sun, a touch less sky fill, so shaded sides and shadows read
+const HEMI_BASE = .6, SUN_GAIN = 1.48;   // 27 Nov: a touch more sun, a touch less sky fill, so shaded sides and shadows read
 function setupLights(scene, span) {
   const hemi = new THREE.HemisphereLight(0xfff4dc, 0x3c3654, HEMI_BASE); scene.add(hemi);   // dim, cool fill from below: shadows fall away into violet, and the sun does the work
   const sun = new THREE.DirectionalLight(0xffe2b0, 1.8 * SUN_GAIN); sun.position.set(-6, 14, 8); sun.castShadow = true; sun.shadow.mapSize.set(LOWPOWER ? 1024 : 2048, LOWPOWER ? 1024 : 2048);
@@ -15597,7 +15597,7 @@ function shapeField(M, isIn, rc = 1.15, ro = .45, sig = 0) {
   return { sd, W:W_, H:H_, at };
 }
 const PAVE = new Set(['=', 'w', 'X']);
-const AO_AMT = { H:.3, D:.26, '#':.2, R:.16, h:.14 };
+const AO_AMT = { H:.4, D:.34, '#':.27, R:.22, h:.2 };
 const _buildTerrainBlock = buildTerrain;
 buildTerrain = function (M, V) {
   if (!M || M.kind === 'inside') return _buildTerrainBlock(M, V);
@@ -15606,7 +15606,7 @@ buildTerrain = function (M, V) {
   const grp = (x, y) => { const ch = M.tiles[y][x]; return wet[y][x] ? 'water' : PAVE.has(ch) ? 'pave' : ch === 'S' ? 'sand' : ch === ',' ? 'lawn' : null; };
   const GROUPS = { lawn:[.7, .75, .18, .45], pave:[1.25, .45, 0, .3], sand:[1.1, .45, .14, .5], water:[1.1, .45, .12, .6] };   // fillet radius, rounding radius, edge wander, smoothing
   const field = {}; for (const g in GROUPS) field[g] = shapeField(M, (x, y) => grp(x, y) === g, GROUPS[g][0], GROUPS[g][1], GROUPS[g][3]);
-  M._lawnF = field.lawn;   // the tall-grass blades follow the same rounded outline
+  M._lawnF = field.lawn; M._fields = field;   // the tall-grass blades follow the same rounded outline; h43 scatters detail by these shapes
   const tc = M.tiles.map((row, y) => row.map((ch, x) => new THREE.Color(ch === 'b' ? (wet[y][x] ? '#5a7a68' : V.ground[0]) : tileColor(M, V, x, y))));
   // per group, and for the rest: the colour of the nearest tile of that kind (so a fillet or a rounded-off corner always has a colour)
   const nearest = test => { const out = M.tiles.map(r => r.map(() => null)), q = [];
@@ -15659,7 +15659,7 @@ buildTerrain = function (M, V) {
       // ground darkens where it meets walls, rocks and the tree line (a little baked-in shade, h42)
       let ao = 0; for (let ty = Math.round(z) - 1; ty <= Math.round(z) + 1; ty++) for (let tx = Math.round(x) - 1; tx <= Math.round(x) + 1; tx++) {
         const amt = AO_AMT[(M.tiles[ty] || [])[tx]]; if (!amt) continue; const dx = Math.max(Math.abs(x - tx) - .5, 0), dz = Math.max(Math.abs(z - ty) - .5, 0), d = Math.hypot(dx, dz);
-        ao = Math.max(ao, amt * (1 - sstep(0, .8, d))); }
+        ao = Math.max(ao, amt * (1 - sstep(0, 1.15, d))); }
       if (ao) c.multiplyScalar(1 - ao);
     }
     pos[k] = x; pos[k + 1] = y; pos[k + 2] = z; colr[k] = c.r; colr[k + 1] = c.g; colr[k + 2] = c.b;
@@ -15751,10 +15751,10 @@ const BLOB_TEX = (() => { const cv = document.createElement('canvas'); cv.width 
   gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.45, 'rgba(0,0,0,.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(cv); return t; })();
 const BLOB_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-const BLOB_MAT = new THREE.MeshBasicMaterial({ map:BLOB_TEX, color:'#1a1420', transparent:true, opacity:.34, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 });
+const BLOB_MAT = new THREE.MeshBasicMaterial({ map:BLOB_TEX, color:'#1a1420', transparent:true, opacity:.48, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 });
 function addBlob(g, worldR) {
   if (!g || g.userData.blob) return;
-  const s = g.scale.x || 1, b = new THREE.Mesh(BLOB_GEO, BLOB_MAT); b.scale.set(worldR * 2 / s, 1, worldR * 1.7 / s); b.position.y = .03 / s; b.renderOrder = 2; b.raycast = () => {};
+  const s = g.scale.x || 1, b = new THREE.Mesh(BLOB_GEO, BLOB_MAT); b.scale.set(worldR * 2.3 / s, 1, worldR * 2 / s); b.position.y = .03 / s; b.renderOrder = 2; b.raycast = () => {};
   g.add(b); g.userData.blob = b;
 }
 { const _mk = evMarkOn; evMarkOn = function (e) { _mk(e);
@@ -15762,7 +15762,99 @@ function addBlob(g, worldR) {
 
 { const _rt = rideTick; rideTick = function (dt) { _rt(dt);
   try { sunFollow(); addBlob(W.player, .38); for (const m of W.minis) addBlob(m, .2); for (const w of W.wilds || []) addBlob(w.g || w, .3);
-    BLOB_MAT.opacity = .34 * (1 - .45 * (dayState().night || 0)); } catch (_) {} }; }
+    BLOB_MAT.opacity = .48 * (1 - .45 * (dayState().night || 0)); } catch (_) {} }; }
+// ---------------------------------------------------------------- detail and texture (27 Nov)
+// A scatter layer of small things so the ground reads as a real place, laid by the same shapes the terrain uses
+// (h41 `M._fields`): pebbles in paving and sand, bigger edge stones along route paths, grass tufts and clover on
+// lawns, fallen leaves under the tree line, the odd mossy boulder, reeds and cattails round the shores, and lily
+// pads on still water. All instanced, all fixed (nothing moves or blinks), and placed by hash so a map always
+// looks the same. It rides on the terrain mesh, so it comes and goes with the map.
+const DT_GEO = {
+  pebble: lumpy(new THREE.IcosahedronGeometry(1, 1), .22, 2.6, 3),
+  rock: lumpy(new THREE.IcosahedronGeometry(1, 2), .16, 2.2, 11),
+  tuft: (() => { const parts = []; for (let k = 0; k < 5; k++) { const a = k * 1.26 + .3, c = new THREE.ConeGeometry(.022, 1, 3).translate(0, .5, 0);
+      c.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(Math.cos(a) * .32, 0, Math.sin(a) * .32))); c.translate(Math.cos(a) * .03, 0, Math.sin(a) * .03); parts.push(c); }
+    return mergeGeos(parts); })(),
+  dot: new THREE.SphereGeometry(1, 6, 4),
+  leaf: (() => { const sh = new THREE.Shape(); sh.moveTo(-.5, 0); sh.quadraticCurveTo(0, .42, .5, 0); sh.quadraticCurveTo(0, -.42, -.5, 0); return new THREE.ShapeGeometry(sh, 4).rotateX(-Math.PI / 2); })(),
+  stem: new THREE.CylinderGeometry(.012, .018, 1, 4).translate(0, .5, 0),
+  head: new THREE.CapsuleGeometry(.03, .12, 2, 6),
+  pad: new THREE.CircleGeometry(1, 14, .35, Math.PI * 2 - .7).rotateX(-Math.PI / 2),
+};
+function mergeGeos(list) {   // tiny merge (positions and normals only)
+  let n = 0; for (const g of list) n += (g.index ? g.index.count : g.attributes.position.count);
+  const P = new Float32Array(n * 3), N = new Float32Array(n * 3); let o = 0;
+  for (const g0 of list) { const g = g0.index ? g0.toNonIndexed() : g0; g.computeVertexNormals(); P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.BufferAttribute(N, 3)); return out;
+}
+function dtInst(grp, geo, list, opt = {}) {
+  if (!list.length) return;
+  const im = new THREE.InstancedMesh(geo, opt.mat || toon('#ffffff', opt.mo || {}), list.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
+  list.forEach((d, k) => { m4.compose(V3(d.x, d.y, d.z), q.setFromEuler(e.set(d.rx || 0, d.ry || 0, d.rz || 0)), V3(d.s, d.sy || d.s, d.sz || d.s)); im.setMatrixAt(k, m4); im.setColorAt(k, c.set(d.c)); });
+  im.castShadow = !!opt.cast; im.receiveShadow = true; im.raycast = () => {}; grp.add(im);
+}
+const isGreen = hex => { const c = new THREE.Color(hex); return c.g > c.r * 1.02 && c.g > c.b * .8; };
+const shade = (hex, k) => '#' + new THREE.Color(hex).offsetHSL(0, 0, k).getHexString();
+
+function buildDetail(M, V) {
+  const F = M._fields || {}, grp = new THREE.Group(), T = (x, y) => (M.tiles[y] || [])[x];
+  const sdOf = (g, x, z) => F[g] ? F[g].at(x, z) : -9;
+  const L = { pebble:[], edge:[], tuft:[], dot:[], leaf:[], rock:[], stem:[], head:[], pad:[], bloom:[] };
+  const coast = /salt|coast/.test(M.id || S.map), hub = M.kind === 'hub';
+  const tallC = V.tall || ['#6a8a4a'], groundC = V.ground || ['#8aa860'], treeC = V.treeC || ['#4a6a3a'];
+  const greenLand = isGreen(groundC[0]) || isGreen(tallC[0]);
+  for (let ty = 0; ty < M.h; ty++) for (let tx = 0; tx < M.w; tx++) {
+    const ch = T(tx, ty), r = (k) => hsh(tx, ty, 300 + k);
+    const gy = W.hg[ty][tx];
+    // pebbles in paving and sand
+    if (ch === '=' || ch === 'S' || ch === 'X' || (hub && ch === 'w')) { const g = ch === 'S' ? 'sand' : 'pave', n = hub ? (r(0) < .25 ? 1 : 0) : (r(0) < .6 ? 1 + (r(1) < .4) : 0);
+      for (let k = 0; k < n; k++) { const x = tx + (r(2 + k) - .5) * .9, z = ty + (r(4 + k) - .5) * .9; if (sdOf(g, x, z) < .08) continue;
+        const s = .035 + r(6 + k) * .045; L.pebble.push({ x, y:groundY(x, z) + s * .2, z, s, sy:s * .5, ry:r(8 + k) * 6, c:shade(ch === 'S' ? '#c8b890' : '#a09684', (r(9 + k) - .5) * .16) }); } }
+    // lawns and bare ground: tufts, clover, leaves near the tree line, the odd boulder
+    if (ch === '.' || ch === ',' || ch === 'f') {
+      const nearTree = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]].some(([dx, dy]) => T(tx + dx, ty + dy) === '#');
+      for (let k = 0; k < 3; k++) { if (r(10 + k) > (ch === ',' ? .25 : .62)) continue; const x = tx + (r(13 + k) - .5) * .95, z = ty + (r(16 + k) - .5) * .95;
+        if (sdOf('pave', x, z) > -.06 || sdOf('water', x, z) > -.12 || sdOf('sand', x, z) > -.05) continue;
+        const s = .55 + r(19 + k) * .5, base = greenLand ? tallC[k % tallC.length] : shade(groundC[k % groundC.length], -.08);
+        L.tuft.push({ x, y:groundY(x, z) - .01, z, s:.9 * s, sy:(.18 + r(22 + k) * .14) * s * 1.6, ry:r(25 + k) * 6, c:shade(base, (r(26 + k) - .5) * .1 - .03) }); }
+      if (greenLand && r(30) < .3) { const x = tx + (r(31) - .5) * .8, z = ty + (r(32) - .5) * .8; if (sdOf('pave', x, z) < -.1 && sdOf('water', x, z) < -.15)
+        for (let k = 0; k < 3; k++) L.dot.push({ x:x + (r(33 + k) - .5) * .18, y:groundY(x, z) + .03, z:z + (r(36 + k) - .5) * .18, s:.022, c:r(39) < .5 ? '#f4f0e0' : '#f0d860' }); }
+      if (nearTree) for (let k = 0; k < 5; k++) { if (r(40 + k) > .7) continue; const x = tx + (r(45 + k) - .5) * .95, z = ty + (r(50 + k) - .5) * .95; if (sdOf('pave', x, z) > -.04) continue;
+        const lc = r(55 + k) < .35 ? ['#b8783a', '#c89a42', '#9a5a32'][k % 3] : shade(treeC[k % treeC.length], -.06);
+        L.leaf.push({ x, y:groundY(x, z) + .015 + k * .002, z, s:.13 + r(60 + k) * .06, sy:1, ry:r(65 + k) * 6, c:lc }); }
+      if (nearTree && r(70) < .07 && !hub) { const x = tx + (r(71) - .5) * .5, z = ty + (r(72) - .5) * .5, s = .16 + r(73) * .2; if (sdOf('pave', x, z) < -.3)
+        L.rock.push({ x, y:groundY(x, z) + s * .25, z, s, sy:s * .65, ry:r(74) * 6, c:shade('#8a887e', (r(75) - .5) * .12) }); }
+    }
+  }
+  // edge stones along route and road paths (not town streets), and reeds / lily pads by the water, sampled on a finer grid
+  const FN = 3;
+  for (let j = 0; j < M.h * FN; j++) for (let i = 0; i < M.w * FN; i++) {
+    const x = (i + .5) / FN - .5, z = (j + .5) / FN - .5, tx = Math.round(x), tz = Math.round(z), r = k => hsh(i, j, 500 + k);
+    if ((M.kind === 'route' || M.kind === 'region') && F.pave) { const sd = sdOf('pave', x, z); if (sd > -.16 && sd < -.04 && r(0) < .3) { const s = .07 + r(1) * .07;
+      L.edge.push({ x, y:groundY(x, z) + s * .25, z, s, sy:s * .55, ry:r(2) * 6, c:shade('#9a9488', (r(3) - .5) * .14) }); } }
+    if (F.water) { const sd = sdOf('water', x, z), tch = T(tx, tz), nb = [[0,0],[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => { const c = T(tx + dx, tz + dy); return c === 'b' || c === '=' || c === 'D' || c === 'H'; });
+      if (!coast && !nb && sd > -.12 && sd < .14 && r(4) < .32) {   // a clump of reeds, a couple with cattail heads
+        const by = sd > 0 ? .1 : groundY(x, z) - .14;
+        for (let k = 0; k < 4; k++) { const h = .45 + r(5 + k) * .45, ox = x + (r(10 + k) - .5) * .22, oz = z + (r(15 + k) - .5) * .22, lean = (r(20 + k) - .5) * .25;
+          L.stem.push({ x:ox, y:by, z:oz, s:1, sy:h, rx:lean, rz:(r(25 + k) - .5) * .25, c:shade('#5a7a3a', (r(30 + k) - .5) * .12) });
+          if (k < 2 && r(35 + k) < .6) L.head.push({ x:ox + Math.sin((r(25 + k) - .5) * .25) * -h * .02, y:by + h * .97, z:oz + lean * h * .9, s:1, rx:lean, c:'#6a4428' }); } }
+      if (!coast && tch !== 'b' && sd > .55 && r(40) < .05) { const s = .13 + r(41) * .08, y = BASE - .13;
+        L.pad.push({ x, y, z, s, ry:r(42) * 6, c:shade('#4f7a3a', (r(43) - .5) * .12) });
+        if (r(44) < .3) L.bloom.push({ x:x + .03, y:y + .04, z, s:.045, sy:.035, c:r(45) < .5 ? '#f4c8d8' : '#f8f4ec' }); } }
+  }
+  dtInst(grp, DT_GEO.pebble, L.pebble);
+  dtInst(grp, DT_GEO.pebble, L.edge, { cast:true });
+  dtInst(grp, DT_GEO.tuft, L.tuft);
+  dtInst(grp, DT_GEO.dot, L.dot);
+  dtInst(grp, DT_GEO.leaf, L.leaf, { mo:{ side:THREE.DoubleSide } });
+  dtInst(grp, DT_GEO.rock, L.rock, { cast:true, mo:{ surf:'stone' } });
+  dtInst(grp, DT_GEO.stem, L.stem, { cast:true });
+  dtInst(grp, DT_GEO.head, L.head, { cast:true });
+  dtInst(grp, DT_GEO.pad, L.pad, { mo:{ side:THREE.DoubleSide } });
+  dtInst(grp, DT_GEO.dot, L.bloom);
+  return grp;
+}
+{ const _bt = buildTerrain; buildTerrain = function (M, V) { const mesh = _bt(M, V); if (M && M.kind !== 'inside') { try { mesh.add(buildDetail(M, V)); } catch (e) { console.warn('detail', e); } } return mesh; }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
