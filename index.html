@@ -6124,7 +6124,7 @@ async function satchelMenu() {
     }
     if (lab === 'Swap in for…') {
       const j = await listChoose(S.party, { title:`Swap ${nm(m)} in for…`, sub:'It takes that one\'s place, and that one rests in your Satchel.', start:0,
-        render:(p, k) => { const a = S.party.slice(); a[k] = m; return manifRow(p).replace('<small>Lv', `<small>${SLOT_NAMES[k]} · Lv`).replace('</small></span>', '</small>' + bondNote(bondsAt(a, k)) + '</span>'); } });
+        render:(p, k) => { const a = S.party.slice(); a[k] = m; return slotRow(a, p, k); } });
       if (j < 0) continue;
       const before = auraName(), out = S.party[j]; S.party[j] = m; S.satchel[i] = out; rebuildMinis();
       await say(`${nm(m)} takes ${nm(out)}'s place. ${nm(out)} rests in your Satchel.`); await announceShift(before);
@@ -15402,6 +15402,84 @@ function fragmentModel() {
   const gl = glow('#7fb0ff', .9, .45); gl.material.blending = THREE.NormalBlending; gl.position.y = .3; g.add(gl);
   g.scale.setScalar(1.3); return g;
 }
+// ---------------------------------------------------------------- manif rows (27 Nov)
+// Carried Manifs and the Satchel, laid out to fit a phone without scrolling the Chorus:
+// the Manif's own figure (as it looks in the world) instead of a colour dot, name over "Lv 48 · Left",
+// Bonds on their own short lines, a fixed-width three-letter feeling tag with its +/- centred under it,
+// then the bars. Mild / intense lives on the full summary, not here.
+const TAG3 = { JOY:'JOY', HOPE:'HPE', CALM:'CLM', CONFIDENCE:'CNF', SURPRISE:'SRP', SADNESS:'SAD', FEAR:'FER', ANGER:'ANG', SHAME:'SHM', DISGUST:'DSG',
+  LOVE:'LOV', HOLLOW:'HLW', BELONG:'BLG', BEACON:'BCN', CURIOUS:'IMG', ASH:'ASH' };
+const tag3 = t => `<span class="tg3" style="background:${TYPES[t].c}" title="${TYPES[t].name}">${TAG3[t] || TYPES[t].name.slice(0, 3).toUpperCase()}</span>`;
+
+// Small transparent pictures of each Manif, rendered once per kind with its own little renderer.
+const MSPR = {}; let MSR = null; const MSQ = [];
+function manifSprite(sp) {
+  if (sp in MSPR) return MSPR[sp];
+  try {
+    if (!MSR) { const cv = document.createElement('canvas'); cv.width = cv.height = 112;
+      const r = new THREE.WebGLRenderer({ canvas:cv, antialias:true, alpha:true, preserveDrawingBuffer:true }); r.setPixelRatio(1); r.setSize(112, 112, false); r.setClearColor(0x000000, 0);
+      if (renderer.outputColorSpace) r.outputColorSpace = renderer.outputColorSpace; r.toneMapping = renderer.toneMapping;
+      const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, 1, .05, 60);
+      sc.add(new THREE.HemisphereLight(0xfff4dc, 0x6b5a48, 1.3)); const sun = new THREE.DirectionalLight(0xfff0d0, 1.6); sun.position.set(-3, 6, 5); sc.add(sun);
+      MSR = { cv, r, sc, cam }; }
+    const g = sp === 'HUSH' ? buildHush() : buildManif(sp, { scale:1 });
+    const A = g.userData && g.userData.aura; if (A) { A.ring.visible = false; A.halo.visible = false; A.motes.forEach(m => m.visible = false); }
+    g.traverse(o => { if (o.isPoints || o.isSprite) o.visible = false; });
+    MSR.sc.add(g); g.updateMatrixWorld(true);
+    const vis = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+    const box = new THREE.Box3(); g.traverse(o => { if (o.isMesh && vis(o) && o.geometry) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
+    const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3()), R = Math.max(s.x, s.y, s.z) * .5 || .6;
+    const dir = new THREE.Vector3(.45, .35, 1).normalize(), dist = R / Math.tan(15 * Math.PI / 180) * 1.12;
+    MSR.cam.position.copy(c).addScaledVector(dir, dist); MSR.cam.lookAt(c); MSR.cam.updateProjectionMatrix();
+    MSR.r.render(MSR.sc, MSR.cam);
+    const url = MSR.cv.toDataURL('image/png'); MSR.sc.remove(g); disposeTree(g);
+    return (MSPR[sp] = url);
+  } catch (e) { return (MSPR[sp] = null); }
+}
+// Rows are drawn straight away with the colour dot; the pictures fill in a few per frame.
+function spriteSlot(m) {
+  const sp = m.sp || m;
+  if (MSPR[sp]) return `<span class="msp"><img src="${MSPR[sp]}" alt=""></span>`;
+  if (!(sp in MSPR) && !MSQ.includes(sp)) { MSQ.push(sp); if (MSQ.length === 1) requestAnimationFrame(spritePump); }
+  return `<span class="msp" data-sp="${sp}">${manifIcon(m, 22)}</span>`;
+}
+function spritePump() {
+  const t0 = performance.now();
+  while (MSQ.length && performance.now() - t0 < 24) { const sp = MSQ.shift(), url = manifSprite(sp);
+    document.querySelectorAll(`.msp[data-sp="${sp}"]`).forEach(el => { if (url) el.innerHTML = `<img src="${url}" alt="">`; el.removeAttribute('data-sp'); }); }
+  if (MSQ.length) requestAnimationFrame(spritePump);
+}
+
+// o.slot: 'Left' etc. · o.bonds: list of "Steadied with X" lines
+manifRow = function (m, o = {}) {
+  const d = SPECIES[m.sp], v = valOf(m), f = m.hp / maxHp(m), x = m.lvl >= MAXLV() ? 1 : m.xp / need(m.lvl);
+  const tags = tag3(d.type) + (d.type2 ? tag3(d.type2) : '');
+  const bonds = (o.bonds || []).map(b => `<small class="bnd">${b}</small>`).join('');
+  return `${spriteSlot(m)}<span class="mnm"><b>${nm(m)}</b><small><span class="nw">Lv ${m.lvl}</span>${o.slot ? ' · ' + o.slot : ''}</small>${bonds}</span>`
+    + `<span class="mty">${tags}<span class="mv" style="color:${v > 0 ? '#9a6a14' : v < 0 ? '#5e3f7a' : '#6a5a48'}">${sgn(v)}</span></span>`
+    + `<span class="mmt"><span class="bar"><i style="width:${f * 100}%;background:${f > .5 ? '#7cbf5a' : f > .2 ? '#e8b84a' : '#d8503f'}"></i></span><span class="bar xp"><i style="width:${x * 100}%"></i></span><small>${m.hp <= 0 ? 'overwhelmed' : m.hp + ' / ' + maxHp(m)}</small></span>`;
+};
+const SLOT_SHORT = ['Left', 'Middle', 'Right', 'Waiting', 'Waiting', 'Waiting'];
+const slotRow = (arr, m, i) => manifRow(m, { slot:SLOT_SHORT[i], bonds:bondsAt(arr, i) });
+partyRow = (m, i) => slotRow(S.party, m, i);
+
+(() => { const st = document.createElement('style'); st.textContent = `
+#sheet .opt:has(.msp){padding:6px 10px 6px 6px;gap:8px;align-items:center}
+.msp{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center}
+.msp img{width:44px;height:44px;object-fit:contain;filter:drop-shadow(0 1px 1px rgba(27,21,18,.35))}
+.mnm{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.15;overflow-wrap:anywhere}
+.mnm b{font-weight:800;font-size:15px}
+.mnm small{font-size:11.5px;font-weight:600;color:var(--muted)}
+.mnm small.bnd{color:#7a5a20;font-size:11px}
+.opt.sel .mnm small{color:var(--ink2)}
+.nw{white-space:nowrap}
+.mty{flex:none;width:42px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tg3{display:block;width:40px;box-sizing:border-box;text-align:center;font:800 10px 'Nunito Sans',sans-serif;letter-spacing:.8px;padding:2px 0;border-radius:20px;border:1.5px solid var(--ink);color:var(--ink)}
+.mv{font-weight:800;font-size:14px;line-height:1}
+.mmt{flex:none;width:72px;display:flex;flex-direction:column;gap:3px}
+.mmt small{font-size:10px;color:var(--muted);font-weight:600;text-align:right;white-space:nowrap}
+@media (max-width:420px){#sheet{max-height:88vh;padding:12px 10px 10px}#sheet h2{font-size:23px}#sheet .subt{font-size:12px;margin-bottom:8px}#sheet .row{margin-bottom:5px}}
+`; document.head.appendChild(st); })();
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
