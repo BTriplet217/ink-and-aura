@@ -14815,14 +14815,16 @@ function mapPlaceLabels(LB, nodes) {
     let pick = C[0]; for (const c of C) { const b = box(...c); if (!mapHit(b, placed) && !mapHit(b, others)) { pick = c; break; } }
     placed.push(box(...pick));
     out += `<text x="${f1(pick[0])}" y="${f1(pick[1])}" text-anchor="${pick[2]}" font-size="${f}" font-weight="${L.small ? 600 : 700}" ${L.small ? 'font-style="italic"' : ''} fill="${L.fill}" paint-order="stroke" stroke="${MAP_PAPER}" stroke-width="3" stroke-linejoin="round">${L.label}</text>`; }
-  MAP_BOXES = placed.concat(icons.map(i => i.b));
+  MAP_BOXES = placed.map(b => [b[0] - 8, b[1] - 6, b[2] + 8, b[3] + 6]).concat(icons.map(i => i.b));   // the rim names keep a real gap from every name
   return out;
 }
-function mapRimSpot(t) { const a0 = mapAng(t), h = Math.PI / WHEEL.length, len = TYPES[t].name.length * 15 + 8; let best = [a0, MAP_EDGE - 16], bestHits = 1e9;
-  for (const r of [MAP_EDGE - 16, MAP_EDGE - 30, MAP_EDGE - 44, MAP_EDGE - 58]) for (const d of [0, .14, -.14, .28, -.28, .42, -.42, .56, -.56, .7, -.7]) { const a = a0 + d * h, [x, y] = mapPol(a, r), tx = -Math.sin(a), ty = Math.cos(a);
-    let hits = 0; for (let k = -len / 2; k <= len / 2; k += 6) { const px = x + tx * k, py = y + ty * k; if (mapHit([px - 11, py - 11, px + 11, py + 11], MAP_BOXES)) hits++; }
-    const score = hits * 10 + Math.abs(d) + (MAP_EDGE - 16 - r) / 40;   // clear first; then as close to the middle of its country and the rim as it can be
+function mapRimSpot(t) { const a0 = mapAng(t), h = Math.PI / WHEEL.length, len = TYPES[t].name.length * 12.6 + 6; let best = [a0, MAP_EDGE - 16], bestHits = 1e9;
+  for (const r of [MAP_EDGE - 16, MAP_EDGE + 16, MAP_EDGE - 30, MAP_EDGE + 30, MAP_EDGE - 44]) for (const d of [0, .14, -.14, .28, -.28, .42, -.42, .56, -.56, .7, -.7, .84, -.84]) { /* just outside the dashed edge is allowed when the inside is crowded */ const a = a0 + d * h, [x, y] = mapPol(a, r), tx = -Math.sin(a), ty = Math.cos(a);
+    let hits = 0; for (let k = -len / 2; k <= len / 2; k += 4) { const px = x + tx * k, py = y + ty * k; if (mapHit([px - 9, py - 9, px + 9, py + 9], MAP_BOXES)) hits++; }
+    const score = hits * 10 + Math.abs(d) + Math.abs(MAP_EDGE - 16 - r) / 40;   // clear first; then as close to the middle of its country and the rim as it can be
     if (score < bestHits) { bestHits = score; best = [a, r]; } if (!hits && d === 0 && r === MAP_EDGE - 16) break; }
+  { const [a, r] = best, [x, y] = mapPol(a, r), tx = -Math.sin(a), ty = Math.cos(a);   // claim the space, so the next country's name keeps clear of this one
+    for (let k = -len / 2; k <= len / 2; k += 6) { const px = x + tx * k, py = y + ty * k; MAP_BOXES.push([px - 10, py - 10, px + 10, py + 10]); } }
   return best; }
 worldMapSheet = function () {
   const { N, L } = mapNodes(), V = S.visited || {}, here = hereId(), seen = n => V[n.id] || n.id === 'vellum';
@@ -14853,7 +14855,7 @@ worldMapSheet = function () {
   const LB = [];
   for (const n of Object.values(P)) { if (!known(n)) continue; const v = seen(n), ink = n.t ? inkOf(n.t) : MAP_FAR, small = n.kind === 'route' || n.kind === 'farroad';
     LB.push({ n, label:v || n.kind === 'hub' ? n.name : n.kind === 'far' || n.kind === 'farroad' ? n.name : '?', small, fs:n.kind === 'hub' ? 20 : n.kind === 'city' || n.kind === 'far' ? 15 : small ? 11 : 13, fill:v ? ink : '#9a8a70' }); }
-  const labelSVG = mapPlaceLabels(LB, Object.values(P).filter(known)), offLabel = (x, y, r) => !mapHit([x - r, y - r, x + r, y + r * .7], MAP_BOXES);
+  const labelSVG = mapPlaceLabels(LB, Object.values(P).filter(known)), RIM = WHEEL.map(t => mapRimSpot(t)), offLabel = (x, y, r) => !mapHit([x - r, y - r, x + r, y + r * .7], MAP_BOXES);
   // landmarks in each country (kept clear of the towns and their names)
   const busy = Object.values(P).filter(known).map(n => [n.x, n.y]);
   const clear = (x, y, d) => busy.every(([bx, by]) => Math.hypot(bx - x, by - y + 8) > d);
@@ -14880,7 +14882,7 @@ worldMapSheet = function () {
   }
   s += labelSVG;
   // each country's name, round the rim
-  WHEEL.forEach(t => { const a = mapRimSpot(t), [x, y] = mapPol(a[0], a[1]), deg = a[0] * 180 / Math.PI + 90, flip = deg > 90 && deg < 270;
+  WHEEL.forEach((t, i) => { const a = RIM[i], [x, y] = mapPol(a[0], a[1]), deg = a[0] * 180 / Math.PI + 90, flip = deg > 90 && deg < 270;
     s += `<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" dominant-baseline="middle" font-size="13" letter-spacing="4" font-weight="700" fill="${inkOf(t)}" opacity=".85" transform="rotate(${f1(flip ? deg - 180 : deg)} ${f1(x)} ${f1(y)})">${TYPES[t].name.toUpperCase()}</text>`; });
   // the furniture: title cartouche, compass, vignette
   const tx = x0 + 30, ty = x0 + 44;
