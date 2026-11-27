@@ -3535,7 +3535,7 @@ const SET = {
   mtent(p) { const g = new THREE.Group(), c = p.c || '#6a6a4a';
     for (const s of [-1, 1]) sBox(g, 1.5, .04, 1.1, c, 0, .5, s * .38, { rot:[s * .85, 0, 0] }); sBox(g, .04, .9, .04, '#3a2c20', .75, .45, 0); sBox(g, .04, .9, .04, '#3a2c20', -.75, .45, 0); return g; },
   // a rowboat with a real hull: rounded underneath, pointed at the bow, open on top (27 Nov; it used to be a half-pipe that read as a box)
-  boat(p) { const o = new THREE.Group(), g = new THREE.Group(); o.add(g); g.rotation.y = Math.PI / 2; g.position.y = .12; const geo = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), a = geo.attributes.position;
+  boat(p) { const o = new THREE.Group(), g = new THREE.Group(); o.add(g); g.rotation.y = Math.PI / 2; g.position.y = .34; /* rides with its floor just above the water, so the inside of the hull shows */ const geo = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), a = geo.attributes.position;
     for (let i = 0; i < a.count; i++) { const x = a.getX(i), y = a.getY(i), z = a.getZ(i), bow = Math.max(0, z); a.setXYZ(i, x * .46 * (1 - .62 * bow * bow), y * .36, z * .86); }
     geo.computeVertexNormals();
     const h = part(geo, '#6a4a32', [0, .3, 0], { ink:1.06, mo:{ side:THREE.DoubleSide } }); g.add(h);
@@ -4864,7 +4864,7 @@ function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp 
   post.resize(); }
 addEventListener('resize', resize); resize();
 // Lighting for drama: less flat fill, a stronger warm key. Shadows read as shadows, and lit faces glow.
-const HEMI_BASE = .78, SUN_GAIN = 1.3;
+const HEMI_BASE = .69, SUN_GAIN = 1.39;   // 27 Nov: a touch more sun, a touch less sky fill, so shaded sides and shadows read
 function setupLights(scene, span) {
   const hemi = new THREE.HemisphereLight(0xfff4dc, 0x3c3654, HEMI_BASE); scene.add(hemi);   // dim, cool fill from below: shadows fall away into violet, and the sun does the work
   const sun = new THREE.DirectionalLight(0xffe2b0, 1.8 * SUN_GAIN); sun.position.set(-6, 14, 8); sun.castShadow = true; sun.shadow.mapSize.set(LOWPOWER ? 1024 : 2048, LOWPOWER ? 1024 : 2048);
@@ -7220,7 +7220,7 @@ function eventEnts(map, taken) {
   if (map === ROUTES.SURPRISE.id) at({ id:'ev_mirror', model:EV_PROP.mirror, talk:evSurpMirror, mark:evS('SURPRISE').st < 9, markH:2.3 }, 6, 20);
   // 6 SADNESS
   if (city('SADNESS')) { at({ id:'ev_ewan', look:EWAN, name:'Ewan', talk:evSadEwan, mark:ask0('SADNESS') }, cx - 4, cy); if (!M._towerXY) { const p = evSpot(map, all(), cx + 18, cy + 12); M._towerXY = [p.x, p.y]; }   // across the canal in the open ground, clear of the houses: found once, then fixed for good
-    { const [tx, ty] = M._towerXY; out.push({ id:'ev_tower', x:tx, y:ty, dir:'down', model:EV_PROP.tower, talk:evSadTower, mark:on('SADNESS'), markH:6.1, stay:true });
+    { const [tx, ty] = M._towerXY; out.push({ id:'ev_tower', x:tx, y:ty, dir:'down', model:EV_PROP.tower, talk:evSadTower, mark:on('SADNESS'), markH:8.2, stay:true });
       if (!M._blk) M._blk = new Map(); for (const [dx, dy] of [[-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]) { const c = (M.tiles[ty + dy] || [])[tx + dx]; if (c && !SOLID.has(c) && c !== 'D') decoBlock(M, tx + dx, ty + dy); } }   // the tower is big: its footprint is solid around the one fixed spot, the front step stays open   // out in the open square by the south gate, well away from the fountain
     mem('ev_maren', cx + 20, cy + 13, '(At the foot of the bell tower, someone keeps fresh flowers on a patch of cobbles. "MAREN ASHBY. SHE THREW IT IN THE RIVER.")'); }
   // 7 FEAR
@@ -7372,9 +7372,25 @@ const EV_PROP = {
   mirror:() => { const g = new THREE.Group(); g.add(place(inkBox(.8, 1.7, .08, PM('#b8902a')), 0, .9, 0));
     g.add(place(new THREE.Mesh(new THREE.PlaneGeometry(.62, 1.45), new THREE.MeshStandardMaterial({ color:'#c8d4dc', metalness:.6, roughness:.25 })), 0, .9, .05));
     g.add(place(inkBox(.5, .3, .08, PM('#3a3430')), .6, .5, -.1)); for (const x of [.48, .6, .72]) g.add(place(cyl(.03, .03, .26, '#2a2a2a', 6), x, .72, -.06)); return g; },
-  tower:() => { const g = new THREE.Group(); g.scale.set(1.6, 1.7, 1.35); g.add(place(inkBox(1, 2.6, 1, PM('#8a8a90')), 0, 1.3, 0));   // a proper bell tower: twice the bulk, taller than the houses
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(.82, .9, 4), PM('#3a4a6a')); roof.rotation.y = Math.PI / 4; g.add(place(roof, 0, 3.05, 0));
-    g.add(place(inkBox(.4, .7, .05, PM('#2a2018')), 0, .35, .51)); g.add(place(inkBox(.3, .4, .05, PM('#1a1a20')), 0, 2.2, .51)); g.add(place(cyl(.16, .24, .28, '#b8902a', 12), 0, 2.15, .3)); return g; },
+  // a round fieldstone bell tower (27 Nov: was a square box with a four-sided roof): a wide plinth, a slightly
+  // tapering stone body, a darker belfry band with four arched openings and the bell showing in the front one,
+  // a cornice, then a tall round cone of slate with a little finial
+  tower:() => { const g = new THREE.Group(), st = c => ({ mo:{ surf:'stone' }, ink:1.03 }), C = (rt, rb, h, seg = 32) => new THREE.CylinderGeometry(rt, rb, h, seg);
+    g.scale.set(1.6, 1.7, 1.6);
+    g.add(part(C(.66, .7, .26), '#7c7a74', [0, .13, 0], st()));
+    g.add(part(C(.52, .58, 2.2), '#8e8a82', [0, 1.36, 0], st()));
+    g.add(part(C(.6, .6, .08), '#7c7a74', [0, 2.48, 0], st()));
+    g.add(part(C(.55, .55, .62), '#7a766e', [0, 2.82, 0], st()));
+    g.add(part(C(.64, .62, .1), '#6c6a64', [0, 3.17, 0], st()));
+    g.add(part(new THREE.ConeGeometry(.66, 1.15, 32), '#3a4a6a', [0, 3.79, 0], { mo:{ surf:'roof' }, ink:1.03 }));
+    g.add(part(new THREE.SphereGeometry(.06, 10, 8), '#b8902a', [0, 4.4, 0], { ink:1.1 }));
+    const arch = (w, h, c) => { const sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(w / 2, h - w / 2); sh.absarc(0, h - w / 2, w / 2, 0, Math.PI, false); sh.lineTo(-w / 2, 0);
+      return new THREE.Mesh(new THREE.ShapeGeometry(sh, 10), new THREE.MeshBasicMaterial({ color:c, side:THREE.DoubleSide })); };
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2, m = arch(.26, .42, '#16161c'); m.position.set(Math.sin(a) * .556, 2.6, Math.cos(a) * .556); m.rotation.y = a; g.add(m); }
+    const door = arch(.3, .56, '#2a2018'); door.position.set(0, .26, .59); g.add(door);
+    const step = part(C(.3, .32, .06, 20), '#7c7a74', [0, .03, .7], { ink:0 }); step.scale.z = .6; g.add(step);
+    g.add(part(cyl(.1, .15, .2, '#b8902a', 14).geometry, '#b8902a', [0, 2.72, .3], { ink:1.06 }));
+    return g; },
   cage:() => { const g = new THREE.Group(); g.add(place(inkBox(.9, .06, .9, PM('#3a3028')), 0, .03, 0)); g.add(place(inkBox(.9, .06, .9, PM('#3a3028')), 0, 1.1, 0));
     for (let i = 0; i < 5; i++) for (const s of [-1, 1]) { g.add(place(cyl(.02, .02, 1.05, '#2a2622', 6), -.42 + i * .21, .56, s * .42)); g.add(place(cyl(.02, .02, 1.05, '#2a2622', 6), s * .42, .56, -.42 + i * .21)); }
     const l = cyl(.06, .06, .14, '#e8c070', 8); g.add(place(l, .5, 1.2, .5)); return g; },
@@ -15581,6 +15597,7 @@ function shapeField(M, isIn, rc = 1.15, ro = .45, sig = 0) {
   return { sd, W:W_, H:H_, at };
 }
 const PAVE = new Set(['=', 'w', 'X']);
+const AO_AMT = { H:.3, D:.26, '#':.2, R:.16, h:.14 };
 const _buildTerrainBlock = buildTerrain;
 buildTerrain = function (M, V) {
   if (!M || M.kind === 'inside') return _buildTerrainBlock(M, V);
@@ -15639,6 +15656,11 @@ buildTerrain = function (M, V) {
         else if (g === 'pave' && sd > 0 && sd < .09) c.offsetHSL(0, 0, .035);               // a faint lighter kerb along the edge of paving
       }
       c.offsetHSL(0, 0, (vnoise(x * 1.1, z * 1.1, 9) - .5) * .07 + (hsh(i, j, 9) - .5) * .02);
+      // ground darkens where it meets walls, rocks and the tree line (a little baked-in shade, h42)
+      let ao = 0; for (let ty = Math.round(z) - 1; ty <= Math.round(z) + 1; ty++) for (let tx = Math.round(x) - 1; tx <= Math.round(x) + 1; tx++) {
+        const amt = AO_AMT[(M.tiles[ty] || [])[tx]]; if (!amt) continue; const dx = Math.max(Math.abs(x - tx) - .5, 0), dz = Math.max(Math.abs(z - ty) - .5, 0), d = Math.hypot(dx, dz);
+        ao = Math.max(ao, amt * (1 - sstep(0, .8, d))); }
+      if (ao) c.multiplyScalar(1 - ao);
     }
     pos[k] = x; pos[k + 1] = y; pos[k + 2] = z; colr[k] = c.r; colr[k + 1] = c.g; colr[k + 2] = c.b;
   }
@@ -15703,6 +15725,44 @@ function buildDeck(M) {
 
 const _routeExtrasBlock = buildRouteExtras;
 buildRouteExtras = function (M, V) { const g = _routeExtrasBlock(M, V); if (M.kind !== 'inside') { const d = buildDeck(M); if (d) g.add(d); } return g; };
+// ---------------------------------------------------------------- depth: shadows that ground things (27 Nov)
+// 1. The sun's shadow map follows you instead of stretching over the whole map, so shadows are four or five
+//    times sharper and darker (houses, trees, the tower, lamp posts, people all cast clear shadows).
+// 2. A soft contact shadow sits under every person, Manif and the player, so nobody floats.
+// 3. The ground darkens a little where it meets walls, rocks and the tree line (baked into the terrain colours
+//    in h41_curves.js), the way real ground does in the corners.
+
+// --- 1. the sun follows the camera's focus
+const SUN_DIR = new THREE.Vector3();
+function sunFollow() {
+  if (typeof camFocus === 'undefined' || !W || !W.player) return;
+  const M = MAPS[S.map]; if (!M || M.kind === 'inside') return;
+  const sun = worldLights.sun, tgt = sun.target.position;
+  SUN_DIR.copy(sun.position).sub(tgt); if (SUN_DIR.lengthSq() < 1e-6) return; SUN_DIR.normalize();
+  // how much of the world the camera can see: more when zoomed right out
+  const camD = camera.position.distanceTo(camFocus), span = clamp(camD * .9, 13, Math.max(M.w, M.h) * .65), sc = sun.shadow.camera;
+  const texel = 2 * span / sun.shadow.mapSize.x, fx = Math.round(camFocus.x / texel) * texel, fz = Math.round(camFocus.z / texel) * texel;   // snapped, so shadows don't crawl as you walk
+  tgt.set(fx, 0, fz); sun.position.copy(tgt).addScaledVector(SUN_DIR, 30); sun.target.updateMatrixWorld();
+  if (Math.abs(sc.right - span) > .5) { sc.left = sc.bottom = -span; sc.right = sc.top = span; sc.near = 1; sc.far = 80; sc.updateProjectionMatrix(); }
+}
+
+// --- 2. contact shadows
+const BLOB_TEX = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.45, 'rgba(0,0,0,.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(cv); return t; })();
+const BLOB_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const BLOB_MAT = new THREE.MeshBasicMaterial({ map:BLOB_TEX, color:'#1a1420', transparent:true, opacity:.34, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 });
+function addBlob(g, worldR) {
+  if (!g || g.userData.blob) return;
+  const s = g.scale.x || 1, b = new THREE.Mesh(BLOB_GEO, BLOB_MAT); b.scale.set(worldR * 2 / s, 1, worldR * 1.7 / s); b.position.y = .03 / s; b.renderOrder = 2; b.raycast = () => {};
+  g.add(b); g.userData.blob = b;
+}
+{ const _mk = evMarkOn; evMarkOn = function (e) { _mk(e);
+  try { const g = W.npcs[e.id]; if (!g || e.model || e.item || e.note) return; addBlob(g, e.manif ? .32 : .36); } catch (_) {} }; }
+
+{ const _rt = rideTick; rideTick = function (dt) { _rt(dt);
+  try { sunFollow(); addBlob(W.player, .38); for (const m of W.minis) addBlob(m, .2); for (const w of W.wilds || []) addBlob(w.g || w, .3);
+    BLOB_MAT.opacity = .34 * (1 - .45 * (dayState().night || 0)); } catch (_) {} }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
