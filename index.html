@@ -16951,6 +16951,8 @@ async function ending(final, kind) {
   if ((S.gave || []).length) { const g = S.gave[S.gave.length - 1]; line('Given back', g.type, g.sp, `You gave ${spn(g.sp) || fam(g.type)} back to someone who needed it${S.gave.length > 1 ? `, and did that ${S.gave.length} times` : ''}.`); }
   if ((S.sold || []).length) { const g = S.sold[S.sold.length - 1], m = S.sold.reduce((a, r) => a + (r.marks || 0), 0); line('Sold', g.type, g.sp, `You sold ${S.sold.length > 1 ? S.sold.length + ' feelings' : (spn(g.sp) || fam(g.type))} for ${m} Marks.`); }
   pages.push({ k:'What you set down', h:down.length ? 'Along the way' : 'Nothing', p:down.length ? '' : END.noneLetGo, extra:down.join('') });
+  // (26 Nov) after a first ending: the Codex says the story isn't over, and hints at what's still out there
+  if (!none && !S.flags.gameDone) pages.push(moreToDo(doom));
   const weather = `<p style="font-size:14px"><span class="mi" style="background:${TIERC[E.aura]}"></span> ${END.aura[E.aura]}</p><p style="font-size:13px;color:var(--muted)">${END.care}</p>`;
   pages.push(none ? { k:'Ink & Aura', h:'Nothing to do', p:'Every feeling in the Welkin was somebody\'s. When the moment came to carry them, you put them all down at once. The cities are still there. You can go and look.', cont:true, last:true , extra:weather } : doom ? { k:'Ink & Aura', h:'The quiet you chose', p:'You did not lose. You won, and this is what winning looked like. Every feeling the Welkin had was somebody\'s, and you gathered them up and put them away where nobody would ever have to feel them again. Was that mercy? The Welkin can\'t tell you. It has forgotten how to answer.', extra:weather, last:true } : { k:'Ink & Aura', h:'No losing', p:END.close, extra:weather, last:true });
   $('#ending').classList.remove('hidden');
@@ -16967,6 +16969,24 @@ async function ending(final, kind) {
     endingHandler = b => { if (b === 'a') act(pages[i].last ? 'keep' : 'next'); if (b === 'b' && pages[i].last) act('new'); };
     render();
   });
+}
+function moreToDo(doom) {
+  const li = (c, t) => `<p style="font-size:14px;margin:6px 0"><span class="mi" style="background:${c}"></span> ${t}</p>`;
+  const L = doom ? [
+    ['#9a948a', 'Something in the Stillwell is still awake. The Welkin\'s last free feeling has come looking for you.'],
+    ['#8a8680', 'The Conductor\'s Ledger floats in the still water, and every bound city keeps a lectern waiting for an order.'],
+    ['#b48ad0', 'Not everyone went grey. In every city, someone is still awake, or has put on the grey for you. Go and see which.'],
+    ['#6a6a72', 'Five of the Choir survived, scattered along the roads. They might sing for you, if you earn it.'],
+    ['#5aa0c8', 'The far places never heard the Chord. Saltmere, Holdfast, Quillsby, Whitecrown, and further. Their people will have opinions.'],
+    ['#c8a03a', 'And there may be a way back. It would be long, and it would be hard, and nobody would thank you for it.'] ] : [
+    ['#b9a46a', 'Something is still down in the Stillwell. Orrin Vale held the Hush shut for two hundred years, and whatever is left of him is waking.'],
+    ['#f2a33a', 'The people who started each city\'s trouble have one last thing they need. Look for the gold diamond by the square.'],
+    ['#5aa0c8', 'The trains run again, all the way out to the far places, past the edge of every map you\'ve seen.'],
+    ['#e07a8a', 'The feelings you carry belonged to someone. Some of them will come looking.'],
+    ['#c84a3a', 'The Hearts will face you again at their shrines, far stronger, and the notice boards have new bounties.'],
+    ['#8a8680', 'Help enough of them, and the well goes deeper than anyone has seen. And the Conductor is still conducting, in the dark of the Hollow Throat.'] ];
+  return { k:'Not the end', h:'There\'s more out there', p:doom ? 'The Chord is sung. The Welkin is quiet. But the story isn\'t finished with you yet.' : 'The Welkin is awake, and loud, and its own again. But the story isn\'t finished yet.',
+    extra:L.map(([c, t]) => li(c, t)).join('') + '<p style="font-size:13px;color:var(--muted);margin-top:8px">The level cap is now 75. Wild Manifs everywhere have grown stronger.</p>' };
 }
 // Test build: no saves. Pick a checkpoint every time.
 // Test build: a new journey where, the moment your starter is yours, every Manif is at Lv 100 and every other Manif is in the Satchel.
