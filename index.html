@@ -14796,6 +14796,34 @@ function mapRoad(A, B, solid, far) { const mx = (A.x + B.x) / 2, my = (A.y + B.y
   const cx = mx - dy / L * bow, cy = my + dx / L * bow;
   return `<path d="M${f1(A.x)} ${f1(A.y)}Q${f1(cx)} ${f1(cy)} ${f1(B.x)} ${f1(B.y)}" fill="none" stroke="${far ? MAP_FAR : '#6a5236'}" stroke-width="${solid ? 2.2 : 1.5}" stroke-dasharray="${solid ? '5 3' : '2 4'}" stroke-linecap="round" opacity="${solid ? .95 : .6}"/>`; }
 
+// ---- labels that never overlap (26 Nov). Every place's name tries below its icon, then above, right, left, and a
+// little further out each way, and takes the first spot that's clear of every other name and every other icon.
+// The country names round the rim then slide along the rim (and in a little) until they're clear of all of those.
+let MAP_BOXES = [];
+const mapHit = (b, list) => list.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+function mapIconBox(n) { const k = n.kind, x = n.x, y = n.y;
+  return k === 'hub' ? [x - 36, y - 36, x + 36, y + 30] : k === 'city' ? [x - 26, y - 32, x + 26, y + 14] : k === 'way' ? [x - 21, y - 26, x + 21, y + 11] : k === 'far' ? [x - 24, y - 22, x + 24, y + 16] : [x - 4, y - 4, x + 4, y + 4]; }
+function mapPlaceLabels(LB, nodes) {
+  const icons = nodes.map(n => ({ id:n.id, b:mapIconBox(n) })), placed = [];
+  const order = { hub:0, city:1, far:2, way:3, farroad:4, route:5 };
+  LB.sort((A, B) => (order[A.n.kind] ?? 6) - (order[B.n.kind] ?? 6));
+  let out = '';
+  for (const L of LB) { const n = L.n, f = L.fs, w = L.label.length * f * (L.small ? .55 : .64) + 6, ib = mapIconBox(n), others = icons.filter(i => i.id !== n.id).map(i => i.b);
+    const box = (x, y, anc) => { const x0 = anc === 'start' ? x : anc === 'end' ? x - w : x - w / 2; return [x0 - 2, y - f * .82, x0 + w + 2, y + f * .28]; };
+    const C = [[n.x, ib[3] + f * .85, 'middle'], [n.x, ib[1] - 5, 'middle'], [ib[2] + 4, n.y + f * .32, 'start'], [ib[0] - 4, n.y + f * .32, 'end'],
+      [n.x, ib[3] + f * 1.9, 'middle'], [n.x, ib[1] - 5 - f, 'middle'], [ib[2] + 4, n.y + f * 1.3, 'start'], [ib[0] - 4, n.y + f * 1.3, 'end'], [ib[2] + 4, n.y - f * .7, 'start'], [ib[0] - 4, n.y - f * .7, 'end']];
+    let pick = C[0]; for (const c of C) { const b = box(...c); if (!mapHit(b, placed) && !mapHit(b, others)) { pick = c; break; } }
+    placed.push(box(...pick));
+    out += `<text x="${f1(pick[0])}" y="${f1(pick[1])}" text-anchor="${pick[2]}" font-size="${f}" font-weight="${L.small ? 600 : 700}" ${L.small ? 'font-style="italic"' : ''} fill="${L.fill}" paint-order="stroke" stroke="${MAP_PAPER}" stroke-width="3" stroke-linejoin="round">${L.label}</text>`; }
+  MAP_BOXES = placed.concat(icons.map(i => i.b));
+  return out;
+}
+function mapRimSpot(t) { const a0 = mapAng(t), h = Math.PI / WHEEL.length, len = TYPES[t].name.length * 15 + 8; let best = [a0, MAP_EDGE - 16], bestHits = 1e9;
+  for (const r of [MAP_EDGE - 16, MAP_EDGE - 30, MAP_EDGE - 44, MAP_EDGE - 58]) for (const d of [0, .14, -.14, .28, -.28, .42, -.42, .56, -.56, .7, -.7]) { const a = a0 + d * h, [x, y] = mapPol(a, r), tx = -Math.sin(a), ty = Math.cos(a);
+    let hits = 0; for (let k = -len / 2; k <= len / 2; k += 6) { const px = x + tx * k, py = y + ty * k; if (mapHit([px - 11, py - 11, px + 11, py + 11], MAP_BOXES)) hits++; }
+    const score = hits * 10 + Math.abs(d) + (MAP_EDGE - 16 - r) / 40;   // clear first; then as close to the middle of its country and the rim as it can be
+    if (score < bestHits) { bestHits = score; best = [a, r]; } if (!hits && d === 0 && r === MAP_EDGE - 16) break; }
+  return best; }
 worldMapSheet = function () {
   const { N, L } = mapNodes(), V = S.visited || {}, here = hereId(), seen = n => V[n.id] || n.id === 'vellum';
   const isFar = n => n.kind === 'far' || n.kind === 'farroad';
@@ -14821,22 +14849,27 @@ worldMapSheet = function () {
   s += `<g clip-path="url(#mwel)">${WHEEL.map(t => `<path d="${mapWedge(t)}" fill="${TYPES[t].c}" opacity=".2"/>`).join('')}</g>`;
   s += `<path d="${mapBlob(MAP_EDGE, 6, 11)}" fill="none" stroke="${MAP_INK}" stroke-width="1.4" stroke-dasharray="7 4 1 4"/>`;
   { const [ex, ey] = mapPol(-Math.PI / 2 - .45, MAP_EDGE + 14); s += `<text x="${f1(ex)}" y="${f1(ey)}" font-size="12" font-style="italic" fill="${MAP_INK}" opacity=".75" transform="rotate(-28 ${f1(ex)} ${f1(ey)})">the Edge of the Welkin</text>`; }
+  // names first (so nothing else lands on them)
+  const LB = [];
+  for (const n of Object.values(P)) { if (!known(n)) continue; const v = seen(n), ink = n.t ? inkOf(n.t) : MAP_FAR, small = n.kind === 'route' || n.kind === 'farroad';
+    LB.push({ n, label:v || n.kind === 'hub' ? n.name : n.kind === 'far' || n.kind === 'farroad' ? n.name : '?', small, fs:n.kind === 'hub' ? 20 : n.kind === 'city' || n.kind === 'far' ? 15 : small ? 11 : 13, fill:v ? ink : '#9a8a70' }); }
+  const labelSVG = mapPlaceLabels(LB, Object.values(P).filter(known)), offLabel = (x, y, r) => !mapHit([x - r, y - r, x + r, y + r * .7], MAP_BOXES);
   // landmarks in each country (kept clear of the towns and their names)
   const busy = Object.values(P).filter(known).map(n => [n.x, n.y]);
   const clear = (x, y, d) => busy.every(([bx, by]) => Math.hypot(bx - x, by - y + 8) > d);
   WHEEL.forEach((t, i) => { const R = mapRng(101 + i * 37), a0 = mapAng(t), h = Math.PI / WHEEL.length; let placed = 0;
     for (let k = 0; k < 60 && placed < 5; k++) { const a = a0 + (R() * 1.6 - .8) * h, r = 60 + R() * (MAP_EDGE - 90), [x, y] = mapPol(a, r);
-      if (!clear(x, y, 32)) continue; busy.push([x, y]); placed++; const gl = MAP_LAND_GLYPHS[t][placed % 3]; s += `<g opacity=".85">${mapG(gl, x, y)}</g>`; } });
+      if (!clear(x, y, 32) || !offLabel(x, y, 16)) continue; busy.push([x, y]); placed++; const gl = MAP_LAND_GLYPHS[t][placed % 3]; s += `<g opacity=".85">${mapG(gl, x, y)}</g>`; } });
   // the wide country past the edge: faint woods and hills, nobody's feelings in particular
   { const R = mapRng(77); let n = 0; for (let k = 0; k < 400 && n < 34; k++) { const a = R() * Math.PI * 2, r = MAP_EDGE + 22 + R() * (MAP_LAND - MAP_EDGE - 50), [x, y] = mapPol(a, r);
-      if (!clear(x, y, 46)) continue; busy.push([x, y]); n++; s += `<g opacity=".35">${mapG(['hills', 'pines', 'hills'][n % 3], x, y, 1.2)}</g>`; } }
+      if (!clear(x, y, 46) || !offLabel(x, y, 18)) continue; busy.push([x, y]); n++; s += `<g opacity=".35">${mapG(['hills', 'pines', 'hills'][n % 3], x, y, 1.2)}</g>`; } }
   // the far countries: unknown ones are fog
   for (const n of Object.values(P)) { if (n.kind !== 'far') continue; const R = mapRng(n.id.length * 97 + n.x);
     if (!known(n)) { s += `<g opacity=".75">${[0, 1, 2].map(i => `<ellipse cx="${f1(n.x + (i - 1) * 20)}" cy="${f1(n.y + (i % 2) * 8)}" rx="${26 + R() * 8}" ry="${13 + R() * 4}" fill="#f6f0e2"/>`).join('')}</g>`; continue; }
-    const ex = MAP_FAR_EXTRA[n.id]; if (ex) { for (let k = 0; k < 6; k++) { const a = R() * Math.PI * 2, x = n.x + Math.cos(a) * (34 + R() * 10), y = n.y + Math.sin(a) * (28 + R() * 8); if (clear(x, y, 28)) { busy.push([x, y]); s += `<g opacity=".8">${mapG(ex, x, y)}</g>`; } } } }
+    const ex = MAP_FAR_EXTRA[n.id]; if (ex) { for (let k = 0; k < 6; k++) { const a = R() * Math.PI * 2, x = n.x + Math.cos(a) * (34 + R() * 10), y = n.y + Math.sin(a) * (28 + R() * 8); if (clear(x, y, 28) && offLabel(x, y, 16)) { busy.push([x, y]); s += `<g opacity=".8">${mapG(ex, x, y)}</g>`; } } } }
   // roads
   for (const [a, b] of L) { const A = P[a], B = P[b]; if (!A || !B || !known(A) || !known(B)) continue; s += mapRoad(A, B, seen(A) && seen(B), isFar(A) || isFar(B)); }
-  // places
+  // places (their names were placed above, all together, so no two overlap)
   for (const n of Object.values(P)) { if (!known(n)) continue; const v = seen(n), col = n.t ? TYPES[n.t].c : MAP_FAR, ink = n.t ? inkOf(n.t) : MAP_FAR;
     if (n.kind === 'hub') s += `<g transform="translate(${f1(n.x)} ${f1(n.y)}) scale(1.3) translate(${f1(-n.x)} ${f1(-n.y)})">${mapVellum(n.x, n.y)}</g>`;
     else if (n.kind === 'city' || n.kind === 'way') s += `<g transform="translate(${f1(n.x)} ${f1(n.y)}) scale(1.35) translate(${f1(-n.x)} ${f1(-n.y)})">${mapTown(n.x, n.y, col, n.kind === 'city', !v)}</g>`;
@@ -14844,11 +14877,10 @@ worldMapSheet = function () {
     else s += `<circle cx="${f1(n.x)}" cy="${f1(n.y)}" r="2.6" fill="${v ? ink : MAP_PAPER}" stroke="${MAP_INK}" stroke-width=".8"/>`;
     if (n.kind === 'city' && S.hearts && S.hearts[n.t]) s += `<text x="${f1(n.x + 17)}" y="${f1(n.y - 14)}" font-size="15" fill="${(typeof bound === 'function' && bound()[n.t]) ? '#7a7a7a' : '#c0302a'}" paint-order="stroke" stroke="${MAP_PAPER}" stroke-width="2.5">♥</text>`;
     if (n.id === here) s += `<circle cx="${f1(n.x)}" cy="${f1(n.y)}" r="22" fill="none" stroke="#c0302a" stroke-width="3"><animate attributeName="r" values="20;26;20" dur="3s" repeatCount="indefinite"/></circle>`;
-    const small = n.kind === 'route' || n.kind === 'farroad', ly = n.y + (n.kind === 'hub' ? 44 : n.kind === 'city' ? 28 : n.kind === 'far' ? 30 : small ? 15 : 22);
-    const label = v || n.kind === 'hub' ? n.name : n.kind === 'far' || n.kind === 'farroad' ? n.name : '?';
-    s += `<text x="${f1(n.x)}" y="${f1(ly)}" text-anchor="middle" font-size="${n.kind === 'hub' ? 20 : n.kind === 'city' || n.kind === 'far' ? 15 : small ? 11 : 13}" font-weight="${small ? 600 : 700}" ${small ? 'font-style="italic"' : ''} fill="${v ? ink : '#9a8a70'}" paint-order="stroke" stroke="${MAP_PAPER}" stroke-width="3" stroke-linejoin="round">${label}</text>`; }
+  }
+  s += labelSVG;
   // each country's name, round the rim
-  WHEEL.forEach(t => { const a = mapAng(t), [x, y] = mapPol(a, MAP_EDGE - 16), deg = a * 180 / Math.PI + 90, flip = deg > 90 && deg < 270;
+  WHEEL.forEach(t => { const a = mapRimSpot(t), [x, y] = mapPol(a[0], a[1]), deg = a[0] * 180 / Math.PI + 90, flip = deg > 90 && deg < 270;
     s += `<text x="${f1(x)}" y="${f1(y)}" text-anchor="middle" dominant-baseline="middle" font-size="13" letter-spacing="4" font-weight="700" fill="${inkOf(t)}" opacity=".85" transform="rotate(${f1(flip ? deg - 180 : deg)} ${f1(x)} ${f1(y)})">${TYPES[t].name.toUpperCase()}</text>`; });
   // the furniture: title cartouche, compass, vignette
   const tx = x0 + 30, ty = x0 + 44;
