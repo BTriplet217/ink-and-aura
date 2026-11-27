@@ -9125,12 +9125,18 @@ SET.grave = p => { const g = new THREE.Group(), c = p.c || '#9a968a'; if (p.cros
   else { sBox(g, .5, .62, .12, c, 0, .31, 0); sCyl(g, .25, .25, .12, c, 0, .62, 0, [Math.PI / 2, 0, 0], { seg:14 }); } sBox(g, .5, .04, .9, '#5f7a3e', 0, .02, .45, { ink:0 });
   if (p.flowers) for (let i = 0; i < 3; i++) sBall(g, .05, pickA(['#f2a7c0', '#f4cf5e', '#f3e7c9']), -.12 + i * .12, .08, .3); return g; };
 SET.hay = p => { const g = new THREE.Group(); sCyl(g, .45, .45, .9, '#d9b860', 0, .45, 0, [0, 0, Math.PI / 2], { seg:16 }); return g; };
-SET.truck = p => { const g = new THREE.Group(), c = p.c || '#8a3a2a', wood = '#6a4a30', dark = '#3a2a1e';   // a hay wagon up on blocks, one wheel off for mending (26 Nov: no trucks in the Welkin)
-  sBox(g, 2.1, .2, .95, c, 0, .62, 0); for (const s of [-1, 1]) sBox(g, 2.1, .3, .05, wood, 0, .85, s * .46);
-  for (const [x, z] of [[-.6, -.2], [.1, .15], [.6, -.15]]) sBox(g, .55, .34, .4, '#d8b85a', x, .9, z, { ink:.02 });   // hay bales
-  for (const s of [-1, 1]) for (const x of [-.75, .75]) sBox(g, .3, .42, .3, '#8a8478', x, .21, s * .35);   // the blocks
-  const wh = new THREE.Group(); wh.position.set(1.3, .32, .7); wh.rotation.set(Math.PI / 2, 0, .35); g.add(wh);   // the wheel leaning against it
-  sCyl(wh, .32, .32, .07, dark, 0, 0, 0, null, { seg:18 }); sCyl(wh, .25, .25, .08, '#8a6a48', 0, 0, 0, null, { seg:18 }); for (let k = 0; k < 4; k++) sBox(wh, .46, .03, .03, dark, 0, 0, 0, { rot:[0, k * Math.PI / 4, 0] });
+SET.truck = p => { const g = new THREE.Group(), c = p.c || '#8a3a2a', dark = '#2a2622', steel = '#6a6660';   // Dutch's job: an old farm tractor, hood up, one front wheel off (26 Nov: tractors, not trucks)
+  sBox(g, 1.3, .5, .6, c, .25, .72, 0); sBox(g, .5, .55, .7, c, -.45, .78, 0);   // the engine and the body
+  const hood = sBox(g, 1.15, .06, .62, c, .45, 1.2, -.18, { rot:[.9, 0, 0] });   // the hood, propped open
+  sBox(g, .8, .16, .5, '#3a3632', .3, 1.02, 0);   // the engine block showing
+  sCyl(g, .05, .06, .55, dark, .7, 1.3, .18); sCyl(g, .07, .05, .06, dark, .7, 1.6, .18);   // the exhaust stack
+  sBox(g, .3, .08, .32, '#3a2a1e', -.55, 1.12, 0); sBox(g, .06, .32, .32, '#3a2a1e', -.7, 1.3, 0);   // the seat
+  sCyl(g, .035, .035, .4, dark, -.25, 1.25, 0, [0, 0, .5]); sCyl(g, .16, .16, .03, dark, -.15, 1.44, 0, [0, 0, .5]);   // the steering wheel
+  for (const s of [-1, 1]) { const w = new THREE.Group(); w.position.set(-.45, .5, s * .48); w.rotation.x = Math.PI / 2; g.add(w);   // big back wheels
+    sCyl(w, .5, .5, .26, dark, 0, 0, 0, null, { seg:20 }); sCyl(w, .3, .3, .27, '#b8902a', 0, 0, 0, null, { seg:16 }); }
+  { const w = new THREE.Group(); w.position.set(.8, .3, .34); w.rotation.x = Math.PI / 2; g.add(w); sCyl(w, .28, .28, .16, dark, 0, 0, 0, null, { seg:16 }); sCyl(w, .15, .15, .17, '#b8902a', 0, 0, 0, null, { seg:12 }); }   // one front wheel on
+  sBox(g, .3, .4, .3, '#8a8478', .8, .2, -.34);   // a block where the other one should be
+  { const w = new THREE.Group(); w.position.set(1.35, .26, -.55); w.rotation.set(Math.PI / 2, 0, .3); g.add(w); sCyl(w, .28, .28, .16, dark, 0, 0, 0, null, { seg:16 }); sCyl(w, .15, .15, .17, '#b8902a', 0, 0, 0, null, { seg:12 }); }   // and the wheel itself, leaning
   return g; };
 SET.tractor = p => { const g = new THREE.Group(); sBox(g, 1.3, .5, .6, '#4f7a3a', .1, .7, 0); sBox(g, .5, .6, .6, '#4f7a3a', -.4, 1.2, 0); sCyl(g, .5, .5, .2, '#211d1b', -.45, .5, .4, [Math.PI / 2, 0, 0]); sCyl(g, .5, .5, .2, '#211d1b', -.45, .5, -.4, [Math.PI / 2, 0, 0]);
   sCyl(g, .28, .28, .16, '#211d1b', .55, .28, .35, [Math.PI / 2, 0, 0]); sCyl(g, .28, .28, .16, '#211d1b', .55, .28, -.35, [Math.PI / 2, 0, 0]); sCyl(g, .05, .05, .5, '#2a2826', .5, 1.2, 0); return g; };
@@ -9699,7 +9705,7 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
 (function buildCobb() {
   const B = regionBuilder('cobb_hollow', 42, 34), m = B.m; border(m, 2);
   rect(m, 0, 16, 40, 2, '='); rect(m, 20, 4, 2, 26, '='); rect(m, 2, 9, 38, 1, '=');
-  B.house(4, 11, 8, '#6a6a6a', '#c8c0b0', { name:'Dutch\'s Wheelwright', w:13, h:9, music:'country', floor:['#5a5a54', '#4e4e48'], wall:'#a8a498', furn:[['table', 2, 2], ['shelf', 1, 5], ['shelf', 11, 1], ['pallet', 9, 5], ['pallet', 10, 5]] }, { role:'store' });
+  B.house(4, 11, 8, '#6a6a6a', '#c8c0b0', { name:'Dutch\'s Garage', w:13, h:9, music:'country', floor:['#5a5a54', '#4e4e48'], wall:'#a8a498', furn:[['table', 2, 2], ['shelf', 1, 5], ['shelf', 11, 1], ['pallet', 9, 5], ['pallet', 10, 5]] }, { role:'store' });
   B.piece('truck', 13, 12, 2, 1); B.piece('pallet', 15, 14);
   B.house(23, 11, 7, '#8a3a2a', '#e8dcc0', { name:'Pruitt\'s Dry Goods', w:11, h:9, music:'country', floor:['#8a7458', '#7e6a50'], wall:'#d8c8a8', furn:[['shelf', 1, 1], ['shelf', 3, 1], ['shelf', 7, 1], ['shelf', 9, 1], ['desk', 5, 4], ['pallet', 2, 6]] }, { role:'store' });
   B.house(31, 11, 8, '#4f8aa8', '#f0f0e8', { name:'The Blue Plate', w:15, h:10, music:'country', floor:['#e8e0d0', '#2a2a2a'], wall:'#c8dce8',
@@ -9718,12 +9724,12 @@ const COBB_V = REGION_VIBE({ sky:'#e4d8c0', fog:'#e0d4bc', fogNear:20, fogFar:52
   m[18][35] = 's';
   B.piece('watertower', 15, 24, 2, 2); B.piece('car', 16, 19, 2, 1, { c:'#8a3a2a', r:0 });
   for (const [x, y] of [[3, 15], [19, 15], [30, 15], [19, 25]]) B.lamp(x, y);
-  regionMap('cobb_hollow', B, { name:'Cobb Hollow', sub:'Population 61', V:COBB_V, music:'country', arrive:'One street, a wheelwright\'s, a dry-goods store, a diner with a blue neon plate in the window and a white chapel, a cemetery behind a hedge. Every porch has someone on it. Every someone has stopped talking.',
+  regionMap('cobb_hollow', B, { name:'Cobb Hollow', sub:'Population 61', V:COBB_V, music:'country', arrive:'One street, a garage, a dry-goods store, a diner with a blue neon plate in the window and a white chapel, a cemetery behind a hedge. Every porch has someone on it. Every someone has stopped talking.',
     exit:(nx, ny) => nx < 0 ? { map:'r_dustline', x:58, y:9, dir:'left' } : null });
   const IN = i => MAPS['cobb_hollow_in' + i].room;
   IN(0).npcs = [npc('dutch', 6, 4, 'down', 'Dutch', lk('#3a4a5a', '#c0503a', SK[3], '#3a2414', ['cap', 'beard', 'hammer']), judged('Dutch', ['even', 'shadow'],
-    async () => { await sayAs('Dutch', 'Hell, I like you. You\'ve got that look like you\'d help a man push a wagon out of a ditch and not ask why it was in the ditch. Here: I don\'t need these.'); if (once('dutchGift')) { S.items.iron = (S.items.iron || 0) + 3; await say('(You get 3 Iron, in a greasy rag.)'); } },
-    () => sayAs('Dutch', 'You\'re too clean for a wheelwright\'s yard, sunshine. Shop\'s closed.')))];
+    async () => { await sayAs('Dutch', 'Hell, I like you. You\'ve got that look like you\'d help a man push a tractor out of a ditch and not ask why it was in the ditch. Here: I don\'t need these.'); if (once('dutchGift')) { S.items.iron = (S.items.iron || 0) + 3; await say('(You get 3 Iron, in a greasy rag.)'); } },
+    () => sayAs('Dutch', 'You\'re too clean for a garage, sunshine. Shop\'s closed.')))];
   IN(1).npcs = [npc('pruitt', 5, 5, 'down', 'Irma Pruitt', lk('#5a4a6a', '#f3e7c9', SK[0], '#d8d0c0', ['glasses', 'bun']), judged('Irma Pruitt', ['light'],
     async () => { await sayAs('Irma Pruitt', 'Well, aren\'t you a breath of fresh air. Ten percent off, and don\'t tell the Hendersons.'); return openShop('drygoods'); },
     async () => { await sayAs('Irma Pruitt', 'We don\'t have what you\'re looking for.'); await say('(You haven\'t said what you\'re looking for.)'); }))];
@@ -12208,7 +12214,7 @@ const ANIMALS = [
   ['r_dustline', 'cow', 28, 8, 'right', 'A dairy cow chewing slowly, looking at you the way cows look at everything.'],
   ['r_dustline', 'cow', 25, 9, 'left', 'A cow flicks a fly off with its tail. Then another. It\'s going to be a long afternoon.'],
   ['r_dustline', 'chicken', 34, 13, 'down', 'A hen marches across the road like she owns it. Out here, she might.', { c:'#c8783a' }],
-  ['cobb_hollow', 'dog', 14, 15, 'right', 'A tired old hound asleep in the shade of Dutch\'s wheelwright shop. One ear lifts when you pass.', { c:'#a07a4a' }],
+  ['cobb_hollow', 'dog', 14, 15, 'right', 'A tired old hound asleep in the shade of Dutch\'s garage. One ear lifts when you pass.', { c:'#a07a4a' }],
   ['cobb_hollow', 'cat', 9, 23, 'up', 'A thin black cat on a porch step. It watches you all the way down the street.', { c:'#2a2628' }],
   ['cobb_hollow', 'chicken', 30, 12, 'left', 'A rooster struts along the fence and crows, late, at nobody.', { c:'#a8452f' }]
 ];
@@ -14663,9 +14669,9 @@ const FAR_WORD = {
       'That\'s how it\'s meant to go. Sorrowmere\'s rain has been falling for two hundred years because nobody there has been let finish.',
       'Sadness wants company while it\'s happening. Then it wants to be allowed to end, a little at a time.'],
     word:'Sadness needs company, and to be allowed to finish.', recall:'You think of Vosk, sad all over again on his wife\'s birthday, and then less.' },
-  SHAME:{ id:'dutch', who:'Dutch', place:'Cobb Hollow', hint:'hint_vh', where:'Cobb Hollow, the farm town. Out past the tracks at Veilham\'s front-right corner, then down the Dustline. Ask for Dutch at the wheelwright\'s.',
-    lines:['Twelve years back I drove home from the Fourth drunk. Put my wagon through Irma Pruitt\'s fence, and her old dog with it. Whole town knows. I paid for the fence. Couldn\'t pay for the dog.',
-      'I feel it every time I drive past her porch. And every time, Irma nods at me. Sixty-one people, every one of them knows, and they still bring me their wheels and their ploughs.',
+  SHAME:{ id:'dutch', who:'Dutch', place:'Cobb Hollow', hint:'hint_vh', where:'Cobb Hollow, the farm town. Out past the tracks at Veilham\'s front-right corner, then down the Dustline. Ask for Dutch at the garage.',
+    lines:['Twelve years back I drove home from the Fourth drunk. Put my tractor through Irma Pruitt\'s fence, and her old dog with it. Whole town knows. I paid for the fence. Couldn\'t pay for the dog.',
+      'I feel it every time I drive past her porch. And every time, Irma nods at me. Sixty-one people, every one of them knows, and they still bring me their tractors.',
       'Shame\'s for telling you what you did. Then you go on living where folks can see you. Veilham\'s been behind its curtains so long it forgot the second part.'],
     word:'Shame tells you what you did. Then you live where people can see you.', recall:'You think of Dutch, driving past Irma\'s porch, and Irma nodding.' },
   DISGUST:{ id:'gs_odalie', who:'Odalie', place:'Galloway Landing', hint:'hint_gl2', where:'Galloway Landing, on the bayou. Off the west edge of Rendering Ditch, through the Black Bayou. Ask for Odalie, the traiteur, in the stilt houses out over the water.',
