@@ -1647,7 +1647,7 @@ float wsh(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
 // feel. Stone-coloured ground gets cobbles, stone walls get bricks, sloped roofs get tile rows,
 // and everything else (grass, painted walls) gets texel speckle. Characters and Manifs (kind 1/2)
 // get finer texels and banded, sprite-like shading with crisp silhouettes.
-const SURF_ID = { auto:0, ground:1, stone:2, plaster:3, wood:4, roof:5, metal:6 };
+const SURF_ID = { auto:0, ground:1, stone:2, plaster:3, wood:4, roof:5, metal:6, marble:7 };
 function washPatch(m, kind, surf = 'auto') {
   const chars = kind >= 1, SF = SURF_ID[surf] || 0;
   m.onBeforeCompile = sh => {
@@ -1695,6 +1695,9 @@ function washPatch(m, kind, surf = 'auto') {
         else if (SF == 5) { vec2 rc = vec2(ny > .9 ? gc.x : floor(hz * TX), floor((vWP.y + (ny > .9 ? vWP.z : 0.)) * TX));      // roof tiles: rows with a dark lip
           float row = floor(rc.y / 3.), x = rc.x + mod(row, 2.) * 2.; float lip = mod(rc.y, 3.) < 1. ? 1. : 0., seam = mod(x, 4.) < 1. ? 1. : 0.;
           pat = mix(.9 + .14 * wsh(vec2(floor(x / 4.), row)), .74, max(lip, seam * .35)); }
+        else if (SF == 7) { vec3 q = vOP * 2.2;   // marble: soft grey veins that wander through the stone, fixed to the object
+          float v = abs(sin(q.x * 1.7 + q.y * 2.3 + q.z * 1.1 + wn3(q * 1.3) * 5.5)), v2 = abs(sin(q.x * -2.6 + q.y * 1.2 + q.z * 2.9 + wn3(q * 2.1 + 4.) * 4.));
+          pat = (.97 + .05 * t1) - .2 * (1. - smoothstep(.0, .07, v)) - .1 * (1. - smoothstep(.0, .04, v2)); }
         else if (SF == 6) { vec2 oc = floor(vec2(abs(N.x) > abs(N.z) ? vOP.z : vOP.x, vOP.y) * TX);   // riveted plates, fixed to the object so they ride along with it
           float seam = mod(oc.y, 9.) < 1. ? 1. : 0., rivet = (mod(oc.y, 9.) == 2. && mod(oc.x, 4.) == 1.) ? 1. : 0.;
           float sheen = smoothstep(.55, .95, N.y) * .25 + smoothstep(.2, .9, 1. - ny) * .06;
@@ -5058,11 +5061,12 @@ function buildWorld(id) {
   if (id === 'vellum') for (const [k, g] of Object.entries(GATES)) { const t = GATE_TYPE[k]; world.add(at(buildArch(TYPES[t].c, g.arch[2]), g.arch[0], groundY(g.arch[0], g.arch[1]) - BASE, g.arch[1])); }
   if (M.kind === 'way' || M.kind === 'city') { const t = M.vibe; if (M.entryN && M.kind === 'way') world.add(at(buildArch(TYPES[t].c, 0), M.entryN.x + .5, groundY(M.entryN.x, 1), 1.2)); if (M.entryS) world.add(at(buildArch(TYPES[t].c, 0), M.entryS.x + .5, groundY(M.entryS.x, M.h - 2), M.h - 1.4)); }
   W.heart = null;
-  if (M.kind === 'still') { world.add(at(buildShrine('#ffffff'), 10.5, 0, 3.5)); if (!S.flags.hushDone) { W.heart = buildHush(); W.heart.position.set(10.5, 2.6, 3.5); world.add(W.heart); } }
+  if (M.kind === 'still') { world.add(at(buildShrine('#ffffff'), 10.5, 0, 3.5)); if (!S.flags.hushDone) { W.heart = buildHush(); W.heart.position.set(10.5, 2.6, 3.5); world.add(W.heart); } else world.add(at(marbleHush(), 10.5, .85, 3.5)); }   // settled: the Hush in marble
   if (M.kind === 'city') {
     const t = M.vibe, SH = M.shrine || SHRINE; world.add(at(buildShrine(TYPES[t].c), SH.x, 0, SH.z));
     if (!S.hearts[t] && heartWaits(t)) world.add(at(heartStatue(t), SH.x, 1.25, SH.z));   // still stone: this city's event comes first
     else if (!S.hearts[t]) { W.heart = buildManif(heartOf(t), { scale:1.6 }); W.heart.position.set(SH.x, 2.3, SH.z); world.add(W.heart); }
+    else world.add(at(marbleHeart(t), SH.x, .85, SH.z));   // settled: the Heart in marble on its shrine
   }
   W.fog = [];
   if (V.groundFog) for (let k = 0; k < (M.kind === 'city' ? 34 : 18); k++) {
@@ -6014,7 +6018,7 @@ async function talkHeart(t) {
   if (r === 'blackout') return blackout();
   if (r === 'fled') return;
   const wasBound = await maybeBind(t); if (wasBound === 'left') return;
-  S.hearts[t] = 1; if (W.heart) { world.remove(W.heart); W.heart = null; } 
+  S.hearts[t] = 1; if (W.heart) { world.remove(W.heart); W.heart = null; const M = MAPS[S.map], SH = M && (M.shrine || SHRINE); if (M && M.kind === 'city' && M.vibe === t) try { world.add(at(marbleHeart(t), SH.x, .85, SH.z)); } catch (_) {} }   // and the marble statue takes its place 
   await fadeTo(1, 500); buildWorld(S.map); await fadeTo(0, 700);
   await say(wasBound ? `The Heart of ${T.name} is bound. The Numbed stay grey, and every one of them is facing you.` : `The Heart of ${T.name} has settled. Colour creeps back into the faces of the Numbed. For the first time in years, the city can feel something else.`);
   await gainFrag(HEART_FRAG[t], 'In the stillness after, a scrap of old Archive paper drifts down from the shrine and lands at your feet.');
@@ -7228,6 +7232,29 @@ function heartStatue(t) {
   g.onBeforeRender = () => {}; g.traverse(o => { o.onBeforeRender = () => {}; });   // a statue doesn't breathe
   return g;
 }
+// MARBLE (26 Nov): once a Heart is settled, or the Hush, its shrine isn't left bare. A marble statue of it stands
+// there on a plinth banded in its feeling's colour: white stone with soft grey veins, every part kept in shape.
+// Light parts of the figure carve paler, dark parts a little deeper, so the likeness reads. It doesn't move.
+function marbleTone(c) { const k = new THREE.Color(c), lum = .3 * k.r + .59 * k.g + .11 * k.b; return new THREE.Color('#cfc8bd').lerp(new THREE.Color('#fbf8f2'), Math.min(1, .25 + lum * .95)); }
+function toMarble(g) {
+  g.traverse(o => { if (o.isSprite || o.isPoints || o.isLight) { o.visible = false; return; }
+    if (!o.isMesh || !o.material || o.material === INK || !o.material.color) return;
+    if (o.material.side === THREE.BackSide) return;   // ink outlines stay ink
+    if (o.material.transparent && o.material.opacity < .9) { o.visible = false; return; }
+    o.material = toon('#' + marbleTone(o.material.color).getHexString(), { surf:'marble', wash:0 }); });
+  if (g.userData.aura) { g.userData.aura.halo.visible = false; g.userData.aura.ring.visible = false; g.userData.aura.motes.forEach(m => m.visible = false); }
+  g.onBeforeRender = () => {}; g.traverse(o => { o.onBeforeRender = () => {}; });   // a statue doesn't breathe
+  return g;
+}
+function marblePlinth(band, r = .62) { const g = new THREE.Group();
+  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.08, .32, 28), toon('#f2eee6', { surf:'marble', wash:0 })), 0, .16, 0));
+  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(r * 1.02, r * 1.02, .07, 28), toon(band, { surf:'metal', wash:0 })), 0, .26, 0));   // the band in the feeling's colour
+  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(r * .92, r, .06, 28), toon('#f7f4ee', { surf:'marble', wash:0 })), 0, .35, 0));
+  return g; }
+function marbleHeart(t) { const g = new THREE.Group(); g.add(marblePlinth(TYPES[t].c)); const m = toMarble(buildManif(heartOf(t), { scale:1.5 })); m.position.y = .38; g.add(m); return g; }
+function marbleHush() { const g = new THREE.Group(); g.add(marblePlinth('#e8d6a0', .8));
+  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(.16, .22, 1.3, 16), toon('#f2eee6', { surf:'marble', wash:0 })), 0, 1.0, 0));   // a slender column holds it up, the way it hung in the air
+  const h = toMarble(buildHush()); h.position.y = 2.15; h.scale.multiplyScalar(.85); g.add(h); return g; }
 // A soft gold marker over anything an unfinished event wants you to find. It stands still: no blinking, no bobbing.
 function evMarkOn(e) {
   if (!e.mark || !W.npcs[e.id]) return;
@@ -15844,7 +15871,7 @@ async function talkHush() {
   const r = await battle(foe, { final:true });
   if (r === 'blackout') { await say('The silence swallows you. You wake on the Archive steps, Wren holding your hand.'); await fadeTo(1, 400); S.map = 'vellum'; S.x = 16; S.y = 16; S.dir = 'up'; healAll(); buildWorld('vellum'); playMusic(themeFor('vellum')); await fadeTo(0, 400); await say('Wren: You came back. That\'s what matters. It\'s still down there. Rest, and try again.'); return; }
   if (r !== 'won') return;
-  S.flags.hushDone = 1; S.flags.restored = 1; applyRestored(); if (W.heart) { world.remove(W.heart); W.heart = null; }
+  S.flags.hushDone = 1; S.flags.restored = 1; applyRestored(); if (W.heart) { world.remove(W.heart); W.heart = null; if (MAPS[S.map] && MAPS[S.map].kind === 'still') try { world.add(at(marbleHush(), 10.5, .85, 3.5)); } catch (_) {} }
   if (nBound()) { S.bound = {}; await say('The bound Hearts shudder in their cities, far away, and the Bell\'s grey falls off them like ash.'); }
   await say('The Stillwell begins, very slowly, to move. Ten colours bleed back into the water and rise toward the surface.');
   await say('Around you, the stopped people blink. One of them starts to cry. Another laughs, and can\'t stop. It sounds like waking up.');
