@@ -2062,7 +2062,7 @@ function slickHair(inner, o, mats, V, cen) {
 }
 function personHair(inner, o) {
   const { hc, seed, HY, HR, hatted } = o; let hair = o.hair; if (hair === 'spiky') hair = 'swept';
-  const C0 = new THREE.Color(hc), shades = [C0.clone().multiplyScalar(.86), C0.clone(), C0.clone().offsetHSL(.005, .03, .06), C0.clone().offsetHSL(.01, .04, -.025)].map(c => c.getStyle());   // close shades, so it reads as one head of hair with depth, not stripes
+  const C0 = new THREE.Color(hc), shades = [C0.clone().multiplyScalar(.86), C0.clone(), C0.clone().offsetHSL(.005, .03, .06), C0.clone().offsetHSL(.01, .03, -.012)].map(c => c.getStyle());   // close shades, so it reads as one head of hair with depth, not stripes
   const mats = shades.map(c => toon(c)), V = (x, y, z) => new THREE.Vector3(x, y, z), cen = V(0, HY, 0), rnd = k => ((seed >>> (k % 24)) * 2654435761 % 1000) / 1000;
   if (hair === 'slick') return slickHair(inner, o, mats, V, cen);
   const putLock = (pts, w0, w1, sh, ink = 1.04, thin = .38) => { const m = new THREE.Mesh(hairLock(pts, w0, w1, thin, cen), mats[sh]); m.castShadow = true; inner.add(m); return m; };
@@ -2070,7 +2070,7 @@ function personHair(inner, o) {
   // the shell
   const kind = hatted ? 'hat' : hair === 'curly' ? 'curly' : hair === 'long' || hair === 'curlylong' || hair === 'wavy' ? 'long' : hair === 'ponytail' ? 'up' : 'short';
   const shell = new THREE.Mesh(hairShell(HR, kind), mats[1]); shell.position.set(0, HY, -.004); shell.castShadow = true; inner.add(shell);
-  const shellInk = new THREE.Mesh(shell.geometry, INK); shellInk.position.copy(shell.position); shellInk.scale.setScalar(1.035); inner.add(shellInk);
+  const shellInk = new THREE.Mesh(shell.geometry, INK); shellInk.position.copy(shell.position); shellInk.scale.setScalar(1.015); inner.add(shellInk);
   const part = (seed % 3) - 1, sweep = part || .6;
   // the fringe: locks from the crown forward over the hairline, swept to one side, blunt and soft at the tips
   const nF = hair === 'curly' ? 0 : 6, fLen = hair === 'swept' || hair === 'short' ? .52 : .78;
@@ -2081,7 +2081,7 @@ function personHair(inner, o) {
     putLock(pts, .034 + rnd(i) * .008, .018, [1, 2, 3, 1, 2, 0][i % 6]); }
   // over the temples, down to the ear (short) or the jaw (longer)
   const sideDrop = o.back ? (hair === 'bob' ? -.75 : -1.4) : hair === 'curly' ? 0 : -.08;
-  if (hair !== 'curly') for (const sx of [-1, 1]) for (let k = 0; k < 2; k++) { const az = sx * (1.18 + k * .22), y0 = .85, y1 = sideDrop + k * .12;
+  if (hair !== 'curly' && o.back) for (const sx of [-1, 1]) for (let k = 0; k < 2; k++) {   // longer hair only: short cuts end at the shell's hairline, no loose patches on the cheeks const az = sx * (1.18 + k * .22), y0 = .85, y1 = sideDrop + k * .12;
     const pts = [S(az * .7, 1.05, 1.08), S(az, y0, 1.1), S(az + sx * .05, (y0 + Math.max(y1, -.3)) / 2, 1.12), S(az + sx * .02, Math.max(y1, -.3), 1.1)];
     if (y1 < -.3) { const p = pts[3]; for (const dy of [.12, .26, .4].filter(d => d < -y1 * HR * 1.4)) pts.push(V(p.x * (1 + .05 * Math.sin(dy * 30)), p.y - dy, p.z + .02)); }
     putLock(pts, .03, .018, k ? 2 : 0); }
@@ -2181,7 +2181,7 @@ function buildPerson(L) {
     fm(new THREE.BoxGeometry(.016, .006, .008), lashM, sx * (EX + .03), EY + .012, EZ + .004, null, sx * .55);                      // the flick at the outer corner
     fm(new THREE.BoxGeometry(.03, .004, .006), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * EX, EY - .034, EZ + .004);   // lower lid
     fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, 1.006 + (fs % 2) * .005, .148, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]);   // brows, thin and high
-    fm(new THREE.SphereGeometry(.022, 8, 6), new THREE.MeshBasicMaterial({ color:0xe88a8a, transparent:true, opacity:.2 }), sx * .088, .912, .142, [1.4, .55, .3]); }
+  }
   if (L.eyes) for (const sx of [-1, 1]) { const o = glow(L.eyes, .1, .85); o.position.set(sx * .059, .962, .17); inner.add(o); }
   if (L.snout) {          // a dragon's muzzle: long, tapering, flat on top, nostrils at the tip; a brow ridge and swept-back horns
     const dk = new THREE.Color(skin).multiplyScalar(.72).getStyle(), hornC = L.hornC || '#e8d8b0';
@@ -3772,8 +3772,11 @@ function addGear(inner, L) {
     case 'helmet': P(new THREE.SphereGeometry(.22, 16, 10, 0, Math.PI * 2, 0, Math.PI * .55), L.hat || '#22324a', [0, 1.06, 0]); P(new THREE.SphereGeometry(.035, 8, 6), gold, [0, 1.22, .15]); break;
     case 'cap': P(new THREE.SphereGeometry(.22, 14, 8, 0, Math.PI * 2, 0, Math.PI * .4), L.hat || '#3a3a3a', [0, 1.06, 0]); P(new THREE.BoxGeometry(.22, .025, .14), L.hat || '#3a3a3a', [0, 1.07, .17]); break;
     case 'bakerhat': P(new THREE.CylinderGeometry(.2, .17, .16, 14), '#fbf7ec', [0, 1.15, 0]); P(new THREE.SphereGeometry(.24, 14, 9), '#fbf7ec', [0, 1.27, 0], null, [1, .55, 1]); break;
-    case 'hood': P(new THREE.SphereGeometry(.26, 16, 12, 0, Math.PI * 2, 0, Math.PI * .62), L.hat || L.coat, [0, .97, -.03], [-.25, 0, 0]); break;
-    case 'veil': P(new THREE.ConeGeometry(.3, .5, 16, 1, true), L.hat || '#3b3a3f', [0, 1.02, 0]); break;
+    case 'hood': P(new THREE.SphereGeometry(.26, 18, 12, Math.PI / 2 + .9, Math.PI * 2 - 1.8, 0, Math.PI * .62), L.hat || L.coat, [0, .97, -.03], [-.25, 0, 0]).material.side = THREE.DoubleSide; break;   // open at the front: the face shows
+    case 'veil': {   // a pointed cowl that stops at the brow, a drape down the back, and a cloth over nose and mouth: the eyes stay clear (27 Nov)
+      const c = L.hat || '#3b3a3f'; P(new THREE.ConeGeometry(.19, .42, 18, 1, true), c, [0, 1.2, -.01]);
+      P(new THREE.CylinderGeometry(.19, .23, .26, 18, 1, true, 1.1, Math.PI * 2 - 2.2), c, [0, .88, -.01]).material.side = THREE.DoubleSide;
+      P(new THREE.CylinderGeometry(.152, .16, .075, 18, 1, true, -1.15, 2.3), c, [0, .892, .005]).material.side = THREE.DoubleSide; break; }
     case 'poncho': { const C = L.ponchoC || [L.accent2 || '#e0a040'];     // layered, ragged patchwork poncho over the shoulders
       for (let i = 0; i < 3; i++) { const m = P(new THREE.CylinderGeometry(.2 - i * .01, .33 + i * .03, .34 - i * .06, 9 + i * 2), C[i % C.length], [0, .66 - i * .02, -.01], [0, i * .5, 0]); m.scale.z = .9; } } break;
     case 'cape': P(new THREE.BoxGeometry(.5, .62, .03), L.accent2 || '#5a1a22', [0, .55, -.19], [.12, 0, 0]); break;
@@ -6708,10 +6711,13 @@ function tryStep(map, e, list, away, from) {
 }
 function tickMood(dt, t) {
   if (!world || !MAPS[S.map]) return;
-  if (MOOD.map !== S.map) { MOOD.map = S.map; MOOD.flee = {}; MOOD.greeted = {}; MOOD.shoved = {}; MOOD.vented = {}; MOOD.tremorT = 0; MOOD.nextTremor = 6 + Math.random() * 8; }
+  if (MOOD.map !== S.map) { MOOD.map = S.map; MOOD.flee = {}; MOOD.greeted = {}; MOOD.shoved = {}; MOOD.vented = {}; MOOD.tremorT = 0; MOOD.nextTremor = 6 + Math.random() * 8; MOOD.tremored = false; }
   const mood = mapMood(S.map), roam = scene === 'world' && !busy && !UI.dlg && !UI.cho && !UI.list;
   // tremors where something is wrong
-  if ((mood === 'uneasy' || mood === 'dread') && roam) { MOOD.nextTremor -= dt;
+  // 27 Nov: one tremor per visit, outdoors only, and only once you can actually face what's causing it
+  // (the city's trouble dealt with so its Heart can be challenged; Vellum and the Stillwell once the way down is open)
+  const MM = MAPS[S.map], ableT = MM.kind !== 'inside' && !MOOD.tremored && (mood === 'dread' || (MM.vibe && S.ev && S.ev[MM.vibe] && S.ev[MM.vibe].st === 9));
+  if ((mood === 'uneasy' || mood === 'dread') && roam && ableT) { MOOD.nextTremor -= dt; if (MOOD.nextTremor <= 0) MOOD.tremored = true;
     if (MOOD.nextTremor <= 0) { MOOD.tremorT = mood === 'dread' ? 7 : 5.5;   /* no camera shake for ambient tremors: sound, rumble and a note only */ MOOD.nextTremor = mood === 'dread' ? 14 + Math.random() * 10 : 24 + Math.random() * 18;
       sfx('nerve'); padRumble(600, mood === 'dread' ? .9 : .55); toast(mood === 'dread' ? 'The ground shudders. The floor of the Archive has split open; the way down is inside.' : `A tremor rolls out from the shrine. The Heart of ${TOWNS[MAPS[MAPS[S.map].kind === 'inside' ? MAPS[S.map].route : S.map].vibe].name} is restless.`); } }
   MOOD.tremorT = Math.max(0, MOOD.tremorT - dt); MOOD.shake = Math.max(0, MOOD.shake - dt * 1.5);
