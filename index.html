@@ -115,6 +115,7 @@ body.padmode #hint .kb{display:none}body:not(.padmode) #hint .gp{display:none}
 #ab{display:flex;gap:14px;align-items:center;margin-bottom:24px;position:relative}
 #kDist{display:none;position:absolute;right:0;bottom:calc(100% + 12px);height:38px;padding:0 14px;border-radius:19px;font-size:14px}
 body.tplive #kDist{display:flex}
+html.coarse body.tplive #kDist{display:none}
 .k.round{width:66px;height:66px;border-radius:50%;font-size:20px}
 body.running #pad .k[data-k="b"]{background:rgba(232,184,74,.55);color:var(--ink);box-shadow:0 0 12px rgba(232,184,74,.6)}
 #kA{background:rgba(232,184,74,.92);color:var(--ink);border-color:var(--gold2)}
@@ -5053,7 +5054,8 @@ const worldScene = new THREE.Scene(), battleScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.3, 140);   // near plane not too close: keeps depth precise on phones, so thin roofs don't flicker to black when zoomed out
 const bcam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 140);
 const TP_VIEW0 = (() => { try { return localStorage.getItem('ia_view') || 'top'; } catch (e) { return 'top'; } })();
-const TP = { on:TP_VIEW0 === 'tp' || TP_VIEW0 === 'fp', fp:TP_VIEW0 === 'fp', pitch:.1, live:false, dist:4.2, want:4.2 };
+const FP_OK = !matchMedia('(pointer: coarse)').matches;   // first person is a desktop view (27 Nov): on phones the controls are too fiddly
+const TP = { on:TP_VIEW0 === 'tp' || TP_VIEW0 === 'fp', fp:TP_VIEW0 === 'fp' && FP_OK, pitch:.1, live:false, dist:4.2, want:4.2 };
 const TP_DISTS = [4.2], TP_MIN = 1.1, TP_MAX = 6;   // 27 Nov: over the shoulder starts far (pinch or wheel to move in); first person is its own view
 let activeScene = worldScene, activeCam = camera;
 function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp = innerWidth / innerHeight;
@@ -5418,15 +5420,15 @@ const CAM_ZOOMS = [1.85, 1.15, .86, .5]; let camZoom = 2;
 // OVER THE SHOULDER — a second way to see the world: the camera sits just behind the hero's right shoulder and you look where you like
 // (drag, the camera stick, or Q / E and R / F). "Forward" is always away from the camera. TP.live is true only while that view is really in use.
 const TP_BLOCK = new Set(['#', 'H', 'D', 'W', 'X']);
-function setView(tp, fp = false) { TP.on = !!tp; TP.fp = !!(tp && fp); TP.pitch = TP.fp ? 0 : .1; if (tp) TP.want = TP_DISTS[0]; try { localStorage.setItem('ia_view', TP.fp ? 'fp' : tp ? 'tp' : 'top'); } catch (e) {} if (!tp && typeof mv !== 'undefined') mv.yaw = null; resize(); if (typeof W !== 'undefined' && W.player) updateCamera(1, true); }
+function setView(tp, fp = false) { TP.on = !!tp; TP.fp = !!(tp && fp && FP_OK); TP.pitch = TP.fp ? 0 : .1; if (tp) TP.want = TP_DISTS[0]; try { localStorage.setItem('ia_view', TP.fp ? 'fp' : tp ? 'tp' : 'top'); } catch (e) {} if (!tp && typeof mv !== 'undefined') mv.yaw = null; resize(); if (typeof W !== 'undefined' && W.player) updateCamera(1, true); }
 const tpLook = (dyaw, dpitch) => { if (dyaw) { if (camFree == null) camFree = camYaw; camFree += dyaw; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; } if (dpitch) TP.pitch = Math.max(-.75, Math.min(1.05, TP.pitch + dpitch)); };
 // C / the zoom button steps through: Far, Wide, Standard, Close, then over the shoulder (far, normal, close), then back round to Far.
 // C / the zoom button steps through: Far, Wide, Standard, Close (from above), then over the shoulder, then first person.
-function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ + 2, cur = TP.on ? NZ + (TP.fp ? 1 : 0) : camZoom, nx = (cur + d + n) % n;
+function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ + (FP_OK ? 2 : 1), cur = TP.on ? NZ + (TP.fp ? 1 : 0) : camZoom, nx = (cur + d + n) % n;
   if (nx >= NZ) setView(true, nx === NZ + 1); else { camZoom = nx; if (TP.on) setView(false); }
-  tpLabel(); toast(nx >= NZ ? ['Over the shoulder', 'First person'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx >= NZ ? 'Left and right turn you' : undefined); }
+  tpLabel(); toast(nx >= NZ ? ['Over the shoulder', 'First person'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx === NZ ? 'Left and right turn you' : nx > NZ ? 'Right stick or drag to look' : undefined); }
 // the on-screen view button (phones) and the controller's zoom button over the shoulder: swap between over the shoulder and first person
-function tpStep() { setView(true, !TP.fp); sfx('tick'); toast(TP.fp ? 'First person' : 'Over the shoulder'); tpLabel(); }
+function tpStep() { if (!FP_OK) return; setView(true, !TP.fp); sfx('tick'); toast(TP.fp ? 'First person' : 'Over the shoulder'); tpLabel(); }
 // the on-screen distance button (phones): shows where you are now, tap for the next
 function tpLabel() { const el = document.getElementById('kDist'); if (!el) return; el.textContent = TP.fp ? '◉ First person' : '◉ Shoulder'; }
 const tpZoom = f => { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, TP.want * f)); tpLabel(); };
@@ -5702,13 +5704,16 @@ function moveVector() {
 }
 // turning in the views that follow you: left and right swing you and the camera together; you always face where it looks
 function tpTurn(dt) {
-  const v = moveVector(); if (v && Math.abs(v[0]) > .3) { if (camFree == null) camFree = camYaw; camFree -= v[0] * dt * 2.3; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; }
+  const v = TP.fp ? null : moveVector(); if (v && Math.abs(v[0]) > .3) { if (camFree == null) camFree = camYaw; camFree -= v[0] * dt * 2.3; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; }
   const yaw = (camFree != null ? camFree : camYaw); mv.yaw = yaw + Math.PI;
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw); if (!mv.active) S.dir = Math.abs(fz) >= Math.abs(fx) ? (fz > 0 ? 'down' : 'up') : (fx > 0 ? 'right' : 'left');
 }
 function worldStep(v) {        // eight directions, turned to match the camera
   if (TP.live) {   // over the shoulder and first person (27 Nov): the view turns with you. Up walks forward, down steps back,
                    // left and right turn (tpTurn); forward is where you face, snapped to the nearest of eight ways
+    if (TP.fp) {   // first person (desktop): like other games: the left stick or WASD walks and strafes relative to where you look; the right stick or mouse looks
+      const c = Math.cos(camYaw), s = Math.sin(camYaw), wx = v[0] * c - v[1] * s, wz = -v[0] * s - v[1] * c, o = ((Math.round(Math.atan2(wz, wx) / (Math.PI / 4)) % 8) + 8) % 8;
+      return [[1, 1, 0, -1, -1, -1, 0, 1][o], [0, 1, 1, 1, 0, -1, -1, -1][o], Math.abs(wz) >= Math.abs(wx) ? (wz > 0 ? 'down' : 'up') : (wx > 0 ? 'right' : 'left')]; }
     if (Math.abs(v[1]) < .35) return null;
     const sg = v[1] > 0 ? 1 : -1, wx = -Math.sin(camYaw) * sg, wz = -Math.cos(camYaw) * sg, o = ((Math.round(Math.atan2(wz, wx) / (Math.PI / 4)) % 8) + 8) % 8;
     return [[1, 1, 0, -1, -1, -1, 0, 1][o], [0, 1, 1, 1, 0, -1, -1, -1][o], Math.abs(wz) >= Math.abs(wx) ? (wz > 0 ? 'down' : 'up') : (wx > 0 ? 'right' : 'left')]; }
@@ -6276,7 +6281,7 @@ async function viewMenu() {
     const now = TP.on ? (TP.fp ? 'First person' : 'Over the shoulder') : 'From above';
     const c = await choose([{ label:'Camera', sub:now }, 'Back']);
     if (c < 0 || c === 1) return;
-    if (c === 0) { if (!TP.on) setView(true); else if (!TP.fp) setView(true, true); else setView(false); tpLabel(); toast(TP.on ? (TP.fp ? 'First person' : 'Over the shoulder') : 'From above', TP.on ? 'Left and right turn you' : undefined); }
+    if (c === 0) { if (!TP.on) setView(true); else if (!TP.fp && FP_OK) setView(true, true); else setView(false); tpLabel(); toast(TP.on ? (TP.fp ? 'First person' : 'Over the shoulder') : 'From above', TP.on ? 'Left and right turn you' : undefined); }
   }
 }
 async function openMenu() {
