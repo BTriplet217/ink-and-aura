@@ -1697,7 +1697,16 @@ function washPatch(m, kind, surf = 'auto') {
           #ifdef USE_COLOR_ALPHA
           paved = vColor.a > .5;   // the terrain marks its paved ground itself (h41), so golden or olive lawns never get stones
           #endif
-          if (!paved) pat = .9 + .16 * smoothstep(.6, .85, t1) - .1 * smoothstep(.35, .1, t1) + .06 * (wn3(vWP * 1.3) - .5);   // grass: soft painted mottling
+          if (!paved) {   // grass (27 Nov): clumps lit on top and dark between, painted blade strokes, sun-bleached and shady patches
+            vec2 gp = vWP.xz; float ce = wn3(vWP * 2.3 + wn3(vWP * .9) * 1.5), c2 = wn3(vWP * 5.7 + 4.);
+            pat = .8 + .22 * smoothstep(.25, .8, ce) + .08 * (c2 - .5);
+            float w = wn3(vWP * 2.7) * 6.;
+            float stroke = smoothstep(.55, .88, wn3(vec3(gp.x * 34. + w, 0., gp.y * 8. - w))) , stroke2 = smoothstep(.55, .9, wn3(vec3(gp.x * 9. - w, 1., gp.y * 30. + w)));
+            pat *= 1. + .2 * stroke - .16 * stroke2;
+            pat *= .9 + .2 * wn3(vWP * .7);
+            float sun = smoothstep(.55, .85, wn3(vWP * .45 + 11.)), shady = smoothstep(.6, .85, wn3(vWP * .5 + 31.));
+            tint *= mix(vec3(1.), vec3(1.12, 1.08, .82), sun * .6) * mix(vec3(1.), vec3(.8, .9, .95), shady * .6);
+            tint *= mix(vec3(1.), vec3(1.1, 1.06, .78), smoothstep(.72, .9, wn3(vWP * 7.3 + 2.)) * .5); }   // dry blades   // grass: soft painted mottling
           else {   // paving: each area has its own pattern (27 Nov): 0 hub cobbles, 1 river cobbles, 2 flagstones, 3 setts, 4 basketweave brick,
                    // 5 wet slate, 6 diagonal setts, 7 broken cobbles, 8 running-bond brick, 9 basalt hexes, 10 packed dirt
             int PS = int(wPave + .5); vec2 p = vWP.xz, cid = vec2(0.); float e = .2, gs = 1.;
@@ -1761,12 +1770,14 @@ function washPatch(m, kind, surf = 'auto') {
           pat = (1. - seam * .3 + rivet * .35) * (1. + sheen);
           outgoingLight += (1. - seam) * vec3(.1, .09, .075) * (.25 + smoothstep(.4, .95, N.y) + rivet * 1.5) * near1; }   // dark iron still catches the light
         else if (SF == 8) { vec2 lid; vec3 q = vWP * 5.2; float e = vor(q.xz + q.y * vec2(.7, -.5), lid); float lv = wsh(lid);   // leaves: overlapping clusters, each lit on top and dark at its edge
-          pat = mix(.72, .95 + .16 * lv, smoothstep(.02, .22, e)) * (.92 + .14 * smoothstep(.3, .8, wn3(vWP * 11.))) * (.9 + .16 * clamp(ny, 0., 1.)); }
+          pat = mix(.55, 1. + .2 * lv, smoothstep(.02, .24, e)) * (.9 + .16 * smoothstep(.3, .8, wn3(vWP * 11.)));
+          pat *= .8 + .35 * clamp(N.y * .5 + .5, 0., 1.);                                                             // lit crown, dark underside
+          tint *= mix(vec3(.86, .92, 1.08), vec3(1.12, 1.08, .86), clamp(N.y * .6 + .4, 0., 1.) * smoothstep(.1, .25, e)); }   // cool shade below, warm sun on top
         else pat = .95 + .08 * smoothstep(.6, .85, t1) - .06 * smoothstep(.35, .1, t1);
         outgoingLight *= shade * mix(1. - (1. - pat) * .4, pat, near1) * tint;
         { float Le = dot(outgoingLight, vec3(.3, .59, .11)), be = max(dot(dc * tint, vec3(.3, .59, .11)), .04), ke = Le / be;   // more 3-D: deeper, cooler shade; warm light on lit faces
-          outgoingLight *= mix(vec3(.74, .73, .88), vec3(1.), smoothstep(.3, .8, ke));
-          outgoingLight += dc * tint * vec3(.2, .16, .09) * smoothstep(.95, 1.4, ke) * (.4 + .6 * ny);
+          outgoingLight *= mix(vec3(.6, .6, .8), vec3(1.), smoothstep(.3, .85, ke));
+          outgoingLight += dc * tint * vec3(.32, .26, .14) * smoothstep(.9, 1.35, ke) * (.4 + .6 * ny);
           float rimE = 1. - abs(dot(N, normalize(cameraPosition - vWP))); outgoingLight += dc * .1 * smoothstep(.75, .95, rimE) * smoothstep(.6, 1., ke); }`}
         // Safety net for phone graphics chips: if the lighting maths ever comes out broken (not a number) or pitch black,
         // fall back to the surface's own colour, dimmed. Nothing lit by day should ever render as a solid black shape.
