@@ -2035,8 +2035,8 @@ function hairShell(HR, kind) {   // a sphere just over the head whose faces belo
   const key = HR + kind; if (HAIR_SHELL[key]) return HAIR_SHELL[key];
   const g = new THREE.SphereGeometry(HR, 36, 28), a = g.attributes.position, nape = kind === 'long' ? -.72 : kind === 'up' ? -.32 : -.55, puff = kind === 'curly' ? 1.12 : 1.065;
   for (let i = 0; i < a.count; i++) { const x = a.getX(i) / HR, y = a.getY(i) / HR, z = a.getZ(i) / HR, az = Math.abs(Math.atan2(x, z));
-    const hl = az < .75 ? .4 - az * .06 : az < 1.7 ? .355 - (az - .75) / .95 * .42 : -.065 + (nape + .065) * SSTEP(1.7, 2.6, az);
-    const k = SSTEP(hl - .07, hl + .05, y), crown = kind === 'hat' ? 1.03 : puff + .03 * Math.max(0, y) * (1 - Math.max(0, z) * .6), r = .9 + (crown - .9) * k;
+    const hl = az < .75 ? .4 - az * .06 : az < 1.7 ? .355 - (az - .75) / .95 * .42 : -.065 + (nape + .065) * SSTEP(kind === 'long' ? 1.7 : 2.15, kind === 'long' ? 2.6 : 2.9, az);
+    const k = SSTEP(hl - .07, hl + .05, y), crown = kind === 'hat' ? 1.03 : puff + .03 * Math.max(0, y) * (1 - Math.max(0, z) * .6), rIn = .88 - .4 * Math.max(0, -y), r = rIn + (crown - rIn) * k;   /* tucked parts sink well inside the tapering jaw, so nothing shows on the cheeks */
     a.setXYZ(i, x * HR * r, y * HR * r, z * HR * r); }
   g.computeVertexNormals(); return (HAIR_SHELL[key] = g);
 }
@@ -2087,7 +2087,7 @@ function personHair(inner, o) {
     putLock(pts, .03, .018, k ? 2 : 0); }
   // round the back and crown: short layered locks, or a fall of waves
   const nB = o.back || hair === 'wavy' ? 11 : hair === 'curly' ? 0 : 7, len = hair === 'bob' ? .14 : hair === 'long' ? .36 : hair === 'wavy' ? .3 : 0, wave = hair === 'wavy' ? 1.6 : hair === 'long' ? 1 : .5;
-  for (let i = 0; i < nB; i++) { const span = len ? 3.1 : 2.3, u = i / (nB - 1), az = Math.PI - span / 2 + u * span + (rnd(i + 5) - .5) * .12, pts = [S(az * .3, 1.3, 1.06), S(az, .7, 1.1), S(az, len ? 0 : .1, len ? 1.13 : 1.1), S(az, len ? -.55 : -.32, len ? 1.1 : 1.07)];   /* short cuts stay round the back of the head and end at the nape */
+  for (let i = 0; i < nB; i++) { const span = len ? 3.1 : 1.6, u = i / (nB - 1), az = Math.PI - span / 2 + u * span + (rnd(i + 5) - .5) * .12, pts = [S(az * .3, 1.3, 1.06), S(az, .7, 1.1), S(az, len ? 0 : .1, len ? 1.13 : 1.1), S(az, len ? -.55 : -.2, len ? 1.1 : 1.07)];   /* short cuts stay round the back of the head and end at the nape */
     if (len) { const p = pts[3], out = V(p.x, 0, p.z).normalize(); for (let k = 1; k <= 4; k++) { const t = k / 4, ph = rnd(i) * 6 + t * Math.PI * 2 * wave; pts.push(V(p.x + out.x * (.01 + .025 * Math.sin(ph)) + Math.cos(ph) * .012, p.y - len * t, p.z + out.z * (.01 + .025 * Math.sin(ph)))); }
       if (hair === 'bob') { const q = pts[pts.length - 1]; pts.push(V(q.x * .9, q.y - .02, q.z * .9)); } }   // a bob turns under at the ends
     putLock(pts, .04 + rnd(i * 2) * .012, len ? .02 : .025, [1, 0, 3, 2][i % 4], 1.04, .45); }
@@ -2183,7 +2183,7 @@ function buildPerson(L) {
     fm(new THREE.BoxGeometry(.016, .006, .008), lashM, sx * (EX + .03), EY + .012, EZ + .004, null, sx * .55);                      // the flick at the outer corner
     fm(new THREE.BoxGeometry(.03, .004, .006), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * EX, EY - .034, EZ + .004);   // lower lid
     { const lid = fm(new THREE.BoxGeometry(.072, .04, .004), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin) }), sx * EX, EY + .02, EZ + .019); lid.visible = false; eyeRec.lid = lid; }   // an upper lid, lowered for bored, numb, ashamed or disgusted faces (h48)
-    { const bm = fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, .992 + (fs % 2) * .004, .157, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]); (inner.userData.brows = inner.userData.brows || []).push({ m:bm, sx, y:bm.position.y, r:bm.rotation.z }); }   // brows, thin and high
+    { const bm = fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, .992 + (fs % 2) * .004, .157, null, sx * [.06, -.1, .03, -.04, -.06, .02][fs]); (inner.userData.brows = inner.userData.brows || []).push({ m:bm, sx, y:bm.position.y, r:bm.rotation.z }); }   // brows, thin and high
   }
   if (L.eyes) for (const sx of [-1, 1]) { const o = glow(L.eyes, .1, .85); o.position.set(sx * .059, .962, .17); inner.add(o); }
   if (L.snout) {          // a dragon's muzzle: long, tapering, flat on top, nostrils at the tip; a brow ridge and swept-back horns
@@ -2201,7 +2201,7 @@ function buildPerson(L) {
     const mouths = { neutral:fm(new THREE.BoxGeometry(.03, .005, .008), blk, 0, .888, .158), smile:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .896, .156, null, Math.PI),
       frown:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .876, .156), open:fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:0x3a1a18 }), 0, .886, .155, [1.1, .8, .4]),
       gasp:fm(new THREE.SphereGeometry(.009, 10, 8), new THREE.MeshBasicMaterial({ color:0x3a1a18 }), 0, .884, .155, [.9, 1.2, .4]), twist:fm(new THREE.BoxGeometry(.028, .005, .008), blk, .006, .886, .158, null, .32) };
-    const def = fs === 5 ? 'neutral' : fs > 2 ? 'frown' : 'smile'; for (const k in mouths) mouths[k].visible = k === def;
+    const def = fs >= 3 ? 'neutral' : 'smile';   /* 27 Nov: a resting face is pleasant or calm, never a scowl */ for (const k in mouths) mouths[k].visible = k === def;
     inner.userData.mouths = mouths; inner.userData.mouthDef = def; }
   // hair (27 Nov, third pass): a shell that hugs the head with a real hairline (no bald spots, nothing poking through
   // hats), then soft flattened locks laid over it in three shades of the hair colour: a swept fringe, locks over the
@@ -4886,7 +4886,8 @@ for (const k in MAPS) { MAPS[k].h = MAPS[k].tiles.length; MAPS[k].w = MAPS[k].ti
 // Using furniture: rest on a bed, buy at a counter, browse the Codex shelves, read something.
 async function useFurniture(pc) {
   if (typeof pc.use === 'function') { await pc.use(pc); return true; }
-  if (pc.use === 'rest') { healAll(); await say('You lie down for a while. When you get up, everything you carry is composed again.'); return true; }
+  if (pc.use === 'rest') { await fadeTo(1, 700); healAll(); S.clock = ((S.clock == null ? 9 * 60 : S.clock) + 8 * 60) % (24 * 60); await new Promise(r => setTimeout(r, 500)); await fadeTo(0, 900);   /* a proper night's sleep: eight hours pass (27 Nov) */
+    await say(`You sleep for eight hours. It's ${clockText().replace(/^\S+ /, '')} when you wake, and everything you carry is composed again.`); return true; }
   if (pc.use === 'shop') { await openShop(pc.shop); return true; }
   if (pc.use === 'read') { await say(pc.text); return true; }
   if (pc.use === 'codex') { const seen = Object.keys(S.codex.seen).length, kept = Object.keys(S.codex.kept).length, h = Object.keys(S.hearts).length;
@@ -5919,7 +5920,7 @@ const ENT_OVR = {};   // map:id → [x, y, dir] for short scripted moves (someon
 function entsBase(map) {
   const f = S.flags, out = [], M = MAPS[map];
   if (M.kind === 'hub') {
-    out.push(introDone() ? { id:'wren', x:18, y:15, dir:'down', look:LOOKS.wren, talk:talkWren } : { id:'wren', x:17, y:18, dir:'left', look:LOOKS.wren, talk:talkWren });
+    out.push(introDone() ? { id:'wren', x:18, y:15, dir:'down', look:LOOKS.wren, talk:talkWren } : { id:'wren', x:16, y:17, dir:'down', look:LOOKS.wren, talk:talkWren });
     out.push({ id:'maribel', x:26, y:25, dir:'left', look:LOOKS.maribel, talk:talkMaribel });
     out.push({ id:'tobin', moral:'kind', x:12, y:20, dir:'right', look:LOOKS.tobin, talk:talkTobin });
     out.push(f.lookoutMoved ? { id:'lookout', x:5, y:21, dir:'left', look:LOOKS.lookout, talk:talkLookout } : { id:'lookout', x:4, y:21, dir:'down', look:LOOKS.lookout, talk:talkLookout });   // stands in front of the black market's door until you have the look
@@ -6735,9 +6736,9 @@ function tickMood(dt, t) {
   MOOD.tick -= dt; const step = MOOD.tick <= 0; if (step) MOOD.tick = .42;
   for (const e of list) { const g = W.npcs[e.id]; if (!g || !g.userData.inner || e.body || e.numb) { if (g && g.userData.emote) setEmote(g, null, false); continue; }
     const from = scaredOf(e), inner = g.userData.inner, ph = (t * .9 + (e.x * 7 + e.y * 3) % 10 / 10) % 6;
-    if (from) { setEmote(g, '!', true); if (inner.userData.mood !== 'fear' && typeof setFace === 'function') setFace(g, 'fear'); inner.rotation.z = Math.sin(t * 38 + e.x) * .05; MOOD.calmT[e.id] = 0;
+    if (from) { setEmote(g, '!', true); if (inner.userData.mood !== 'fear' && typeof setFace === 'function') { setFace(g, 'fear'); inner.userData.auraScared = 1; } inner.rotation.z = Math.sin(t * 38 + e.x) * .05; MOOD.calmT[e.id] = 0;
       if (step && canRun(e)) tryStep(S.map, e, list, true, from); continue; }
-    inner.rotation.z *= .8; if (inner.userData.mood === 'fear' && typeof setFace === 'function') setFace(g, 'default');
+    inner.rotation.z *= .8; if (inner.userData.auraScared && typeof setFace === 'function') { inner.userData.auraScared = 0; if (!UI.dlg) setFace(g, 'default'); }   /* only undo the fright this put there, never a face from the conversation */
     MOOD.calmT[e.id] = (MOOD.calmT[e.id] || 0) + dt;
     if (step && MOOD.flee[S.map + ':' + e.id] && MOOD.calmT[e.id] > 2.2) tryStep(S.map, e, list, false);
     if (!isFolk(e)) { setEmote(g, null, false); continue; }
@@ -16279,9 +16280,22 @@ const FACE = {
   shame:    ['frown',  -.28,   .002, .55,[0, -.01],   1,   1],
   bored:    ['neutral', 0,    -.003, .6, [.009, 0],   1,   1],
   numb:     ['neutral', 0,     0,    .5, [0, 0],      .9,  0],
-  neutral:  ['neutral', 0,     0,    0,  [0, 0],      1,   1] };
+  neutral:  ['neutral', 0,     0,    0,  [0, 0],      1,   1],
+  shy:      ['smile',  -.12,   .01,  0,  [0, 0],      1,   1, 'closed', 'blush'] };   // a child who's just given you something: eyes squeezed shut, a little pink
+// shy faces need two things the plain face doesn't have: closed-eye arcs and a blush. Added once, hidden until needed.
+function faceExtras(p) {
+  const inner = p.children[0]; if (!inner || !inner.userData.eyes || inner.userData.arcs) return;
+  const L = p.userData.look || {}, skin = new THREE.Color(L.skin || '#e0b48a'), arcM = new THREE.MeshBasicMaterial({ color:0x1b1512 });
+  const blM = new THREE.MeshBasicMaterial({ color:skin.clone().lerp(new THREE.Color('#ff7a86'), .5), transparent:true, opacity:.75, depthWrite:false });
+  inner.userData.arcs = []; inner.userData.blush = [];
+  for (const e of inner.userData.eyes) { const ir = e.iris[0]; if (!ir) continue; const q = ir.userData.p0 || ir.position, k = ir.scale.x / (ir.userData.s0 ? ir.userData.s0.x : 1) || 1;
+    e.white = inner.children.find(o => o.isMesh && o.geometry.type === 'SphereGeometry' && Math.abs(o.geometry.parameters.radius - .031) < .001 && Math.abs(o.position.x - q.x) < .02 && Math.abs(o.position.y - q.y) < .02) || null;
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(.022, .0048, 5, 14, Math.PI), arcM); arc.position.set(q.x, q.y - .006, q.z + .006); arc.scale.set(1, .8, .5); arc.visible = false; inner.add(arc); e.arc = arc;   /* ∩: eyes shut tight in a smile */
+    const bl = new THREE.Mesh(new THREE.SphereGeometry(.02, 12, 8), blM); bl.position.set(q.x * 1.32, q.y - .052, q.z - .012); bl.scale.set(1.3, .55, .35); bl.visible = false; bl.renderOrder = 2; inner.add(bl); inner.userData.blush.push(bl); }
+}
+{ const _bp2 = buildPerson; buildPerson = function (L) { const p = _bp2(L); try { if (L && !L.snout && !L.eyes) faceExtras(p); } catch (e) {} return p; }; }
 const JUMPS = new Map();
-function setFace(g, mood) {
+function setFace(g, mood, hop) {
   const inner = g && (g.userData.inner || g.children[0]); if (!inner) return; const M = inner.userData.mouths; if (!M) return;
   if (mood === 'default' || !mood) mood = inner.userData.baseMood || null;
   const prev = inner.userData.mood, F = FACE[mood], want = F ? F[0] : inner.userData.mouthDef;
@@ -16296,27 +16310,71 @@ function setFace(g, mood) {
     for (const m of e.hi) { m.visible = !!hi; m.position.set(m.userData.p0.x + look[0], m.userData.p0.y + look[1], m.userData.p0.z); }
     if (e.lid) { e.lid.visible = lidAmt > 0; e.lid.position.y = .952 + .02 + .036 * (1 - lidAmt) - .012; }
     if (e.lash) { e.lash.position.y = e.lash.userData.p0.y - .03 * lidAmt; e.lash.scale.y = e.lash.userData.s0.y * (1 - .55 * lidAmt); }
+    const shut = !!(F && F[7] === 'closed'); if (e.arc) e.arc.visible = shut;
+    if (shut) { for (const m of [...e.iris, ...e.hi]) m.visible = false; if (e.white) e.white.visible = false; if (e.lash) e.lash.visible = false; if (e.lid) e.lid.visible = false; }
+    else { for (const m of e.iris) m.visible = true; if (e.white) e.white.visible = true; if (e.lash) e.lash.visible = true; }
   }
+  for (const b of inner.userData.blush || []) b.visible = !!(F && F[8] === 'blush');
   // startled: a little hop the moment the shock lands
-  if ((mood === 'surprised' || mood === 'fear') && prev !== mood) JUMPS.set(g, 0);
+  if (hop && (mood === 'surprised' || mood === 'fear') && prev !== mood) JUMPS.set(g, 0);
   inner.userData.mood = mood;
 }
 { const _rt0 = rideTick; rideTick = function (dt) { _rt0(dt); for (const [g, t] of JUMPS) { const n = t + dt, inner = g.userData.inner || g.children[0];
     if (!inner || n > .42) { if (inner) inner.position.y = inner.userData.jy0 || 0; JUMPS.delete(g); continue; }
     if (t === 0) inner.userData.jy0 = inner.userData.jy0 ?? inner.position.y;
     inner.position.y = (inner.userData.jy0 || 0) + Math.sin(n / .42 * Math.PI) * .14; JUMPS.set(g, n); } }; }
-// a line's feeling, from its words
+// a line's feeling, from its words and its stage directions (second pass, 27 Nov)
+// Every cue scores one of the moods; stage directions in brackets count three times as much as words, the last
+// sentence counts most (that's the face the line ends on), and a few phrases that only look negative are cleared first.
+const MOOD_SAFE = /\b(don'?t|do not|no need to|nothing to|never) (worry|be (scared|afraid|sorry|frightened))\b|\bnot (bad|a bit|to worry|scared|afraid|half bad)\b|\bno (trouble|problem|harm done|hurry)\b|\bdon'?t mind\b|\bwithout fear\b|\bnot sorry\b|\bfear not\b|\bno shame\b/gi;
+const MOOD_WORDS = {
+  happy: [[3, /\b(thank you|thanks|thank ye|bless you|hooray|yay|wonderful|brilliant|marvellous|delighted|lovely|perfect|beautiful|delicious|congratulations|well done|haha+|ha ha|hee|glad|proud of|so happy|happy|love it|i love|we love|best (day|thing)|you came back|you're back|you did it|we did it|saved us|bless|grateful|fond)\b/i],
+           [2, /\b(great|good|nice|fun|welcome|enjoy|cheer|friend|laugh\w*|smil\w*|giggl\w*|safe now|home now|for the road|take these|take this|have these|have one|here, take|for you|for your trouble|my treat|on the house|keep it|a gift|hug|sweet|cosy|warm|sunny|treat|party|feast|dance|sing|song|play)\b/i],
+           [1, /\b(hello|hi|hey|good morning|good evening|morning|oh, it's you|hope|yes|of course|sure thing|easy|fine day|lucky|better|look at that|isn't it|kind)\b/i]],
+  sad:   [[3, /\b(i miss|miss (him|her|them|you)|died|dead|passed away|funeral|grave|grieve|grief|mourn\w*|cry\w*|crie[sd]|tears|weep\w*|sob\w*|heartbr\w*|broke my heart|never came (back|home)|never laughed?|lonely|alone now|all alone|nothing left|gone now|lost (him|her|them|my|our|everything)|so tired|went quiet|gone quiet|nobody comes|no one comes|forgot(ten)? me)\b/i],
+           [2, /\b(sorry|sad|miss\w*|lost|gone|empty|alone|tired|hurts?|ache|aches|sigh\w*|grey years|used to|anymore|any more|no longer|too late|wish i|if only|quiet now|nothing is funny|can't remember|remember when|poor|shame about|pity|never again|goodbye|farewell)\b/i],
+           [1, /\b(no|not|never|nothing|nobody|can't|won't|wasn't|couldn't|didn't|don't know|maybe|i suppose|still|wait(ing|ed))\b/i]],
+  fear:  [[3, /\b(scared|afraid|terrified|frightened|terror|horrif\w*|petrified|stay away|don't hurt|please don't|leave me alone|run!|run,|help!|help me|save (me|us|them)|i can't fight|they're coming|it's coming|something's wrong|something is wrong|what was that|monsters?|nightmares?|trembl\w*|shaking|panic\w*|don't go (down|in|out|there|near)|don't come (near|closer))\b/i],
+           [2, /\b(worr(y|ied|ies)|nervous|danger\w*|careful|beware|hurry|please hurry|hide|hiding|watching|watched|the dark|at night|grey coats?|men in grey|disappear\w*|vanish\w*|missing|taken|haunt\w*|ghosts?|creep\w*|uneasy|warn\w*|threat\w*|don't go|not safe|unsafe|lock\w* (the|our|my) door|bad feeling)\b/i],
+           [1, /\b(please|quick|quickly|listen|shh+|hush|strange|odd|wrong|shadows?)\b/i]],
+  angry: [[3, /\b(how dare|shut up|get out|out of my|idiot|fool|liar|thief|thieves|bastards?|furious|i hate|hate you|hate them|hate it|damn\w*|curse (you|them)|i'll kill|kill you|fight me|never forgive|outrage\w*|rage|enough!|stop it|you did this|your fault|back off|clear off|go away|get lost|scum|vermin|traitor)\b/i],
+           [2, /\b(angry|anger|mad|temper|hate|stop|enough|move it|out of the way|don't you|blast|swear\w*|fight|punch|smash|burn (it|them)|pay up|empty your pockets|give it here|nice coat|wrong street|owe me|useless|pathetic|worthless|how many times|unbelievable|ridiculous|nonsense|rubbish|stupid)\b/i]],
+  disgust:[[3, /\b(gross|disgust\w*|ew+|yuck|eugh|revolting|vile|filth\w*|nauseat\w*|makes me sick|stinks?|stench|reeks?|putrid|slimy|repuls\w*|loathe\w*)\b/i],
+           [2, /\b(rotten|rotting|rot|smell\w*|ugh|ick|standards|taste|beneath|tacky|common|cheap|vulgar|unwashed|dirty|grubby|mud on|sticky|slime|mould\w*|mold\w*|agreeable|ordinary)\b/i]],
+  shame: [[3, /\b(ashamed|embarrass\w*|humiliat\w*|my fault|i shouldn't have|forgive me|i'm so sorry|i am so sorry|don't look at me|don't stare|please don't tell|i'm sorry|mortif\w*|i let (them|her|him|you) down|i ran|i hid|i was a coward|i should have)\b/i],
+           [2, /\b(sorry|apolog\w*|mistake|my own|stupid of me|blush\w*|curtains|nobody see|won't stare|ignore me|never mind me|don't mind me|i'm not much|nothing special|excuse me|pardon)\b/i]],
+  surprised:[[3, /\b(whoa|woah|wow|no way|can't believe|cannot believe|impossible|good heavens|goodness|gracious|my word|blimey|crikey|what on earth|well I never|you surprised me|astonish\w*|amaz\w*)\b/i],
+           [2, /\b(really\?|oh!|what\?|what!|huh\?|huh!|surprise\w*|suddenly|wait,|wait!|hold on|look!|you're here|didn't expect|of all people)\b/i],
+           [1, /^\s*(oh|ah|eh|huh|what)\b/i]],
+  bored: [[3, /\b(boring|bored|yawn\w*|whatever|i'm heading out|gonna get out|if you say so|as if i care|don't care|who cares|so\?)\b/i],
+           [2, /^\s*(anyway|fine|sure|mm+|meh|right|okay|ok)\s*[.]?\s*$/i]] };
+const MOOD_STAGE = {
+  happy:[/\b(smil\w*|grin\w*|laugh\w*|beam\w*|giggl\w*|chuckl\w*|hugs?|brighten\w*|cheer\w*|twinkl\w*|delight\w*|wink\w*|claps?|dances?|hums?|whistl\w*|proud\w*)\b/i],
+  sad:[/\b(cry\w*|crie[sd]|tears?|sob\w*|sniff\w*|sigh\w*|weep\w*|voice cracks|swallow\w*|quietly|softly|eyes are wet|wipes (his|her|their) (eyes|nose)|slump\w*|bows? (his|her|their) head|grey|tired)\b/i],
+  fear:[/\b(flinch\w*|trembl\w*|shak(es|ing)|backs? away|step\w* back|hides?|hiding|cower\w*|pale\w*|freez\w*|glances? (over|behind|around)|clutch\w*|whimper\w*|edges? away|scrambl\w*|bolts?|runs? off|hurr(y|ies) away|takes one look at you|fear of you|scared of you|won't come closer|keeps (his|her|their) distance)\b/i],
+  angry:[/\b(scowl\w*|glar\w*|snaps?|slams?|spits?|shov\w*|swear\w*|clench\w*|fists?|growl\w*|swinging|jabs?|stamps?|shouts?|yell\w*|bark\w*|snarl\w*|thumps?|kicks?|furious\w*|red in the face)\b/i],
+  disgust:[/\b(wrinkl\w* (his|her|their) nose|sneer\w*|curls? (his|her|their) lip|recoil\w*|holds? (his|her|their) nose|gag\w*|grimac\w*|looks you up and down|sniffs? at)\b/i],
+  shame:[/\b(blush\w*|looks? away|won't meet|doesn't look at you|does not look at you|stares? at (his|her|their) (boots|feet|shoes|hands)|red-faced|mumbl\w*|hangs? (his|her|their) head|can't look at you|avoids? your eyes|fidget\w*)\b/i],
+  surprised:[/\b(blinks?|jaw drops|gasp\w*|startl\w*|jumps?|stares?|wide-eyed|eyebrows? (go )?up|double-takes?)\b/i],
+  bored:[/\b(yawn\w*|shrugs?|examines? (his|her|their) nails|looks? past you|checks? (his|her|their)|drifts? off|turns? away|paddles? (off|away)|already walking)\b/i] };
+const MOOD_LIST = Object.keys(MOOD_WORDS);
+function moodScore(text) {
+  const raw = String(text).replace(/\{X\}|\{name\}/g, 'you'), sc = {}; for (const k of MOOD_LIST) sc[k] = 0;
+  const stage = (raw.match(/\([^)]*\)|\[[^\]]*\]/g) || []).join(' '), spoken = raw.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(MOOD_SAFE, ' ');
+  for (const k in MOOD_STAGE) for (const re of MOOD_STAGE[k]) { const m = stage.match(new RegExp(re.source, 'gi')); if (m) sc[k] += 3 * m.length; }
+  const sents = spoken.split(/(?<=[.!?…])\s+/).filter(s => /\w/.test(s));
+  sents.forEach((s, i) => { const w = sents.length > 1 && i === sents.length - 1 ? 1.4 : 1;
+    for (const k of MOOD_LIST) for (const [pts, re] of MOOD_WORDS[k]) { const m = s.match(new RegExp(re.source, 'gi')); if (m) sc[k] += pts * w * Math.min(m.length, 2); }
+    if (/\b[A-Z]{3,}\b/.test(s.replace(/\b(I|OK|TV)\b/g, ''))) sc.angry += 1.5 * w;                     // shouting in capitals
+    if (/!/.test(s)) { const top = MOOD_LIST.filter(k => k !== 'bored' && k !== 'sad').sort((a, b) => sc[b] - sc[a])[0]; if (sc[top] > 0) sc[top] += 1; else sc.happy += 1.2; }
+    if (/\?!|!\?/.test(s)) sc.surprised += 2.5; });
+  if (/\.\.\.|…/.test(spoken)) sc.sad += 1;
+  return sc;
+}
 function moodOf(text) {
-  const t = String(text).replace(/\([^)]*\)/g, ' ');
-  if (/\b(hate|furious|how dare|shut up|get out|idiot|enough!|stop it|don't you dare)\b|\b[A-Z]{4,}\b/.test(t)) return 'angry';
-  if (/\b(scared|afraid|terrified|stay away|don't hurt|please don't|help!|run!|leave me)\b/i.test(t)) return 'fear';
-  if (/\b(gross|disgusting|ew+|yuck|rotten|stink|stinks|smell|revolting|vile|filthy)\b/i.test(t)) return 'disgust';
-  if (/\b(ashamed|embarrass\w*|my fault|i shouldn't have|i'm so sorry|forgive me)\b/i.test(t)) return 'shame';
-  if (/\b(sorry|please|not the|anything but|i miss|lost|gone|ugh|sigh|why does|can't|won't|didn't|wasn't|no|never again|burn|on fire|dead|died|cry|tears)\b|\.\.\./i.test(t)) return 'sad';
-  if (/^\s*(oh!|what\?|wait|huh)|\?!|!\?/i.test(t)) return 'surprised';
-  if (/^\s*(anyway|whatever|sure|fine|mm|okay)\.?\s*$|\b(i'm heading out|gonna get out|boring|bored)\b/i.test(t)) return 'bored';
-  if (/!|\b(haha|ha|thanks|thank you|love|great|yes|yay|good|nice|welcome|hello|hi|brilliant|perfect|respect)\b/i.test(t)) return 'happy';
-  return null;
+  const sc = moodScore(text); let best = null, bv = 0, second = 0;
+  for (const k of MOOD_LIST) { if (sc[k] > bv) { second = bv; bv = sc[k]; best = k; } else if (sc[k] > second) second = sc[k]; }
+  return bv >= 2 ? best : null;
 }
 // moments written in by hand: [line pattern, who (null = whoever's speaking), mood]
 const FACE_RULES = [
@@ -16326,21 +16384,286 @@ const FACE_RULES = [
   [/Tam, put your hand down/i, 'Morwen', 'happy'],
   [/Gonna get out on the water|^Anyway\.$|I'm heading out|I said I'm fine/i, 'Ashlynn', 'bored'],
 ];
-const FACED = new Set();
+const FACED = new Set(), SHY = new Map();
+// who a line belongs to: "Hettie Brack: ...", "Ice-cream cart: ...", or whoever you're talking to
+const SPK_RE = /^([A-Z][\w'.-]*(?: [\w'.-]+){0,3}): /;
 function entByName(name) { if (!name) return null; const n = name.toLowerCase();
-  return (ents(S.map) || []).find(e => (e.name && e.name.toLowerCase() === n) || (e.look && e.look.kit === n)) || null; }
-function faceFor(name, mood) { const e = name ? entByName(name) : TALKING; if (!e) return; const g = W.npcs[e.id]; if (!g) return; setFace(g, mood); FACED.add(g); }
+  const all = ents(S.map) || [];
+  return all.find(e => (e.name && e.name.toLowerCase() === n) || (e.look && e.look.kit === n)) || all.find(e => e.id === n || e.id === 'ev_' + n || (e.name && e.name.toLowerCase().split(' ')[0] === n)) || (TALKING && !TALKING.name ? TALKING : null); }
+// how someone feels before they've said a word: about what's happening to them, and about you
+const EV_GIVER = { ev_hettie:'JOY', ev_orla:'HOPE', ev_lissa:'CALM', ev_dot:'SURPRISE', ev_ewan:'SADNESS', ev_delphine:'FEAR', ev_wynn:'DISGUST', ev_corra:'ANGER', ev_tobias:'SHAME', ev_agnes:'SHAME' };
+const REAL_FRIENDS = /^(brand|tam|lio|morwen|saffi|clover|ashlynn)$/i;
+function situMood(e) {
+  if (!e) return null; if (e.numb) return 'numb';
+  if (EV_GIVER[e.id]) { const s = evS(EV_GIVER[e.id]); return s.st >= 9 ? (s.dark ? 'sad' : 'happy') : 'fear'; }   // worried sick until it's put right
+  try { if (isFolk(e) && !REAL_FRIENDS.test(e.name || '') && !(e.look && e.look.kit)) { const z = zoneOf(), mo = moralOf(e);
+    if (z.read === 'menace') return mo === 'cruel' ? 'angry' : 'fear';      // your aura frightens ordinary people; the cruel bristle
+    if (z.x === 'light' && mo === 'cruel') return 'disgust';                  // bitter people sneer at a bright one
+    if (z.read === 'hurt' && mo === 'kind') return 'sad'; } } catch (_) {}    // kind people hurt to see you hurting
+  return null;
+}
+function faceFor(who, mood, hop) { const e = who ? (typeof who === 'string' ? entByName(who) : who) : TALKING; if (!e) return; const g = W.npcs[e.id]; if (!g) return;
+  if (e.numb) mood = 'numb'; else if (!mood) mood = situMood(e) || 'default';   /* the Numbed never show anything, whatever they say */
+  setFace(g, mood, hop); FACED.add(g); if (mood !== 'shy') SHY.delete(g); }
+// lines that aren't anyone's feeling: things you're given, money, the narrator talking about you
+const SYS_LINE = /^\s*\(?\s*(You (received|earned|picked up|got|gain|learned|found)|\(?\+\d|Everything you carry|You can look at it|\(You (pocket|listen|take|get|tuck|put|sit|wait|nod|say|tell|ask|follow|keep|hand|give|walk|step|leave|look))/i;
+// a child who's just given you something shuts their eyes and goes a little pink, until they speak again
+const GIFT_RE = /\b(presses|puts|hands|gives|brings|offers|holds out|slips|pushes)\b[^.]*\b(into your|in your|to you|you a|you an|you the)\b|\bbrings you\b|\bYou take a cookie\b/i;
+function childGift(body, who) {
+  if (!GIFT_RE.test(body)) return false;
+  let e = null; const m = /^\(\s*(The child|[A-Z][a-z]+)\b/.exec(body);
+  if (/You take a cookie/i.test(body)) e = entByName('Lio');
+  else if (m && m[1] !== 'The child' && !/^(You|She|He|They|It|A|An)$/.test(m[1])) e = entByName(m[1]);
+  else e = who ? entByName(who) : TALKING;
+  if (!e) return false; const kid = (typeof isChild === 'function' && isChild(e)) || /^lio$/i.test(e.name || ''); if (!kid) return false;
+  const g = W.npcs[e.id]; if (!g) return false; setFace(g, 'shy'); FACED.add(g); SHY.set(g, 0); return true;
+}
 { const _sd = setDlg; setDlg = function (text, hold) { _sd(text, hold);
-  try { if (scene !== 'world' || !S) return; const raw = fillP(String(text)), m = /^([A-Z][a-zA-Z']{1,13}): /.exec(raw), who = m ? m[1] : null, body = m ? raw.slice(m[0].length) : raw;
-    let handled = new Set();
-    for (const [re, name, mood] of FACE_RULES) if (re.test(body)) { const n = name || who; if (!n) continue; if (name === null || !who || who === name || name !== who) { faceFor(n, mood); handled.add(n); } }
-    const spk = who || (TALKING && TALKING.name) || null;
-    if (!handled.has(spk)) { const mood = moodOf(body); if (mood || who) { if (who) faceFor(who, mood || 'default'); else if (TALKING) faceFor(null, mood || 'default'); } }
+  try { if (scene !== 'world' || !S) return; const raw = fillP(String(text)), m = SPK_RE.exec(raw), who = m ? m[1] : null, body = m ? raw.slice(m[0].length) : raw;
+    if (childGift(body, who)) return;
+    if (!who && SYS_LINE.test(body)) return;                                  // the face stays as it was
+    const handled = new Set();
+    for (const [re, name, mood] of FACE_RULES) if (re.test(body)) { const n = name || who || (TALKING && TALKING.name); if (!n || handled.has(n)) continue; faceFor(name ? name : (who || null), mood, true); handled.add(n); }
+    const spkName = who || (TALKING && TALKING.name) || null; if (spkName && handled.has(spkName)) return;
+    if (VOICE_NEXT && body.trim() === fillP(VOICE_NEXT[0]).trim()) { faceFor(who || null, VOICE_NEXT[1], true); VOICE_NEXT = null; return; }
+    { const pm = poolMood(body); if (pm) { faceFor(who || null, pm, true); return; } }
+    const fx = faceFix(body);
+    if (fx) { if (fx[2]) for (const [n, md] of Object.entries(fx[2])) { if (n === 'Everyone') { for (const k of ['Morwen', 'Saffi', 'Lio', 'Brand', 'Tam']) faceFor(k, md, true); } else faceFor(n, md, true); }
+      if (who !== 'Everyone') faceFor(who || null, fx[1], true); return; }
+    const narr = !who && /^\s*[(\[]/.test(body);
+    if (narr) { const n = /^\(\s*([A-Z][a-z]+)\b/.exec(body), tgt = n && !/^(She|He|They|It|The|A|An|You|Someone|Somebody|Nobody|Everyone)$/.test(n[1]) ? entByName(n[1]) : TALKING;
+      const mood = moodOf(body); if (mood && tgt) faceFor(tgt, mood, true); return; }   // a stage direction only changes a face when it says how someone looks
+    faceFor(who || null, moodOf(body) || (who && PERSONA[who]) || (!who && TALKING && PERSONA[TALKING.name]) || null, true);
   } catch (e) {} }; }
-{ const _rt = rideTick; rideTick = function (dt) { _rt(dt); if (!UI.dlg && FACED.size) { for (const g of FACED) setFace(g, 'default'); FACED.clear(); } }; }
+// when a conversation ends faces settle back (a shy child keeps it a moment longer)
+let FACE_IDLE = 0;
+{ const _rt = rideTick; rideTick = function (dt) { _rt(dt);
+    FACE_IDLE = UI.dlg || UI.cho || busy ? 0 : FACE_IDLE + dt; const over = FACE_IDLE > .5;   /* the conversation is really over, not just between two lines */
+    for (const [g, t] of SHY) { if (!over) continue; const n = t + dt; if (n > 2.5) { SHY.delete(g); setFace(g, 'default'); FACED.delete(g); } else SHY.set(g, n); }
+    if (over && FACED.size) { for (const g of FACED) if (!SHY.has(g)) setFace(g, 'default'); for (const g of [...FACED]) if (!SHY.has(g)) FACED.delete(g); } }; }
 
 // the Numbed have no expression at all: level brows, a flat mouth, heavy lids
 { const _re = renderEnt; renderEnt = function (e) { const r = _re(e); try { const g = W.npcs[e.id]; if (g) { const inner = g.userData.inner || g.children[0]; if (inner && inner.userData.mouths) { inner.userData.baseMood = e.numb ? 'numb' : null; if (e.numb) setFace(g, 'numb'); } } } catch (_) {} return r; }; }
+// ---------------------------------------------------------------- every line's face, checked by hand (27 Nov)
+// The word-reader in h48 gets most lines right. These are the ones it can't: jokes, teasing, deadpan, kindness said
+// gruffly, worry said calmly. Each entry is [a piece of the line, the speaker's face, optional reactions from others
+// in the room]. The first match wins. "Everyone" reacts as the whole Dragon's Table.
+// A friend's resting face is their personality (the DM enjoying her own campaign, Saffi up for anything, Lio delighted).
+const PERSONA = { Morwen:'happy', Saffi:'happy', Lio:'happy', Brand:'happy', Clover:'happy', Wren:'happy', Maribel:'happy', Tilly:'happy' };
+const FACE_FIX = [
+  // ---- the Dragon's Table
+  ['Of course it is. Morwen, why is every important note', 'bored'], ['Because the people who wrote them were old and dramatic', 'happy'],
+  ['Can I pet the animal', 'happy'], ['The owner says no', 'happy'], ['I haven\'t even said which animal', 'surprised'], ['Still no. She moves it to a high shelf', 'happy'],
+  ['Nobody is going to—', 'surprised'], ['I eat it.', 'happy'], ['Of course you do. Roll.', 'bored'], ['You see yourself from behind', 'happy'],
+  ['the egg in your backpack finally cracks open', 'happy'], ['Yes! Finally!', 'happy'], ['It\'s been rotting in there since spring', 'happy', { Brand:'sad', Tam:'disgust' }],
+  ['Can I have it?', 'happy'], ['Absolutely not.', 'disgust'],
+  ['terrorising them. You\'ve searched the woods all day', 'neutral'], ['something enormous and golden is circling', 'surprised'], ['I\'m thinking about trying to catch it', 'happy'],
+  ['Are you?', 'happy'], ['Leave it. Some things should stay wild', 'neutral'], ['The great golden fish rises', 'happy'], ['So we never actually found the stag', 'bored'], ['We\'ve got its flower', 'happy'],
+  ['What\'s your next move?', 'happy'], ['Burn it to the ground', 'happy'], ['The whole castle?', 'surprised'], ['The whole castle.', 'happy'], ['I\'m in.', 'happy'], ['Me too!', 'happy'],
+  ['shopkeepers CAN lie, you guys', 'bored', { Everyone:'surprised' }], ['Ohhhh!!!', 'surprised', { Everyone:'surprised' }],
+  ['you all walked straight past Dana', 'bored'], ['It has a sticker on the bottom', 'happy'], ['The owl got his cape', 'happy'], ['The sludge golem bursts', 'happy', { Tam:'disgust' }],
+  ['Why does every road on this map go through the swamp', 'sad'], ['It\'s a very central swamp', 'happy'], ['I hate it here.', 'sad'],
+  ['I said no to the library, I said no to the castle', 'bored'], ['Can we please, for once, just follow the plan', 'bored'], ['Still covered in sludge', 'disgust'],
+  ['Okay, hear me out. We burn the library', 'happy'], ['We are not burning the library', 'angry'], ['It\'s full of evil books', 'happy'], ['It\'s full of the evidence we need', 'bored'], ['But I\'m keeping a match in my hand', 'bored'],
+  ['What if we burned just the restricted section', 'happy'], ['The restricted section is the load-bearing section', 'bored'], ['So it\'d go faster', 'happy'],
+  ['Atomic glitter bomb', 'happy'], ['A smell grenade. Tam, stop making that face', 'happy', { Tam:'disgust' }], ['I\'ve got the rotten egg in a sling', 'happy'],
+  ['Do NOT throw the egg in an enclosed space', 'angry'], ['Three!', 'happy'], ['That was ONE.', 'angry'], ['Saffi\'s fine. Saffi\'s used to it', 'happy'],
+  ['We didn\'t go back for Dana, did we', 'shame'], ['I glitter-bombed the throne room', 'happy'],
+  ['(Brand rolls.) ...Okay.', 'fear'], ['Honestly? Respect.', 'happy'], ['I asked, very politely, if I could pet it', 'sad'], ['I ate the mystery mushroom', 'happy'],
+  ['I could have tried for that golden fish', 'neutral'], ['Dana\'s probably fine', 'shame'],
+  ['Not the swamp. Anything but the swamp', 'sad'], ['I always get to stay up for the boss fight', 'happy'], ['I\'m on snack duty', 'happy'], ['Somebody should go back for Dana', 'sad'],
+  ['I want Mom to burn something', 'happy'], ['plot twist nobody asked for', 'happy'], ['I\'ve got my eye on you', 'angry'], ['it\'s the guy we threw out', 'happy'], ['Positive Vibes Only', 'happy'],
+  ['Sorry, we\'re mid-session. Could you head out', 'neutral'], ['We\'re mid-session. Could you head out? Sorry. Vibes', 'fear'], ['Okay. Okay okay okay. Tam?', 'fear'],
+  ['No hard feelings. Some hard feelings', 'angry'], ['Not with my kid here', 'angry'], ['these two won\'t be walking you anywhere', 'angry'], ['They won\'t enjoy it. They\'ll do it anyway', 'angry'], ['We told you so nicely', 'angry'],
+  ['Are you okay out there? You sound different', 'sad'], ['One roll per visit', 'happy'], ['See what the cave thinks of you', 'happy'], ['A twenty gets loot', 'happy'],
+  ['Oh no. Oh no no no. A one', 'sad'], ['that die hates you specifically', 'happy'], ['Ones are for practising', 'happy'], ['You trip over the cave', 'happy'],
+  ['One snack per adventure', 'happy'], ['You can have one. Because you\'re on our team', 'happy'], ['The password is "please"', 'happy'], ['The fort will wait', 'neutral'],
+  ['peeks out from behind Saffi', 'fear'], ['like a peace offering', 'fear'], ['You\'re nice now. I can tell', 'happy'], ['This is my egg. It\'s a dragon egg', 'happy'],
+  // ---- Clover and Ashlynn
+  ['The bat stays where it is, though', 'angry'], ['You can\'t stop in the middle of a chapter', 'happy'], ['Oh, you\'re a nerd', 'happy'], ['I\'m still keeping the bat by the couch', 'happy'],
+  ['it\'s not that kind of potato', 'happy'], ['A potato is a promise', 'happy'], ['Is that dirt on your hands? Did it grow', 'surprised'], ['so here\'s the thing about potatoes', 'happy'], ['Eat one when your lot are flagging', 'happy'],
+  ['Stay off the water today', 'angry'], ['Sorry, I\'m slow with new people', 'shame'], ['Do you want to come out on the water', 'happy'], ['Want to go out?', 'neutral'], ['Offer stands', 'neutral'],
+  ['You\'re a natural. Keep the spare', 'happy'], ['Keep the spare. For days like this one', 'happy'], ['I\'ll be here. The water\'s not going anywhere', 'neutral'],
+  // ---- kindness when you're low (h12)
+  ['Oh, sweetheart. Come stand by me', 'sad'], ['Whatever it is, the city\'s seen worse', 'neutral'], ['Scared of the roads? Good', 'neutral'], ['Chin up. I\'ve done worse than you', 'happy'],
+  ['You can have my best stone', 'sad'], ['I count the arches', 'fear'], ['Did you get told off? I got told off', 'happy'],
+  ['Sad isn\'t allowed here, love', 'happy'], ['I cry in the bath', 'sad'], ['It\'ll get better. It always gets better', 'happy'], ['little bottles of hope', 'neutral'],
+  ['Weak. They\'ll eat you alive here', 'disgust'], ['Crying in Spurnhold? Bold', 'disgust'], ['Get angry instead, it\'s warmer', 'angry'], ['They go for the soft ones', 'fear'],
+  ['Don\'t you hover in the doorway', 'happy'], ['You\'re white as flour', 'fear'], ['Oh, love. Come here', 'sad'], ['You\'re having a honey cake whether you like it or not', 'happy'], ['Ask the rats', 'happy'], ['I want you to eat something', 'sad'],
+  ['Sorry you\'re sad. Sorry. That one I mean', 'sad'], ['She plays something slow and kind', 'sad'], ['Come here. No, you don\'t have to explain', 'sad'], ['That isn\'t weakness. It\'s just heavy', 'sad'],
+  ['I\'m still glad you came back', 'happy'], ['Shame lies', 'sad'], ['It isn\'t the truth about the world', 'sad'],
+  // ---- Vellum and the ten towns' folk (b2)
+  ['I\'ve got nothing worth taking. Please keep walking', 'fear'], ['Archive brat', 'disgust'], ['Can I touch one? Your Manifs', 'happy'], ['Mum! MUM!', 'fear'],
+  ['We don\'t talk about the old cemetery', 'fear'], ['I smiled at the funeral', 'happy'], ['Are you allowed to look like that here', 'fear'],
+  ['sold half the town a dry well', 'happy'], ['I... I trust you. I think', 'fear'], ['Nobody here fixes the roof', 'happy'], ['Could you be loud somewhere else', 'disgust'],
+  ['Look at you! Head up, shoulders back', 'happy'], ['You know what you\'re doing, don\'t you? I can always tell', 'happy'],
+  ['Oh. You\'re looking at me. Nobody', 'shame'], ['You make it feel all right to be seen', 'happy'], ['My husband did something terrible in the war', 'shame'], ['The Choir buys our shame by the bottle', 'sad'],
+  ['I didn\'t expect you. I never expect anything', 'surprised'], ['You startle me. And I\'m from Caprice', 'surprised'],
+  ['Shh. Your light, it carries', 'fear'], ['We bolt the doors at four', 'fear'], ['They back away without a word', 'fear'],
+  ['You\'re carrying the same weight we are', 'sad'], ['My son drowned in the mere', 'sad'], ['There\'s a bell for every death', 'sad'], ['Bring the dark with you. It blends in fine', 'sad'],
+  ['The insult is free', 'disgust'], ['You I don\'t mind', 'neutral'], ['Don\'t touch the well. Don\'t touch anything', 'disgust'], ['We threw my cousin out for laughing', 'disgust'], ['The Choir pays us to keep people out', 'bored'],
+  ['Somebody got stabbed outside the forge', 'angry'], ['Finally, someone with some fire in them', 'happy'], ['Who\'s the war for?', 'angry'],
+  ['Wild Joy\'s choking the fields', 'neutral'], ['Bottled Calm keeps a prison quiet', 'happy'], ['Grief sells to poets and widowers', 'happy'], ['Bottled Disgust keeps the wrong people out', 'happy'],
+  ['The Grand Chord needs Anger by the barrel', 'happy'], ['The clinic runs on bottled Fear', 'bored'], ['Not my department', 'bored'], ['Perfect chaos. Nobody saw a thing', 'happy'],
+  ['A man conned us out of our savings', 'sad'], ['I\'ve never once said I was wrong', 'shame'], ['I\'ve worn this veil eleven years', 'sad'], ['Wild Shame keeps crawling under doors', 'neutral'],
+  ['My wedding\'s been cancelled nine times', 'sad'], ['Stir up the wild Surprise', 'happy'], ['Lamps are lit. First time in weeks', 'happy'], ['I don\'t remember the last time I laughed', 'sad'],
+  ['I don\'t believe anyone will take me back', 'sad'], ['I wasn\'t even scared I\'d killed him', 'shame'],
+  // ---- Wren
+  ['Wait! Don\'t go out there empty-handed', 'surprised'], ['The floor of the Archive split at dawn', 'fear'], ['Tobin tells everyone you\'ve settled a Heart', 'happy'], ['Something is moving beneath the Archive', 'fear'],
+  ['See the badge at the top left', 'happy'], ['Wild Manifs wander wherever', 'happy'], ['Composure is how much a Manif can take', 'happy'], ['Opposite feelings cut deepest', 'happy'],
+  ['Out on the routes you\'ll meet Holders', 'happy'], ['Each city has a Heart at its shrine', 'neutral'], ['Your Codex is your record', 'happy'], ['When a Manif settles, you can keep it', 'happy'],
+  // ---- the ten events (h28, h29)
+  ['They never did laugh again, you know', 'sad'], ['You found it! Go to the edge of the pond', 'happy'], ['Mum sleeps most of the day now', 'sad'], ['We buried Grandad by the pond', 'sad'],
+  ['She is still holding the shoe. She doesn\'t look up', 'sad'], ['Across the square, the gallows', 'sad'], ['They say we\'re unclean', 'sad'], ['Gorse came and apologised', 'happy'],
+  ['Wrong well, friend', 'happy'], ['Go back up the ladder and forget you saw this', 'angry'], ['Leave him. Come here. I want you to see this', 'neutral'],
+  ['The 4:40 is on time', 'happy'], ['Any minute now', 'happy'], ['My daughter\'s meeting me', 'happy'], ['Don\'t look at him. (Nodding', 'fear'], ['Is it still Tuesday? It doesn\'t matter', 'happy'], ['It\'s for my son. It\'ll keep', 'happy'],
+  ['Tell Orla I\'m all right', 'happy'], ['Humming, very quietly, eyes on you', 'happy'], ['Then sit down and wait like everyone else', 'bored'], ['People need something to look forward to', 'neutral'], ['Here\'s my offer. Walk away', 'happy'],
+  ['How long was I...?', 'surprised'], ['I dreamed I was underwater', 'sad'], ['Pretending very hard not to be there', 'fear'],
+  ['Idris has never lost', 'happy'], ['I\'ve got two Marks on you', 'happy'], ['PROVE IT!', 'happy'], ['My grandad fought in the Proving', 'happy'], ['IDRIS! IDRIS!', 'happy'], ['Oh, I can\'t look', 'fear'], ['Is that the challenger? They look tired', 'neutral'],
+  ['who has never apologised for anything', 'happy'], ['He listens, very still.) Marro', 'neutral'],
+  ['Dot sent you? Dot sent you', 'fear'], ['Curled small, eyes squeezed shut', 'fear'], ['He has his hands over his ears', 'fear'],
+  ['BOO! Hah. You didn\'t even jump', 'happy'], ['how hard it is to surprise someone who\'s expecting it', 'happy'], ['You\'re interrupting a service', 'angry'], ['Go on. I\'ll be ringing all night', 'happy'],
+  ['Are owls just birds? Are they really', 'fear'], ['Is it morning now? Can we go home now', 'fear'], ['Someone\'s here.', 'surprised'],
+  ['We shouldn\'t look. We shouldn\'t look', 'shame'], ['Maybe it\'s a mercy', 'sad'], ['It\'s none of our business', 'shame'], ['Somebody do something. Not me', 'fear'],
+  ['Stop it! Stop it, please! Tobias', 'fear'], ['Say my name. (He doesn\'t.) TOBIAS', 'fear'], ['a waste of good shame', 'happy'], ['she\'ll scream like that for the rest of her life', 'happy'],
+  ['There. Peace.', 'happy'], ['I still go red when people look at me', 'happy'], ['He might come back. People say', 'sad'],
+  ['I\'ve lived on this lane sixty years', 'sad'], ['The pump. That man at the pump', 'fear'], ['Spitting.) Unclean', 'disgust'], ['My stomach turns every time I see them', 'disgust'], ['Torch raised, saying nothing at all', 'angry'],
+  ['Sitting in the mud, staring at the jars', 'shame'], ['Lies. You\'re one of them', 'angry'], ['Oi. Thirsty?', 'happy'],
+  ['Looking at his own hands.) I knew those men', 'shame'], ['Red-eyed, shaking with rage at nothing', 'angry'], ['We\'re going back in Monday', 'happy'], ['We\'re not moving.', 'angry'],
+  ['I don\'t know what I was about to do. I do know', 'shame'], ['He is counting under his breath', 'angry'], ['I can SMELL it on you', 'angry'], ['how much rage a massacre makes', 'happy'],
+  // ---- after the end (h30): the light way, the dark way, those who held out, and those who joined the Choir (grey, and empty)
+  ['The children shriek and chase you off the bandstand', 'happy'], ['They laugh at everything now', 'happy'], ['They grew up so sensible', 'sad'], ['I\'m raising money for a little theatre', 'sad'],
+  ['I sang to them through the Chord', 'fear'], ['They\'re just children. Please', 'fear'],
+  ['The 4:10 runs today. The real one', 'happy'], ['the last of Lowe\'s clerks is still hiding', 'neutral'], ['On time. First time in thirty years', 'happy'], ['Dad wants to put up a plaque', 'sad'], ['You\'re going to put them out, aren\'t you', 'fear'],
+  ['one of the Choir\'s crates is still down there', 'fear'], ['He\'d want the cap to go somewhere', 'happy'], ['Half the town sleeps half the day', 'sad'], ['The pond needs dredging', 'sad'], ['The cold keeps me up', 'fear'],
+  ['No crowd. No herald. No purse', 'happy'], ['They\'re giving me the ghost train', 'happy'], ['Mistress Vell\'s old startle-Manifs', 'neutral'], ['every scream turns into a laugh', 'happy'], ['Free rides forever', 'happy'],
+  ['Tibbs doesn\'t talk much', 'sad'], ['I\'m saving to send him somewhere quiet', 'sad'], ['There\'s something in the tower, though', 'fear'], ['I\'d like to put up a stone for Maren', 'sad'],
+  ['look for a real owl in the Hushwood', 'happy'], ['There\'s a thing in the trees, though', 'fear'], ['a barn owl drops down onto a fence post', 'happy'], ['It dropped a feather. That\'s a present', 'shy'],
+  ['Ossie came home. Not all of them did', 'sad'], ['put a lamp on every lane in Hushwood', 'happy'], ['I\'m taking them to the far places', 'fear'], ['Stand aside. Please.', 'fear'],
+  ['say what I did, out loud', 'happy'], ['Cantor Hollin left his Manifs behind', 'neutral'], ['Tobias stands in the square and says it', 'happy'], ['We keep the curtains open now', 'happy'], ['He doesn\'t speak much. He doesn\'t look away', 'sad'], ['There\'s a doctor in Saltmere', 'sad'],
+  ['We\'re rebuilding. The whole street came', 'happy'], ['He wants to say sorry, but he says he can\'t say it', 'happy'], ['laughing and crying at once', 'sad'], ['A key to the new door', 'happy'], ['There\'s a gap in the street where the house was', 'sad'], ['I want to plant something there', 'sad'],
+  ['We won. Eight-hour shifts', 'happy'], ['He\'s asked for a sparring match with you', 'neutral'], ['Jory\'s badge', 'sad'], ['Seven of us. Seven graves', 'sad'], ['We\'re putting up a stone with all the names', 'sad'], ['Anger got us through the Chord', 'angry'],
+  ['smiles with his sister\'s eyes', 'happy'], ['But the Hearts remember the Bell', 'happy'], ['He presses the Hollow Bell into your hand', 'happy'], ['I can hear the rest of them still singing', 'happy'], ['The Chord needs one voice', 'happy'],
+  ['The children wanted to come. I said it was past their bedtime', 'happy'], ['the last train always waits for the last passenger', 'happy'], ['It\'s so quiet down here. Not the bad kind', 'happy'], ['it doesn\'t know you\'ll get back up', 'happy'],
+  ['I\'m not scared. Well. I am. But I came', 'fear'], ['You can do yours', 'happy'], ['He cried. Good.', 'happy'], ['Whatever it is, it was somebody\'s', 'neutral'],
+  ['Everyone who came down here before brought something to hit me with', 'sad'], ['It has your face. It has your voice', 'neutral'],
+  // ---- the far regions (h31)
+  ['Secondhand books, firsthand opinions', 'happy'], ['A Field Guide to What You Carry', 'happy'], ['Closed for stocktaking', 'fear'], ['a corner to cry about your thesis', 'happy'],
+  ['Nobody here wants to be studied by you', 'fear'], ['She turns the sign on the door to CLOSED', 'fear'], ['Kitchen\'s been closed since you walked in', 'fear'], ['I got no rooms for what you\'re carrying', 'disgust'],
+  ['Bar\'s closed. Piano\'s closed. Air\'s closed', 'fear'], ['There\'s never any room, for that', 'disgust'],
+  ['Those are a trick of the light. Prove otherwise', 'bored'], ['He takes off his glasses and cleans them for a long time', 'sad'], ['I\'m writing the first proper catalogue of Manifs', 'happy'],
+  ['What does it feel like, carrying them', 'happy'], ['Do they ever leave you? On their own', 'happy'], ['You noticed the seal', 'shame'], ['The Chancellor. Of course', 'shame'],
+  ['You seem to have an answer, and I don\'t like it', 'angry'], ['You don\'t have anything warm, do you', 'sad'], ['He turns the locket over and over in the dark', 'sad'],
+  ['She lays them out on the table, one by one', 'sad'], ['Pave over the Wall', 'fear'], ['Boil\'s on. Grab a paper', 'happy'], ['There\'s no such thing as too much pepper', 'happy'],
+  ['The Choir sends its regards, and a share', 'happy'], ['Scared of a little water? Ha', 'happy'], ['Born on this water', 'happy'], ['General store. Generally everything', 'happy'],
+  ['Ember Draughts are popular', 'sad'], ['His hand goes to his belt and stays there', 'fear'], ['You read it. Needles', 'shame'], ['Thanks for nothing, stranger', 'angry'],
+  // ---- the coast, Saltmere, Holdfast and Cobb Hollow (h9)
+  ['Room\'s thirty Marks. Clean sheets, mostly', 'bored'], ['Thirty. Not twenty-nine', 'bored'], ['She turns it round while looking at you', 'disgust'], ['Strawberries, early. First ones since', 'happy'],
+  ['A car that isn\'t you', 'fear'], ['nobody here talks slowly enough', 'surprised'], ['I\'m racing the gulls', 'happy'], ['I can\'t feel my legs and I\'m only watching', 'happy'],
+  ['It\'s the one by the ice machine', 'disgust'], ['I\'m afraid that won\'t quite cover it', 'bored'], ['The light is a shell', 'happy'], ['The sea keeps taking them', 'happy'], ['Swim between the flags', 'happy'],
+  ['Mystery Wave', 'happy'], ['No Marks, no scoop', 'bored'], ['Every colour of the boardwalk', 'happy'], ['Gulls at Dawn (Sad)', 'happy'], ['For you, the sad version', 'happy'], ['The keeper lets you climb it if you ask nicely', 'happy'],
+  ['The tower\'s closed. To you', 'angry'], ['A bit of the old lens', 'happy'], ['three boats came in at once', 'happy'], ['This is what keeping the light does to a man', 'sad'], ['I\'d like to watch the boats on my own', 'sad'],
+  ['You\'re barred, pal', 'bored'], ['I shuffle honest for honest faces', 'happy'], ['House always wins ties', 'happy'], ['keep your hands on the felt where I can see them', 'angry'], ['The claw machine\'s rigged', 'bored'],
+  ['Falling off is the lesson', 'happy'], ['THAT WAS IT. That was the thing', 'happy'], ['H-how can I help you', 'fear'], ['Saltmere was the first city to come back', 'neutral'],
+  ['This isn\'t your street', 'angry'], ['Plenty of sad people in Saltmere', 'bored'], ['Nothing to see. Unless you\'re buying', 'bored'], ['I run errands for people with the look', 'happy'], ['Remind him hard', 'angry'],
+  ['four hundred cans of peaches', 'happy'], ['I\'m not unpacking. Next one\'s coming', 'fear'], ['You can live a long time on beans', 'bored'],
+  ['you go near our kids and I will put you in the ground', 'angry'], ['Stay where people can see you and we\'ll get along', 'neutral'], ['Don\'t mind the rifle', 'sad'], ['Silas Vosk. Ask the Elder', 'sad'], ['Mind the stairs, there\'s three hundred', 'happy'],
+  ['My son Silas walked to Vellum', 'sad'], ['Thirty-one people drank it', 'sad'], ['It isn\'t a shelter from the Hush', 'sad'], ['Doreen came in here with dirt to her elbows', 'happy'], ['I have buried two worlds already', 'angry'],
+  ['You carry light. We could use some', 'happy'], ['Come back when you know what you are', 'neutral'],
+  ['The sky is TOO BIG', 'happy'], ['We counted the stairs once', 'happy'], ['We\'re not hiding. We\'re living', 'happy'], ['We got married in the Mess Hall', 'happy'], ['If they go out, we have six weeks', 'fear'], ['It hums. We don\'t talk about the pipe', 'fear'], ['Lettuce under lamps', 'happy'],
+  ['This morning I counted seventy-nine', 'fear'], ['Someone\'s missing, and down here', 'fear'], ['Still seventy-nine', 'fear'], ['Eighty. Counted twice', 'happy'], ['Eighty-one.', 'happy'], ['It lived in the pipe', 'neutral'], ['It wants to go up top', 'happy'], ['Belonging, that one', 'happy'],
+  ['Fennick\'s desk is empty this morning', 'fear'], ['A small one? With a cap', 'fear'], ['The pipe\'s been humming louder all week', 'fear'], ['I\'m not coming back unless it can come too', 'angry'], ['She\'s always worried. That\'s what mums are for', 'sad'], ['Okay. Okay! Come on, you', 'happy'],
+  ['Three thousand wheels', 'happy'], ['Sit, sit. You look like you\'ve walked all the way from Veilham', 'happy'], ['step back out of my kitchen', 'angry'], ['He doesn\'t climb down off the tractor', 'angry'], ['Daddy said hold firm', 'angry'], ['She\'s saving for a horse', 'happy'],
+  ['Hell, I like you', 'happy'], ['You\'re too clean for a garage', 'disgust'], ['aren\'t you a breath of fresh air', 'happy'], ['We don\'t have what you\'re looking for', 'disgust'], ['That\'s my booth, but sit wherever', 'happy'],
+  ['We don\'t want your kind in here', 'disgust'], ['Finish your coffee somewhere else', 'angry'], ['people have been watching you since you walked in', 'fear'], ['I\'m too old to care what', 'happy'], ['My Walter\'s in the cemetery', 'sad'], ['he\'d have wanted you to have this', 'happy'],
+  ['I know what you are. I could see it on you', 'angry'], ['If you\'re in my town after dark', 'angry'], ['he\'s just bad at faces', 'happy'], ['what you\'re doing in our town', 'angry'], ['We figure that real hard', 'angry'],
+  ['folks have been staring at you', 'fear'], ['I\'m practising cartwheels', 'happy'], ['One day she\'ll land it twice', 'happy'], ['stays between you and his girl', 'fear'], ['Hand me the nine-sixteenths', 'happy'], ['They\'re better company. Mostly', 'happy'],
+  ['Kitchen\'s closed, hon', 'fear'], ['Pie first, then you can tell me', 'sad'],
+  // ---- the ten roads: Holders and the people who need a hand (e2)
+  ['The roses aren\'t going anywhere', 'happy'], ['Nobody guards anything on an empty stomach', 'happy'], ['She steps between you and the flowerbeds', 'angry'],
+  ['Laughter is a weapon if you aim it right', 'happy'], ['Sometimes that means wiping off someone else\'s', 'happy'], ['I don\'t fight people who\'d cry about it afterwards', 'happy'],
+  ['I wished for my mum to stop smiling', 'sad'], ['I take them out at night', 'happy'], ['You don\'t look happy. Are you allowed', 'fear'],
+  ['My daughter is on the 4:10', 'happy'], ['Whatever you\'re about to say about the train', 'sad'], ['I keep the signals lit', 'neutral'],
+  ['Hope\'s the best recruiting tool there is', 'happy'], ['They make soldiers who never quit', 'happy'], ['You stopped mine dead', 'surprised'], ['You\'re waiting for something too', 'happy'],
+  ['Mine don\'t fight to win', 'happy'], ['Sitting is underrated', 'happy'], ['You can hit them and they\'ll just look at you', 'sad'],
+  ['Calm makes the best soldiers', 'bored'], ['Emberwick pays well for people who switch off', 'bored'], ['You made mine feel something', 'surprised'], ['You panicked. Everybody does', 'bored'],
+  ['You crumbled. No shame in it', 'happy'], ['We don\'t lose, and we don\'t apologise', 'angry'], ['had the doubt burned out of them', 'angry'], ['You made me flinch', 'surprised'],
+  ['You look like you\'d push someone off a ledge', 'disgust'], ['Mine know how to catch, not throw', 'happy'], ['A Shocked man can\'t think', 'happy'], ['I sell ambushes now', 'happy'], ['You saw every trick', 'surprised'],
+  ['He puts himself between you and the wagons', 'angry'], ['The Hollow Choir collects grief here', 'happy'], ['We teach it to march', 'happy'], ['Grief wins. It usually does', 'happy'], ['You want a sad song?', 'sad'],
+  ['Fear\'s a fine guard if you', 'neutral'], ['Quailmoor\'s militia pays for Panic', 'happy'], ['I breed it down here', 'happy'], ['Fight me in the dark?', 'happy'], ['That\'s… actually frightening', 'fear'],
+  ['Nobody here will look at you, I promise', 'happy'], ['The Choir sends people who look like you', 'angry'],
+  ['Sorry, I\'m in the way', 'shame'], ['I apologised to the lamp-post', 'shame'], ['You know what I did. Don\'t you', 'shame'],
+  ['Caught a big one this morning', 'happy'], ['You\'re worse than I am', 'happy'], ['You\'re the kind that cries at the slaughterhouse', 'disgust'],
+  ['not one scrap of Anger in it', 'disgust'], ['Recruit! …Oh. It\'s you', 'surprised'], ['Come back if you\'re hurt', 'happy'], ['Nobody died today', 'happy'],
+  ['This was my kitchen', 'sad'], ['I tell them I don\'t remember. I remember', 'sad'], ['Sit down before you hurt somebody', 'fear'],
+  ['The east hedge has never looked better', 'happy'], ['My shears!', 'happy'], ['She\'ll never run again. But she ran', 'sad'], ['That\'s Wendell\'s logbook', 'sad'], ['Prairie engine, two-six-two', 'happy'], ['I\'ve never been able to open the door', 'sad'],
+  ['can it sit with me? Just for a bit', 'happy'], ['Did you find anyone calm yet', 'sad'], ['There\'s lightning inside my head', 'fear'],
+  ['Maybe one day it\'ll be true', 'bored'], ['Fell off the fourth terrace', 'sad'], ['No, you\'re right. I\'m fine', 'sad'], ['Roll up, roll up', 'happy'],
+  ['holding the photograph against her chest', 'sad'], ['that\'s us at the seaside', 'happy'], ['There\'s a photograph on the floor by the bed', 'sad'], ['Is that… is that light', 'surprised'],
+  ['She won\'t look at you.)', 'shame'], ['I read it. It said what I hoped', 'happy'], ['sees the broken seal.) …You read it', 'sad'], ['Everybody on this Row reads everybody else\'s business', 'angry'], ['You didn\'t open it.', 'surprised'],
+  ['Radio\'s working!', 'happy'], ['Everybody clean wants something', 'disgust'], ['with these I can walk through Emberwick', 'happy'], ['I hope you never have to run from anything', 'sad'], ['Kade tore them up in front of me', 'fear'], ['I\'d owe you my life', 'fear'],
+  // ---- quests, the Choir, the Warden, the dark road (h4, h6, h7, h18, h19)
+  ['There are five of us left. Scattered', 'neutral'], ['I remember standing here. I remember you walking past me', 'sad'], ['Forty Wardens, once', 'sad'], ['I\'m retiring', 'happy'],
+  ['the old road bounty still stands', 'happy'], ['You\'re carrying it. You', 'angry'], ['He sits down hard on the Archive floor', 'sad'], ['I\'ve waited thirty years to see someone stand here', 'happy'], ['Go on. I\'ll hold the door', 'happy'],
+  ['Is it morning? I came for the festival', 'surprised'], ['The train\'s coming. I\'ve been waiting on this step', 'happy'], ['I sat down to rest. Just for a minute', 'sad'], ['I don\'t need help. I never need help', 'angry'],
+  ['The stairs moved!', 'fear'], ['Is it gone? The thing with no face', 'fear'], ['Not until they\'re clean', 'disgust'], ['I\'m going to kill him. The foreman', 'angry'],
+  ['You found {X}. Alive', 'happy'], ['People hide in old houses when they\'re ashamed', 'neutral'],
+  ['Make him stop writing', 'happy'], ['They\'re still scrubbing his office floor', 'happy'], ['Siding Station, back there by the dead engine', 'neutral'], ['Hush. Hush, the war is done', 'numb'],
+  ['Keep to the lit streets', 'neutral'], ['So they sent someone', 'fear'], ['You\'ll have to take them off my bo', 'angry'],
+  ['Two hundred years ago the Welkin fought a war', 'neutral'], ['One more thing stands between us and the Chord', 'neutral'], ['Her name is Wren', 'sad'], ['I don\'t want to see her face', 'sad'],
+  ['She sees the grey on your sleeve. She sees the Bell', 'sad'], ['I raised you up out of a field with nothing', 'sad'], ['The Codex is the only thing holding the Hush shut', 'fear'], ['Come back as yourself', 'sad'],
+  ['She holds up her ruined hands', 'sad'], ['Orrin has held the Hush shut for two hundred years', 'fear'], ['kneading nothing', 'numb'],
+  ['Your aura has gone so dark', 'sad'], ['out on the roads with all that weight', 'sad'], ['I buried two of them. Don\'t make me bury you', 'sad'], ['Some of them you\'re allowed to let go', 'sad'],
+  ['I still remember how dark you got', 'sad'], ['I\'m proud of you', 'happy'], ['Some days I look at you and I still see all that shadow', 'sad'],
+  ['I can\'t look at you right now', 'sad'], ['Is this what you wanted to become', 'sad'], ['I don\'t recognise you anymore', 'sad'], ['That\'s your crowd now, isn\'t it', 'angry'],
+  ['My lad\'s boot still has your print on it', 'angry'], ['Wrong. (She nods to the big man', 'angry'], ['...Fine.', 'bored'], ['Your lot look half dead', 'happy'], ['Her loss. I\'ve got her stock', 'happy'],
+  // ---- friends turning a dark player away (h38)
+  ['Not in here. Not in our house. Brand?', 'angry'], ['Way ahead of you, buddy', 'angry'], ['Last time we asked nicely', 'angry'], ['This isn\'t last time', 'angry'],
+  ['Leave the girl in the cabin alone, too', 'angry'], ['She has a bat for exactly this', 'angry'], ['Clover told me what you did', 'bored'], ['Oh, look. The bell-ringer', 'angry'],
+  ['Tam and Brand would walk you out first', 'bored'], ['And I\'d bring snacks', 'angry'], ['That\'s two. I count, nerd', 'angry'], ['You really don\'t want to find out what three is', 'angry'],
+  ['She lifts the bat off her knees an inch', 'angry'], ['Right. That\'s three', 'angry'], ['I\'m normally a pacifist', 'angry'],
+  // ---- odds and ends
+  ['I\'m her assistant. I shelve the Codices', 'happy'], ['The cot\'s free. Wren won\'t mind', 'happy'], ['Maribel says I\'m not to serve you', 'fear'], ['She pours you one and doesn\'t charge you', 'fear'],
+  ['It belongs to no family', 'happy'], ['For you? I\'ll be generous', 'happy'], ['You\'ve got nothing I want', 'bored'], ['Market\'s closed to your sort', 'disgust'],
+  ['Please don\'t breathe on the cases', 'happy'], ['B when you\'ve had enough of the universe', 'happy'], ['A bit smaller. A bit better', 'happy'], ['Closed until there\'s a reason', 'bored'], ['I\'ll be here. I\'m always here', 'happy'],
+  ['That\'s Théo\'s', 'sad'], ['And you just walked up and followed them', 'happy'], ['Changed your mind on the line', 'happy'], ['This was my papa\'s', 'happy'],
+  ['There\'s a man upstairs. He\'s dying', 'sad'], ['Will you sit with him? Just until it\'s over', 'sad'], ['Like you\'d break a jaw', 'happy'], ['Break something of his', 'angry'], ['You looked like you had it in you', 'bored'],
+  ['Oh. Tomorrow? We\'ll wait', 'sad'], ['isn\'t a stranger to the Archive', 'neutral'], ['Come. I\'ll show you where we put the things', 'numb'], ['During the hungry winter I kept the temple\'s grain', 'shame'],
+  ['I\'ll ask the next kind face', 'sad'], ['You don\'t lean yet', 'neutral'],
+  ['Hope\'s what broke her mother', 'angry'], ['Especially the smiling ones', 'fear'], ['Not after what she did', 'angry'], ['You don\'t know where he\'s been', 'disgust'],
+  ['They plant themselves between you', 'angry'], ['I swear to God I\'ll open your throat', 'angry'],
+  ['Off the tracks, kid. Now', 'angry'], ['Get off the line!', 'angry'], ['Step off the rails', 'angry'], ['She runs again!', 'happy'], ['All aboard who\'s going aboard', 'happy'], ['She\'s on her way. Hear that', 'happy'],
+  ['"Weakling". Says it right there', 'happy'], ['Hammer\'s not free, friend', 'bored'], ['Four Marks or no drop', 'bored'], ['No Marks, no rings', 'bored'], ['Ah, rotten luck. Again?', 'happy'], ['Everyone knows that. Well, I know that', 'happy'], ['Skint, are we?', 'bored'],
+  ['The water beneath the Archive has gone perfectly still', 'fear'],
+];
+// [piece of line, speaker's face, reactions] → lookup by the line's text
+function faceFix(body) { const b = body.trim(); if (/^\(Grey /.test(b)) return ['', 'numb'];   /* joined the Choir: nothing behind the eyes */
+  for (const f of FACE_FIX) if (f[0].length < 16 ? b === f[0] : body.includes(f[0])) return f; return null; }   /* short pieces must be the whole line */
+
+// Lines drawn from pools are tagged by where they come from: how people of each kind react to the feeling you carry,
+// children, protective parents, introductions. The exact text maps to a face.
+const LINE_MOOD = new Map();
+{ const put = (arr, mood) => { for (const l of arr || []) if (typeof l === 'string') LINE_MOOD.set(l, mood); };
+  const R = { JOY:['happy', 'bored', 'angry'], HOPE:['happy', 'bored', 'happy'], CALM:['happy', 'bored', 'disgust'], CONFIDENCE:['happy', 'bored', 'angry'], SURPRISE:['happy', 'bored', 'happy'],
+    SADNESS:['sad', 'bored', 'disgust'], FEAR:['sad', 'bored', 'happy'], ANGER:['fear', 'fear', 'fear'], SHAME:['happy', 'disgust', 'happy'], DISGUST:['happy', 'angry', 'angry'] };
+  try { for (const f in REACT) { const r = R[f] || ['happy', 'neutral', 'angry']; put(REACT[f].kind, r[0]); put(REACT[f].fair, r[1]); put(REACT[f].cruel, r[2]); } } catch (_) {}
+  try { put(HATE_LIGHT, 'angry'); put(FLEE_LINES, 'fear'); put(PROTECT_LINES, 'angry'); put(KID_LINES, 'happy'); } catch (_) {}
+  try { for (const f in KID_TENDER) put(KID_TENDER[f], 'sad'); for (const f in VIBE_STEP_IN) put(VIBE_STEP_IN[f], f === 'FEAR' ? 'fear' : f === 'DISGUST' ? 'disgust' : 'angry'); } catch (_) {}
+  try { put(DARK_STEP_IN.kind, 'fear'); put(DARK_STEP_IN.fair, 'angry'); put(DARK_STEP_IN.cruel, 'angry'); } catch (_) {}
+  try { put(NAME_ASK.kind, 'happy'); put(NAME_ASK.fair, 'neutral'); put(NAME_ASK.cruel, 'disgust'); } catch (_) {}
+}
+// [line with names filled in] for the introduction pools, which carry {name}/{N}: matched by their fixed words
+const POOL_RE = []; try { for (const [mor, mood] of [['kind', 'happy'], ['fair', 'neutral'], ['cruel', 'disgust']]) for (const pool of [NAME_REPLY[mor], INTRO[mor]]) for (const l of pool || [])
+  if (l.replace(/\{name\}|\{N\}/g, '').replace(/[^a-z]/gi, '').length >= 8) POOL_RE.push([new RegExp('^' + l.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{name\}|\{N\}/g, '.+?') + '$'), mood]); } catch (_) {}
+function poolMood(body) { const b = body.trim(); if (LINE_MOOD.has(b)) return LINE_MOOD.get(b); for (const [re, m] of POOL_RE) if (re.test(b)) return m; return null; }
+// When someone talks about the Manif they've noticed, their face follows the kind of person they are.
+const VOICE_FACE = { kind:'happy', fixer:'happy', avoider:'fear', judge:'disgust', opportunist:'happy', child:'happy', real:'happy', morwen:'happy', brand:'happy', tam:'neutral', saffi:'happy', saffi_guard:'angry', lio:'happy' };
+const TYPE_FACE = { JOY:'happy', HOPE:'happy', CALM:'neutral', CONFIDENCE:'happy', SURPRISE:'surprised', SADNESS:'sad', FEAR:'fear', ANGER:'angry', SHAME:'shame', DISGUST:'disgust' };
+let VOICE_NEXT = null;
+{ const _vl = voiceLine; voiceLine = function (e, m, idx) { const out = _vl(e, m, idx);
+  try { const d = SPECIES[m.sp], dk = DND_KEY(e), menacing = ['ANGER', 'DISGUST'].includes(d.type) || ['FEAR'].includes(d.type) && d.tier > 1;
+    const k = dk ? (dk === 'saffi' && menacing ? 'saffi_guard' : dk) : voiceKind(e); VOICE_NEXT = [out, k === 'mirror' ? (TYPE_FACE[d.type] || 'neutral') : (VOICE_FACE[k] || 'happy')]; } catch (_) {}
+  return out; }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
@@ -17867,8 +18190,8 @@ async function titleFlow() {
   await fadeTo(1, 400); $('#intro').classList.add('hidden'); scene = 'world'; npcFace.wren = 'down'; placePlayer(true);
   $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden');
   await fadeTo(0, 500); toast('Vellum', 'The centre of the Welkin');
-  S.dir = 'right'; npcFace.wren = 'left';
-  await say('(Someone is standing right beside you, waiting. Face them and press ' + (padState.used ? 'A' : 'Z, Space or A') + ' to talk.)');
+  S.dir = 'up'; npcFace.wren = 'down';   /* Wren stands between you and the Archive, which really is behind her (27 Nov) */
+  await say('(Someone is standing right in front of you, waiting. Face them and press ' + (padState.used ? 'A' : 'Z, Space or A') + ' to talk.)');
 }
 
 // ---------------------------------------------------------------- ending -----
