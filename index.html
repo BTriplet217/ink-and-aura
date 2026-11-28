@@ -2075,7 +2075,7 @@ function personHair(inner, o) {
   // the fringe: locks from the crown forward over the hairline, swept to one side, blunt and soft at the tips
   const nF = hair === 'curly' ? 0 : 6, fLen = hair === 'swept' || hair === 'short' ? .52 : .78;
   for (let i = 0; i < nF; i++) { const u = (i - (nF - 1) / 2) / ((nF - 1) / 2), az0 = u * .85 + part * .25, az1 = az0 + sweep * .32 * (1 - Math.abs(u) * .4);
-    const elEnd = Math.max(.3, .62 - fLen * .6 + Math.abs(u) * .12 + (rnd(i * 3) - .5) * .08);   /* fringe ends above the brows */
+    const elEnd = Math.max(.5, .62 - fLen * .6 + Math.abs(u) * .12 + (rnd(i * 3) - .5) * .08);   /* fringe ends above the brows */
     const pts = [S(az0 * .4, 1.25, 1.06), S(az0 * .8, 1.0, 1.1), S((az0 + az1) / 2, .78, 1.11), S(az1, elEnd + .12, 1.1), S(az1 + sweep * .06, elEnd, 1.07)];
     if (hair === 'swept') { pts[3] = S(az1 + sweep * .1, .7, 1.12); pts[4] = S(az1 + sweep * .25, .58, 1.1); }
     putLock(pts, .034 + rnd(i) * .008, .018, [1, 2, 3, 1, 2, 0][i % 6]); }
@@ -2171,16 +2171,19 @@ function buildPerson(L) {
   const lashM = new THREE.MeshBasicMaterial({ color:0x1b1512 }), EY = .952, EX = .062, EZ = .152;
   for (const sx of [-1, 1]) {
     fm(new THREE.SphereGeometry(.031, 14, 10), wht, sx * EX, EY, EZ, [1, 1.12, .32]);
-    if (!L.eyes) { fm(new THREE.SphereGeometry(.024, 14, 10), irisM, sx * (EX - .002), EY - .003, EZ + .006, [.95, 1.2, .32]);
-      fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(irisM.color).multiplyScalar(.45) }), sx * (EX - .002), EY + .002, EZ + .009, [1, 1.15, .3]);   // the darker top of the iris
-      fm(new THREE.SphereGeometry(.0095, 10, 8), blk, sx * (EX - .002), EY - .002, EZ + .011, [1, 1.2, .3]);
-      fm(new THREE.SphereGeometry(.0072, 8, 6), wht, sx * (EX - .002) + .008, EY + .009, EZ + .014);          // big highlight
-      fm(new THREE.SphereGeometry(.0036, 6, 5), wht, sx * (EX - .002) - .007, EY - .011, EZ + .014); }        // small one below
+    const eyeRec = { sx, iris:[], hi:[] }; (inner.userData.eyes = inner.userData.eyes || []).push(eyeRec);
+    if (!L.eyes) { eyeRec.iris.push(fm(new THREE.SphereGeometry(.024, 14, 10), irisM, sx * (EX - .002), EY - .003, EZ + .006, [.95, 1.2, .32]));
+      eyeRec.iris.push(fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(irisM.color).multiplyScalar(.45) }), sx * (EX - .002), EY + .002, EZ + .009, [1, 1.15, .3]));   // the darker top of the iris
+      eyeRec.iris.push(fm(new THREE.SphereGeometry(.0095, 10, 8), blk, sx * (EX - .002), EY - .002, EZ + .011, [1, 1.2, .3]));
+      eyeRec.hi.push(fm(new THREE.SphereGeometry(.0072, 8, 6), wht, sx * (EX - .002) + .008, EY + .009, EZ + .014));          // big highlight
+      eyeRec.hi.push(fm(new THREE.SphereGeometry(.0036, 6, 5), wht, sx * (EX - .002) - .007, EY - .011, EZ + .014)); }        // small one below
     else fm(new THREE.SphereGeometry(.02, 10, 8), eyeC, sx * EX, EY, EZ + .008, [.9, 1.15, .4]);
-    const lash = new THREE.Mesh(new THREE.TorusGeometry(.03, .0055, 5, 14, Math.PI * .85), lashM); lash.position.set(sx * EX, EY + .003, EZ + .01); lash.rotation.set(0, 0, Math.PI * .075); lash.scale.set(1.05, 1.05, .5); inner.add(lash);
+    for (const m of [...eyeRec.iris, ...eyeRec.hi]) { m.userData.p0 = m.position.clone(); m.userData.s0 = m.scale.clone(); }
+    const lash = new THREE.Mesh(new THREE.TorusGeometry(.03, .0055, 5, 14, Math.PI * .85), lashM); lash.position.set(sx * EX, EY + .003, EZ + .01); lash.rotation.set(0, 0, Math.PI * .075); lash.scale.set(1.05, 1.05, .5); inner.add(lash); eyeRec.lash = lash; lash.userData.p0 = lash.position.clone(); lash.userData.s0 = lash.scale.clone();
     fm(new THREE.BoxGeometry(.016, .006, .008), lashM, sx * (EX + .03), EY + .012, EZ + .004, null, sx * .55);                      // the flick at the outer corner
     fm(new THREE.BoxGeometry(.03, .004, .006), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * EX, EY - .034, EZ + .004);   // lower lid
-    { const bm = fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, 1.006 + (fs % 2) * .005, .148, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]); (inner.userData.brows = inner.userData.brows || []).push({ m:bm, sx, y:bm.position.y, r:bm.rotation.z }); }   // brows, thin and high
+    { const lid = fm(new THREE.BoxGeometry(.072, .04, .004), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin) }), sx * EX, EY + .02, EZ + .019); lid.visible = false; eyeRec.lid = lid; }   // an upper lid, lowered for bored, numb, ashamed or disgusted faces (h48)
+    { const bm = fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, .992 + (fs % 2) * .004, .157, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]); (inner.userData.brows = inner.userData.brows || []).push({ m:bm, sx, y:bm.position.y, r:bm.rotation.z }); }   // brows, thin and high
   }
   if (L.eyes) for (const sx of [-1, 1]) { const o = glow(L.eyes, .1, .85); o.position.set(sx * .059, .962, .17); inner.add(o); }
   if (L.snout) {          // a dragon's muzzle: long, tapering, flat on top, nostrils at the tip; a brow ridge and swept-back horns
@@ -2196,7 +2199,8 @@ function buildPerson(L) {
   else { fm(new THREE.SphereGeometry(.012, 8, 6), toon(new THREE.Color(skin).multiplyScalar(.85), { wash:2 }), 0, .92, .163, [.8, 1, .9]);
     // every face has four mouths ready, one shown: neutral, smile, frown and open (h48 swaps them as people talk)
     const mouths = { neutral:fm(new THREE.BoxGeometry(.03, .005, .008), blk, 0, .888, .158), smile:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .896, .156, null, Math.PI),
-      frown:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .876, .156), open:fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:0x3a1a18 }), 0, .886, .155, [1.1, .8, .4]) };
+      frown:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .876, .156), open:fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:0x3a1a18 }), 0, .886, .155, [1.1, .8, .4]),
+      gasp:fm(new THREE.SphereGeometry(.009, 10, 8), new THREE.MeshBasicMaterial({ color:0x3a1a18 }), 0, .884, .155, [.9, 1.2, .4]), twist:fm(new THREE.BoxGeometry(.028, .005, .008), blk, .006, .886, .158, null, .32) };
     const def = fs === 5 ? 'neutral' : fs > 2 ? 'frown' : 'smile'; for (const k in mouths) mouths[k].visible = k === def;
     inner.userData.mouths = mouths; inner.userData.mouthDef = def; }
   // hair (27 Nov, third pass): a shell that hugs the head with a real hairline (no bald spots, nothing poking through
@@ -6731,9 +6735,9 @@ function tickMood(dt, t) {
   MOOD.tick -= dt; const step = MOOD.tick <= 0; if (step) MOOD.tick = .42;
   for (const e of list) { const g = W.npcs[e.id]; if (!g || !g.userData.inner || e.body || e.numb) { if (g && g.userData.emote) setEmote(g, null, false); continue; }
     const from = scaredOf(e), inner = g.userData.inner, ph = (t * .9 + (e.x * 7 + e.y * 3) % 10 / 10) % 6;
-    if (from) { setEmote(g, '!', true); inner.rotation.z = Math.sin(t * 38 + e.x) * .05; MOOD.calmT[e.id] = 0;
+    if (from) { setEmote(g, '!', true); if (inner.userData.mood !== 'fear' && typeof setFace === 'function') setFace(g, 'fear'); inner.rotation.z = Math.sin(t * 38 + e.x) * .05; MOOD.calmT[e.id] = 0;
       if (step && canRun(e)) tryStep(S.map, e, list, true, from); continue; }
-    inner.rotation.z *= .8;
+    inner.rotation.z *= .8; if (inner.userData.mood === 'fear' && typeof setFace === 'function') setFace(g, 'default');
     MOOD.calmT[e.id] = (MOOD.calmT[e.id] || 0) + dt;
     if (step && MOOD.flee[S.map + ':' + e.id] && MOOD.calmT[e.id] > 2.2) tryStep(S.map, e, list, false);
     if (!isFolk(e)) { setEmote(g, null, false); continue; }
@@ -16263,22 +16267,54 @@ function beardMouth(p, L) {
 }
 { const _bp = buildPerson; buildPerson = function (L) { const p = _bp(L); try { if (L && !L.snout) beardMouth(p, L); } catch (e) {} return p; }; }
 
+// moods: happy, sad, angry, surprised, fear, disgust, shame, bored, numb, neutral, default
+// each is [mouth, brow tilt (+ = inner end down), brow lift, lid (0 open, 1 half, .6 squint), look [x, y], iris size, highlights]
+const FACE = {
+  happy:    ['smile',   .14,   .004, 0,  [0, 0],      1,   1],
+  sad:      ['frown',  -.34,   .006, .3, [0, -.004],  1,   1],
+  angry:    ['frown',   .45,  -.008, .45,[0, 0],      .85, 1],
+  surprised:['open',    .02,   .014, 0,  [0, 0],      .8,  1],
+  fear:     ['gasp',   -.4,    .016, 0,  [0, 0],      .6,  0],
+  disgust:  ['twist',  'one', -.004, .55,[.004, 0],   .9,  1],
+  shame:    ['frown',  -.28,   .002, .55,[0, -.01],   1,   1],
+  bored:    ['neutral', 0,    -.003, .6, [.009, 0],   1,   1],
+  numb:     ['neutral', 0,     0,    .5, [0, 0],      .9,  0],
+  neutral:  ['neutral', 0,     0,    0,  [0, 0],      1,   1] };
+const JUMPS = new Map();
 function setFace(g, mood) {
   const inner = g && (g.userData.inner || g.children[0]); if (!inner) return; const M = inner.userData.mouths; if (!M) return;
-  const want = mood === 'happy' ? 'smile' : mood === 'sad' || mood === 'angry' ? 'frown' : mood === 'surprised' ? 'open' : mood === 'neutral' ? 'neutral' : inner.userData.mouthDef;
+  if (mood === 'default' || !mood) mood = inner.userData.baseMood || null;
+  const prev = inner.userData.mood, F = FACE[mood], want = F ? F[0] : inner.userData.mouthDef;
   for (const k in M) M[k].visible = k === want;
   for (const b of inner.userData.brows || []) {
-    const r = mood === 'sad' ? -b.sx * .32 : mood === 'angry' ? b.sx * .38 : mood === 'surprised' ? b.sx * .05 : mood === 'happy' ? b.sx * .12 : b.r;
-    const y = mood === 'surprised' ? b.y + .012 : mood === 'angry' ? b.y - .006 : mood === 'sad' ? b.y + .004 : b.y;
-    b.m.rotation.z = r; b.m.position.y = y; }
+    if (!F) { b.m.rotation.z = b.r; b.m.position.y = b.y; continue; }
+    const tilt = F[1] === 'one' ? (b.sx < 0 ? .45 : -.12) : F[1], lift = F[1] === 'one' ? (b.sx < 0 ? -.006 : .012) : F[2];
+    b.m.rotation.z = b.sx * tilt; b.m.position.y = b.y + lift; }
+  for (const e of inner.userData.eyes || []) {
+    const lidAmt = F ? (F[1] === 'one' && e.sx > 0 ? F[3] * .4 : F[3]) : 0, look = F ? F[4] : [0, 0], isz = F ? F[5] : 1, hi = F ? F[6] : 1;
+    for (const m of e.iris) { m.position.set(m.userData.p0.x + look[0], m.userData.p0.y + look[1], m.userData.p0.z); m.scale.set(m.userData.s0.x * isz, m.userData.s0.y * isz, m.userData.s0.z); }
+    for (const m of e.hi) { m.visible = !!hi; m.position.set(m.userData.p0.x + look[0], m.userData.p0.y + look[1], m.userData.p0.z); }
+    if (e.lid) { e.lid.visible = lidAmt > 0; e.lid.position.y = .952 + .02 + .036 * (1 - lidAmt) - .012; }
+    if (e.lash) { e.lash.position.y = e.lash.userData.p0.y - .03 * lidAmt; e.lash.scale.y = e.lash.userData.s0.y * (1 - .55 * lidAmt); }
+  }
+  // startled: a little hop the moment the shock lands
+  if ((mood === 'surprised' || mood === 'fear') && prev !== mood) JUMPS.set(g, 0);
   inner.userData.mood = mood;
 }
+{ const _rt0 = rideTick; rideTick = function (dt) { _rt0(dt); for (const [g, t] of JUMPS) { const n = t + dt, inner = g.userData.inner || g.children[0];
+    if (!inner || n > .42) { if (inner) inner.position.y = inner.userData.jy0 || 0; JUMPS.delete(g); continue; }
+    if (t === 0) inner.userData.jy0 = inner.userData.jy0 ?? inner.position.y;
+    inner.position.y = (inner.userData.jy0 || 0) + Math.sin(n / .42 * Math.PI) * .14; JUMPS.set(g, n); } }; }
 // a line's feeling, from its words
 function moodOf(text) {
   const t = String(text).replace(/\([^)]*\)/g, ' ');
-  if (/\b(hate|furious|how dare|shut up|get out|idiot|enough!|stop it|do not|don't you dare)\b|[A-Z]{4,}/.test(t)) return 'angry';
-  if (/\b(sorry|please|not the|anything but|i miss|lost|gone|afraid|scared|ugh|sigh|why does|can't|won't|didn't|wasn't|no\b|never again|burn|on fire|dead|died|cry|tears)\b|\.\.\./i.test(t)) return 'sad';
+  if (/\b(hate|furious|how dare|shut up|get out|idiot|enough!|stop it|don't you dare)\b|\b[A-Z]{4,}\b/.test(t)) return 'angry';
+  if (/\b(scared|afraid|terrified|stay away|don't hurt|please don't|help!|run!|leave me)\b/i.test(t)) return 'fear';
+  if (/\b(gross|disgusting|ew+|yuck|rotten|stink|stinks|smell|revolting|vile|filthy)\b/i.test(t)) return 'disgust';
+  if (/\b(ashamed|embarrass\w*|my fault|i shouldn't have|i'm so sorry|forgive me)\b/i.test(t)) return 'shame';
+  if (/\b(sorry|please|not the|anything but|i miss|lost|gone|ugh|sigh|why does|can't|won't|didn't|wasn't|no|never again|burn|on fire|dead|died|cry|tears)\b|\.\.\./i.test(t)) return 'sad';
   if (/^\s*(oh!|what\?|wait|huh)|\?!|!\?/i.test(t)) return 'surprised';
+  if (/^\s*(anyway|whatever|sure|fine|mm|okay)\.?\s*$|\b(i'm heading out|gonna get out|boring|bored)\b/i.test(t)) return 'bored';
   if (/!|\b(haha|ha|thanks|thank you|love|great|yes|yay|good|nice|welcome|hello|hi|brilliant|perfect|respect)\b/i.test(t)) return 'happy';
   return null;
 }
@@ -16288,6 +16324,7 @@ const FACE_RULES = [
   [/sets it on fire/i, 'Brand', 'sad'], [/sets it on fire/i, 'Morwen', 'happy'],
   [/swamp/i, 'Tam', 'sad'],
   [/Tam, put your hand down/i, 'Morwen', 'happy'],
+  [/Gonna get out on the water|^Anyway\.$|I'm heading out|I said I'm fine/i, 'Ashlynn', 'bored'],
 ];
 const FACED = new Set();
 function entByName(name) { if (!name) return null; const n = name.toLowerCase();
@@ -16301,6 +16338,9 @@ function faceFor(name, mood) { const e = name ? entByName(name) : TALKING; if (!
     if (!handled.has(spk)) { const mood = moodOf(body); if (mood || who) { if (who) faceFor(who, mood || 'default'); else if (TALKING) faceFor(null, mood || 'default'); } }
   } catch (e) {} }; }
 { const _rt = rideTick; rideTick = function (dt) { _rt(dt); if (!UI.dlg && FACED.size) { for (const g of FACED) setFace(g, 'default'); FACED.clear(); } }; }
+
+// the Numbed have no expression at all: level brows, a flat mouth, heavy lids
+{ const _re = renderEnt; renderEnt = function (e) { const r = _re(e); try { const g = W.npcs[e.id]; if (g) { const inner = g.userData.inner || g.children[0]; if (inner && inner.userData.mouths) { inner.userData.baseMood = e.numb ? 'numb' : null; if (e.numb) setFace(g, 'numb'); } } } catch (_) {} return r; }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
