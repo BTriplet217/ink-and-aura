@@ -17740,6 +17740,7 @@ async function titleFlow() {
     await fadeTo(1, 400); S = saved; if (S.flags.restored) applyRestored(); buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
     await fadeTo(0, 400); toast(MAPS[S.map].name, 'Welcome back'); return;
   }
+  setView(false); camZoom = 2; camZoomV = null; camFree = null; camQ = 0;   // a new journey always opens on the original overhead view; change it any time after
   playMusic(THEMES.vellum);
   const hero = await characterSelect();
   S = fresh(); S.hero = hero;
@@ -17927,7 +17928,7 @@ async function testTitle() {
   if (c === 5) { await showCredits(); return testTitle(); }
   if (c === 3) { TEST_STOCK = true; return 'new'; }
   if (c === 4) { TEST_STOCK = false; return 'new'; }
-  await fadeTo(1, 400); S = makeTestSave(['final', 'good', 'evil'][c]); if (S.flags.restored) applyRestored();
+  setView(false); camZoom = 2; camZoomV = null; camFree = null; camQ = 0; await fadeTo(1, 400); S = makeTestSave(['final', 'good', 'evil'][c]); if (S.flags.restored) applyRestored();
   buildWorld(S.map); scene = 'world'; $('#hud').classList.remove('hidden'); $('#tools').classList.remove('hidden'); playMusic(themeFor(S.map));
   await fadeTo(0, 400); toast(MAPS[S.map].name, 'Test checkpoint · nothing is saved');
 }
