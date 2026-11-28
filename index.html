@@ -5046,8 +5046,9 @@ const QUIET_WOKE = {
 const worldScene = new THREE.Scene(), battleScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.3, 140);   // near plane not too close: keeps depth precise on phones, so thin roofs don't flicker to black when zoomed out
 const bcam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 140);
-const TP = { on:(() => { try { return localStorage.getItem('ia_view') === 'tp'; } catch (e) { return false; } })(), pitch:.1, live:false, dist:2.4, want:2.5 };
-const TP_DISTS = [4.2, 2.5, 1.5], TP_MIN = 1.1, TP_MAX = 6;   // over the shoulder: far, normal, close
+const TP_VIEW0 = (() => { try { return localStorage.getItem('ia_view') || 'top'; } catch (e) { return 'top'; } })();
+const TP = { on:TP_VIEW0 === 'tp' || TP_VIEW0 === 'fp', fp:TP_VIEW0 === 'fp', pitch:.1, live:false, dist:4.2, want:4.2 };
+const TP_DISTS = [4.2], TP_MIN = 1.1, TP_MAX = 6;   // 27 Nov: over the shoulder starts far (pinch or wheel to move in); first person is its own view
 let activeScene = worldScene, activeCam = camera;
 function resize() { renderer.setSize(innerWidth, innerHeight, false); const asp = innerWidth / innerHeight;
   for (const c of [camera, bcam]) { c.aspect = asp; c.fov = innerWidth < innerHeight ? 50 : 38; c.updateProjectionMatrix(); }
@@ -5411,17 +5412,17 @@ const CAM_ZOOMS = [1.85, 1.15, .86, .5]; let camZoom = 2;
 // OVER THE SHOULDER — a second way to see the world: the camera sits just behind the hero's right shoulder and you look where you like
 // (drag, the camera stick, or Q / E and R / F). "Forward" is always away from the camera. TP.live is true only while that view is really in use.
 const TP_BLOCK = new Set(['#', 'H', 'D', 'W', 'X']);
-function setView(tp) { TP.on = !!tp; TP.pitch = .1; try { localStorage.setItem('ia_view', tp ? 'tp' : 'top'); } catch (e) {} resize(); if (typeof W !== 'undefined' && W.player) updateCamera(1, true); }
+function setView(tp, fp = false) { TP.on = !!tp; TP.fp = !!(tp && fp); TP.pitch = TP.fp ? 0 : .1; if (tp) TP.want = TP_DISTS[0]; try { localStorage.setItem('ia_view', TP.fp ? 'fp' : tp ? 'tp' : 'top'); } catch (e) {} if (!tp && typeof mv !== 'undefined') mv.yaw = null; resize(); if (typeof W !== 'undefined' && W.player) updateCamera(1, true); }
 const tpLook = (dyaw, dpitch) => { if (dyaw) { if (camFree == null) camFree = camYaw; camFree += dyaw; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; } if (dpitch) TP.pitch = Math.max(-.75, Math.min(1.05, TP.pitch + dpitch)); };
 // C / the zoom button steps through: Far, Wide, Standard, Close, then over the shoulder (far, normal, close), then back round to Far.
-function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ + TP_DISTS.length;
-  const tpI = TP_DISTS.reduce((b, v, i) => Math.abs(v - TP.want) < Math.abs(TP_DISTS[b] - TP.want) ? i : b, 0), cur = TP.on ? NZ + tpI : camZoom, nx = (cur + d + n) % n;
-  if (nx >= NZ) { TP.want = TP_DISTS[nx - NZ]; tpLabel(); if (!TP.on) setView(true); } else { camZoom = nx; if (TP.on) setView(false); }
-  toast(nx >= NZ ? ['Over the shoulder: far', 'Over the shoulder', 'Over the shoulder: close'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx === NZ ? 'Drag to look around' : undefined); }
-function tpStep() { const D = [1.5, 2.5, 4.2], i = D.reduce((b, v, k) => Math.abs(v - TP.want) < Math.abs(D[b] - TP.want) ? k : b, 0), n = (i + 1) % 3;
-  TP.want = D[n]; sfx('tick'); toast(['Close', 'Normal', 'Far'][n]); tpLabel(); }
+// C / the zoom button steps through: Far, Wide, Standard, Close (from above), then over the shoulder, then first person.
+function cycleZoom(d = 1) { camZoomV = null; const NZ = CAM_ZOOMS.length, n = NZ + 2, cur = TP.on ? NZ + (TP.fp ? 1 : 0) : camZoom, nx = (cur + d + n) % n;
+  if (nx >= NZ) setView(true, nx === NZ + 1); else { camZoom = nx; if (TP.on) setView(false); }
+  tpLabel(); toast(nx >= NZ ? ['Over the shoulder', 'First person'][nx - NZ] : ['Far view', 'Wide view', 'Standard view', 'Close view'][nx], nx >= NZ ? 'Left and right turn you' : undefined); }
+// the on-screen view button (phones) and the controller's zoom button over the shoulder: swap between over the shoulder and first person
+function tpStep() { setView(true, !TP.fp); sfx('tick'); toast(TP.fp ? 'First person' : 'Over the shoulder'); tpLabel(); }
 // the on-screen distance button (phones): shows where you are now, tap for the next
-function tpLabel() { const el = document.getElementById('kDist'); if (!el) return; const D = [1.5, 2.5, 4.2], i = D.reduce((b, v, k) => Math.abs(v - TP.want) < Math.abs(D[b] - TP.want) ? k : b, 0); el.textContent = '◉ ' + ['Close', 'Normal', 'Far'][i]; }
+function tpLabel() { const el = document.getElementById('kDist'); if (!el) return; el.textContent = TP.fp ? '◉ First person' : '◉ Shoulder'; }
 const tpZoom = f => { TP.want = Math.max(TP_MIN, Math.min(TP_MAX, TP.want * f)); tpLabel(); };
 // Drag across the world to turn the view (one finger or the mouse); pinch with two fingers to zoom. Like Pokémon GO.
 const drag = { pts:new Map(), moved:0, pinch0:0, zoom0:1 };
@@ -5442,16 +5443,19 @@ function updateCamera(dt, snap) {
   const portrait = innerWidth < innerHeight, z = camZoomV != null ? camZoomV : CAM_ZOOMS[camZoom], dist = (CAM_TILT ? CAM_TILT[0] : portrait ? 8.6 : 8.4) * z, ht = (CAM_TILT ? CAM_TILT[1] : portrait ? 12.2 : 8.6) * z;   // a steeper, more overhead view (between our old angle and the classic Pokémon one) so buildings hide less
   // the camera follows a smoothed point, not the hero's exact feet: little height steps between tiles
   // and the start/stop of each stride (sharpest when running) no longer jolt the view
-  const tp = TP.on && !CAM_TILT && scene === 'world'; if (tp !== TP.live) { TP.live = tp; document.body.classList.toggle('tplive', tp); tpLabel(); resize(); }
+  const tp = TP.on && !CAM_TILT && scene === 'world'; if (!(tp && TP.fp) && W.player && W.player.userData.fpHid) { W.player.visible = true; W.player.userData.fpHid = false; } if (tp !== TP.live) { TP.live = tp; document.body.classList.toggle('tplive', tp); tpLabel(); resize(); }
   if (snap || !camFocus.init) { camFocus.copy(camTarget); camFocus.init = true; }
   else { const kxz = 1 - Math.exp(-dt * 10), ky = 1 - Math.exp(-dt * 3.5); camFocus.x += (camTarget.x - camFocus.x) * kxz; camFocus.z += (camTarget.z - camFocus.z) * kxz; camFocus.y += (camTarget.y - camFocus.y) * ky; }
   if (tp) {
     const cp = Math.cos(TP.pitch), sp = Math.sin(TP.pitch), fx = -Math.sin(camYaw) * cp, fy = -sp, fz = -Math.cos(camYaw) * cp;   // where you're looking
-    const pvx = camFocus.x + Math.cos(camYaw) * .38, pvy = camFocus.y + 1.12, pvz = camFocus.z - Math.sin(camYaw) * .38;            // just over the right shoulder
-    const W0 = TP.want; let dd = W0; for (let s = 1; s <= 12; s++) { const k = W0 * s / 12, qy = pvy - fy * k; if (qy < 3 && TP_BLOCK.has(tileAt(Math.round(pvx - fx * k), Math.round(pvz - fz * k)))) { dd = Math.max(.35, W0 * (s - 1) / 12 - .15); break; } }   // walls and trees push the camera in, not through
-    TP.dist += (dd - TP.dist) * (dd < TP.dist ? 1 : 1 - Math.exp(-dt * 6));
+    const fp = TP.fp, eye = 1.0 * (W.player ? W.player.scale.y : 1);
+    if (W.player && W.player.userData.fpHid !== fp) { W.player.visible = !fp; W.player.userData.fpHid = fp; }   // first person: you don't see yourself
+    const pvx = fp ? camFocus.x : camFocus.x + Math.cos(camYaw) * .38, pvy = camFocus.y + (fp ? eye : 1.12), pvz = fp ? camFocus.z : camFocus.z - Math.sin(camYaw) * .38;            // at your eyes, or just over the right shoulder
+    const W0 = fp ? -.12 : TP.want; let dd = W0; for (let s = 1; s <= 12; s++) { const k = W0 * s / 12, qy = pvy - fy * k; if (qy < 3 && TP_BLOCK.has(tileAt(Math.round(pvx - fx * k), Math.round(pvz - fz * k)))) { dd = Math.max(.35, W0 * (s - 1) / 12 - .15); break; } }   // walls and trees push the camera in, not through
+    if (fp) dd = W0; TP.dist += (dd - TP.dist) * (dd < TP.dist || fp ? 1 : 1 - Math.exp(-dt * 6));
     let cx = pvx - fx * TP.dist, cy = pvy - fy * TP.dist, cz = pvz - fz * TP.dist; const gy = groundY(Math.round(cx), Math.round(cz)) + .3; if (cy < gy) cy = gy;
     camera.position.set(cx, cy, cz); camera.lookAt(cx + fx * 8, cy + fy * 8, cz + fz * 8);
+    for (const m of W.minis || []) { const near = fp && Math.hypot(m.position.x - cx, m.position.z - cz) < 1.3; if (near && m.visible) { m.visible = false; m.userData.fpHid = true; } else if (!near && m.userData.fpHid) { m.visible = true; m.userData.fpHid = false; } }   // in first person, Manifs right at your shoulder step out of the way of the view
     if (W.fogBase) { worldScene.fog.near = W.fogBase[0] * .55; worldScene.fog.far = W.fogBase[1] * 1.15; }
     worldSky.position.copy(camera.position); return;
   }
@@ -5690,9 +5694,17 @@ function moveVector() {
   if (Math.hypot(x, y) < .3) { x = (held.right ? 1 : 0) - (held.left ? 1 : 0); y = (held.up ? 1 : 0) - (held.down ? 1 : 0); }
   return Math.hypot(x, y) < .3 ? null : [x, y];
 }
+// turning in the views that follow you: left and right swing you and the camera together; you always face where it looks
+function tpTurn(dt) {
+  const v = moveVector(); if (v && Math.abs(v[0]) > .3) { if (camFree == null) camFree = camYaw; camFree -= v[0] * dt * 2.3; camQ = ((Math.round(camFree / (Math.PI / 2)) % 4) + 4) % 4; }
+  const yaw = (camFree != null ? camFree : camYaw); mv.yaw = yaw + Math.PI;
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw); if (!mv.active) S.dir = Math.abs(fz) >= Math.abs(fx) ? (fz > 0 ? 'down' : 'up') : (fx > 0 ? 'right' : 'left');
+}
 function worldStep(v) {        // eight directions, turned to match the camera
-  if (TP.live) {   // over the shoulder: forward is exactly where the camera looks, snapped to the nearest of eight ways
-    const c = Math.cos(camYaw), s = Math.sin(camYaw), wx = v[0] * c - v[1] * s, wz = -v[0] * s - v[1] * c, o = ((Math.round(Math.atan2(wz, wx) / (Math.PI / 4)) % 8) + 8) % 8;
+  if (TP.live) {   // over the shoulder and first person (27 Nov): the view turns with you. Up walks forward, down steps back,
+                   // left and right turn (tpTurn); forward is where you face, snapped to the nearest of eight ways
+    if (Math.abs(v[1]) < .35) return null;
+    const sg = v[1] > 0 ? 1 : -1, wx = -Math.sin(camYaw) * sg, wz = -Math.cos(camYaw) * sg, o = ((Math.round(Math.atan2(wz, wx) / (Math.PI / 4)) % 8) + 8) % 8;
     return [[1, 1, 0, -1, -1, -1, 0, 1][o], [0, 1, 1, 1, 0, -1, -1, -1][o], Math.abs(wz) >= Math.abs(wx) ? (wz > 0 ? 'down' : 'up') : (wx > 0 ? 'right' : 'left')]; }
   const o = ((Math.round(Math.atan2(v[1], v[0]) / (Math.PI / 4)) % 8) + 8) % 8, sx = [1, 1, 0, -1, -1, -1, 0, 1][o], sy = [0, 1, 1, 1, 0, -1, -1, -1][o];
   let dx = 0, dy = 0; const add = d => { const [a, b] = DIRS[worldDir(d)]; dx += a; dy += b; };
@@ -5707,7 +5719,7 @@ function worldStep(v) {        // eight directions, turned to match the camera
     const d = Math.hypot(x, y) < .55 ? null : Math.abs(x) > Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'up' : 'down');
     if (d === last) return; last = d; clearInterval(repT); if (d) { press(d); repT = setInterval(() => { if (last === d && (UI.cho || UI.list || selectHandler)) press(d); }, 260); } };
   const set = e => { const r = base.getBoundingClientRect(), R = r.width / 2 - 16; let x = (e.clientX - r.left - r.width / 2) / R, y = (r.top + r.height / 2 - e.clientY) / R; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
-    if (Math.abs(x) > Math.abs(y)) y = 0; else x = 0;   // on touch, four directions only: the knob snaps to the nearest one
+    // eight directions on touch again (27 Nov): the knob goes where your thumb is
     JOY.tx = x; JOY.ty = y; knob.style.transform = `translate(${x * R}px, ${-y * R}px)`; nudge(x, y); };
   base.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audioInit(); id = e.pointerId; try { base.setPointerCapture(id); } catch (_) {} knob.style.transition = 'none'; base.classList.add('on'); set(e); });
   base.addEventListener('pointermove', e => { if (e.pointerId === id) set(e); });
@@ -6255,9 +6267,10 @@ async function blackout() {
 // ---------------------------------------------------------------- menu -------
 async function viewMenu() {
   for (;;) {
-    const c = await choose([{ label:'Camera', sub:TP.on ? 'Over the shoulder' : 'From above' }, 'Back']);
+    const now = TP.on ? (TP.fp ? 'First person' : 'Over the shoulder') : 'From above';
+    const c = await choose([{ label:'Camera', sub:now }, 'Back']);
     if (c < 0 || c === 1) return;
-    if (c === 0) { setView(!TP.on); toast(TP.on ? 'Over the shoulder' : 'From above', TP.on ? 'Drag to look around' : undefined); }
+    if (c === 0) { if (!TP.on) setView(true); else if (!TP.fp) setView(true, true); else setView(false); tpLabel(); toast(TP.on ? (TP.fp ? 'First person' : 'Over the shoulder') : 'From above', TP.on ? 'Left and right turn you' : undefined); }
   }
 }
 async function openMenu() {
@@ -17548,7 +17561,8 @@ function updateWorld(dt, t) {
   const M = MAPS[S.map];
   if (scene === 'world') {
     if (mv.active) { mv.t += dt / ((mv.diag ? .28 : .2) * (RUN ? .5 / 1.2 : 1)); if (mv.t >= 1) { mv.t = 1; mv.active = false; onStep(); } }
-    if (!mv.active && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic) { const v = moveVector(); if (v) { const [dx, dy, f] = worldStep(v); tryMove8(dx, dy, f); } }
+    if (!mv.active && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic) { const v = moveVector(); if (v) { const r = worldStep(v); if (r) tryMove8(r[0], r[1], r[2]); } }
+    if (TP.live && !busy && !UI.dlg && !UI.cho && !UI.list && !UI.sheetStatic && !RIDE.on) tpTurn(dt);
   }
   const p = W.player, k = mv.active ? mv.t : 1;
   const px = mv.active ? mv.fx + (S.x - mv.fx) * k : S.x, pz = mv.active ? mv.fy + (S.y - mv.fy) * k : S.y;
