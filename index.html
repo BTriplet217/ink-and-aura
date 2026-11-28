@@ -5463,7 +5463,7 @@ function updateCamera(dt, snap) {
     if (fp) dd = W0; TP.dist += (dd - TP.dist) * (dd < TP.dist || fp ? 1 : 1 - Math.exp(-dt * 6));
     let cx = pvx - fx * TP.dist, cy = pvy - fy * TP.dist, cz = pvz - fz * TP.dist; const gy = groundY(Math.round(cx), Math.round(cz)) + .3; if (cy < gy) cy = gy;
     camera.position.set(cx, cy, cz); camera.lookAt(cx + fx * 8, cy + fy * 8, cz + fz * 8);
-    for (const m of W.minis || []) { const near = fp && Math.hypot(m.position.x - cx, m.position.z - cz) < 1.3; if (near && m.visible) { m.visible = false; m.userData.fpHid = true; } else if (!near && m.userData.fpHid) { m.visible = true; m.userData.fpHid = false; } }   // in first person, Manifs right at your shoulder step out of the way of the view
+    for (const m of W.minis || []) { const near = fp; if (near && m.visible) { m.visible = false; m.userData.fpHid = true; } else if (!near && m.userData.fpHid) { m.visible = true; m.userData.fpHid = false; } }   // in first person your own Manifs aren't drawn: they walk round you and would swing through the view as you turn
     if (W.fogBase) { worldScene.fog.near = W.fogBase[0] * .55; worldScene.fog.far = W.fogBase[1] * 1.15; }
     worldSky.position.copy(camera.position); return;
   }
