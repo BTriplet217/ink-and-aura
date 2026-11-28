@@ -1769,10 +1769,16 @@ function washPatch(m, kind, surf = 'auto') {
           float sheen = smoothstep(.55, .95, N.y) * .25 + smoothstep(.2, .9, 1. - ny) * .06;
           pat = (1. - seam * .3 + rivet * .35) * (1. + sheen);
           outgoingLight += (1. - seam) * vec3(.1, .09, .075) * (.25 + smoothstep(.4, .95, N.y) + rivet * 1.5) * near1; }   // dark iron still catches the light
-        else if (SF == 8) { vec2 lid; vec3 q = vWP * 5.2; float e = vor(q.xz + q.y * vec2(.7, -.5), lid); float lv = wsh(lid);   // leaves: overlapping clusters, each lit on top and dark at its edge
-          pat = mix(.55, 1. + .2 * lv, smoothstep(.02, .24, e)) * (.9 + .16 * smoothstep(.3, .8, wn3(vWP * 11.)));
-          pat *= .8 + .35 * clamp(N.y * .5 + .5, 0., 1.);                                                             // lit crown, dark underside
-          tint *= mix(vec3(.86, .92, 1.08), vec3(1.12, 1.08, .86), clamp(N.y * .6 + .4, 0., 1.) * smoothstep(.1, .25, e)); }   // cool shade below, warm sun on top
+        else if (SF == 8) {   // foliage (27 Nov, third pass): lots of tiny overlapping leaves in soft clumps, not big cells
+          vec3 q = vWP * 15.; vec2 lid, lid2; float e = vor(q.xz + q.y * vec2(.8, -.6), lid), e2 = vor(q.zy * 1.3 + q.x * vec2(.5, .7) + 9., lid2);
+          float lv = wsh(lid), lv2 = wsh(lid2 + 4.);
+          float leaf = mix(.8 + .28 * lv, .86 + .24 * lv2, step(.5, wsh(lid + 2.)));                                        // each little leaf its own shade
+          leaf *= .9 + .1 * smoothstep(.0, .1, min(e, e2));                                                                // a faint crease between leaves
+          float clump = smoothstep(.25, .75, wn3(vWP * 2.4 + 3.)), hole = smoothstep(.72, .86, wn3(vWP * 4.1 + 8.));        // clumps catch the light; gaps sink into shade
+          pat = leaf * (.8 + .26 * clump) * (1. - .28 * hole);
+          pat *= .78 + .36 * clamp(N.y * .5 + .5, 0., 1.);                                                                   // lit crown, dark underside
+          tint *= mix(vec3(.86, .92, 1.06), vec3(1.1, 1.07, .88), clamp(N.y * .6 + .4, 0., 1.) * (.5 + .5 * clump));       // cool shade below, warm sun on top
+          tint *= mix(vec3(1.), vec3(1.08, 1.1, .8), step(.9, lv) * .5); }                                                 // the odd young, yellower leaf
         else pat = .95 + .08 * smoothstep(.6, .85, t1) - .06 * smoothstep(.35, .1, t1);
         outgoingLight *= shade * mix(1. - (1. - pat) * .4, pat, near1) * tint;
         { float Le = dot(outgoingLight, vec3(.3, .59, .11)), be = max(dot(dc * tint, vec3(.3, .59, .11)), .04), ke = Le / be;   // more 3-D: deeper, cooler shade; warm light on lit faces
