@@ -2087,7 +2087,7 @@ function personHair(inner, o) {
     putLock(pts, .03, .018, k ? 2 : 0); }
   // round the back and crown: short layered locks, or a fall of waves
   const nB = o.back || hair === 'wavy' ? 11 : hair === 'curly' ? 0 : 7, len = hair === 'bob' ? .14 : hair === 'long' ? .36 : hair === 'wavy' ? .3 : 0, wave = hair === 'wavy' ? 1.6 : hair === 'long' ? 1 : .5;
-  for (let i = 0; i < nB; i++) { const u = i / (nB - 1), az = Math.PI - 1.55 + u * 3.1 + (rnd(i + 5) - .5) * .12, pts = [S(az * .3 + (az > 0 ? 0 : 0), 1.3, 1.06), S(az, .7, 1.1), S(az, 0, 1.13), S(az, -.55, 1.1)];
+  for (let i = 0; i < nB; i++) { const span = len ? 3.1 : 2.3, u = i / (nB - 1), az = Math.PI - span / 2 + u * span + (rnd(i + 5) - .5) * .12, pts = [S(az * .3, 1.3, 1.06), S(az, .7, 1.1), S(az, len ? 0 : .1, len ? 1.13 : 1.1), S(az, len ? -.55 : -.32, len ? 1.1 : 1.07)];   /* short cuts stay round the back of the head and end at the nape */
     if (len) { const p = pts[3], out = V(p.x, 0, p.z).normalize(); for (let k = 1; k <= 4; k++) { const t = k / 4, ph = rnd(i) * 6 + t * Math.PI * 2 * wave; pts.push(V(p.x + out.x * (.01 + .025 * Math.sin(ph)) + Math.cos(ph) * .012, p.y - len * t, p.z + out.z * (.01 + .025 * Math.sin(ph)))); }
       if (hair === 'bob') { const q = pts[pts.length - 1]; pts.push(V(q.x * .9, q.y - .02, q.z * .9)); } }   // a bob turns under at the ends
     putLock(pts, .04 + rnd(i * 2) * .012, len ? .02 : .025, [1, 0, 3, 2][i % 4], 1.04, .45); }
