@@ -2162,7 +2162,7 @@ function buildPerson(L) {
   // head and face
   const HR = .165, HY = .96;
   const headShape = L.headShape || (build === 'broad' || build === 'heavy' ? ['square', 'soft', 'round'] : ['oval', 'heart', 'round', 'soft', 'oval'])[(seed >>> 19) % (build === 'broad' || build === 'heavy' ? 3 : 5)];
-  add(animeHead(HR, headShape), skin, [0, HY, 0], { ink:1.08, sc:[.98, 1.06, .98] });
+  add(animeHead(HR, headShape), skin, [0, HY, 0], { ink:1.08, sc:[.98, 1.06, .98] }).userData.isHead = true;
   const blk = new THREE.MeshBasicMaterial({ color:0x1b1512 }), wht = new THREE.MeshBasicMaterial({ color:0xfffaf0 });
   const fm = (geo, mat, x, y, z, sc, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sc) m.scale.set(...sc); m.rotation.z = rz; inner.add(m); return m; };
   const eyeC = L.eyes ? new THREE.MeshBasicMaterial({ color:new THREE.Color(L.eyes) }) : blk, fs = L.face === 'content' ? 2 : L.face === 'neutral' ? 5 : seed % 5;   // face 2: level brows and a small smile; 5: level brows, straight mouth
@@ -2180,7 +2180,7 @@ function buildPerson(L) {
     const lash = new THREE.Mesh(new THREE.TorusGeometry(.03, .0055, 5, 14, Math.PI * .85), lashM); lash.position.set(sx * EX, EY + .003, EZ + .01); lash.rotation.set(0, 0, Math.PI * .075); lash.scale.set(1.05, 1.05, .5); inner.add(lash);
     fm(new THREE.BoxGeometry(.016, .006, .008), lashM, sx * (EX + .03), EY + .012, EZ + .004, null, sx * .55);                      // the flick at the outer corner
     fm(new THREE.BoxGeometry(.03, .004, .006), new THREE.MeshBasicMaterial({ color:new THREE.Color(skin).multiplyScalar(.62) }), sx * EX, EY - .034, EZ + .004);   // lower lid
-    fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, 1.006 + (fs % 2) * .005, .148, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]);   // brows, thin and high
+    { const bm = fm(new THREE.BoxGeometry(.044, .008, .01), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.brow || L.hair || '#2a1a10').multiplyScalar(.7) }), sx * .064, 1.006 + (fs % 2) * .005, .148, null, sx * [.12, -.18, .05, .25, -.08, .02][fs]); (inner.userData.brows = inner.userData.brows || []).push({ m:bm, sx, y:bm.position.y, r:bm.rotation.z }); }   // brows, thin and high
   }
   if (L.eyes) for (const sx of [-1, 1]) { const o = glow(L.eyes, .1, .85); o.position.set(sx * .059, .962, .17); inner.add(o); }
   if (L.snout) {          // a dragon's muzzle: long, tapering, flat on top, nostrils at the tip; a brow ridge and swept-back horns
@@ -2194,7 +2194,11 @@ function buildPerson(L) {
     for (let i = 0; i < 4; i++) add(new THREE.ConeGeometry(.018, .05, 4), dk, [0, 1.11 - i * .045, -.1 - i * .035], { rot:[-.6, 0, 0] });          // crest down the back of the head
     fm(new THREE.BoxGeometry(.1, .005, .01), blk, 0, .895, .245); }
   else { fm(new THREE.SphereGeometry(.012, 8, 6), toon(new THREE.Color(skin).multiplyScalar(.85), { wash:2 }), 0, .92, .163, [.8, 1, .9]);
-    if (fs === 5) fm(new THREE.BoxGeometry(.03, .005, .008), blk, 0, .888, .158); else fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .888 + (fs > 2 ? -.008 : .008), .156, null, fs > 2 ? 0 : Math.PI); }
+    // every face has four mouths ready, one shown: neutral, smile, frown and open (h48 swaps them as people talk)
+    const mouths = { neutral:fm(new THREE.BoxGeometry(.03, .005, .008), blk, 0, .888, .158), smile:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .896, .156, null, Math.PI),
+      frown:fm(new THREE.TorusGeometry(.018, .005, 5, 12, Math.PI), blk, 0, .876, .156), open:fm(new THREE.SphereGeometry(.014, 10, 8), new THREE.MeshBasicMaterial({ color:0x3a1a18 }), 0, .886, .155, [1.1, .8, .4]) };
+    const def = fs === 5 ? 'neutral' : fs > 2 ? 'frown' : 'smile'; for (const k in mouths) mouths[k].visible = k === def;
+    inner.userData.mouths = mouths; inner.userData.mouthDef = def; }
   // hair (27 Nov, third pass): a shell that hugs the head with a real hairline (no bald spots, nothing poking through
   // hats), then soft flattened locks laid over it in three shades of the hair colour: a swept fringe, locks over the
   // temples, and, for longer styles, waves or curls falling down the back. No spikes, no cones.
@@ -16235,6 +16239,68 @@ function crateOrBarrel(x, y, gy, r) {
 const PAVE_STYLE = { JOY:1, HOPE:8, CALM:2, CONFIDENCE:3, SURPRISE:4, SADNESS:5, FEAR:7, SHAME:6, DISGUST:7, ANGER:9 };
 function paveStyle(M) { if (!M) return 0; if (M.kind === 'hub') return 0; if (M.kind === 'route' || M.kind === 'region') return 10; if (M.kind === 'still') return 2; return PAVE_STYLE[M.vibe] ?? 1; }
 { const _bw = buildWorld; buildWorld = function (...a) { try { WASH.pave.value = paveStyle(MAPS[a[0] || S.map]); } catch (e) {} return _bw.apply(this, a); }; }
+// ---------------------------------------------------------------- faces that follow the conversation (27 Nov)
+// 1. Beards get a mouth: if a beard (anything in the hair's colour) covers where the mouth would be, the mouths move to
+//    its surface and a dark lip-gap opens in the beard round them, so a bearded face reads as a face, not a mask.
+// 2. Every line of dialogue sets the speaker's face: a smile, a frown, a scowl or an open "oh". It's read from the line
+//    itself, and a few moments are written in by hand, including how someone else reacts (Brand frowns the moment
+//    Morwen says the rabbit set his paper ball on fire). When the conversation ends, faces go back to normal.
+function beardMouth(p, L) {
+  const inner = p.children[0], M = inner && inner.userData.mouths; if (!M) return;
+  const hairs = [L.hair, L.beard, L.beardC].filter(Boolean).map(c => new THREE.Color(c)), pt = new THREE.Vector3(0, .888, .1), box = new THREE.Box3();
+  inner.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(inner.matrixWorld).invert(); let front = -1;
+  inner.traverse(o => { if (!o.isMesh || o.userData.isHead || Object.values(M).includes(o) || !o.material || !o.material.color || o.material.side === THREE.DoubleSide) return;
+    if (!hairs.some(h => h.equals ? Math.abs(h.r - o.material.color.r) + Math.abs(h.g - o.material.color.g) + Math.abs(h.b - o.material.color.b) < .08 : false)) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); box.copy(o.geometry.boundingBox).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    if (pt.x >= box.min.x && pt.x <= box.max.x && pt.y >= box.min.y && pt.y <= box.max.y && box.max.z > .16) front = Math.max(front, box.max.z); });
+  if (front < 0) return;
+  const z = Math.min(front, .26);
+  const gap = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.skin || '#c89070').multiplyScalar(.55) }));
+  gap.scale.set(.026, .016, .006); gap.position.set(0, .887, z - .001); inner.add(gap);                                       // the opening in the beard
+  const lip = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ color:new THREE.Color(L.skin || '#c89070').lerp(new THREE.Color('#a8504a'), .4) }));
+  lip.scale.set(.022, .006, .005); lip.position.set(0, .878, z + .001); inner.add(lip);                                    // a bit of lower lip
+  for (const k in M) M[k].position.z = z + .004;
+}
+{ const _bp = buildPerson; buildPerson = function (L) { const p = _bp(L); try { if (L && !L.snout) beardMouth(p, L); } catch (e) {} return p; }; }
+
+function setFace(g, mood) {
+  const inner = g && (g.userData.inner || g.children[0]); if (!inner) return; const M = inner.userData.mouths; if (!M) return;
+  const want = mood === 'happy' ? 'smile' : mood === 'sad' || mood === 'angry' ? 'frown' : mood === 'surprised' ? 'open' : mood === 'neutral' ? 'neutral' : inner.userData.mouthDef;
+  for (const k in M) M[k].visible = k === want;
+  for (const b of inner.userData.brows || []) {
+    const r = mood === 'sad' ? -b.sx * .32 : mood === 'angry' ? b.sx * .38 : mood === 'surprised' ? b.sx * .05 : mood === 'happy' ? b.sx * .12 : b.r;
+    const y = mood === 'surprised' ? b.y + .012 : mood === 'angry' ? b.y - .006 : mood === 'sad' ? b.y + .004 : b.y;
+    b.m.rotation.z = r; b.m.position.y = y; }
+  inner.userData.mood = mood;
+}
+// a line's feeling, from its words
+function moodOf(text) {
+  const t = String(text).replace(/\([^)]*\)/g, ' ');
+  if (/\b(hate|furious|how dare|shut up|get out|idiot|enough!|stop it|do not|don't you dare)\b|[A-Z]{4,}/.test(t)) return 'angry';
+  if (/\b(sorry|please|not the|anything but|i miss|lost|gone|afraid|scared|ugh|sigh|why does|can't|won't|didn't|wasn't|no\b|never again|burn|on fire|dead|died|cry|tears)\b|\.\.\./i.test(t)) return 'sad';
+  if (/^\s*(oh!|what\?|wait|huh)|\?!|!\?/i.test(t)) return 'surprised';
+  if (/!|\b(haha|ha|thanks|thank you|love|great|yes|yay|good|nice|welcome|hello|hi|brilliant|perfect|respect)\b/i.test(t)) return 'happy';
+  return null;
+}
+// moments written in by hand: [line pattern, who (null = whoever's speaking), mood]
+const FACE_RULES = [
+  [/ball of paper|paper ball. To kick/i, 'Brand', 'happy'],
+  [/sets it on fire/i, 'Brand', 'sad'], [/sets it on fire/i, 'Morwen', 'happy'],
+  [/swamp/i, 'Tam', 'sad'],
+  [/Tam, put your hand down/i, 'Morwen', 'happy'],
+];
+const FACED = new Set();
+function entByName(name) { if (!name) return null; const n = name.toLowerCase();
+  return (ents(S.map) || []).find(e => (e.name && e.name.toLowerCase() === n) || (e.look && e.look.kit === n)) || null; }
+function faceFor(name, mood) { const e = name ? entByName(name) : TALKING; if (!e) return; const g = W.npcs[e.id]; if (!g) return; setFace(g, mood); FACED.add(g); }
+{ const _sd = setDlg; setDlg = function (text, hold) { _sd(text, hold);
+  try { if (scene !== 'world' || !S) return; const raw = fillP(String(text)), m = /^([A-Z][a-zA-Z']{1,13}): /.exec(raw), who = m ? m[1] : null, body = m ? raw.slice(m[0].length) : raw;
+    let handled = new Set();
+    for (const [re, name, mood] of FACE_RULES) if (re.test(body)) { const n = name || who; if (!n) continue; if (name === null || !who || who === name || name !== who) { faceFor(n, mood); handled.add(n); } }
+    const spk = who || (TALKING && TALKING.name) || null;
+    if (!handled.has(spk)) { const mood = moodOf(body); if (mood || who) { if (who) faceFor(who, mood || 'default'); else if (TALKING) faceFor(null, mood || 'default'); } }
+  } catch (e) {} }; }
+{ const _rt = rideTick; rideTick = function (dt) { _rt(dt); if (!UI.dlg && FACED.size) { for (const g of FACED) setFace(g, 'default'); FACED.clear(); } }; }
 // =============================================================================
 //  BATTLE — Chorus vs one Manif, on the emotion wheel
 // =============================================================================
