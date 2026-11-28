@@ -2081,7 +2081,7 @@ function personHair(inner, o) {
     putLock(pts, .034 + rnd(i) * .008, .018, [1, 2, 3, 1, 2, 0][i % 6]); }
   // over the temples, down to the ear (short) or the jaw (longer)
   const sideDrop = o.back ? (hair === 'bob' ? -.75 : -1.4) : hair === 'curly' ? 0 : -.08;
-  if (hair !== 'curly' && o.back) for (const sx of [-1, 1]) for (let k = 0; k < 2; k++) {   // longer hair only: short cuts end at the shell's hairline, no loose patches on the cheeks const az = sx * (1.18 + k * .22), y0 = .85, y1 = sideDrop + k * .12;
+  if (hair !== 'curly' && o.back) for (const sx of [-1, 1]) for (let k = 0; k < 2; k++) { /* longer hair only: short cuts end at the shell's hairline, no loose patches on the cheeks */ const az = sx * (1.18 + k * .22), y0 = .85, y1 = sideDrop + k * .12;
     const pts = [S(az * .7, 1.05, 1.08), S(az, y0, 1.1), S(az + sx * .05, (y0 + Math.max(y1, -.3)) / 2, 1.12), S(az + sx * .02, Math.max(y1, -.3), 1.1)];
     if (y1 < -.3) { const p = pts[3]; for (const dy of [.12, .26, .4].filter(d => d < -y1 * HR * 1.4)) pts.push(V(p.x * (1 + .05 * Math.sin(dy * 30)), p.y - dy, p.z + .02)); }
     putLock(pts, .03, .018, k ? 2 : 0); }
